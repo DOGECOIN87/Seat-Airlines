@@ -549,6 +549,17 @@ html {
   box-shadow: inset 3px 3px 9px rgba(0, 70, 135, 0.45), inset -2px -2px 7px rgba(255, 255, 255, 0.22);
 }
 .sa-cta:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+/* In the gate sign: the same button, sized to sit level with the brand. */
+.sa-cta--bar {
+  gap: 0.45rem;
+  padding: 0.7rem 1.2rem;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  box-shadow:
+    -3px -3px 8px rgba(255, 255, 255, 0.7),
+    4px 6px 14px rgba(0, 105, 194, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
 
 /* The unfilled twin: extruded out of the panel in the panel's own
    colour, so the pair reads as one control that is on and one that
@@ -2311,18 +2322,17 @@ p { text-wrap-style: pretty; }
   --e:       -6px -6px 16px var(--lit),   7px 7px 18px var(--shade);
   --e-lg:    -12px -12px 30px var(--lit), 14px 14px 34px var(--shade);
 }
-/* The ghost button on navy: a quiet glass pill, not a lit plastic one. */
-.sa-hero > div:not(.sa-cockpit) .sa-ghost {
-  background: rgba(255, 255, 255, 0.08);
-  color: #E8EEF6;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
-}
-.sa-hero > div:not(.sa-cockpit) .sa-ghost:hover { background: rgba(255, 255, 255, 0.14); color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34); }
 
 /* ── Controls: one height per tier, and touchable ─────────────
    Primary actions 48px; chips and pills 36px with pointer, 44px
    on touch. Buttons that share a row now share a height. */
 .sa-cta, .sa-ghost { min-height: 3rem; }
+/* Except the gate sign's: it keeps its own size, beside the brand on a
+   phone rather than stretched across a row of its own. */
+.sa-topbar .sa-cta--bar { flex: none; min-height: 2.5rem; }
+@media (max-width: 639px) {
+  .sa-topbar .sa-cta--bar { padding: 0.55rem 0.95rem; font-size: 11px; letter-spacing: 0.06em; }
+}
 .sa-chip, .ui-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 2.25rem; }
 .sa-ca__copy, .sa-pump { min-height: 2rem; display: inline-flex; align-items: center; }
 @media (pointer: coarse) {
@@ -2925,6 +2935,123 @@ p { text-wrap-style: pretty; }
   color: rgba(214, 228, 242, 0.72);
 }
 
+/* ── The splash ────────────────────────────────────────────────
+   The first thing on the screen: the departure board in the middle of
+   the night, boarding the airline's line. It holds a moment once the
+   last flap lands, then fades onto the landing, and the landing's words
+   rise in underneath it as it goes — held back until then, so they are
+   not over before anybody can see them. */
+.sa-splash {
+  /* The board's drop, on a night ground rather than a lit panel. */
+  --e-lg: 0 1px 0 rgba(255, 255, 255, 0.1) inset, 0 26px 64px rgba(0, 0, 0, 0.62);
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: clamp(1.1rem, 3.2vh, 1.9rem);
+  padding: 1rem;
+  background:
+    radial-gradient(56rem 36rem at 50% 46%, rgba(26, 42, 70, 0.85), rgba(26, 42, 70, 0) 72%),
+    #05070F;
+  cursor: pointer;
+  transition: opacity 0.8s ease;
+}
+.sa-splash.is-fading { opacity: 0; pointer-events: none; }
+.sa-splash__board {
+  width: min(88vw, 40rem);
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sa-splash.is-fading .sa-splash__board { transform: scale(1.06); }
+.sa-splash__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(214, 228, 242, 0.72);
+  animation: sa-landing-fade 0.6s ease 0.3s both;
+}
+.sa-landing.is-splash :is(.sa-landing__hero, .sa-pilots) { animation-play-state: paused; }
+
+/* ── Before take-off: a word about the board ─────────────────── */
+.sa-preflight {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(4, 7, 14, 0.42);
+  animation: sa-landing-fade 0.25s ease both;
+}
+.sa-preflight__card {
+  display: grid;
+  gap: 0.8rem;
+  width: min(100%, 26rem);
+  padding: 1.5rem 1.5rem 1.3rem;
+  border-radius: 20px;
+  background: rgba(8, 12, 22, 0.84);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 24px 60px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  animation: sa-landing-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sa-preflight__eyebrow,
+.sa-preflight__fine {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.sa-preflight__eyebrow { color: #7FE3F7; font-weight: 600; }
+.sa-preflight__title {
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+.sa-preflight__text { font-size: 0.98rem; line-height: 1.55; color: rgba(232, 240, 250, 0.86); }
+.sa-preflight__note { font-size: 0.88rem; line-height: 1.5; color: #FFB0A8; }
+.sa-preflight__actions { display: grid; gap: 0.6rem; margin-top: 0.3rem; }
+.sa-preflight__connect,
+.sa-preflight__skip {
+  min-height: 3.2rem;
+  border-radius: 999px;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease, background-color 0.15s ease, opacity 0.2s ease;
+}
+.sa-preflight__connect {
+  background: var(--g-accent);
+  color: #fff;
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  box-shadow: 0 12px 32px rgba(0, 150, 235, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.sa-preflight__connect:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
+.sa-preflight__skip {
+  background: rgba(255, 255, 255, 0.08);
+  color: #EAF2FB;
+  font-size: 0.85rem;
+  letter-spacing: 0.16em;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.26);
+}
+.sa-preflight__skip:hover:not(:disabled) { background: rgba(255, 255, 255, 0.15); }
+.sa-preflight__connect:disabled,
+.sa-preflight__skip:disabled { opacity: 0.6; cursor: progress; }
+.sa-preflight__connect:focus-visible,
+.sa-preflight__skip:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.sa-preflight__fine { color: rgba(214, 228, 242, 0.6); font-size: 10.5px; letter-spacing: 0.06em; text-transform: none; line-height: 1.5; }
+
 /* ── The instruments, while somebody flies it ───────────────── */
 .sa-hud { position: absolute; inset: 0; pointer-events: none; }
 .sa-hud__top {
@@ -3258,10 +3385,10 @@ p { text-wrap-style: pretty; }
   100% { opacity: 0; transform: translate(-50%, -28px); }
 }
 
-/* ── The board ─────────────────────────────────────────────────
-   Top pilots, on the landing: a glass card on the right of a wide screen,
+/* ── Top pilots ─────────────────────────────────────────────────
+   The leaderboard, on the landing: a glass card on the right of a wide screen,
    the leader alone along the top of a phone's. */
-.sa-board {
+.sa-pilots {
   position: absolute;
   right: clamp(1rem, 3vw, 2.25rem);
   bottom: max(clamp(2rem, 7vh, 4.5rem), calc(env(safe-area-inset-bottom) + 1.25rem));
@@ -3274,20 +3401,20 @@ p { text-wrap-style: pretty; }
   backdrop-filter: blur(10px);
   animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
 }
-.sa-board__title,
-.sa-board__mine,
-.sa-board__empty {
+.sa-pilots__title,
+.sa-pilots__mine,
+.sa-pilots__empty {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.6);
 }
-.sa-board__title { color: #7FE3F7; font-weight: 600; }
-.sa-board__empty { margin-top: 0.5rem; letter-spacing: 0.08em; text-transform: none; line-height: 1.5; }
-.sa-board__mine { margin-top: 0.6rem; }
-.sa-board__list { display: grid; gap: 0.25rem; margin-top: 0.55rem; }
-.sa-board__list li {
+.sa-pilots__title { color: #7FE3F7; font-weight: 600; }
+.sa-pilots__empty { margin-top: 0.5rem; letter-spacing: 0.08em; text-transform: none; line-height: 1.5; }
+.sa-pilots__mine { margin-top: 0.6rem; }
+.sa-pilots__list { display: grid; gap: 0.25rem; margin-top: 0.55rem; }
+.sa-pilots__list li {
   display: grid;
   grid-template-columns: 1.4rem minmax(0, 1fr) auto;
   align-items: baseline;
@@ -3296,22 +3423,22 @@ p { text-wrap-style: pretty; }
   font-size: 13px;
   color: rgba(255, 255, 255, 0.88);
 }
-.sa-board__list li.is-you { color: #7FE3F7; }
-.sa-board__rank { color: rgba(255, 255, 255, 0.45); font-size: 11px; }
-.sa-board__list li:first-child .sa-board__rank { color: #FFC940; }
-.sa-board__who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sa-board__score { font-variant-numeric: tabular-nums; font-weight: 600; }
+.sa-pilots__list li.is-you { color: #7FE3F7; }
+.sa-pilots__rank { color: rgba(255, 255, 255, 0.45); font-size: 11px; }
+.sa-pilots__list li:first-child .sa-pilots__rank { color: #FFC940; }
+.sa-pilots__who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-pilots__score { font-variant-numeric: tabular-nums; font-weight: 600; }
 @media (max-width: 899px) {
-  .sa-board {
+  .sa-pilots {
     top: calc(max(1rem, env(safe-area-inset-top)) + 4.4rem);
     bottom: auto;
     width: auto;
     left: clamp(1rem, 3vw, 2.25rem);
     padding: 0.55rem 0.8rem;
   }
-  .sa-board__list { margin-top: 0.3rem; }
-  .sa-board__list li:nth-child(n + 2),
-  .sa-board__mine { display: none; }
+  .sa-pilots__list { margin-top: 0.3rem; }
+  .sa-pilots__list li:nth-child(n + 2),
+  .sa-pilots__mine { display: none; }
 }
 
 /* ── After the crash: the score, and the way onto the board ──── */
@@ -3489,7 +3616,8 @@ p { text-wrap-style: pretty; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sa-landing__hero, .sa-landing__end { animation: none; }
+  .sa-landing__hero, .sa-landing__end, .sa-preflight__card { animation: none; }
+  .sa-splash.is-fading .sa-splash__board { transform: none; }
   .sa-landing__enter::after { animation: none; opacity: 0; }
   .sa-landing.is-crashed .sa-landing__scene,
   .sa-landing.is-failing .sa-landing__scene,

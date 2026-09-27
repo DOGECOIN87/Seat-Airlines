@@ -17,9 +17,9 @@ import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from '
  * second of a component whose props never change.
  *
  * The board is a picture of words, not the words. It is hidden from assistive
- * technology, and the heading it sits in carries its text — a heading that
- * read out a different phrase on every visit, or half a letter mid-turn,
- * would be worse than a fixed one.
+ * technology, and whatever it sits in carries its text — a heading that read
+ * out a different phrase on every visit, or half a letter mid-turn, would be
+ * worse than a fixed one.
  */
 
 /**
@@ -207,10 +207,18 @@ const Flap = ({ at }: { at: number }) => (
 interface SplitFlapBoardProps {
   /** What the board turns through, in order. Each is one line per row. */
   phrases: readonly (readonly string[])[];
+  /** Called each time a phrase is up and its last flap has landed, with the phrase's index. */
+  onLanded?: (index: number) => void;
 }
 
-const SplitFlapBoard = memo(function SplitFlapBoard({ phrases }: SplitFlapBoardProps) {
+const SplitFlapBoard = memo(function SplitFlapBoard({ phrases, onLanded }: SplitFlapBoardProps) {
   const board = useRef<HTMLSpanElement>(null);
+  /* Held in a ref, so a new callback on every render of the parent does not
+     restart the board. */
+  const landedRef = useRef(onLanded);
+  useEffect(() => {
+    landedRef.current = onLanded;
+  }, [onLanded]);
   /* Read once, the way the instruments read it. Asking for less motion
      stops the flaps, not the words: the board still changes phrase on the
      same schedule, each one simply appearing where the last one stood. The
@@ -308,7 +316,10 @@ const SplitFlapBoard = memo(function SplitFlapBoard({ phrases }: SplitFlapBoardP
         if (d.state !== 'idle') moving = true;
       }
       if (moving) raf = requestAnimationFrame(frame);
-      else queue(holdFor(shown.current));
+      else {
+        landedRef.current?.(shown.current);
+        queue(holdFor(shown.current));
+      }
     };
 
     function show(index: number) {
@@ -320,6 +331,7 @@ const SplitFlapBoard = memo(function SplitFlapBoard({ phrases }: SplitFlapBoardP
           print(d, UPPER, d.at);
           print(d, LOWER, d.at);
         }
+        landedRef.current?.(index);
         queue(holdFor(index));
         return;
       }
@@ -360,6 +372,8 @@ const SplitFlapBoard = memo(function SplitFlapBoard({ phrases }: SplitFlapBoardP
     const onVisibility = () => (document.hidden ? sleep() : wake());
     document.addEventListener('visibilitychange', onVisibility);
     if (!observer) wake();
+    // Without motion the first phrase is up from the start, so it has already landed.
+    if (still && shown.current >= 0) landedRef.current?.(shown.current);
 
     return () => {
       cancelAnimationFrame(raf);

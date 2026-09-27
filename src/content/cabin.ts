@@ -244,27 +244,15 @@ export const CALLOUTS = {
 } as const;
 
 /* ── The departure board ──────────────────────────────────────────────────
-   The split-flap board at the top of the page turns through these in order,
-   then starts again. The first is the airline's own line: the board boards
-   it first and holds it longest. Anybody who has asked their device for
-   reduced motion sees every phrase too, changing without the flaps turning.
+   The splash. When the site first loads, a split-flap board in the middle of
+   the screen boards the airline's line, holds it a moment, and fades away
+   onto the aeroplane. These are its rows, top to bottom: one line or two.
 
-   Each entry is the board's rows, top to bottom: one line or two. The board
-   is as wide as the longest line in this list, so one long line shrinks every
-   flap on it — ten characters keeps them big enough to read on a phone. The
-   drums carry A–Z, 0–9 and  + - / : ( ) % . , ! ? & $ '  and anything else
-   comes up blank. */
-export const BOARD_PHRASES: readonly (readonly string[])[] = [
-  ['HOLD MORE', 'FLY HIGHER'],
-  ['TAKE A', 'SEAT'],
-  ['NETWORK'],
-  ['BUILD'],
-  ['RELAX'],
-  ['ADVERTISE'],
-  ['MOVE UP'],
-  ['NOW', 'BOARDING'],
-  ['TO THE', 'MOON'],
-];
+   The board is as wide as the longer row, so a long row shrinks every flap on
+   it — ten characters keeps them big enough to read on a phone. The drums
+   carry A–Z, 0–9 and  + - / : ( ) % . , ! ? & $ '  and anything else comes up
+   blank. */
+export const SPLASH_LINE: readonly string[] = ['HOLD MORE', 'FLY HIGHER'];
 
 /* ── Turning your head ────────────────────────────────────────────────────
    What is beside you is not the same for every seat. From 8A the window is

@@ -4,7 +4,7 @@ description: One plane. Everyone's in it. Your bag is your seat.
 
 # Welcome aboard
 
-![The departure board at the top of seat-airlines.space](.gitbook/assets/departure-board.png)
+![The departure board seat-airlines.space opens on](.gitbook/assets/departure-board.png)
 
 **Seat Airlines** is a flight simulator flown by one number. The aircraft's altitude and attitude are read live from the market for its token, so the aeroplane on your screen _is_ the chart. Inside it are 178 seats, and they go to the biggest holders, in order.
 

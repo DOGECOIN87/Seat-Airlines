@@ -1,6 +1,8 @@
 import { createRef, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import Mark from './Mark';
+import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
+import { SPLASH_LINE } from '../content/cabin';
 import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
@@ -25,6 +27,10 @@ const LandingScene = lazy(() => import('./LandingScene'));
  * where an engine blows. It is scored (see `scoring.ts`), the best scores go
  * on a board any Solana wallet can sign its way onto, and when the aeroplane
  * meets the ground it goes in on its own.
+ *
+ * Before any of it, for a few seconds, the splash: the departure board in the
+ * middle of the screen, boarding the airline's line, then fading onto the
+ * aeroplane — which has had those seconds to get its engines going.
  */
 
 interface LandingProps {
@@ -91,6 +97,17 @@ const WASTED_FROM = 1.2;
 
 const deadZone = (v: number) => (Math.abs(v) < DEAD_ZONE ? 0 : v);
 
+/** The splash's one phrase, the way the board takes its phrases. */
+const SPLASH = [SPLASH_LINE];
+/** How long the line stays up once its last flap has landed, ms. */
+const SPLASH_HOLD = 1100;
+/** How long, from the start, the splash will wait for the aeroplane behind it to be ready. */
+const SPLASH_WAIT = 6000;
+/** Past this it goes whatever the board is doing: a background tab, a board that never started. */
+const SPLASH_GIVE_UP = 9000;
+/** The fade onto the landing; `.sa-splash` times its transition to it. */
+const SPLASH_FADE = 800;
+
 export default function Landing({ feed, sky, band, marketCap, controls, taken, wallet, onEnter }: LandingProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [ready, setReady] = useState(false);
@@ -122,6 +139,50 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   }));
   const sounds = useRef<LandingSounds | null>(null);
   const [touch] = useState(() => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
+
+  /* The splash. It goes once the line has landed on the board and held —
+     and once the aeroplane behind it is ready, within reason — or at the
+     first tap or key, which does nothing else. */
+  const [splash, setSplash] = useState<'on' | 'fading' | 'off'>('on');
+  const [landedAt, setLandedAt] = useState<number | null>(null);
+  const splashFrom = useRef(0);
+  const splashUp = useRef(true);
+  useEffect(() => {
+    splashFrom.current = performance.now();
+  }, []);
+  useEffect(() => {
+    splashUp.current = splash === 'on';
+  }, [splash]);
+  const onSplashLanded = useCallback(() => setLandedAt((at) => at ?? performance.now()), []);
+  const clearSplash = useCallback(() => setSplash((s) => (s === 'on' ? 'fading' : s)), []);
+  useEffect(() => {
+    if (splash !== 'on') return;
+    let due = splashFrom.current + SPLASH_GIVE_UP;
+    if (landedAt !== null) {
+      const held = landedAt + SPLASH_HOLD;
+      due = Math.min(due, ready || failed ? held : Math.max(held, splashFrom.current + SPLASH_WAIT));
+    }
+    const id = window.setTimeout(clearSplash, Math.max(0, due - performance.now()));
+    return () => window.clearTimeout(id);
+  }, [splash, landedAt, ready, failed, clearSplash]);
+  useEffect(() => {
+    if (splash !== 'fading') return;
+    const id = window.setTimeout(() => setSplash('off'), SPLASH_FADE);
+    return () => window.clearTimeout(id);
+  }, [splash]);
+
+  /* Before a take-off with no wallet connected, a word about the board: a
+     score needs a wallet to go on it, so the game offers to connect one
+     first — or to fly without, after which it stops asking. Nobody without
+     a wallet installed is asked, and neither is a practice run. */
+  const [preflight, setPreflight] = useState<'off' | 'ask' | 'connecting'>('off');
+  const [preflightNote, setPreflightNote] = useState<string | null>(null);
+  const preflightOpen = useRef(false);
+  useEffect(() => {
+    preflightOpen.current = preflight !== 'off';
+  }, [preflight]);
+  const flewWithout = useRef(false);
+  const boardOpen = !practice && hasBoard && board !== null;
 
   /* Going in fades the landing out first, so the site arrives from black
      rather than cutting in. Once only, however many ways it is asked. */
@@ -160,14 +221,40 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     sounds.current = { blast: load('engine-blast.mp3', 0.9), wasted: load('wasted.mp3', 1), crowd: load('crash-crowd.mp3', 0.9) };
   };
 
-  const start = useCallback(() => {
+  const takeOff = useCallback(() => {
     const g = game.current;
     if (!ready || g.phase !== 'idle' || gone.current) return;
     makeSounds();
+    setPreflight('off');
     g.phase = 'intro';
     g.phaseAt = performance.now();
     setPhase('intro');
   }, [ready]);
+  const start = useCallback(() => {
+    if (!ready || game.current.phase !== 'idle' || gone.current) return;
+    if (boardOpen && !wallet.address && !wallet.unavailable && !flewWithout.current) {
+      // Made now, inside the click or key: the take-off may come after the wallet, outside it.
+      makeSounds();
+      setPreflightNote(null);
+      setPreflight((p) => (p === 'off' ? 'ask' : p));
+      return;
+    }
+    takeOff();
+  }, [ready, boardOpen, wallet.address, wallet.unavailable, takeOff]);
+  const connectAndFly = useCallback(async () => {
+    setPreflight('connecting');
+    setPreflightNote(null);
+    if (await wallet.connect()) {
+      takeOff();
+      return;
+    }
+    setPreflight('ask');
+    setPreflightNote('No wallet connected. Try again, or fly without it: you can still connect one when you land.');
+  }, [wallet, takeOff]);
+  const flyWithout = useCallback(() => {
+    flewWithout.current = true;
+    takeOff();
+  }, [takeOff]);
 
   const onReady = useCallback(() => setReady(true), []);
   const onFail = useCallback(() => setFailed(true), []);
@@ -213,8 +300,9 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   }, []);
 
   /* Posting a score. Wanting to post stops the site taking over on its own;
-     a wallet is connected if there is none yet, then asked to sign a short
-     message naming the score — never a transaction. */
+     a wallet is connected if there is none yet (the preflight will usually
+     have seen to that), then asked to sign a short message naming the
+     score — never a transaction. */
   const signAndPost = useCallback(async (address: string) => {
     if (!result || !runId.current) return;
     setPost({ state: 'signing' });
@@ -239,14 +327,10 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       return;
     }
     setPost({ state: 'connecting' });
-    await wallet.connect();
+    const address = await wallet.connect();
+    if (address) void signAndPost(address);
+    else setPost({ state: 'error', message: 'No wallet connected, so nothing was posted.' });
   }, [wallet, signAndPost]);
-  // Connected at last: sign and post. A refused connection is reported rather than waited on.
-  useEffect(() => {
-    if (post.state !== 'connecting') return;
-    if (wallet.address) void signAndPost(wallet.address);
-    else if (wallet.error && !wallet.connecting) setPost({ state: 'error', message: wallet.error });
-  }, [post.state, wallet.address, wallet.error, wallet.connecting, signAndPost]);
 
   /* The keys. An arrow on the landing takes the controls straight away —
      the hint says to press one — Escape goes in at any point in the game,
@@ -264,6 +348,17 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     };
     const down = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (splashUp.current) {
+        // A key on the splash clears it, and does nothing else.
+        if (KEYS[e.code] || e.key === 'Enter' || e.key === ' ') e.preventDefault();
+        clearSplash();
+        return;
+      }
+      if (preflightOpen.current) {
+        // The card has the focus and its buttons take Enter; Escape puts it away.
+        if (e.key === 'Escape') setPreflight('off');
+        return;
+      }
       if (KEYS[e.code]) {
         e.preventDefault();
         held.add(e.code);
@@ -289,7 +384,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', drop);
     };
-  }, [start, leave]);
+  }, [start, leave, clearSplash]);
 
   /* The stick, for a touch screen (or a mouse): press anywhere and drag.
      Up climbs, down dives, sideways banks, measured from where the press
@@ -337,7 +432,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   return (
     <div
       className={`sa-landing is-${phase}${leaving ? ' is-leaving' : ''}${ready ? ' is-ready' : ''}${
-        failure ? ' is-failing' : ''}${blasted ? ' is-blast' : ''}`}
+        failure ? ' is-failing' : ''}${blasted ? ' is-blast' : ''}${splash === 'on' ? ' is-splash' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={letGo}
@@ -378,7 +473,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
         </span>
       </header>
 
-      {!inGame && (
+      {!inGame && preflight === 'off' && (
         <main className="sa-landing__hero">
           <h1 className="sa-landing__title">
             Hold more.
@@ -412,23 +507,52 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
           )}
         </main>
       )}
+      {!inGame && preflight !== 'off' && (
+        <div className="sa-preflight" role="dialog" aria-modal="true" aria-labelledby="sa-preflight-title">
+          <div className="sa-preflight__card">
+            <p className="sa-preflight__eyebrow">Before you take off</p>
+            <h2 id="sa-preflight-title" className="sa-preflight__title">Fly for the board?</h2>
+            <p className="sa-preflight__text">
+              Connect a Solana wallet now, and your score can go on the leaderboard the moment you land.
+            </p>
+            {preflightNote && <p className="sa-preflight__note" role="alert">{wallet.error ?? preflightNote}</p>}
+            <div className="sa-preflight__actions">
+              <button
+                type="button"
+                onClick={() => void connectAndFly()}
+                disabled={preflight === 'connecting'}
+                className="sa-preflight__connect"
+                autoFocus
+              >
+                {preflight === 'connecting' ? 'Check your wallet…' : 'Connect & fly'}
+              </button>
+              <button type="button" onClick={flyWithout} disabled={preflight === 'connecting'} className="sa-preflight__skip">
+                Fly without
+              </button>
+            </div>
+            <p className="sa-preflight__fine">
+              Connecting shares your address and nothing else. Posting a score signs a short message — never a transaction.
+            </p>
+          </div>
+        </div>
+      )}
       {!inGame && board && (
-        <aside className="sa-board" aria-label="Top pilots">
-          <p className="sa-board__title">Top pilots</p>
+        <aside className="sa-pilots" aria-label="Top pilots">
+          <p className="sa-pilots__title">Top pilots</p>
           {board.length ? (
-            <ol className="sa-board__list">
+            <ol className="sa-pilots__list">
               {board.slice(0, 5).map((row, i) => (
                 <li key={row.address} className={row.address === wallet.address ? 'is-you' : undefined}>
-                  <span className="sa-board__rank">{i + 1}</span>
-                  <span className="sa-board__who">{shortWallet(row.address)}</span>
-                  <span className="sa-board__score">{row.score.toLocaleString('en-US')}</span>
+                  <span className="sa-pilots__rank">{i + 1}</span>
+                  <span className="sa-pilots__who">{shortWallet(row.address)}</span>
+                  <span className="sa-pilots__score">{row.score.toLocaleString('en-US')}</span>
                 </li>
               ))}
             </ol>
           ) : (
-            <p className="sa-board__empty">Nobody on the board yet. Climb to {goalFeet.toLocaleString('en-US')} ft and be first.</p>
+            <p className="sa-pilots__empty">Nobody on the board yet. Climb to {goalFeet.toLocaleString('en-US')} ft and be first.</p>
           )}
-          {best > 0 && <p className="sa-board__mine">Your best · {best.toLocaleString('en-US')}</p>}
+          {best > 0 && <p className="sa-pilots__mine">Your best · {best.toLocaleString('en-US')}</p>}
         </aside>
       )}
 
@@ -574,6 +698,25 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       <div ref={stickEl} className="sa-stick" aria-hidden>
         <div ref={knobEl} className="sa-stick__knob" />
       </div>
+
+      {splash !== 'off' && (
+        <div
+          className={`sa-splash${splash === 'fading' ? ' is-fading' : ''}`}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            clearSplash();
+          }}
+          aria-hidden
+        >
+          <div className="sa-splash__board">
+            <SplitFlapBoard phrases={SPLASH} onLanded={onSplashLanded} />
+          </div>
+          <p className="sa-splash__brand">
+            <Mark size={22} />
+            <span>Seat Airlines · SA350</span>
+          </p>
+        </div>
+      )}
     </div>
   );
 }

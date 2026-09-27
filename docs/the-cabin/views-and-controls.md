@@ -4,11 +4,13 @@ description: Outside, in a seat, on the flight deck, in the hold — and how to 
 
 # Views and controls
 
-The site opens on the aircraft **full screen**, before anything else. **Enter** goes in. Every other view is a step inward from the one the page then opens on: **outside, on the whole aircraft**.
+The site opens on a departure board in the middle of the screen, boarding the airline's line — _Hold more. Fly higher._ — then fading onto the aircraft **full screen**. A tap or any key skips it. **Enter** goes in. Every other view is a step inward from the one the page then opens on: **outside, on the whole aircraft**, right under the gate sign, whose **Claim a seat** button opens the seat map from anywhere on the page.
 
 ## Fly the plane
 
 On the way in you can take the controls. Press **Fly the plane** — or just press an arrow key — and the aircraft dives down to a few hundred metres over the hills while the camera swings round behind it. Your brief: **climb to 10,000 ft**.
+
+If you have a Solana wallet installed and none connected, the game asks first: **Connect & fly** connects it and takes off, so the score can go straight on the leaderboard when you land; **Fly without** takes off anyway, and it will not ask again that visit. Connecting shares your address and nothing else.
 
 | With | Climb / dive | Turn |
 | --- | --- | --- |
@@ -58,7 +60,7 @@ The server times every run from the moment you take the controls and refuses a s
 
 ## Getting around
 
-* **Step inside** — in the hero, or on the view itself — takes you to a seat, looking forward.
+* **Step inside** — on the view's own bar — takes you to a seat, looking forward.
 * **Walk the aircraft**, under the view: **Outside**, **Flight Deck**, **First**, **Business**, **Exit Row**, **Economy**, **Cargo hold**.
 * **Seat** — when you are in a seat, choose **Window**, **Middle** or **Aisle**.
 * **← Look left**, **Forward**, **Look right →** turn your head.

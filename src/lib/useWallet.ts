@@ -46,7 +46,8 @@ export interface WalletState {
   error: string | null;
   /** True when no wallet extension is present at all. */
   unavailable: boolean;
-  connect: () => Promise<void>;
+  /** Resolves to the address once connected, or null if it did not connect — refused, or no wallet. */
+  connect: () => Promise<string | null>;
   disconnect: () => Promise<void>;
   /**
    * Sign a plain-text challenge, returning the signature as base58.
@@ -109,12 +110,12 @@ export function useWallet(): WalletState {
       });
   }, []);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (): Promise<string | null> => {
     const found = findProvider();
     if (!found) {
       setUnavailable(true);
       setError('No Solana wallet found. Install Phantom, Solflare or Backpack, then try again.');
-      return;
+      return null;
     }
     setConnecting(true);
     setError(null);
@@ -124,10 +125,12 @@ export function useWallet(): WalletState {
       if (!key) throw new Error('The wallet connected but did not return an address.');
       setWalletName(found.name);
       setAddress(key.toString());
+      return key.toString();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       // A refused prompt is a choice, not a failure worth shouting about.
       setError(/reject|denied|cancel/i.test(message) ? null : message);
+      return null;
     } finally {
       setConnecting(false);
     }

@@ -5,14 +5,12 @@ import ViewFrame from './components/ViewFrame';
 import Annunciators from './components/Annunciators';
 import { ClimbRoute, DeckIcon, FlightReadouts, type DeckIconName } from './components/InstrumentDeck';
 import AdvertDialog from './components/AdvertDialog';
-import SplitFlapBoard from './components/SplitFlapBoard';
 import DocsLink from './components/DocsLink';
 import Landing from './components/Landing';
 import { PANELS, SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
 import type { LogEntry } from './components/RadioLog';
 import {
   ALL_SEATS,
-  BOARD_PHRASES,
   CABIN_ZONES,
   CALLOUTS,
   CHATTER,
@@ -695,7 +693,7 @@ export default function App() {
           thing that is live — you should be able to see the altitude move
           while you are reading the seat map. */}
       <header ref={topbarRef} className="sa-topbar sticky top-0 z-40">
-        <div className="mx-auto flex max-w-[94rem] flex-wrap items-center gap-x-7 gap-y-2 px-5 py-2.5 sm:px-8">
+        <div className="mx-auto flex max-w-[94rem] flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2.5 sm:gap-x-7 sm:px-8">
           <a href="#top" className="sa-brand flex shrink-0 items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ui-blue">
             <Mark size={34} title="SEAT AIRLINES" />
             <span className="whitespace-nowrap font-heading text-lg leading-none text-ui-ink">Seat Airlines</span>
@@ -704,7 +702,19 @@ export default function App() {
             </span>
           </a>
 
-          <dl className="sd-chrome ml-auto flex w-full min-w-0 items-center justify-between gap-x-7 overflow-x-auto sm:w-auto sm:max-w-[70%] sm:justify-start">
+          {/* The one call to action, where it is always on the screen: beside
+              the brand on a phone, after the figures on anything wider. */}
+          <a
+            href="#wall"
+            onClick={claimSeat}
+            onMouseEnter={prefetchSeatMap}
+            onFocus={prefetchSeatMap}
+            className="sa-cta sa-cta--bar sa-shine ml-auto shrink-0 sm:order-last sm:ml-0"
+          >
+            Claim a seat <span aria-hidden>→</span>
+          </a>
+
+          <dl className="sd-chrome flex w-full min-w-0 items-center justify-between gap-x-7 overflow-x-auto sm:ml-auto sm:w-auto sm:max-w-[62%] sm:justify-start">
             {[
               { k: 'Altitude', v: `${formatFeet(tick.marketCap)} ft`, tone: 'text-ui-deep' },
               { k: 'Market cap', v: formatCap(tick.marketCap), tone: 'text-ui-ink' },
@@ -729,53 +739,21 @@ export default function App() {
             is the sentence the product is: one plane, everyone in it. Every
             other camera on the page is a step inward from this frame.
             ══════════════════════════════════════════════════════════════ */}
-        <section className="sa-hero pt-10 sm:pt-14" aria-labelledby="hero-title">
-          {/* The label belongs to the headline, so it lives in the headline's
-              column: it can never be stranded above a gap when the column
-              beside it runs taller. It carries the live state rather than a
-              section number — the page's sections are places, not steps. */}
-          <div className="grid gap-x-14 gap-y-6 lg:grid-cols-[minmax(0,1.618fr)_minmax(0,1fr)] lg:items-end">
-            <div>
-              <p className="sa-eyebrow">
-                <span className="sa-live" aria-hidden />
-                Live · SA350 · {band.label}
-              </p>
-              {/* The board turns through the airline's lines; the heading
-                  keeps one. Assistive technology reads the fixed text, and
-                  the board beside it is a picture of words. */}
-              <h1 id="hero-title" className="sa-board-title mt-5">
-                <span className="sr-only">Hold more. Fly higher.</span>
-                <SplitFlapBoard phrases={BOARD_PHRASES} />
-              </h1>
-            </div>
-            <div className="lg:pb-3">
-              {/* One line. The board already says the rest, and everything
-                  else — the seat ladder, the wall, the network — opens
-                  beside the view, from the tabs down its edge. */}
-              <p className="sa-lead">
-                The plane flies the chart: market cap is altitude, and the biggest holders get the best seats.
-              </p>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <a href="#wall" onClick={claimSeat} className="sa-cta sa-shine" onMouseEnter={prefetchSeatMap} onFocus={prefetchSeatMap}>
-                  Claim a seat <span aria-hidden>→</span>
-                </a>
-                <button
-                  type="button"
-                  onClick={() => { setCamera('seat'); setFacing('forward'); showView(); }}
-                  className="sa-ghost"
-                >
-                  Step inside
-                </button>
-              </div>
-            </div>
-          </div>
+        <section className="sa-hero pt-5 sm:pt-7" aria-labelledby="hero-title">
+          {/* The airline's line is said twice on the way in — boarded on the
+              splash, then under the aeroplane on the landing — so here it is
+              only the page's name, for assistive technology. The page itself
+              starts with the view: the way to a seat is up in the gate sign,
+              stepping inside is on the view's own bar, and the sections are
+              down its edge. */}
+          <h1 id="hero-title" className="sr-only">Seat Airlines. Hold more. Fly higher.</h1>
 
           {/* ── The cockpit ──────────────────────────────────────────────
               The view and its deck, with the page's sections a tab away down
               its right edge. A section opens between the view and the tabs
               and the view narrows to make room, so looking from a seat on the
               wall happens beside the wall rather than a scroll above it. */}
-          <div ref={cockpitRef} className={`sa-cockpit mt-9${panel ? ' is-open' : ''}`}>
+          <div ref={cockpitRef} className={`sa-cockpit${panel ? ' is-open' : ''}`}>
           <div className="sa-cockpit__main">
           {/* ── The view ── */}
           <div ref={viewportRef} className={`scroll-mt-24 ${lamps.shaking ? 'sa-viewport sd-shake' : 'sa-viewport'}`}>

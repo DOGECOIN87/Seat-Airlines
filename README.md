@@ -153,8 +153,8 @@ A holder directory with the cabin's own manners: publish a card, read your secti
 </table>
 
 <div align="center">
-<img src="docs/.gitbook/assets/departure-board.png" alt="The split-flap departure board at the top of the page" width="720">
-<br><sub>The headline is a split-flap departure board, flap by flap — <a href="docs/for-developers/departure-board.md">how it works</a></sub>
+<img src="docs/.gitbook/assets/departure-board.png" alt="The split-flap departure board the site opens on" width="720">
+<br><sub>The site opens on a split-flap departure board, flap by flap — <a href="docs/for-developers/departure-board.md">how it works</a></sub>
 </div>
 
 ## Explore the documentation
@@ -285,7 +285,7 @@ With no configuration at all, a build flies the committed token against the prod
 
 ```
 ├── src/
-│   ├── App.tsx              the landing, then the page: hero, the view, its section panels
+│   ├── App.tsx              the landing, then the page: the view, its section panels
 │   ├── components/          views, the seat map, the directory, the departure board
 │   ├── three/               the 3D world: sky, terrain, the aeroplane, the cabin
 │   ├── lib/                 flight model, market feed, seating, wallet, directory client
