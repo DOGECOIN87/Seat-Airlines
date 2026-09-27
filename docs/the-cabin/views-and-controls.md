@@ -4,7 +4,20 @@ description: Outside, in a seat, on the flight deck, in the hold — and how to 
 
 # Views and controls
 
-The page opens **outside, on the whole aircraft**. Every other view is a step inward from there.
+The site opens on the aircraft **full screen**, before anything else. **Enter** goes in. Every other view is a step inward from the one the page then opens on: **outside, on the whole aircraft**.
+
+## Fly the plane
+
+On the way in you can take the controls for a minute. Press **Fly the plane** — or just press an arrow key — and the aircraft dives down to a few hundred metres over the hills while the camera swings round behind it.
+
+| With | Climb / dive | Turn |
+| --- | --- | --- |
+| Keyboard | **↑** / **↓** (or **W** / **S**) | **←** / **→** (or **A** / **D**) |
+| Touch or mouse | drag up / down from where you pressed | drag left / right |
+
+The clock counts down from **1:00** and the altitude reads your height above the ground. **PULL UP** means the ground is close. Fly into it and the game ends early; either way, you are taken into the site a few seconds later. **Enter** (or **Esc**) goes in at any point.
+
+The market still sets the sky — your clock, your weather — but for that minute the height and the heading are yours. Nobody else sees you flying it.
 
 ## The views
 

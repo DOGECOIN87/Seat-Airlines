@@ -7,6 +7,7 @@ import { ClimbRoute, DeckIcon, FlightReadouts, type DeckIconName } from './compo
 import AdvertDialog from './components/AdvertDialog';
 import SplitFlapBoard from './components/SplitFlapBoard';
 import DocsLink from './components/DocsLink';
+import Landing from './components/Landing';
 import { PANELS, SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
 import type { LogEntry } from './components/RadioLog';
 import {
@@ -472,6 +473,21 @@ export default function App() {
     el.scrollIntoView({ behavior: glide(), block: 'center' });
   }, []);
 
+  /* ── The way in ────────────────────────────────────────────────────
+     Every visit opens on the landing: the aeroplane full screen, a button
+     to go in, and a minute at the controls for anybody who wants one. A
+     link to somewhere in particular — a section, the logbook — goes
+     straight there instead. */
+  const [entered, setEntered] = useState(
+    () => typeof window === 'undefined'
+      || LOGBOOK_HASH.test(window.location.hash)
+      || panelFromHash(window.location.hash) !== null,
+  );
+  const enter = useCallback(() => {
+    setEntered(true);
+    window.scrollTo(0, 0);
+  }, []);
+
   /* ── The sections ──────────────────────────────────────────────────
      The wall, the network, the chat and check-in open beside the view
      rather than under it, so whichever one you are in, the aeroplane is
@@ -644,6 +660,20 @@ export default function App() {
         );
     }
   };
+
+  if (!entered && !logbookOpen) {
+    return (
+      <Landing
+        feed={feed}
+        sky={sky}
+        band={band}
+        marketCap={tick.marketCap}
+        controls={controls}
+        taken={taken}
+        onEnter={enter}
+      />
+    );
+  }
 
   return (
     <Suspense fallback={<SceneLoading />}>

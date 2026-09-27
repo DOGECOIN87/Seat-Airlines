@@ -111,7 +111,7 @@ The sky is the visitor's own: the sun is placed from their clock and time zone, 
 
 ### A real flight, in 3D
 
-The page opens **outside, on the whole aeroplane**, flying over ground that goes past for real: farmland with rolling hills, woods, villages and farms that stand up in three dimensions, rivers and lakes, a coast every few minutes and a stretch of open sea with ships under way. It banks into gentle turns, ailerons and rudder working, and every window lit from outside is a row somebody has genuinely booked.
+The site opens on the aeroplane **full screen**: press **Enter** to go in, or **Fly the plane** for a minute at the controls — arrow keys or a drag to climb, dive and turn, low over the hills. The minute running out, or the ground, sends you in. Inside, the page opens **outside, on the whole aeroplane**, flying over ground that goes past for real: farmland with rolling hills, woods, villages and farms that stand up in three dimensions, rivers and lakes, a coast every few minutes and a stretch of open sea with ships under way. It banks into gentle turns, ailerons and rudder working, and every window lit from outside is a row somebody has genuinely booked.
 
 Step inside to a seat, turn your head, walk the aircraft, climb into the **flight deck** or drop into the **cargo hold**.
 
@@ -285,7 +285,7 @@ With no configuration at all, a build flies the committed token against the prod
 
 ```
 ├── src/
-│   ├── App.tsx              the page: hero, the wall, the network, check-in
+│   ├── App.tsx              the landing, then the page: hero, the view, its section panels
 │   ├── components/          views, the seat map, the directory, the departure board
 │   ├── three/               the 3D world: sky, terrain, the aeroplane, the cabin
 │   ├── lib/                 flight model, market feed, seating, wallet, directory client

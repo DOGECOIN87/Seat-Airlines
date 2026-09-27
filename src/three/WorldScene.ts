@@ -38,6 +38,12 @@ const ALTITUDE = {
   mars: [1500, 1500],
 } as const;
 
+/** Metres the camera sits at for a band, as `render` places it. */
+export function bandHeight(band: BandState): number {
+  const [lo, hi] = ALTITUDE[band.band];
+  return lo + (hi - lo) * band.progress;
+}
+
 /** The top of the cloud sea the above-clouds band flies over. */
 const CLOUD_TOP = 2750;
 
@@ -65,6 +71,26 @@ export interface ViewPose {
   exterior?: boolean;
   /** Orbit around the aircraft, in degrees, for the exterior view. */
   orbit?: number;
+  /**
+   * Metres above the ground's datum, overriding the altitude band's.
+   *
+   * For somebody flying it by hand on the landing page: the market still
+   * picks the sky, but the height is theirs.
+   */
+  height?: number;
+  /**
+   * 0–1 from the exterior's usual station off the starboard bow to a chase
+   * camera behind and above the tail, looking where the aeroplane is going —
+   * which is what anybody steering it needs to see. It also catches up with
+   * a turn faster, so the aeroplane does not slew half out of frame.
+   */
+  chase?: number;
+  /**
+   * Where the aeroplane sits in the exterior frame, as fractions of it:
+   * x to the right, y up. The landing page moves it off the words laid over
+   * it. Eased out as the chase comes in.
+   */
+  frame?: { x: number; y: number };
 }
 
 export interface WorldHandles {
@@ -84,6 +110,13 @@ export interface WorldHandles {
   setControls: (controls: ManualControls) => void;
   /** Metres of ground covered since the view opened. */
   travelled: () => number;
+  /**
+   * The highest ground under the aeroplane as of the last frame, in metres
+   * on the same datum as `ViewPose.height`: the hills where they are drawn,
+   * or the sea's surface. Read under the nose, the wing box and the tail,
+   * so flying into a slope counts when the nose meets it.
+   */
+  groundAt: () => number;
   dispose: () => void;
 }
 
@@ -815,6 +848,7 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
 
   const dummy = new THREE.Object3D();
   const extPos = new THREE.Vector3();
+  const viewSize = new THREE.Vector2();
   const extTarget = new THREE.Vector3();
   const extDir = new THREE.Vector3();
   const skyColour = new THREE.Color();
@@ -861,6 +895,8 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
      window stays the same at every band — v/h constant, which is what the
      eye reads as speed. */
   const shift = { x: 0, z: 0 };
+  /** What `groundAt` reads: set each frame as the ground is chosen. */
+  const underfoot = { relief: 0, floor: -2, heading: 0 };
   let last = performance.now();
   const CLOUD_SPAN = 44000;
   /* v/h constant — for real this time. The old constant 18 m/s was honest
@@ -883,9 +919,10 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
     const elsewhere = onMoon || onMars;
     const aboveClouds = band.band === 'above-clouds';
 
-    /* Camera height from the altitude band, log-spaced within it. */
+    /* Camera height from the altitude band, log-spaced within it — unless
+       somebody is flying it by hand. */
     const [lo, hi] = ALTITUDE[band.band];
-    const height = lerp(lo, hi, band.progress);
+    const height = pose.height ?? lerp(lo, hi, band.progress);
 
     /* Sun from the real solar position: elevation from the clock and the
        latitude, azimuth swung across the sky by the hour.
@@ -1048,6 +1085,8 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
     nearRim.value = body ? body.level : 0;
     ground.position.y = (body ? body.level * body.relief : 0) - 2;
     sea.visible = !elsewhere && !inSpace && seaBlend > 0.001 && seaBlend < 0.999;
+    underfoot.relief = !body && !inSpace && !aboveClouds ? HILL_HEIGHT * farmRelief : 0;
+    underfoot.floor = sea.visible ? OVERLAY_LIFT : ground.position.y;
     seaMat.opacity = seaBlend;
     /* Lights up through dusk, out by mid-morning. Civil twilight is about
        six degrees below the horizon, so the ramp is hung either side of
@@ -1362,8 +1401,10 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
        the model about its wing box rather than its nose, so it rotates in
        place instead of sliding across the frame. */
     const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
+    const chase = pose.exterior ? THREE.MathUtils.clamp(pose.chase ?? 0, 0, 1) : 0;
+    underfoot.heading = a.heading;
     if (camHeading === null || calm) camHeading = a.heading;
-    else camHeading += wrap180(a.heading - camHeading) * (1 - Math.exp(-0.3 * dt));
+    else camHeading += wrap180(a.heading - camHeading) * (1 - Math.exp(-lerp(0.3, 1.8, chase) * dt));
     const yawLag = pose.exterior ? wrap180(a.heading - camHeading) : 0;
     const turnPitch = pose.exterior ? Math.abs(a.bank) * 0.18 : 0;
     airframe.group.rotation.set(
@@ -1431,12 +1472,15 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
          aeroplane reads as a tube with a fin. From the quarter the sweep,
          the dihedral and both engines are all in view, and the nose still
          leads to the right. */
-      const a = THREE.MathUtils.degToRad((pose.orbit ?? 0) - 34);
-      const radius = 38;
+      /* The chase swings the same station round behind the tail on an arc,
+         rather than cutting across, and looks past the nose at the ground
+         ahead rather than at the wing box. */
+      const a = THREE.MathUtils.degToRad(lerp((pose.orbit ?? 0) - 34, 90, chase));
+      const radius = lerp(38, 53, chase);
       // Raised to about sixteen degrees: level with the wing, a swept
       // planform is a line. From above it is a shape.
-      extPos.set(Math.cos(a) * radius, 9.6, 11 + Math.sin(a) * radius);
-      extTarget.set(0, 0.35, 10.8);
+      extPos.set(Math.cos(a) * radius, lerp(9.6, 12.5, chase), 11 + Math.sin(a) * radius);
+      extTarget.set(0, lerp(0.35, 1.5, chase), lerp(10.8, -20, chase));
       extDir.copy(extTarget).sub(extPos);
       camera.position.copy(extPos);
       camera.rotation.set(
@@ -1445,12 +1489,31 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
         0,
         'YXZ',
       );
-      if (camera.fov !== 46 || camera.near !== EXTERIOR_NEAR) {
-        camera.fov = 46;
+      /* Forty-six degrees tall is right for a frame at least 4:3 wide. A
+         phone held upright, full screen, is half as wide as it is tall, and
+         at the same field the aeroplane ran off both sides of it; so a
+         narrower frame opens the field upward instead, far enough to keep a
+         4:3 frame's width across, within reason. */
+      const fov = camera.aspect >= 4 / 3
+        ? 46
+        : Math.min(92, THREE.MathUtils.radToDeg(2 * Math.atan((Math.tan(THREE.MathUtils.degToRad(23)) * 4) / 3 / camera.aspect)));
+      if (Math.abs(camera.fov - fov) > 0.01 || camera.near !== EXTERIOR_NEAR) {
+        camera.fov = fov;
         camera.near = EXTERIOR_NEAR;
         camera.updateProjectionMatrix();
       }
       renderer.toneMappingExposure = onMoon || inSpace ? 1.0 : 1.06;
+      /* Moving the aeroplane in the frame moves the frame, not the camera:
+         the view is offset, so the light, the horizon and the angle on the
+         airframe are all exactly the standard view's. */
+      const fx = (pose.frame?.x ?? 0) * (1 - chase);
+      const fy = (pose.frame?.y ?? 0) * (1 - chase);
+      if (fx !== 0 || fy !== 0) {
+        renderer.getSize(viewSize);
+        camera.setViewOffset(viewSize.x, viewSize.y, -fx * viewSize.x, fy * viewSize.y, viewSize.x, viewSize.y);
+      } else if (camera.view?.enabled) {
+        camera.clearViewOffset();
+      }
 
       airframe.group.visible = true;
       // Sunlight from above, and the ground throwing light back at the belly —
@@ -1468,6 +1531,7 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
       cabinFill.intensity = 0;
       cabinAmbient.intensity = 0;
     } else {
+      if (camera.view?.enabled) camera.clearViewOffset();
       /* A seat is a place in the cabin, so looking around is looking around. */
       const interiorLightLevel = cabinLit;
       cabin.setViewer(pose.id);
@@ -1599,6 +1663,47 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
   /** Ground metres travelled, for the instrumentation the review pass reads. */
   const travelled = () => Math.hypot(shift.x, shift.z);
 
+  /* The ground under the aeroplane, read on the CPU from the same height
+     field, at the same offset, that displaces the relief mesh on the GPU —
+     so a hill is solid exactly where it is drawn. The field is 256 pixels a
+     tile, read out of its canvas once, the first time anybody asks. */
+  let heightField: { data: Uint8ClampedArray; size: number } | null = null;
+  const reliefAt = (x: number, z: number): number => {
+    if (underfoot.relief <= 0) return 0;
+    if (!heightField) {
+      const img = farmland.height.image as HTMLCanvasElement;
+      const ctx = img.getContext('2d');
+      if (!ctx) return 0;
+      heightField = { data: ctx.getImageData(0, 0, img.width, img.height).data, size: img.width };
+    }
+    const { data, size } = heightField;
+    const tex = farmland.height;
+    // The mesh's uv (see where its UVs are matched to the plate's), through
+    // the texture's repeat and offset; the canvas is uploaded flipped.
+    const u = (x / GROUND + 0.5) * tex.repeat.x + tex.offset.x;
+    const v = (-z / GROUND + 0.5) * tex.repeat.y + tex.offset.y;
+    const cx = (u - Math.floor(u)) * size - 0.5;
+    const cy = (1 - (v - Math.floor(v))) * size - 0.5;
+    const x0 = Math.floor(cx);
+    const y0 = Math.floor(cy);
+    const fx = cx - x0;
+    const fy = cy - y0;
+    const at = (ix: number, iy: number) =>
+      data[((((iy % size) + size) % size) * size + (((ix % size) + size) % size)) * 4] / 255;
+    const h = at(x0, y0) * (1 - fx) * (1 - fy) + at(x0 + 1, y0) * fx * (1 - fy)
+      + at(x0, y0 + 1) * (1 - fx) * fy + at(x0 + 1, y0 + 1) * fx * fy;
+    return h * underfoot.relief;
+  };
+  const groundAt = () => {
+    const h = THREE.MathUtils.degToRad(underfoot.heading);
+    const fx = Math.sin(h);
+    const fz = -Math.cos(h);
+    // The nose, the wing box and the tail, along the way it is pointing.
+    let top = 0;
+    for (const along of [24, 0, -22]) top = Math.max(top, reliefAt(fx * along, fz * along));
+    return Math.max(top, underfoot.floor);
+  };
+
   const dispose = () => {
     cabin.dispose();
     airframe.dispose();
@@ -1655,5 +1760,5 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
     renderer.dispose();
   };
 
-  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, dispose };
+  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, groundAt, dispose };
 }

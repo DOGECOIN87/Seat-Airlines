@@ -2745,3 +2745,459 @@ p { text-wrap-style: pretty; }
 @media (prefers-reduced-motion: reduce) {
   .sa-cockpit, .sa-panel-slot, .sa-cockpit.is-open .sa-panel-slot, .sa-panel-scrim { transition: none; }
 }
+
+/* ============================================================
+   The landing
+   ────────────────────────────────────────────────────────────
+   The aeroplane full screen, edge to edge, with the way in over
+   it — and, for a minute, a flight instrument or two while
+   somebody flies it. Nothing here scrolls: a drag is the stick.
+   ============================================================ */
+.sa-landing {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  background: #05070F;
+  color: #F5F8FC;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.45s ease;
+}
+.sa-landing.is-leaving { opacity: 0; pointer-events: none; }
+.sa-landing__scene { position: absolute; inset: 0; }
+.sa-landing__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.sa-landing.is-ready .sa-landing__canvas { opacity: 1; }
+.sa-landing.is-flying .sa-landing__scene,
+.sa-landing.is-intro .sa-landing__scene { cursor: crosshair; }
+
+/* Dark at the top for the brand, darker at the foot for the words. */
+.sa-landing__scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(4, 7, 14, 0.62) 0%, rgba(4, 7, 14, 0) 24%),
+    linear-gradient(0deg, rgba(4, 7, 14, 0.82) 0%, rgba(4, 7, 14, 0.42) 34%, rgba(4, 7, 14, 0) 62%);
+  transition: opacity 0.8s ease;
+}
+.sa-landing:not(.is-idle) .sa-landing__scrim { opacity: 0.45; }
+
+.sa-landing__top {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding: max(1rem, env(safe-area-inset-top)) clamp(1rem, 3vw, 2.25rem) 0;
+  pointer-events: none;
+}
+.sa-landing__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+.sa-landing__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #7FE3F7;
+}
+
+.sa-landing__hero {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: grid;
+  justify-items: start;
+  gap: 1.1rem;
+  width: min(100%, 62rem);
+  padding: 0 clamp(1.25rem, 5vw, 4.5rem) max(clamp(2rem, 7vh, 4.5rem), calc(env(safe-area-inset-bottom) + 1.25rem));
+  animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sa-landing__title {
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(2.6rem, 6.4vw, 5.6rem);
+  font-weight: 800;
+  line-height: 0.94;
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
+  text-shadow: 0 6px 34px rgba(0, 0, 0, 0.45);
+}
+.sa-landing__lead {
+  max-width: 34rem;
+  font-size: clamp(1rem, 1.35vw, 1.15rem);
+  line-height: 1.55;
+  color: rgba(232, 240, 250, 0.88);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
+}
+.sa-landing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+/* The way in: the brightest thing on the screen, breathing a ring. */
+.sa-landing__enter {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  min-height: 3.75rem;
+  padding: 0 2.5rem 0 2.8rem;
+  border-radius: 999px;
+  background: var(--g-accent);
+  color: #fff;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  box-shadow: 0 12px 36px rgba(0, 150, 235, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+.sa-landing__enter::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px rgba(127, 227, 247, 0.7);
+  animation: sa-landing-ring 2.4s ease-out infinite;
+  pointer-events: none;
+}
+.sa-landing__enter:hover { transform: translateY(-2px); filter: brightness(1.08); box-shadow: 0 16px 44px rgba(0, 150, 235, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+.sa-landing__enter:active { transform: translateY(1px); }
+.sa-landing__enter:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+
+.sa-landing__fly {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 3.75rem;
+  padding: 0 1.6rem 0 1.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #EAF2FB;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.3s ease;
+}
+.sa-landing__fly:hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5); }
+.sa-landing__fly:disabled { opacity: 0.5; cursor: progress; }
+.sa-landing__fly:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+.sa-landing__fly-icon { width: 1.25rem; height: 1.25rem; fill: currentColor; transform: rotate(45deg); }
+.sa-landing__hint {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(214, 228, 242, 0.72);
+}
+
+/* ── The instruments, while somebody flies it ───────────────── */
+.sa-hud { position: absolute; inset: 0; pointer-events: none; }
+.sa-hud__top {
+  position: absolute;
+  top: calc(max(1rem, env(safe-area-inset-top)) + 3.4rem);
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 clamp(1rem, 3vw, 2.25rem);
+}
+.sa-hud__panel {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 7.5rem;
+  padding: 0.55rem 0.95rem 0.65rem;
+  border-radius: 14px;
+  background: rgba(5, 7, 15, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.sa-hud__clock {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  justify-items: center;
+}
+.sa-hud__label {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.sa-hud__value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.sa-hud__value small { font-size: 0.7rem; letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.6); }
+.sa-hud__track {
+  display: block;
+  width: 100%;
+  height: 3px;
+  margin-top: 0.3rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+.sa-hud__bar {
+  display: block;
+  height: 100%;
+  background: var(--g-accent);
+  transform-origin: left center;
+}
+.sa-hud__skip {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  background: rgba(5, 7, 15, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #fff;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.sa-hud__skip:hover { background: rgba(5, 7, 15, 0.8); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4); }
+.sa-hud__skip:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+/* The terrain warning: red, and the only thing on the screen that blinks. */
+.sa-hud__warn {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0.4rem 1.1rem;
+  border-radius: 10px;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.6rem, 5vw, 3rem);
+  font-weight: 800;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #FF4B4B;
+  text-shadow: 0 0 24px rgba(255, 60, 60, 0.75);
+  box-shadow: inset 0 0 0 2px rgba(255, 75, 75, 0.8);
+  opacity: 0;
+}
+.sa-hud__warn.is-on { animation: sa-hud-warn 0.6s steps(1, end) infinite; }
+.sa-hud__note {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #7FE3F7;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+.sa-hud__help {
+  position: absolute;
+  left: 50%;
+  bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem));
+  transform: translateX(-50%);
+  max-width: calc(100% - 2rem);
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  background: rgba(5, 7, 15, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+  animation: sa-hud-help 7s ease forwards;
+}
+.sa-hud__help kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  margin: 0 0.12rem;
+  padding: 0 0.3rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+  font-family: inherit;
+  font-size: 11px;
+  color: #fff;
+}
+
+/* The stick, drawn where the thumb went down. */
+.sa-stick {
+  position: absolute;
+  width: 128px;
+  height: 128px;
+  margin: -64px 0 0 -64px;
+  border-radius: 50%;
+  background: rgba(5, 7, 15, 0.28);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.sa-stick.is-on { opacity: 1; }
+.sa-stick__knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: var(--g-accent);
+  box-shadow: 0 6px 18px rgba(0, 120, 220, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* ── How it ended ───────────────────────────────────────────── */
+.sa-landing.is-crashed .sa-landing__scene {
+  filter: saturate(0.35) contrast(1.1) brightness(0.8);
+  animation: sa-landing-shake 0.55s linear;
+}
+.sa-landing__flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  pointer-events: none;
+  animation: sa-landing-flash 0.8s ease-out forwards;
+}
+.sa-landing__end {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: radial-gradient(ellipse at center, rgba(4, 7, 14, 0.45) 0%, rgba(4, 7, 14, 0.82) 100%);
+  animation: sa-landing-fade 0.45s ease both;
+}
+.sa-landing__end--crash { background: radial-gradient(ellipse at center, rgba(110, 12, 10, 0.4) 0%, rgba(18, 3, 3, 0.86) 100%); }
+.sa-landing__end-title {
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(2.8rem, 10vw, 6.4rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+.sa-landing__end--crash .sa-landing__end-title { color: #FF6A5C; }
+.sa-landing__end-note {
+  max-width: 30rem;
+  margin-bottom: 0.6rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: rgba(235, 240, 248, 0.88);
+}
+
+@keyframes sa-landing-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sa-landing-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sa-landing-ring {
+  0% { opacity: 0.9; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(1.1, 1.32); }
+}
+@keyframes sa-landing-flash {
+  0% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+@keyframes sa-landing-shake {
+  0%, 100% { transform: none; }
+  10% { transform: translate(-14px, 8px); }
+  20% { transform: translate(12px, -10px); }
+  30% { transform: translate(-10px, -6px); }
+  40% { transform: translate(9px, 7px); }
+  55% { transform: translate(-6px, 4px); }
+  70% { transform: translate(4px, -3px); }
+  85% { transform: translate(-2px, 2px); }
+}
+@keyframes sa-hud-warn {
+  0% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
+@keyframes sa-hud-help {
+  0%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (max-width: 640px) {
+  .sa-landing__live { font-size: 10px; letter-spacing: 0.14em; }
+  /* In the game the instruments need the room under the brand. */
+  .sa-landing:not(.is-idle) .sa-landing__live { display: none; }
+  .sa-landing__hero { justify-items: stretch; gap: 0.9rem; }
+  .sa-landing__actions { display: grid; }
+  .sa-landing__enter, .sa-landing__fly { width: 100%; justify-content: center; }
+  .sa-landing__hint { text-align: center; }
+  .sa-hud__panel { min-width: 0; padding: 0.45rem 0.7rem 0.55rem; }
+  .sa-hud__value { font-size: 1.15rem; }
+  .sa-hud__clock { top: 3.6rem; }
+  .sa-hud__help { width: calc(100% - 2rem); border-radius: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-landing__hero, .sa-landing__end { animation: none; }
+  .sa-landing__enter::after { animation: none; opacity: 0; }
+  .sa-landing.is-crashed .sa-landing__scene { animation: none; }
+  .sa-landing__flash { animation-duration: 0.01s; }
+  .sa-hud__warn.is-on { animation: none; opacity: 1; }
+}
