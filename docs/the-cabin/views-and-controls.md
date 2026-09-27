@@ -10,7 +10,7 @@ The site opens on a departure board in the middle of the screen, boarding the ai
 
 On the way in you can take the controls. Press **Fly the plane** — or just press an arrow key — and the aircraft dives down to a few hundred metres over the hills while the camera swings round behind it. Your brief: **climb to 10,000 ft**.
 
-If you have a Solana wallet installed and none connected, the game asks first: **Connect & fly** connects it and takes off, so the score can go straight on the leaderboard when you land; **Fly without** takes off anyway, and it will not ask again that visit. Connecting shares your address and nothing else.
+**You need a Solana wallet connected to fly.** Until one is, the button reads **Connect wallet to fly**: press it, approve the connection in your wallet, and it takes off — and your score can go straight on the leaderboard when you land. An arrow key with no wallet connected brings up the same card. With no wallet installed, the card says where to get one; on a phone it offers **Open in Phantom** and **Open in Solflare**, which reopen the page inside that wallet's own browser. Connecting shares your address and nothing else. Once connected, the line under the buttons says which wallet you are flying as.
 
 | With | Climb / dive | Turn |
 | --- | --- | --- |

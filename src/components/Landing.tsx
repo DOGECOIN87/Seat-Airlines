@@ -21,10 +21,10 @@ const LandingScene = lazy(() => import('./LandingScene'));
  *
  * The aeroplane, full screen and edge to edge, before anything else: the
  * one picture that says what the site is without a caption. One button goes
- * in. The other hands over the controls — the arrow keys, or a drag on a
- * touch screen, put the nose up and down and bank it round, low over the
- * country the cabin windows look out on — with a brief to climb to 10,000 ft,
- * where an engine blows. It is scored (see `scoring.ts`), the best scores go
+ * in. The other hands over the controls, to anybody with a Solana wallet
+ * connected — the arrow keys, or a drag on a touch screen, put the nose up
+ * and down and bank it round, low over the country the cabin windows look
+ * out on — with a brief to climb to 10,000 ft, where an engine blows. It is scored (see `scoring.ts`), the best scores go
  * on a board any Solana wallet can sign its way onto, and when the aeroplane
  * meets the ground it goes in on its own.
  *
@@ -171,18 +171,26 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     return () => window.clearTimeout(id);
   }, [splash]);
 
-  /* Before a take-off with no wallet connected, a word about the board: a
-     score needs a wallet to go on it, so the game offers to connect one
-     first — or to fly without, after which it stops asking. Nobody without
-     a wallet installed is asked, and neither is a practice run. */
+  /* A Solana wallet is the ticket: nobody takes the controls without one
+     connected. Asking to fly without one brings up a card that connects it
+     — or, with no wallet installed, says where to get one, and on a phone
+     opens this page in a wallet's own browser, which is where a phone's
+     wallet lives. */
   const [preflight, setPreflight] = useState<'off' | 'ask' | 'connecting'>('off');
   const [preflightNote, setPreflightNote] = useState<string | null>(null);
   const preflightOpen = useRef(false);
   useEffect(() => {
     preflightOpen.current = preflight !== 'off';
   }, [preflight]);
-  const flewWithout = useRef(false);
-  const boardOpen = !practice && hasBoard && board !== null;
+  const [walletLinks] = useState(() => {
+    if (typeof window === 'undefined') return { phantom: '', solflare: '' };
+    const here = encodeURIComponent(window.location.href);
+    const ref = encodeURIComponent(window.location.origin);
+    return {
+      phantom: `https://phantom.app/ul/browse/${here}?ref=${ref}`,
+      solflare: `https://solflare.com/ul/v1/browse/${here}?ref=${ref}`,
+    };
+  });
 
   /* Going in fades the landing out first, so the site arrives from black
      rather than cutting in. Once only, however many ways it is asked. */
@@ -230,31 +238,37 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     g.phaseAt = performance.now();
     setPhase('intro');
   }, [ready]);
+  /* An arrow key, or Fly with no wallet installed: the card. */
   const start = useCallback(() => {
     if (!ready || game.current.phase !== 'idle' || gone.current) return;
-    if (boardOpen && !wallet.address && !wallet.unavailable && !flewWithout.current) {
-      // Made now, inside the click or key: the take-off may come after the wallet, outside it.
+    if (!wallet.address) {
+      // Made now, inside the click or key: the take-off comes after the wallet, outside it.
       makeSounds();
       setPreflightNote(null);
       setPreflight((p) => (p === 'off' ? 'ask' : p));
       return;
     }
     takeOff();
-  }, [ready, boardOpen, wallet.address, wallet.unavailable, takeOff]);
+  }, [ready, wallet.address, takeOff]);
   const connectAndFly = useCallback(async () => {
+    makeSounds();
     setPreflight('connecting');
     setPreflightNote(null);
-    if (await wallet.connect()) {
+    const address = await wallet.connect();
+    // Put away while the wallet was up: connected, but not flying.
+    if (!preflightOpen.current) return;
+    if (address) {
       takeOff();
       return;
     }
     setPreflight('ask');
-    setPreflightNote('No wallet connected. Try again, or fly without it: you can still connect one when you land.');
+    setPreflightNote('No wallet connected, so no take-off. Connect one when you are ready.');
   }, [wallet, takeOff]);
-  const flyWithout = useCallback(() => {
-    flewWithout.current = true;
-    takeOff();
-  }, [takeOff]);
+  /* The Fly button: straight to the wallet when there is one to ask. */
+  const onFly = useCallback(() => {
+    if (wallet.address || wallet.unavailable) start();
+    else void connectAndFly();
+  }, [wallet.address, wallet.unavailable, start, connectAndFly]);
 
   const onReady = useCallback(() => setReady(true), []);
   const onFail = useCallback(() => setFailed(true), []);
@@ -488,11 +502,11 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               Enter <span aria-hidden>→</span>
             </button>
             {!failed && (
-              <button type="button" onClick={start} disabled={!ready} className="sa-landing__fly">
+              <button type="button" onClick={onFly} disabled={!ready} className="sa-landing__fly">
                 <svg viewBox="0 0 24 24" aria-hidden className="sa-landing__fly-icon">
                   <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" />
                 </svg>
-                Fly the plane
+                {wallet.address ? 'Fly the plane' : 'Connect wallet to fly'}
               </button>
             )}
           </div>
@@ -500,9 +514,9 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             <p className="sa-landing__hint">
               {!ready
                 ? 'Warming up the engines…'
-                : touch
-                  ? `Drag to fly · climb to ${goalFeet.toLocaleString('en-US')} ft · mind the hills`
-                  : `Press an arrow key to fly · climb to ${goalFeet.toLocaleString('en-US')} ft · mind the hills`}
+                : !wallet.address
+                  ? `A Solana wallet is your ticket · climb to ${goalFeet.toLocaleString('en-US')} ft · mind the hills`
+                  : `${touch ? 'Drag' : 'Press an arrow key'} to fly · climb to ${goalFeet.toLocaleString('en-US')} ft · flying as ${shortWallet(wallet.address)}`}
             </p>
           )}
         </main>
@@ -510,26 +524,59 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       {!inGame && preflight !== 'off' && (
         <div className="sa-preflight" role="dialog" aria-modal="true" aria-labelledby="sa-preflight-title">
           <div className="sa-preflight__card">
-            <p className="sa-preflight__eyebrow">Before you take off</p>
-            <h2 id="sa-preflight-title" className="sa-preflight__title">Fly for the board?</h2>
-            <p className="sa-preflight__text">
-              Connect a Solana wallet now, and your score can go on the leaderboard the moment you land.
-            </p>
-            {preflightNote && <p className="sa-preflight__note" role="alert">{wallet.error ?? preflightNote}</p>}
-            <div className="sa-preflight__actions">
-              <button
-                type="button"
-                onClick={() => void connectAndFly()}
-                disabled={preflight === 'connecting'}
-                className="sa-preflight__connect"
-                autoFocus
-              >
-                {preflight === 'connecting' ? 'Check your wallet…' : 'Connect & fly'}
-              </button>
-              <button type="button" onClick={flyWithout} disabled={preflight === 'connecting'} className="sa-preflight__skip">
-                Fly without
-              </button>
-            </div>
+            <p className="sa-preflight__eyebrow">Boarding pass required</p>
+            {wallet.unavailable && !wallet.address ? (
+              <>
+                <h2 id="sa-preflight-title" className="sa-preflight__title">You need a Solana wallet to fly</h2>
+                <p className="sa-preflight__text">
+                  {touch
+                    ? 'On a phone the wallet is its own app. Open this page in its browser, connect, and take off.'
+                    : 'Install Phantom, Solflare or Backpack in this browser, then come back, connect it, and take off.'}
+                </p>
+                <div className="sa-preflight__actions">
+                  {touch ? (
+                    <>
+                      <a href={walletLinks.phantom} className="sa-preflight__connect">Open in Phantom</a>
+                      <a href={walletLinks.solflare} className="sa-preflight__skip">Open in Solflare</a>
+                    </>
+                  ) : (
+                    <>
+                      <a href="https://phantom.com" target="_blank" rel="noopener noreferrer" className="sa-preflight__connect">
+                        Get Phantom
+                      </a>
+                      <a href="https://solflare.com" target="_blank" rel="noopener noreferrer" className="sa-preflight__skip">
+                        Get Solflare
+                      </a>
+                    </>
+                  )}
+                  <button type="button" onClick={() => setPreflight('off')} className="sa-preflight__later">
+                    Not now
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 id="sa-preflight-title" className="sa-preflight__title">Connect a wallet to fly</h2>
+                <p className="sa-preflight__text">
+                  The controls are for Solana wallets. Connect yours to take off, and your score can go on the leaderboard the moment you land.
+                </p>
+                {preflightNote && <p className="sa-preflight__note" role="alert">{wallet.error ?? preflightNote}</p>}
+                <div className="sa-preflight__actions">
+                  <button
+                    type="button"
+                    onClick={() => void connectAndFly()}
+                    disabled={preflight === 'connecting'}
+                    className="sa-preflight__connect"
+                    autoFocus
+                  >
+                    {preflight === 'connecting' ? 'Check your wallet…' : 'Connect wallet'}
+                  </button>
+                  <button type="button" onClick={() => setPreflight('off')} className="sa-preflight__later">
+                    Not now
+                  </button>
+                </div>
+              </>
+            )}
             <p className="sa-preflight__fine">
               Connecting shares your address and nothing else. Posting a score signs a short message — never a transaction.
             </p>

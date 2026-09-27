@@ -22,6 +22,10 @@ On a computer, use the wallet's browser extension. **On a phone, open seat-airli
 
 Your balance is merged into the seating the moment it is read, so you do not wait for the next refresh to see where you sit.
 
+## Flying the plane
+
+The game on the way in needs a connected wallet too: **Connect wallet to fly** connects it and takes off. It is the same connection as checking in, so connect once and both are done. See [Views and controls](../the-cabin/views-and-controls.md#fly-the-plane).
+
 ## What connecting shares
 
 Connecting gives the site your **public address**, which is already public on the chain. It does not sign anything, move anything, or grant the site any permission over your funds.
