@@ -5,7 +5,7 @@ import type { BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import { useAttitude, type Attitude } from '../lib/useAttitude';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
-import { blastAltitude, clampUnit, FEET, GAME, speedAt, WASTED_AT, type FlightGame } from '../lib/landingGame';
+import { blastAltitude, clampUnit, FEET, fly, GAME, speedAt, WASTED_AT, type FlightGame } from '../lib/landingGame';
 import { climbBonus, SCORING, survivalRate } from '../lib/scoring';
 
 /**
@@ -69,75 +69,7 @@ interface LandingSceneProps {
   onCrash: (metres: number) => void;
 }
 
-const DEG = Math.PI / 180;
 const smooth = (t: number) => t * t * (3 - 2 * t);
-const smoothstep = (a: number, b: number, x: number) => smooth(Math.min(1, Math.max(0, (x - a) / (b - a))));
-const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
-/** Band-limited noise: a random target, followed at a rate. */
-const drift = (v: number, rate: number, dt: number) => v + (Math.random() * 2 - 1 - v) * (1 - Math.exp(-rate * dt));
-
-/**
- * One frame of flying, both ways.
- *
- * With both engines it is the arcade model the landing always had: the
- * stick sets a pitch and a bank, the bank turns it, the pitch climbs it.
- *
- * With one gone it is the real thing, simplified. The good engine's thrust,
- * off to one side of the centreline, yaws the nose toward the dead one; the
- * sideslip that makes rolls it that way too, the wing on the good side
- * flying faster and lifting more. Nothing but the stick stops the roll, and
- * the ailerons are a hydraulic system short and getting weaker as the fire
- * spreads, so the roll has momentum here — the stick changes how fast it is
- * rolling, not where it is. A bank, once it has started, wants to go on
- * (the spiral), and costs lift, so the nose falls in it. Half the thrust
- * cannot hold both height and speed: the aeroplane sinks, and pulling up to
- * stop it bleeds speed until the wing stalls, the nose drops, and the dead
- * side's wing drops with it. On top of all of it, the airframe shakes. The
- * way to fly it is the way pilots are taught: bank a little toward the good
- * engine, and keep the nose down for speed.
- */
-function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; stall: number } {
-  if (g.failed === 0) {
-    g.pitch += (iy * GAME.maxPitch - g.pitch) * (1 - Math.exp(-3.2 * dt));
-    // At the ceiling the nose will not come up any further.
-    if (g.alt >= GAME.ceiling && g.pitch > 0) g.pitch *= 1 - Math.min(1, dt * 6);
-    g.bank += (ix * GAME.maxBank - g.bank) * (1 - Math.exp(-3.5 * dt));
-    g.heading = (g.heading + g.bank * GAME.turnRate * dt + 360) % 360;
-    g.speed = speedAt(g.alt);
-    g.rollRate = 0;
-    const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain;
-    return { vs: Math.max(-GAME.maxClimb, Math.min(GAME.maxClimb, vs)), stall: 0 };
-  }
-
-  const dead = g.failed;
-  g.damage = Math.min(1, g.damage + dt / 40);
-  const k = g.damage;
-  g.surge = drift(g.surge, 0.8, dt);
-  g.buffetRoll = drift(g.buffetRoll, 10, dt);
-  g.buffetPitch = drift(g.buffetPitch, 8, dt);
-
-  const stall = smoothstep(GAME.stallSpeed + 6, GAME.stallSpeed - 4, g.speed);
-  const authority = (0.6 - 0.25 * k) * (1 - 0.75 * stall);
-  // Roll: the stick drives the roll rate; the dead engine, the spiral, the buffet and a stall push it.
-  const commanded = ix * 80 * authority;
-  const push = dead * (18 + 24 * k) * (1 + 0.45 * g.surge);
-  g.rollRate += ((commanded - g.rollRate) * 2.6 + push + Math.sin(g.bank * DEG) * 30
-    + g.buffetRoll * (26 + 34 * k) + dead * stall * 70) * dt;
-  g.bank = wrap180(g.bank + g.rollRate * dt);
-  const lift = Math.cos(g.bank * DEG);
-  // Pitch: softer elevator; the nose falls in a bank, and drops outright in a stall.
-  const aim = iy * GAME.maxPitch * (0.85 - 0.25 * k) - (1 - lift) * 14 - stall * 18 + g.buffetPitch * (2 + 3 * k);
-  g.pitch += (aim - g.pitch) * (1 - Math.exp(-2.4 * dt));
-  // Heading: the bank turns it while the wing still lifts, and the good engine yaws it toward the dead one.
-  g.heading = (g.heading + (g.bank * GAME.turnRate * Math.max(0, lift) + dead * (5 + 5 * k)) * dt + 360) % 360;
-  // Speed: half the thrust. Climbing costs speed, a bank costs more, diving buys it back.
-  const trim = Math.min(speedAt(g.alt), GAME.failSpeed) * (0.85 - 0.15 * k);
-  g.speed += ((trim - g.speed) * 0.22 - 9.81 * Math.sin(g.pitch * DEG) * 0.9 - Math.abs(Math.sin(g.bank * DEG)) * 2.2) * dt;
-  g.speed = Math.max(45, g.speed);
-  // Height: what the pitch buys at this speed, less what one engine cannot hold, less what the bank spills.
-  const vs = Math.sin(g.pitch * DEG) * g.speed - (3.5 + 5.5 * k) - (1 - lift) * g.speed * 0.3;
-  return { vs, stall };
-}
 
 /**
  * Seconds until the aeroplane meets the ground, if it is going to: its
@@ -370,12 +302,13 @@ const LandingScene = ({
             g.failed = Math.random() < 0.5 ? -1 : 1;
             g.failedAt = now;
             g.damage = 0.5;
+            g.decay = 0;
             // Made it: the reach bonus, and the climb bonus for how fast.
             g.climbTime = (now - g.phaseAt) / 1000;
             g.bonus = SCORING.reached + climbBonus(g.climbTime);
             g.score = g.bestFeet * SCORING.perFoot + g.bonus;
             // Half the thrust gone: from here it flies at an airliner's speed, not the height's.
-            g.speed = Math.min(g.speed, GAME.failSpeed * 1.3);
+            g.speed = GAME.failSpeed;
             // The blast itself: a violent roll toward the dead engine, and the nose knocked down.
             g.rollRate = g.failed * 60;
             g.pitch -= 5;

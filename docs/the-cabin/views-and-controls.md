@@ -24,11 +24,11 @@ There is no clock. The altitude reads your height above the ground and the bar u
 Somebody shouts "FBI, open up!" and, on the bang, one engine explodes. From then on:
 
 * the aircraft yaws and rolls toward the dead engine, and keeps rolling unless you hold it;
-* the controls go soft, and softer as the fire spreads;
-* half the thrust cannot hold height *and* speed: it sinks, and pulling up bleeds speed until it **STALL**s;
+* the controls go soft, and softer as the fire spreads — and about twenty seconds in, when the fire is at its worst, it starts on the wing: the roll toward the dead side grows until nobody can hold it;
+* it cannot stay up. It sinks whatever you do, drag takes the speed off even with the wings level, and only the nose going down puts speed back. Pull up to stop the sink and it bleeds speed until it **STALL**s and drops like a stone. Every bank costs height too;
 * the engine burns and trails black smoke, and the camera moves over its shoulder so you can see it.
 
-The flight lasts until it meets the ground — and as it comes up, the cabin starts screaming, timed from your height, your sink rate and the hills ahead so the screaming stops on the impact. The way to fly it is the way pilots are taught — bank a little toward the good engine, and keep the nose down for speed. When it does meet the ground, it is **WASTED**: the picture freezes and goes grey, then red as the word lands, with a slow dolly zoom. Either way you are taken into the site a few seconds later. Add `?mayday` to the address to have the engine go at 1,500 ft instead.
+Left alone it is down in under twenty seconds; holding the nose up buys about half a minute; flown about as well as it can be, it lasts about a minute. The flight lasts until it meets the ground — and as it comes up, the cabin starts screaming, timed from your height, your sink rate and the hills ahead so the screaming stops on the impact. The way to fly it is the way pilots are taught — bank a little toward the good engine, keep the wings as level as the fire allows, and hold the speed just above the stall: nose down for it, never up. When it does meet the ground, it is **WASTED**: the picture freezes and goes grey, then red as the word lands, with a slow dolly zoom. Either way you are taken into the site a few seconds later. Add `?mayday` to the address to have the engine go at 1,500 ft instead.
 
 ### Scoring and the leaderboard
 
