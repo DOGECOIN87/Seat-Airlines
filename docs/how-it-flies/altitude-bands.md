@@ -20,7 +20,7 @@ Within a level the climb is continuous: the higher the market cap, the higher th
 
 ![Flight SA350 over rolling farmland, in the weather](../.gitbook/assets/levels/1-weather.jpg)
 
-Low over the country, among the cumulus. Fields and hedgerows, woods on the high ground, a river and its lakes down in the valleys, and towns that light up as it gets dark. The hills are real relief, not a painted picture. Every few minutes the flight crosses a coast and a stretch of open sea. The sky is your own: the sun where your clock puts it, and your local weather.
+Low over the country, among the cumulus. Fields and hedgerows, woods on the high ground, a river and its lakes down in the valleys, and towns that light up as it gets dark. The hills are real relief, not a painted picture, and the country on them stands up too: spruce on the high ground, oak and birch in the valleys, poplars along the river, and villages and farms whose windows light up after dark. Every few minutes the flight crosses a coast and a stretch of open sea, with ships and fishing boats under way and their navigation lights showing at night. The sky is your own: the sun where your clock puts it, and your local weather.
 
 ## Above the clouds — $1M
 

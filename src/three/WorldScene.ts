@@ -11,6 +11,7 @@ import { lakeShader, noTileShader, type LakeParams, type NoTileParams } from './
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import { CABIN, cabinLevel, createCabin, rowZ } from './cabin';
 import { createAirframe } from './airframe';
+import { createScenery } from './scenery';
 
 /**
  * The world outside, rendered.
@@ -641,6 +642,23 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
   // The incoming sea shuffles with the ground it comes in over.
   seaMat.onBeforeCompile = (shader) => noTileShader(shader, waterNoTile, false);
 
+  /* ── What stands on it ────────────────────────────────────────────────
+     The trees, houses and farms of the farmland and the ships at sea, in the
+     round, standing on exactly what the ground has painted for them (see
+     `scenery.ts`). They go with the ground: carried by the same shift, stood
+     on the relief mesh's own slopes, sinking with the hills as the coast
+     comes in and rising with the sea as it does. */
+  const scenery = createScenery({
+    trees: farmland.props.trees,
+    buildings: farmland.props.buildings,
+    boats: ocean.boats,
+    height: farmland.height,
+    near: { size: NEAR, segments: NEAR_SEG },
+    lowPower,
+    overlayOrder: OVERLAY_ORDER,
+  });
+  scene.add(scenery.group);
+
   /* ── The limb ─────────────────────────────────────────────────────────
      A flat plate is a fair model of the ground until you can see far enough
      along it to notice it is not flat. In the space band you can: the whole
@@ -1208,6 +1226,22 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
       if (sheenOn) sheenMat.opacity = 0.4 * seaBlend * (0.2 + 0.8 * day);
     }
 
+    /* The scenery, from the same shift and the same relief the ground has
+       just taken. Only in the weather: above the deck the relief mesh stands
+       down and a tree would be a speck three kilometres below anyway. */
+    const inWeather = band.band === 'atmosphere';
+    scenery.update({
+      shiftX: shift.x,
+      shiftZ: shift.z,
+      heightOffset: farmland.height.offset,
+      relief: HILL_HEIGHT * farmRelief,
+      land: inWeather ? farmRelief : 0,
+      sea: inWeather ? seaBlend : 0,
+      seaLevel: sea.visible ? OVERLAY_LIFT : 0,
+      night: groundMat.emissiveIntensity,
+      day,
+    });
+
     /* The cloud deck sits at a fixed altitude; the aircraft climbs past it. */
     cloudDeckY = 2400;
     /* Even a clear day has fair-weather cumulus at this altitude, and without
@@ -1575,6 +1609,7 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
     farmland.normal.dispose();
     nearGeometry.dispose();
     nearMat.dispose();
+    scenery.dispose();
     ocean.day.dispose();
     ocean.night.dispose();
     ocean.glint.dispose();

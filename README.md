@@ -68,7 +68,7 @@ Market cap *is* altitude, so the milestones are places — five of them so far, 
 <img src="docs/.gitbook/assets/levels/1-weather.jpg" alt="Flight SA350 over rolling farmland, in the weather">
 
 **In the weather** · under $1M<br>
-<sub>Low over rolling farmland, woods and rivers among the cumulus, with a coast and open sea every few minutes. Your own sky, from your clock and your local weather.</sub>
+<sub>Low over rolling farmland among the cumulus: woods that stand up in three dimensions, villages and farms whose windows light up after dark, rivers and lakes, and a coast and open sea every few minutes, with ships under way. Your own sky, from your clock and your local weather.</sub>
 </td>
 <td width="50%" valign="top">
 <img src="docs/.gitbook/assets/levels/2-clouds.jpg" alt="Flight SA350 above a sea of cloud">
@@ -111,7 +111,7 @@ The sky is the visitor's own: the sun is placed from their clock and time zone, 
 
 ### A real flight, in 3D
 
-The page opens **outside, on the whole aeroplane**, flying over ground that goes past for real: farmland with rolling hills, woods and rivers, a coast every few minutes and a stretch of open sea. It banks into gentle turns, ailerons and rudder working, and every window lit from outside is a row somebody has genuinely booked.
+The page opens **outside, on the whole aeroplane**, flying over ground that goes past for real: farmland with rolling hills, woods, villages and farms that stand up in three dimensions, rivers and lakes, a coast every few minutes and a stretch of open sea with ships under way. It banks into gentle turns, ailerons and rudder working, and every window lit from outside is a row somebody has genuinely booked.
 
 Step inside to a seat, turn your head, walk the aircraft, climb into the **flight deck** or drop into the **cargo hold**.
 

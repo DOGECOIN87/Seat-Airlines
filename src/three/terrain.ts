@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { periodicNoise } from './noise';
+import { insidePolygon, seededRandom, type BoatKind, type BoatSpot, type BuildingSpot, type LandProps, type TreeKind, type TreeSpot } from './props';
 
 /**
  * The ground, as a texture rather than geometry.
@@ -52,6 +53,8 @@ export interface GroundTextures {
   height: THREE.CanvasTexture;
   /** The same relief, with finer detail, as a tangent-space normal map. */
   normal: THREE.CanvasTexture;
+  /** The trees and buildings painted on it, for the scenery to raise (see `props.ts`). */
+  props: LandProps;
 }
 
 export function farmlandTextures(size = 2048): GroundTextures {
@@ -206,6 +209,15 @@ export function farmlandTextures(size = 2048): GroundTextures {
   };
   split({ x: 0, y: 0, w: size, h: size }, 0);
 
+  /* Trees the scenery will stand up where they are painted: orchard rows and
+     hedgerow oaks, in canvas pixels (see `props.ts`). Recorded as drawn, off
+     the same random stream, so the painting itself is unchanged. */
+  const orchardTrees: [number, number][] = [];
+  const hedgerowTrees: [number, number, number][] = [];
+  // And the woods, as the outlines they are painted with.
+  const uplandWoods: [number, number][][] = [];
+  const lowlandWoods: [number, number][][] = [];
+
   for (const f of fields) {
     g.fillStyle = greens[Math.floor(rand() * greens.length)];
     g.fillRect(f.x, f.y, f.w + 1, f.h + 1);
@@ -253,9 +265,12 @@ export function farmlandTextures(size = 2048): GroundTextures {
       const step = 8 + rand() * 4;
       for (let y = f.y + step / 2; y < f.y + f.h - 2; y += step) {
         for (let x = f.x + step / 2; x < f.x + f.w - 2; x += step) {
+          const tx = x + (rand() - 0.5) * 1.5;
+          const ty = y + (rand() - 0.5) * 1.5;
           g.beginPath();
-          g.arc(x + (rand() - 0.5) * 1.5, y + (rand() - 0.5) * 1.5, 1.7, 0, Math.PI * 2);
+          g.arc(tx, ty, 1.7, 0, Math.PI * 2);
           g.fill();
+          orchardTrees.push([tx, ty]);
         }
       }
     }
@@ -275,9 +290,11 @@ export function farmlandTextures(size = 2048): GroundTextures {
       for (let d = 4 + rand() * 10; d < run - 3; d += 9 + rand() * 16) {
         const x = along ? f.x + d : f.x + (rand() > 0.5 ? f.w : 0);
         const y = along ? f.y + (rand() > 0.5 ? f.h : 0) : f.y + d;
+        const r = 1.3 + rand() * 1.6;
         g.beginPath();
-        g.arc(x, y, 1.3 + rand() * 1.6, 0, Math.PI * 2);
+        g.arc(x, y, r, 0, Math.PI * 2);
         g.fill();
+        hedgerowTrees.push([x, y, r]);
       }
     }
   }
@@ -312,6 +329,7 @@ export function farmlandTextures(size = 2048): GroundTextures {
         const v = (gy + rand()) / GRID;
         if (rand() > smooth01((heightAt(u, v) - 0.45) / 0.3) * 0.8) continue;
         const r = size * (0.005 + rand() * 0.011);
+        const poly: [number, number][] = [];
         g.beginPath();
         for (let a = 0; a < 9; a++) {
           const t = (a / 9) * Math.PI * 2;
@@ -319,9 +337,11 @@ export function farmlandTextures(size = 2048): GroundTextures {
           const px = u * size + Math.cos(t) * rr;
           const py = v * size + Math.sin(t) * rr;
           if (a === 0) g.moveTo(px, py); else g.lineTo(px, py);
+          poly.push([px, py]);
         }
         g.closePath();
         g.fill();
+        uplandWoods.push(poly);
       }
     }
   }
@@ -332,6 +352,7 @@ export function farmlandTextures(size = 2048): GroundTextures {
      every flight consistent while still breaking the regular field pattern
      with natural silhouettes. */
   const water = ['#2f7792', '#286b87', '#3b8ca0', '#245e7b'];
+  const lakeShores: [number, number][][] = [];
   w.lineJoin = 'round';
   w.lineCap = 'round';
   for (const [i, lake] of lakes.entries()) {
@@ -340,6 +361,7 @@ export function farmlandTextures(size = 2048): GroundTextures {
     const rx = size * lake.r;
     const ry = rx * lake.aspect;
     const points = 13;
+    const shore: [number, number][] = [];
     w.beginPath();
     for (let p = 0; p < points; p++) {
       const a = (p / points) * Math.PI * 2;
@@ -347,7 +369,9 @@ export function farmlandTextures(size = 2048): GroundTextures {
       const px = x + Math.cos(a) * rx * wobble;
       const py = y + Math.sin(a) * ry * wobble;
       if (p === 0) w.moveTo(px, py); else w.lineTo(px, py);
+      shore.push([px, py]);
     }
+    lakeShores.push(shore);
     w.closePath();
     w.fillStyle = water[i % water.length];
     w.globalAlpha = 0.78;
@@ -369,6 +393,7 @@ export function farmlandTextures(size = 2048): GroundTextures {
     const x = rand() * size;
     const y = rand() * size;
     const r = size * (0.006 + rand() * 0.016);
+    const poly: [number, number][] = [];
     g.fillStyle = '#26401f';
     g.beginPath();
     for (let a = 0; a < 11; a++) {
@@ -377,9 +402,11 @@ export function farmlandTextures(size = 2048): GroundTextures {
       const px = x + Math.cos(t) * rr;
       const py = y + Math.sin(t) * rr;
       if (a === 0) g.moveTo(px, py); else g.lineTo(px, py);
+      poly.push([px, py]);
     }
     g.closePath();
     g.fill();
+    lowlandWoods.push(poly);
   }
 
   /* A river, and lanes that do not follow it. Both wrap at the tile edge, so
@@ -399,11 +426,15 @@ export function farmlandTextures(size = 2048): GroundTextures {
      streams wandering in from up-tile, each ending exactly on the river's
      own curve, make the drainage read as a system. */
   g.lineWidth = size / 340;
+  // Every line on the ground a tree or a farm must keep off: cubic curves.
+  const streams: Cubic[] = [];
+  const lanes: Cubic[] = [];
   for (const [x0, jitter] of [[0.31, 3], [0.79, 7]] as const) {
     const xEnd = size * x0;
     const yEnd = size * 0.62 + Math.sin(x0 * Math.PI * 2) * size * 0.1;
+    const xStart = xEnd + size * (0.1 + rand() * 0.1) * (jitter > 4 ? -1 : 1);
     g.beginPath();
-    g.moveTo(xEnd + size * (0.1 + rand() * 0.1) * (jitter > 4 ? -1 : 1), 0);
+    g.moveTo(xStart, 0);
     const bend = size * (0.06 + rand() * 0.1);
     g.bezierCurveTo(
       xEnd + bend, yEnd * 0.3,
@@ -411,15 +442,18 @@ export function farmlandTextures(size = 2048): GroundTextures {
       xEnd, yEnd,
     );
     g.stroke();
+    streams.push([xStart, 0, xEnd + bend, yEnd * 0.3, xEnd - bend, yEnd * 0.72, xEnd, yEnd]);
   }
 
   g.strokeStyle = 'rgba(206,198,178,0.5)';
   g.lineWidth = size / 420;
   for (const [x0, x1] of [[0.18, 0.34], [0.72, 0.58]] as const) {
+    const lane: Cubic = [size * x0, 0, size * (x0 + 0.08), size * 0.4, size * (x1 - 0.06), size * 0.7, size * x1, size];
     g.beginPath();
-    g.moveTo(size * x0, 0);
-    g.bezierCurveTo(size * (x0 + 0.08), size * 0.4, size * (x1 - 0.06), size * 0.7, size * x1, size);
+    g.moveTo(lane[0], lane[1]);
+    g.bezierCurveTo(lane[2], lane[3], lane[4], lane[5], lane[6], lane[7]);
     g.stroke();
+    lanes.push(lane);
   }
 
   /* ── Settlements ──────────────────────────────────────────────────
@@ -459,7 +493,11 @@ export function farmlandTextures(size = 2048): GroundTextures {
     });
   }
 
-  for (const t of settlements) drawSettlement(g, n, t, rand, size);
+  const towns = settlements.map((t) => {
+    const painted: PaintedTown = { buildings: [], roads: [], outline: [] };
+    drawSettlement(g, n, t, rand, size, painted);
+    return { ...t, painted };
+  });
 
   /* Rural light: farmsteads, and the odd vehicle on a lane. Scattered single
      points are what sells the dark between towns — an unlit countryside
@@ -468,6 +506,12 @@ export function farmlandTextures(size = 2048): GroundTextures {
   for (let i = 0; i < 140; i++) {
     n.fillRect(rand() * size, rand() * size, 1.6, 1.6);
   }
+
+  const props = landProps({
+    size, g, n, fields, uplandWoods, lowlandWoods, lakeShores, streams, lanes, towns,
+    hedgerowTrees, orchardTrees,
+    riverY: (x) => size * riverAt(x / size),
+  });
 
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -527,7 +571,290 @@ export function farmlandTextures(size = 2048): GroundTextures {
   normalTex.wrapS = normalTex.wrapT = THREE.RepeatWrapping;
   normalTex.anisotropy = 8;
 
-  return { day: tex, night: nightTex, water: waterTex, height: heightTex, normal: normalTex };
+  return { day: tex, night: nightTex, water: waterTex, height: heightTex, normal: normalTex, props };
+}
+
+type Cubic = [number, number, number, number, number, number, number, number];
+
+/**
+ * The trees and buildings of the farmland tile, stood up from its paint.
+ *
+ * Everything here keeps to what is already painted: woods are filled with
+ * trees where the woods are, towns get their buildings back as the
+ * footprints their roofs were painted with, and hedgerow oaks and orchard
+ * rows stand on their own dots. What is new is painted as well as raised —
+ * farmsteads, and rows of poplars along the river and the roads out of town
+ * — so the ground still carries them past the distance where the scenery
+ * stops drawing in the round.
+ *
+ * A separate random stream from the painters', so none of what was painted
+ * before moves.
+ */
+function landProps(p: {
+  size: number;
+  g: CanvasRenderingContext2D;
+  n: CanvasRenderingContext2D;
+  fields: { x: number; y: number; w: number; h: number }[];
+  uplandWoods: [number, number][][];
+  lowlandWoods: [number, number][][];
+  lakeShores: [number, number][][];
+  streams: Cubic[];
+  lanes: Cubic[];
+  towns: { x: number; y: number; r: number; core: number; painted: PaintedTown }[];
+  hedgerowTrees: [number, number, number][];
+  orchardTrees: [number, number][];
+  /** The river's centre line, in canvas pixels. */
+  riverY: (x: number) => number;
+}): LandProps {
+  const { size, g, n } = p;
+  const mpp = TILE_METRES / size;
+  const rand = seededRandom(0x7ee5eed);
+  const trees: TreeSpot[] = [];
+  const buildings: BuildingSpot[] = [];
+
+  /* A small map of the tile to ask questions of: woods in red (on the high
+     ground) and green (in the low corners), and in blue everywhere nothing
+     may stand — water, the river and its streams, lanes, roads and towns. */
+  const MR = 512;
+  const mc = document.createElement('canvas');
+  mc.width = mc.height = MR;
+  const m = mc.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
+  m.setTransform(MR / size, 0, 0, MR / size, 0, 0);
+  m.globalCompositeOperation = 'lighter';
+  m.lineCap = m.lineJoin = 'round';
+  const fillShape = (poly: [number, number][], style: string) => {
+    m.fillStyle = style;
+    m.beginPath();
+    poly.forEach(([x, y], i) => (i === 0 ? m.moveTo(x, y) : m.lineTo(x, y)));
+    m.closePath();
+    m.fill();
+  };
+  for (const poly of p.uplandWoods) fillShape(poly, 'rgb(255,0,0)');
+  for (const poly of p.lowlandWoods) fillShape(poly, 'rgb(0,255,0)');
+  const KEEP_OUT = 'rgb(0,0,255)';
+  m.strokeStyle = KEEP_OUT;
+  for (const shore of p.lakeShores) {
+    fillShape(shore, KEEP_OUT);
+    m.lineWidth = 6;
+    m.stroke();
+  }
+  m.lineWidth = size / 150 + 8;
+  m.beginPath();
+  for (let x = 0; x <= size; x += size / 96) {
+    if (x === 0) m.moveTo(x, p.riverY(x)); else m.lineTo(x, p.riverY(x));
+  }
+  m.stroke();
+  const strokeCubic = (c: Cubic, width: number) => {
+    m.lineWidth = width;
+    m.beginPath();
+    m.moveTo(c[0], c[1]);
+    m.bezierCurveTo(c[2], c[3], c[4], c[5], c[6], c[7]);
+    m.stroke();
+  };
+  for (const c of p.streams) strokeCubic(c, size / 340 + 6);
+  for (const c of p.lanes) strokeCubic(c, size / 420 + 4);
+  for (const town of p.towns) {
+    fillShape(town.painted.outline, KEEP_OUT);
+    m.lineWidth = Math.max(1.2, town.r * 0.03) + 5;
+    for (const [x0, y0, cx, cy, x1, y1] of town.painted.roads) {
+      m.beginPath();
+      m.moveTo(x0, y0);
+      m.quadraticCurveTo(cx, cy, x1, y1);
+      m.stroke();
+    }
+  }
+  const md = m.getImageData(0, 0, MR, MR).data;
+  const at = (x: number, y: number, channel: number) => {
+    const mx = Math.floor((((x % size) + size) % size) * MR / size);
+    const my = Math.floor((((y % size) + size) % size) * MR / size);
+    return md[(my * MR + mx) * 4 + channel];
+  };
+  const blocked = (x: number, y: number) => at(x, y, 2) > 64;
+  const wooded = (x: number, y: number) => at(x, y, 0) > 127 || at(x, y, 1) > 127;
+
+  const tree = (x: number, y: number, kind: TreeKind, height: number, width: number) => {
+    trees.push({ s: x / size, t: y / size, kind, height, width, shade: rand() });
+  };
+  const between = (lo: number, hi: number) => lo + rand() * (hi - lo);
+  const conifer = (x: number, y: number) => tree(x, y, 'conifer', between(15, 26), between(6.5, 9));
+  const broadleaf = (x: number, y: number) => tree(x, y, 'broadleaf', between(12, 20), between(10, 15));
+  const birch = (x: number, y: number) => tree(x, y, 'birch', between(10, 16), between(5, 8));
+  const poplar = (x: number, y: number) => tree(x, y, 'poplar', between(20, 29), between(3.5, 5));
+
+  /* The woods, one tree to every ten pixels — about fifteen metres, so
+     neighbouring crowns just touch and the painted wood floor shows between
+     them as shade. Plantations of spruce and fir on the high ground, a mixed
+     broadleaf wood with birch at its edges in the low corners. */
+  const STEP = 10;
+  for (let gy = 0; gy < size / STEP; gy++) {
+    for (let gx = 0; gx < size / STEP; gx++) {
+      const x = (gx + 0.2 + rand() * 0.6) * STEP;
+      const y = (gy + 0.2 + rand() * 0.6) * STEP;
+      if (blocked(x, y)) continue;
+      const upland = at(x, y, 0) > 127;
+      if (!upland && at(x, y, 1) <= 127) continue;
+      const pick = rand();
+      if (upland) {
+        if (pick < 0.72) conifer(x, y);
+        else if (pick < 0.9) birch(x, y);
+        else broadleaf(x, y);
+      } else if (pick < 0.62) broadleaf(x, y);
+      else if (pick < 0.82) conifer(x, y);
+      else birch(x, y);
+    }
+  }
+
+  // Hedgerow oaks, grown from their dots: the dot is the dense heart of the crown.
+  for (const [x, y, r] of p.hedgerowTrees) {
+    if (blocked(x, y)) continue;
+    const width = Math.min(15, Math.max(8, r * 2 * mpp * 2.2));
+    tree(x, y, 'broadleaf', width * between(1.1, 1.45), width);
+  }
+  // Every other orchard tree: at this size the rows read, the trees barely do.
+  p.orchardTrees.forEach(([x, y], i) => {
+    if (i % 2 === 0 && !blocked(x, y)) tree(x, y, 'orchard', between(4.5, 6.5), between(4.5, 6));
+  });
+
+  /* Rows of poplars: along stretches of the river bank, and down the roads
+     out of town — the one tree planted in lines, and so the one that reads
+     as somebody's doing rather than the land's. */
+  const rows: [number, number][] = [];
+  const bank = size / 300 + 6;
+  for (let i = 0; i < 6; i++) {
+    const x0 = rand() * size;
+    const run = between(110, 260);
+    const side = rand() < 0.5 ? -1 : 1;
+    for (let x = x0; x < x0 + run; x += between(5.8, 7)) {
+      const y = p.riverY(x);
+      const slope = (p.riverY(x + 1) - p.riverY(x - 1)) / 2;
+      const len = Math.hypot(1, slope);
+      rows.push([x - (slope / len) * bank * side, y + (1 / len) * bank * side]);
+    }
+  }
+  for (const town of p.towns) {
+    for (const [x0, y0, cx, cy, x1, y1] of town.painted.roads) {
+      if (rand() < 0.4) continue;
+      const side = rand() < 0.5 ? -1 : 1;
+      const from = between(0.15, 0.4);
+      const to = from + between(0.15, 0.35);
+      const off = Math.max(1.2, town.r * 0.03) / 2 + 4.5;
+      const point = (t: number): [number, number] => [
+        (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * cx + t * t * x1,
+        (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cy + t * t * y1,
+      ];
+      const length = Math.hypot(x1 - x0, y1 - y0);
+      for (let t = from; t < to; t += 6.5 / length) {
+        const [ax, ay] = point(t);
+        const [bx, by] = point(t + 0.002);
+        const len = Math.hypot(bx - ax, by - ay) || 1;
+        rows.push([ax - ((by - ay) / len) * off * side, ay + ((bx - ax) / len) * off * side]);
+      }
+    }
+  }
+  g.fillStyle = 'rgba(28,42,22,0.7)';
+  for (const [x, y] of rows) {
+    const xx = ((x % size) + size) % size;
+    const yy = ((y % size) + size) % size;
+    if (blocked(xx, yy) || wooded(xx, yy)) continue;
+    g.beginPath();
+    g.arc(xx, yy, 1.4, 0, Math.PI * 2);
+    g.fill();
+    poplar(xx, yy);
+  }
+
+  /* The towns' buildings, back up from the footprints their roofs were
+     painted with: taller and flatter at the centre, pitched roofs toward the
+     edge, and never smaller than a cottage. */
+  const walls = ['#d6ccba', '#c8b89c', '#e2dace', '#b8a58a', '#a8876a', '#cfc3ad', '#9c8c7a'];
+  const building = (b: BuildingSpot) => {
+    // A pitched roof's ridge runs along the building's length.
+    if (b.roof === 'gable' && b.width > b.depth) {
+      buildings.push({ ...b, width: b.depth, depth: b.width, angle: b.angle + Math.PI / 2 });
+    } else buildings.push(b);
+  };
+  for (const town of p.towns) {
+    for (const pb of town.painted.buildings) {
+      const flat = pb.central ? rand() < 0.6 : rand() < 0.15;
+      building({
+        s: pb.x / size,
+        t: pb.y / size,
+        width: Math.max(6, pb.w * mpp),
+        depth: Math.max(6, pb.h * mpp),
+        height: pb.central ? between(9, 16) : between(5, 8),
+        angle: pb.angle,
+        roof: flat ? 'flat' : 'gable',
+        roofColour: pb.roof,
+        wallColour: walls[Math.floor(rand() * walls.length)],
+        lit: pb.lit ? between(0.6, 0.95) : between(0.25, 0.5),
+      });
+    }
+  }
+
+  /* Farmsteads: a yard in the corner of a field, a house, a barn and a few
+     trees for shelter. Painted on the ground, lit at night, and stood up —
+     the houses of the open country, between the towns. */
+  const houseRoofs = ['#8c4b35', '#6b635a', '#7f5a45', '#5f584f'];
+  const barnRoofs = ['#5a5f62', '#7a3b2b', '#6b6155', '#4f565a'];
+  const houseWalls = ['#d9d0bf', '#cbbd9f', '#e0d7c6', '#b89a7a'];
+  const barnWalls = ['#7a3b2b', '#8a8378', '#6f6a60', '#9a8a6a'];
+  const pickOf = (list: string[]) => list[Math.floor(rand() * list.length)];
+  let farms = 0;
+  for (let tries = 0; tries < 400 && farms < 26; tries++) {
+    const f = p.fields[Math.floor(rand() * p.fields.length)];
+    if (f.w < 40 || f.h < 40) continue;
+    const turned = rand() < 0.5;
+    const yw = turned ? 16 : 22;
+    const yh = turned ? 22 : 16;
+    const cx = rand() < 0.5 ? f.x + yw / 2 + 4 : f.x + f.w - yw / 2 - 4;
+    const cy = rand() < 0.5 ? f.y + yh / 2 + 4 : f.y + f.h - yh / 2 - 4;
+    const corners: [number, number][] = [[cx, cy], [cx - yw / 2, cy - yh / 2], [cx + yw / 2, cy - yh / 2], [cx - yw / 2, cy + yh / 2], [cx + yw / 2, cy + yh / 2]];
+    if (corners.some(([x, y]) => blocked(x, y) || wooded(x, y))) continue;
+    farms++;
+    // Along the yard's length: the house at one end, the barn at the other.
+    const ax = turned ? 0 : 1;
+    const ay = turned ? 1 : 0;
+    const house: [number, number] = [cx - ax * 5, cy - ay * 5];
+    const barn: [number, number] = [cx + ax * 4, cy + ay * 4];
+    const houseRoof = pickOf(houseRoofs);
+    const barnRoof = pickOf(barnRoofs);
+    g.fillStyle = 'rgba(142,132,110,0.9)';
+    g.fillRect(cx - yw / 2, cy - yh / 2, yw, yh);
+    g.fillStyle = houseRoof;
+    g.fillRect(house[0] - (turned ? 2.5 : 3.5), house[1] - (turned ? 3.5 : 2.5), turned ? 5 : 7, turned ? 7 : 5);
+    g.fillStyle = barnRoof;
+    g.fillRect(barn[0] - (turned ? 3.5 : 6.5), barn[1] - (turned ? 6.5 : 3.5), turned ? 7 : 13, turned ? 13 : 7);
+    n.fillStyle = 'rgba(255,214,150,0.85)';
+    n.fillRect(house[0] - 1, house[1] - 1, 2, 2);
+    const glow = n.createRadialGradient(house[0], house[1], 0, house[0], house[1], 7);
+    glow.addColorStop(0, 'rgba(255,190,110,0.16)');
+    glow.addColorStop(1, 'rgba(255,190,110,0)');
+    n.fillStyle = glow;
+    n.fillRect(house[0] - 7, house[1] - 7, 14, 14);
+    const angle = turned ? Math.PI / 2 : 0;
+    building({
+      s: house[0] / size, t: house[1] / size, width: 7 * mpp, depth: 5 * mpp,
+      height: between(5.5, 6.5), angle, roof: 'gable', roofColour: houseRoof,
+      wallColour: pickOf(houseWalls), lit: between(0.5, 0.9),
+    });
+    building({
+      s: barn[0] / size, t: barn[1] / size, width: 13 * mpp, depth: 7 * mpp,
+      height: between(6, 8), angle, roof: 'gable', roofColour: barnRoof,
+      wallColour: pickOf(barnWalls), lit: 0,
+    });
+    // A shelter belt along the yard's far side.
+    for (let k = -1; k <= 1; k++) {
+      const x = cx + (turned ? (yw / 2 + 3) * (cx > f.x + f.w / 2 ? -1 : 1) : k * 7);
+      const y = cy + (turned ? k * 7 : (yh / 2 + 3) * (cy > f.y + f.h / 2 ? -1 : 1));
+      if (blocked(x, y)) continue;
+      g.fillStyle = 'rgba(28,42,22,0.75)';
+      g.beginPath();
+      g.arc(x, y, 1.6, 0, Math.PI * 2);
+      g.fill();
+      if (rand() < 0.5) broadleaf(x, y); else conifer(x, y);
+    }
+  }
+
+  return { trees, buildings };
 }
 
 /**
@@ -551,6 +878,8 @@ export interface OceanTextures {
   night: THREE.CanvasTexture;
   /** Transparent sparkle, drifted at its own rate over the plate. */
   glint: THREE.CanvasTexture;
+  /** The ships whose lights those are, and the small boats among them, for the scenery. */
+  boats: BoatSpot[];
 }
 
 export function oceanTextures(size = 1024): OceanTextures {
@@ -640,11 +969,24 @@ export function oceanTextures(size = 1024): OceanTextures {
   const n = nc.getContext('2d') as CanvasRenderingContext2D;
   n.fillStyle = '#000000';
   n.fillRect(0, 0, size, size);
+  /* Each of these is a real ship now (see `scenery.ts`): the lights are
+     painted where it sits, so past the distance it is drawn to, its lights
+     carry on. What kind of ship it is comes off a stream of its own, so the
+     sea looks exactly as it did. */
+  const boats: BoatSpot[] = [];
+  const shipyard = seededRandom(0x5eab0a7);
+  // Running odds: the first kind whose number the draw falls under.
+  const ships: [BoatKind, number][] = [['cargo', 0.38], ['tanker', 0.58], ['ferry', 0.72], ['trawler', 1]];
+  const draft = (odds: [BoatKind, number][]) => {
+    const roll = shipyard();
+    return (odds.find(([, p]) => roll < p) ?? odds[odds.length - 1])[0];
+  };
   for (let i = 0; i < 12; i++) {
     const x = rand() * size;
     const y = rand() * size;
     const a = rand() * Math.PI * 2;
     const wake = 8 + rand() * 18;
+    boats.push({ s: x / size, t: y / size, heading: a, kind: draft(ships), seed: shipyard(), paint: shipyard() });
     const grd = n.createLinearGradient(x, y, x - Math.cos(a) * wake, y - Math.sin(a) * wake);
     grd.addColorStop(0, 'rgba(140,190,220,0.3)');
     grd.addColorStop(1, 'rgba(140,190,220,0)');
@@ -655,6 +997,17 @@ export function oceanTextures(size = 1024): OceanTextures {
     n.fillRect(x - 0.9, y - 0.9, 1.8, 1.8);
     n.fillStyle = 'rgba(180,220,255,0.6)';
     n.fillRect(x + Math.cos(a) * 2.6 - 0.6, y + Math.sin(a) * 2.6 - 0.6, 1.2, 1.2);
+  }
+  /* And the small craft the painted sea never had — fishing boats and
+     yachts — with lights of their own, fainter than a ship's. */
+  const craft: [BoatKind, number][] = [['trawler', 0.45], ['yacht', 1]];
+  for (let i = 0; i < 10; i++) {
+    const x = shipyard() * size;
+    const y = shipyard() * size;
+    const a = shipyard() * Math.PI * 2;
+    boats.push({ s: x / size, t: y / size, heading: a, kind: draft(craft), seed: shipyard(), paint: shipyard() });
+    n.fillStyle = 'rgba(255,236,200,0.7)';
+    n.fillRect(x - 0.6, y - 0.6, 1.2, 1.2);
   }
 
   /* ── Glint ────────────────────────────────────────────────────────────
@@ -686,7 +1039,7 @@ export function oceanTextures(size = 1024): OceanTextures {
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
   };
-  return { day: finish(c), night: finish(nc), glint: finish(wc) };
+  return { day: finish(c), night: finish(nc), glint: finish(wc), boats };
 }
 
 /**
@@ -705,15 +1058,42 @@ export function oceanTextures(size = 1024): OceanTextures {
  * roofs, and a glow over the whole thing — which is most of what you
  * actually see of a distant town at night.
  */
+interface PaintedBuilding {
+  /** Centre, in canvas pixels. */
+  x: number;
+  y: number;
+  /** Footprint in canvas pixels, along the town's own axes. */
+  w: number;
+  h: number;
+  angle: number;
+  roof: string;
+  central: boolean;
+  lit: boolean;
+}
+
+interface PaintedTown {
+  buildings: PaintedBuilding[];
+  /** The roads out, as quadratic curves in canvas pixels: from, control, to. */
+  roads: [number, number, number, number, number, number][];
+  /** The made ground, in canvas pixels. */
+  outline: [number, number][];
+}
+
 function drawSettlement(
   g: CanvasRenderingContext2D,
   n: CanvasRenderingContext2D,
   t: { x: number; y: number; r: number; core: number },
   rand: () => number,
   size: number,
+  out: PaintedTown,
 ) {
   const { r } = t;
   const angle = rand() * Math.PI;
+  // From the town's own turned frame to the canvas, for what is written down.
+  const toCanvas = (px: number, py: number): [number, number] => [
+    t.x + px * Math.cos(angle) - py * Math.sin(angle),
+    t.y + px * Math.sin(angle) + py * Math.cos(angle),
+  ];
   /* Slate, tile, tar and the occasional pale industrial roof. Kept close in
      value so the town reads as one mass at altitude and only resolves into
      separate buildings when you are near it. */
@@ -750,6 +1130,7 @@ function drawSettlement(
   g.fillStyle = 'rgba(104,97,86,0.62)';
   tracePath(g);
   g.fill();
+  for (const [px, py] of blob) out.outline.push(toCanvas(px, py));
 
   const street = Math.max(6, r * 0.16);
 
@@ -766,9 +1147,11 @@ function drawSettlement(
   /* Narrow, and a warm grey rather than white. At six pixels of a
      twenty-nine pixel block the streets were a fifth of the town's area and
      it read as white netting over a field — roads are the gaps between
-     buildings, not the subject. */
-  g.strokeStyle = 'rgba(176,170,157,0.62)';
-  g.lineWidth = Math.max(1, r * 0.021);
+     buildings, not the subject. Asphalt, now the buildings stand up out of
+     the blocks: a street reads as the dark lane between two rows of walls,
+     where a pale one read as a gap in the paint. */
+  g.strokeStyle = 'rgba(86,85,81,0.78)';
+  g.lineWidth = Math.max(1.2, r * 0.024);
   n.strokeStyle = 'rgba(255,186,92,0.5)';
   n.lineWidth = Math.max(1, r * 0.03);
   for (let i = -7; i <= 7; i++) {
@@ -798,12 +1181,21 @@ function drawSettlement(
       const ox = bx + pad + rand() * Math.max(0, street - w - pad * 2) * 0.6;
       const oy = by + pad + rand() * Math.max(0, street - h - pad * 2) * 0.6;
 
-      g.fillStyle = roofs[Math.floor(rand() * roofs.length)];
+      const roof = roofs[Math.floor(rand() * roofs.length)];
+      g.fillStyle = roof;
       g.fillRect(ox, oy, w, h);
 
-      if (rand() < (central ? 0.55 : 0.26)) {
+      const lit = rand() < (central ? 0.55 : 0.26);
+      if (lit) {
         n.fillStyle = central ? 'rgba(255,236,200,0.92)' : 'rgba(255,206,140,0.7)';
         n.fillRect(ox, oy, Math.max(1, w * 0.8), Math.max(1, h * 0.8));
+      }
+      // Only what the clip to the outline actually left standing.
+      const cx = ox + w / 2;
+      const cy = oy + h / 2;
+      if (insidePolygon(cx, cy, blob)) {
+        const [x, y] = toCanvas(cx, cy);
+        out.buildings.push({ x, y, w, h, angle, roof, central, lit });
       }
     }
   }
@@ -838,12 +1230,14 @@ function drawSettlement(
     const cpx = ex * 0.5 - bend;
     const cpy = ey * 0.5 + bend;
 
-    g.strokeStyle = 'rgba(198,190,172,0.36)';
-    g.lineWidth = Math.max(0.9, r * 0.028);
+    // Metalled, like the streets it leads out of.
+    g.strokeStyle = 'rgba(92,91,87,0.62)';
+    g.lineWidth = Math.max(1.2, r * 0.03);
     g.beginPath();
     g.moveTo(0, 0);
     g.quadraticCurveTo(cpx, cpy, ex, ey);
     g.stroke();
+    out.roads.push([...toCanvas(0, 0), ...toCanvas(cpx, cpy), ...toCanvas(ex, ey)]);
 
     n.strokeStyle = 'rgba(255,170,80,0.16)';
     n.lineWidth = Math.max(0.8, r * 0.03);
