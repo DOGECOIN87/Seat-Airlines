@@ -111,7 +111,7 @@ The sky is the visitor's own: the sun is placed from their clock and time zone, 
 
 ### A real flight, in 3D
 
-The site opens on the aeroplane **full screen**: press **Enter** to go in, or **Fly the plane** for a minute at the controls — arrow keys or a drag to climb, dive and turn, low over the hills. The minute running out, or the ground, sends you in. Inside, the page opens **outside, on the whole aeroplane**, flying over ground that goes past for real: farmland with rolling hills, woods, villages and farms that stand up in three dimensions, rivers and lakes, a coast every few minutes and a stretch of open sea with ships under way. It banks into gentle turns, ailerons and rudder working, and every window lit from outside is a row somebody has genuinely booked.
+The site opens on the aeroplane **full screen**: press **Enter** to go in, or **Fly the plane** — arrow keys or a drag to climb, dive and turn, low over the hills, with a brief to reach 10,000 ft. At 10,000 ft an engine blows; the ground, when it comes, sends you in. Inside, the page opens **outside, on the whole aeroplane**, flying over ground that goes past for real: farmland with rolling hills, woods, villages and farms that stand up in three dimensions, rivers and lakes, a coast every few minutes and a stretch of open sea with ships under way. It banks into gentle turns, ailerons and rudder working, and every window lit from outside is a row somebody has genuinely booked.
 
 Step inside to a seat, turn your head, walk the aircraft, climb into the **flight deck** or drop into the **cargo hold**.
 

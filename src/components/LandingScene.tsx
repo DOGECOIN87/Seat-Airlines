@@ -5,7 +5,7 @@ import type { BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import { useAttitude, type Attitude } from '../lib/useAttitude';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
-import { clampUnit, GAME, scheduleFailure, speedAt, type FlightGame } from '../lib/landingGame';
+import { blastAltitude, clampUnit, FEET, GAME, speedAt, WASTED_AT, type FlightGame } from '../lib/landingGame';
 
 /**
  * The landing page's aeroplane: the exterior scene, full screen, and — when
@@ -20,12 +20,12 @@ import { clampUnit, GAME, scheduleFailure, speedAt, type FlightGame } from '../l
  * the player's, the height is whatever they make it, and the ground under
  * the nose is checked every frame.
  *
- * Sometimes an engine explodes (see `landingGame`), and the flying changes
- * character entirely — see `fly` below.
+ * At 10,000 ft an engine explodes (see `landingGame`), and the flying
+ * changes character entirely — see `fly` below.
  */
 
 export interface LandingHud {
-  timer: RefObject<HTMLSpanElement | null>;
+  /** How far up the climb to the blast altitude, as a bar. */
   bar: RefObject<HTMLSpanElement | null>;
   alt: RefObject<HTMLSpanElement | null>;
   warn: RefObject<HTMLParagraphElement | null>;
@@ -57,8 +57,8 @@ interface LandingSceneProps {
   onFlying: () => void;
   /** An engine has just exploded: -1 the port one, 1 the starboard. */
   onFailure: (side: -1 | 1) => void;
-  /** The minute is up, or the aeroplane is down. */
-  onEnd: (why: 'crash' | 'time', metres: number) => void;
+  /** The aeroplane is down. */
+  onCrash: (metres: number) => void;
 }
 
 const DEG = Math.PI / 180;
@@ -97,7 +97,8 @@ function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; s
     g.heading = (g.heading + g.bank * GAME.turnRate * dt + 360) % 360;
     g.speed = speedAt(g.alt);
     g.rollRate = 0;
-    return { vs: Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain, stall: 0 };
+    const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain;
+    return { vs: Math.max(-GAME.maxClimb, Math.min(GAME.maxClimb, vs)), stall: 0 };
   }
 
   const dead = g.failed;
@@ -122,7 +123,7 @@ function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; s
   // Heading: the bank turns it while the wing still lifts, and the good engine yaws it toward the dead one.
   g.heading = (g.heading + (g.bank * GAME.turnRate * Math.max(0, lift) + dead * (5 + 5 * k)) * dt + 360) % 360;
   // Speed: half the thrust. Climbing costs speed, a bank costs more, diving buys it back.
-  const trim = speedAt(g.alt) * (0.88 - 0.14 * k);
+  const trim = Math.min(speedAt(g.alt), GAME.failSpeed) * (0.85 - 0.15 * k);
   g.speed += ((trim - g.speed) * 0.22 - 9.81 * Math.sin(g.pitch * DEG) * 0.9 - Math.abs(Math.sin(g.bank * DEG)) * 2.2) * dt;
   g.speed = Math.max(45, g.speed);
   // Height: what the pitch buys at this speed, less what one engine cannot hold, less what the bank spills.
@@ -131,14 +132,14 @@ function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; s
 }
 
 const LandingScene = ({
-  feed, sky, band, controls, taken, playing, game, hud, sounds, onReady, onFail, onFlying, onFailure, onEnd,
+  feed, sky, band, controls, taken, playing, game, hud, sounds, onReady, onFail, onFlying, onFailure, onCrash,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
   const latest = useRef({ sky, band });
   latest.current = { sky, band };
-  const calls = useRef({ onReady, onFail, onFlying, onFailure, onEnd });
-  calls.current = { onReady, onFail, onFlying, onFailure, onEnd };
+  const calls = useRef({ onReady, onFail, onFlying, onFailure, onCrash });
+  calls.current = { onReady, onFail, onFlying, onFailure, onCrash };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -194,7 +195,7 @@ const LandingScene = ({
 
   const pose = useRef<ViewPose>({ seatIndex: 0, row: 1, yaw: 0, id: '1A', exterior: true, orbit: 0 });
   const flown = useRef<Attitude>({ pitch: 0, bank: 0, speed: 240, alt: 0, vs: 0, heading: 0, roll: 0 });
-  const shown = useRef({ second: -1, feet: -1, warn: false, stall: false });
+  const shown = useRef({ feet: -1, warn: false, stall: false });
 
   useAttitude(feed, (a) => {
     const w = world.current;
@@ -206,7 +207,17 @@ const LandingScene = ({
     const { sky: skyState, band: bandState } = latest.current;
     const p = pose.current;
 
-    if (g.phase === 'crashed') return; // The last frame holds: the aeroplane is down.
+    if (g.phase === 'crashed') {
+      /* Down. The world stops where it is — the smoke hanging, the flames
+         still — and only the camera moves: as WASTED lands it makes a slow
+         dolly zoom, backing away while the lens closes in, so the aeroplane
+         holds its size and the ground behind it looms. */
+      const since = (now - g.phaseAt) / 1000 - WASTED_AT;
+      p.freeze = true;
+      p.dolly = smooth(Math.min(1, Math.max(0, since / 2.8)));
+      w.render(flown.current, skyState, lowRef.current, p);
+      return;
+    }
 
     /* At rest the aeroplane moves up out of the words at the foot of the
        screen, and over to the right where there is room: up and right on
@@ -245,21 +256,21 @@ const LandingScene = ({
         g.phaseAt = now;
         g.distance = 0;
         g.speed = speedAt(g.alt);
-        g.failAt = scheduleFailure();
+        g.blastAlt = blastAltitude();
         calls.current.onFlying();
       }
     } else {
-      /* Flying, or flying on once the minute is up with the stick let go. */
       const live = g.phase === 'flying';
-      const t = (now - g.phaseAt) / 1000;
 
       if (live && g.failed === 0) {
-        /* The warning is a clip that ends in a bang, so it starts that long
-           before the engine is due to go — and the engine then goes on the
-           clip's own clock, however late the audio started, so the fireball
-           lands on the bang. Without the audio, it goes on time regardless. */
+        /* The warning is a clip that ends in a bang, so it starts as far
+           ahead of 10,000 ft as the bang is into it — worked out from the
+           climb rate, so the bang lands as the altimeter reaches it — and
+           the engine then goes on the clip's own clock, however late the
+           audio started, so the fireball lands on the bang. Without the
+           audio it goes on time regardless. */
         const clip = sounds.current?.blast ?? null;
-        if (!g.warned && t >= g.failAt - GAME.blastAt) {
+        if (!g.warned && g.agl + Math.max(0, g.vs) * GAME.blastAt >= g.blastAlt) {
           g.warned = true;
           g.warnedAt = now;
           if (clip) {
@@ -274,6 +285,8 @@ const LandingScene = ({
             g.failed = Math.random() < 0.5 ? -1 : 1;
             g.failedAt = now;
             g.damage = 0.5;
+            // Half the thrust gone: from here it flies at an airliner's speed, not the height's.
+            g.speed = Math.min(g.speed, GAME.failSpeed * 1.3);
             // The blast itself: a violent roll toward the dead engine, and the nose knocked down.
             g.rollRate = g.failed * 60;
             g.pitch -= 5;
@@ -286,6 +299,7 @@ const LandingScene = ({
       const iy = live ? clampUnit(g.keys.y + g.stick.y) : 0;
       const step = fly(g, ix, iy, dt);
       stall = step.stall;
+      g.vs = step.vs;
       g.alt = Math.min(GAME.ceiling, g.alt + step.vs * dt);
       if (live) g.distance += g.speed * dt;
       p.chase = 1;
@@ -307,32 +321,17 @@ const LandingScene = ({
     w.render(f, skyState, lowRef.current, p);
 
     const agl = g.alt - w.groundAt();
-    if (g.phase === 'flying') {
-      if (agl < GAME.clearance) {
-        g.phase = 'crashed';
-        g.phaseAt = now;
-        calls.current.onEnd('crash', g.distance);
-        return;
-      }
-      /* The minute runs out only for an aeroplane with both engines. Once
-         the warning has started, the flight is over when it hits the ground. */
-      const left = GAME.seconds - (now - g.phaseAt) / 1000;
-      if (!g.warned) {
-        if (left <= 0) {
-          g.phase = 'timeup';
-          g.phaseAt = now;
-          calls.current.onEnd('time', g.distance);
-        }
-        // The readouts, written straight to the page: no React render a frame.
-        const second = Math.min(GAME.seconds, Math.max(0, Math.ceil(left)));
-        if (second !== shown.current.second && hud.timer.current) {
-          shown.current.second = second;
-          hud.timer.current.textContent = `${Math.floor(second / 60)}:${String(second % 60).padStart(2, '0')}`;
-        }
-        if (hud.bar.current) hud.bar.current.style.transform = `scaleX(${Math.max(0, left / GAME.seconds)})`;
-      }
+    g.agl = agl;
+    /* No clock: the flight is over when it meets the ground. */
+    if (g.phase === 'flying' && agl < GAME.clearance) {
+      g.phase = 'crashed';
+      g.phaseAt = now;
+      calls.current.onCrash(g.distance);
+      return;
     }
-    const feet = Math.max(0, Math.round((agl * 3.281) / 10) * 10);
+    // The readouts, written straight to the page: no React render a frame.
+    if (!g.failed && hud.bar.current) hud.bar.current.style.transform = `scaleX(${Math.min(1, Math.max(0, agl / g.blastAlt))})`;
+    const feet = Math.max(0, Math.round((agl * FEET) / 10) * 10);
     if (feet !== shown.current.feet && hud.alt.current) {
       shown.current.feet = feet;
       hud.alt.current.textContent = feet.toLocaleString('en-US');

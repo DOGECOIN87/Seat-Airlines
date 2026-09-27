@@ -1,24 +1,23 @@
 /**
- * The landing page's minute at the controls.
+ * The landing page's turn at the controls.
  *
  * The aeroplane on the rest of the site flies the market and nobody steers
- * it. On the way in, for one minute, somebody can: the arrow keys (or a drag
- * on a touch screen) put the nose up and down and bank it round, over the
- * same country the cabin windows look out on. Fly it into the ground and the
- * minute is over early.
+ * it. On the way in, somebody can: the arrow keys (or a drag on a touch
+ * screen) put the nose up and down and bank it round, over the same country
+ * the cabin windows look out on. The brief is to climb to 10,000 ft.
  *
- * Every so often it goes wrong. A voice outside shouts, the door goes in,
- * and one engine explodes: from then on the aeroplane yaws and rolls toward
- * the dead engine, sinks on half its thrust, shakes, and answers the stick
- * less and less as the fire spreads. The clock stops — there is no running
- * out the minute on one engine. It ends when it meets the ground.
+ * At 10,000 ft it goes wrong. A voice outside shouts, the door goes in, and
+ * one engine explodes: from then on the aeroplane yaws and rolls toward the
+ * dead engine, sinks on half its thrust, shakes, and answers the stick less
+ * and less as the fire spreads. There is no clock. It ends when it meets
+ * the ground.
  *
  * This module is the state the page and the scene share, and the numbers
  * the flying is tuned by. It has no three.js in it, so the page can hold it
  * — and take keys and touches into it — before the scene has loaded.
  */
 
-export type Phase = 'idle' | 'intro' | 'flying' | 'crashed' | 'timeup';
+export type Phase = 'idle' | 'intro' | 'flying' | 'crashed';
 
 /** -1 to 1 on each axis: x banks right, y climbs. */
 export interface Stick {
@@ -45,8 +44,11 @@ export interface FlightGame {
   distance: number;
   /** The last frame, on `performance.now()`. */
   last: number;
-  /** Seconds into the flight the engine is due to go; Infinity when it will not. */
-  failAt: number;
+  /** Metres above the ground at which the engine goes. */
+  blastAlt: number;
+  /** Metres above the ground, and climbing at, as of the last frame. */
+  agl: number;
+  vs: number;
   /** The warning — the clip that ends in the bang — has started. */
   warned: boolean;
   /** When it started, on `performance.now()`. */
@@ -68,35 +70,35 @@ export interface FlightGame {
 }
 
 export const GAME = {
-  /** How long the controls are yours. */
-  seconds: 60,
   /** The dive from cruise down to the deck before the controls are handed over. */
   introSeconds: 2.4,
   /** Where the dive levels out: low enough that the hills are a hazard. */
   startAlt: 430,
-  /** No higher than this: the cloud deck is at 2,400 m. */
-  ceiling: 1900,
+  /** No higher than this: well past the 10,000 ft the flight is about, up through the cloud deck at 2,400 m. */
+  ceiling: 4600,
   /** Closer to the ground than this and the engines are in the trees. */
   clearance: 12,
   /** Degrees of nose-up or nose-down at full stick. */
-  maxPitch: 12,
+  maxPitch: 14,
   /** Degrees of bank at full stick. */
   maxBank: 38,
   /** Degrees of heading a second, per degree of bank. */
   turnRate: 0.42,
-  /** Climb and sink faster than the real thing would, so a minute is enough. */
+  /** Climb and sink faster than the real thing would, so the climb to 10,000 ft is half a minute. */
   climbGain: 1.7,
-  /** How often a flight loses an engine. */
-  failChance: 0.35,
-  /** When, if it does: seconds into the flight. */
-  failWindow: [9, 38] as const,
+  /** Metres a second, up or down, however fast the ground is going by. */
+  maxClimb: 130,
+  /** Where the engine goes, feet above the ground — as the altimeter reads. */
+  blastFeet: 10_000,
   /**
    * Seconds into the warning clip that the bang lands. The engine goes on
    * the clip's own clock, so the fireball and the bang are the same moment.
    */
   blastAt: 2.36,
+  /** One engine flies it at an airliner's speed, not at whatever the height would make it look like. */
+  failSpeed: 150,
   /** Below this airspeed, on one engine, the wing quits. */
-  stallSpeed: 80,
+  stallSpeed: 95,
 } as const;
 
 export const newGame = (): FlightGame => ({
@@ -111,7 +113,9 @@ export const newGame = (): FlightGame => ({
   heading: 0,
   distance: 0,
   last: 0,
-  failAt: Infinity,
+  blastAlt: GAME.blastFeet / FEET,
+  agl: 0,
+  vs: 0,
   warned: false,
   warnedAt: 0,
   failed: 0,
@@ -124,15 +128,24 @@ export const newGame = (): FlightGame => ({
   surge: 0,
 });
 
+/** Feet in a metre. */
+export const FEET = 3.281;
+
 /**
- * When this flight's engine goes, if it does. `?mayday` on the address
- * makes sure it does, and soon, for anybody who wants to try it on purpose.
+ * Seconds after the crash that WASTED lands: on the big hit in the crash
+ * sound. The red, the word and the dolly zoom all start here (the page's
+ * stylesheet times the first two to it as well).
  */
-export function scheduleFailure(): number {
-  const forced = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mayday');
-  if (!forced && Math.random() >= GAME.failChance) return Infinity;
-  const [lo, hi] = forced ? [6, 10] : GAME.failWindow;
-  return lo + Math.random() * (hi - lo);
+export const WASTED_AT = 1.25;
+
+/**
+ * Where this flight's engine goes, metres above the ground: 10,000 ft, or
+ * 1,500 with `?mayday` on the address, for anybody who wants to get to it
+ * without the climb.
+ */
+export function blastAltitude(): number {
+  const soon = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mayday');
+  return (soon ? 1_500 : GAME.blastFeet) / FEET;
 }
 
 /** Ground speed at a height, as the scene flies it: v/h held constant, floored and capped. */

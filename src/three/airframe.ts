@@ -1159,6 +1159,8 @@ export function createAirframe(): AirframeHandles {
       blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: true,
     }));
   });
+  /* Each engine's own, so a dead engine's can stop: no hot exhaust, no trail. */
+  const trails: { side: number; mesh: THREE.Mesh }[] = [];
   for (const side of [1, -1]) {
     for (const [i, seg] of CONTRAIL.entries()) {
       const len = seg.z1 - seg.z0;
@@ -1171,6 +1173,7 @@ export function createAirframe(): AirframeHandles {
       trail.position.set(6.6 * side, -2.3, WING.rootZ + WING.engineZ + seg.z0 + len / 2);
       trail.renderOrder = 2;
       group.add(trail);
+      trails.push({ side, mesh: trail });
     }
   }
 
@@ -1425,6 +1428,7 @@ export function createAirframe(): AirframeHandles {
        the air's decision, passed in from the scene: none in the warm air
        down low, solid ribbons in the cold above the deck. After dark there
        is no sun on them, and they go from white to a moonlit grey. */
+    for (const trail of trails) trail.mesh.visible = trail.side !== engineOut;
     for (const [i, seg] of CONTRAIL.entries()) {
       contrailMats[i].opacity = seg.o * contrail;
       contrailMats[i].visible = contrail > 0.02;

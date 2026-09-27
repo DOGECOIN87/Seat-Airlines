@@ -3137,6 +3137,20 @@ p { text-wrap-style: pretty; }
   padding: 0;
   background: none;
 }
+/* As WASTED lands, the grey goes red: a red laid over the picture and
+   multiplied into it, so the dark stays dark and the light turns crimson. */
+.sa-landing__redout {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: #B0140F;
+  mix-blend-mode: multiply;
+  animation: sa-landing-redout 0.45s ease-out 1.25s both;
+}
+@keyframes sa-landing-redout {
+  from { opacity: 0; }
+  to { opacity: 0.8; }
+}
 .sa-landing.is-crashed .sa-hud,
 .sa-landing.is-crashed .sa-landing__live { opacity: 0; transition: opacity 0.5s ease; }
 .sa-wasted {

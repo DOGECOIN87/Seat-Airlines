@@ -8,27 +8,25 @@ The site opens on the aircraft **full screen**, before anything else. **Enter** 
 
 ## Fly the plane
 
-On the way in you can take the controls for a minute. Press **Fly the plane** — or just press an arrow key — and the aircraft dives down to a few hundred metres over the hills while the camera swings round behind it.
+On the way in you can take the controls. Press **Fly the plane** — or just press an arrow key — and the aircraft dives down to a few hundred metres over the hills while the camera swings round behind it. Your brief: **climb to 10,000 ft**.
 
 | With | Climb / dive | Turn |
 | --- | --- | --- |
 | Keyboard | **↑** / **↓** (or **W** / **S**) | **←** / **→** (or **A** / **D**) |
 | Touch or mouse | drag up / down from where you pressed | drag left / right |
 
-The clock counts down from **1:00** and the altitude reads your height above the ground. **PULL UP** means the ground is close. Fly into it and it is **WASTED**; either way, you are taken into the site a few seconds later. **Enter** (or **Esc**) goes in at any point.
+There is no clock. The altitude reads your height above the ground and the bar under **Climb to** fills as you go; **PULL UP** means the ground is close. **Enter** (or **Esc**) goes in at any point.
 
-### Engine failure
+### At 10,000 ft
 
-Every so often — about one flight in three — somebody shouts "FBI, open up!" and, on the bang, one engine explodes. From then on:
+Somebody shouts "FBI, open up!" and, on the bang, one engine explodes. From then on:
 
 * the aircraft yaws and rolls toward the dead engine, and keeps rolling unless you hold it;
 * the controls go soft, and softer as the fire spreads;
 * half the thrust cannot hold height *and* speed: it sinks, and pulling up bleeds speed until it **STALL**s;
 * the engine burns and trails black smoke, and the camera moves over its shoulder so you can see it.
 
-The clock stops: there is no time limit on one engine, and the flight lasts until it meets the ground. The way to fly it is the way pilots are taught — bank a little toward the good engine, and keep the nose down for speed. Add `?mayday` to the address to make sure it happens.
-
-The market still sets the sky — your clock, your weather — but for that minute the height and the heading are yours. Nobody else sees you flying it.
+The flight lasts until it meets the ground. The way to fly it is the way pilots are taught — bank a little toward the good engine, and keep the nose down for speed. When it does meet the ground, it is **WASTED**: the picture freezes and goes grey, then red as the word lands, with a slow dolly zoom. Either way you are taken into the site a few seconds later. Add `?mayday` to the address to have the engine go at 1,500 ft instead.
 
 ## The views
 

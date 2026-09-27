@@ -45,6 +45,9 @@ export function bandHeight(band: BandState): number {
   return lo + (hi - lo) * band.progress;
 }
 
+/** How far the dolly zoom backs off, as a multiple of the camera's distance from the aeroplane. */
+const DOLLY_PULL = 0.55;
+
 /** The top of the cloud sea the above-clouds band flies over. */
 const CLOUD_TOP = 2750;
 
@@ -114,6 +117,14 @@ export interface ViewPose {
    */
   chaseSide?: number;
   chaseLift?: number;
+  /** Stop the world where it is: nothing moves, ages or turns, but the camera. */
+  freeze?: boolean;
+  /**
+   * 0–1 through a dolly zoom: the exterior camera backs away along its line
+   * of sight while the lens zooms in to match, so the aeroplane holds its
+   * size in the frame while everything behind it looms.
+   */
+  dolly?: number;
 }
 
 export interface WorldOptions {
@@ -1258,7 +1269,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
        the top-left. It is intentionally independent of the aircraft heading
        so banking or market movement cannot make the scenery reverse direction. */
     const now = performance.now();
-    const dt = Math.min(0.1, (now - last) / 1000);
+    const dt = pose.freeze ? 0 : Math.min(0.1, (now - last) / 1000);
     last = now;
     const groundSpeed = pose.speed ?? THREE.MathUtils.clamp(height * V_OVER_H, SPEED_FLOOR, SPEED_CAP);
     /* Nose to tail, whatever the heading. The aircraft is yawed by −heading,
@@ -1523,6 +1534,14 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       extPos.set(Math.cos(a) * radius, lerp(9.6, 12.5 + (pose.chaseLift ?? 0), chase), 11 + Math.sin(a) * radius);
       extTarget.set(0, lerp(0.35, 1.5, chase), lerp(10.8, -20, chase));
       extDir.copy(extTarget).sub(extPos);
+      /* The dolly: back along the line of sight by as much again as the
+         aeroplane is away, times the pull, with the field narrowed below by
+         the same factor — so the aeroplane stays the size it was. */
+      const pull = 1 + DOLLY_PULL * (pose.dolly ?? 0);
+      if (pull > 1) {
+        const toPlane = Math.hypot(extPos.x, extPos.y - 0.5, extPos.z - CG_Z);
+        extPos.addScaledVector(extDir.clone().normalize(), -(pull - 1) * toPlane);
+      }
       camera.position.copy(extPos);
       camera.rotation.set(
         Math.atan2(extDir.y, Math.hypot(extDir.x, extDir.z)),
@@ -1535,9 +1554,12 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
          at the same field the aeroplane ran off both sides of it; so a
          narrower frame opens the field upward instead, far enough to keep a
          4:3 frame's width across, within reason. */
-      const fov = camera.aspect >= 4 / 3
+      const lens = camera.aspect >= 4 / 3
         ? 46
         : Math.min(92, THREE.MathUtils.radToDeg(2 * Math.atan((Math.tan(THREE.MathUtils.degToRad(23)) * 4) / 3 / camera.aspect)));
+      const fov = pull > 1
+        ? THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(lens / 2)) / pull))
+        : lens;
       if (Math.abs(camera.fov - fov) > 0.01 || camera.near !== EXTERIOR_NEAR) {
         camera.fov = fov;
         camera.near = EXTERIOR_NEAR;
