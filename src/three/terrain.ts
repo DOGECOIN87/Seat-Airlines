@@ -39,7 +39,10 @@ export interface GroundTextures {
   day: THREE.CanvasTexture;
   /** What of it is still visible once the sun has gone: an emissive map. */
   night: THREE.CanvasTexture;
-  /** Transparent low-altitude water bodies that sit over the land tile. */
+  /**
+   * The lakes: their colour, and in alpha how much of the land they cover.
+   * Not a surface of its own — the ground blends it in (see `lakeShader`).
+   */
   water: THREE.CanvasTexture;
   /**
    * The relief: grey, 0 at the valley floors to 1 at the tops, scaled by
@@ -141,7 +144,8 @@ export function farmlandTextures(size = 2048): GroundTextures {
   /* Lakes settle where water would: in the hollows, clear of the river and
      of each other. Each gets a flat basin carved well past its shore — wide
      enough that a mesh sampling the ground every hundred metres still lays
-     the lake bed flat, rather than burying the water under a slope. */
+     the lake bed flat, so the water painted on it lies level rather than
+     up a slope. */
   interface Lake { u: number; v: number; r: number; aspect: number }
   const lakes: Lake[] = [];
   const wrapped = (a: number) => Math.min(Math.abs(a), 1 - Math.abs(a));
@@ -322,10 +326,11 @@ export function farmlandTextures(size = 2048): GroundTextures {
     }
   }
 
-  /* Water is a separate transparent layer so it can disappear with altitude
-     instead of staining the farmland when the aircraft climbs above the
-     low-level detail range. Seeded basins keep every flight consistent while
-     still breaking the regular field pattern with natural silhouettes. */
+  /* Water is a layer of its own, which the ground blends in, so it can
+     disappear with altitude instead of staining the farmland when the
+     aircraft climbs above the low-level detail range. Seeded basins keep
+     every flight consistent while still breaking the regular field pattern
+     with natural silhouettes. */
   const water = ['#2f7792', '#286b87', '#3b8ca0', '#245e7b'];
   w.lineJoin = 'round';
   w.lineCap = 'round';

@@ -153,6 +153,116 @@ interface CompilingShader {
 }
 
 /**
+ * The lakes, painted by the ground they lie in.
+ *
+ * They used to be a surface of their own: a transparent plane laid two and a
+ * half centimetres over the land, which held while the land under it was the
+ * same flat two-triangle plate. Once the hills went in, the lake beds lay on
+ * the relief mesh instead — a different triangulation, a hundred metres to a
+ * triangle against the plane's sixty kilometres — and seen from a kilometre
+ * up the two no longer agreed about their depth to within that hair's
+ * breadth. The depth test settled it afresh every frame, and every lake in
+ * view blinked on and off with each twitch of the camera.
+ *
+ * So there is no second surface now. The ground samples the lake layer with
+ * its own coordinates, through the same shuffle, and blends it in: water
+ * colour in the albedo, a glassier finish, the sky reflected in it and the
+ * night lights under it put out. Where the ground goes, its lakes go, and
+ * there is no depth left between them to disagree about.
+ */
+export interface LakeParams {
+  /** The lake layer: its colour, and in alpha how much of the land it covers. */
+  map: { value: THREE.Texture | null };
+  /** 0–1, how much of it shows: lakes fade out with altitude and under an incoming sea. */
+  fade: { value: number };
+  /** The water's own colour, multiplied into the layer's. */
+  tint: { value: THREE.Color };
+}
+
+const LAKE_PARS = /* glsl */ `
+uniform sampler2D lakeMap;
+uniform float lakeFade;
+uniform vec3 lakeTint;
+`;
+
+/* After the land's own colour and tint, so the water is left untinted —
+   and read through \`noTile\`, so the lakes stay in their hollows out where
+   the tile is shuffled. */
+const LAKE_ALBEDO = /* glsl */ `
+float lakeCover = 0.0;
+vec3 lakeAlbedo = vec3( 0.0 );
+#ifdef USE_MAP
+  if ( lakeFade > 0.0 ) {
+    vec4 lake = noTile( lakeMap, vMapUv );
+    lakeCover = lake.a * lakeFade;
+    lakeAlbedo = lake.rgb * lakeTint;
+    diffuseColor.rgb = mix( diffuseColor.rgb, lakeAlbedo, lakeCover );
+  }
+#endif
+`;
+
+/* The sky, reflected. The material's environment map is there for the water
+   alone: land takes none of it, so the fields are lit exactly as they were —
+   including the field that shows through a lake, which is why the sky's
+   diffuse light is kept back here and put on the water's own colour below,
+   rather than on the blend of the two. */
+const LAKE_REFLECTION = /* glsl */ `
+vec3 lakeSky = vec3( 0.0 );
+#ifdef USE_ENVMAP
+  if ( lakeCover > 0.0 ) {
+    #include <lights_fragment_maps>
+    lakeSky = iblIrradiance;
+    iblIrradiance = vec3( 0.0 );
+    radiance *= lakeCover;
+  }
+#else
+  #include <lights_fragment_maps>
+#endif
+`;
+
+const LAKE_SKYLIGHT = /* glsl */ `
+reflectedLight.indirectDiffuse += lakeSky * lakeAlbedo * ( 0.92 * RECIPROCAL_PI ) * lakeCover;
+`;
+
+/* And the glassy skin the water plane had as a clearcoat: a second, sharper
+   reflection over the first, which it dims by as much as it reflects. */
+const LAKE_COAT = /* glsl */ `
+#ifdef USE_ENVMAP
+  if ( lakeCover > 0.0 ) {
+    float lakeCoat = 0.6 * lakeCover;
+    float lakeNV = saturate( dot( geometryNormal, geometryViewDir ) );
+    vec3 lakeFresnel = F_Schlick( vec3( 0.04 ), 1.0, lakeNV );
+    vec3 lakeSheen = getIBLRadiance( geometryViewDir, geometryNormal, 0.12 )
+      * EnvironmentBRDF( geometryNormal, geometryViewDir, vec3( 0.04 ), 1.0, 0.12 );
+    outgoingLight = outgoingLight * ( 1.0 - lakeCoat * lakeFresnel ) + lakeSheen * lakeCoat;
+  }
+#endif
+`;
+
+/**
+ * Patch a ground material to paint the lakes into itself. Apply after
+ * `noTileShader`, whose shuffled lookup it reads the layer through. Give the
+ * material an environment map for the water to reflect.
+ */
+export function lakeShader(shader: CompilingShader, lakes: LakeParams): void {
+  shader.uniforms.lakeMap = lakes.map;
+  shader.uniforms.lakeFade = lakes.fade;
+  shader.uniforms.lakeTint = lakes.tint;
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', `#include <common>\n${LAKE_PARS}`)
+    .replace('#include <color_fragment>', `${LAKE_ALBEDO}\n#include <color_fragment>`)
+    /* The water's finish wherever there is water at all, not blended by
+       coverage: the plane was as glossy at 78% opacity as at 100%, and a
+       halfway roughness blurs the reflected horizon to grey. */
+    .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix( roughnessFactor, 0.18, smoothstep( 0.0, 0.3, lakeCover ) );')
+    .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix( metalnessFactor, 0.08, lakeCover );')
+    .replace('#include <lights_physical_fragment>', 'totalEmissiveRadiance *= 1.0 - lakeCover;\n#include <lights_physical_fragment>')
+    .replace('#include <lights_fragment_maps>', LAKE_REFLECTION)
+    .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>\n${LAKE_SKYLIGHT}`)
+    .replace('#include <opaque_fragment>', `${LAKE_COAT}\n#include <opaque_fragment>`);
+}
+
+/**
  * Patch a ground material's shader to shuffle its tile in the distance.
  * `displaced` also shuffles the displacement and reads a per-vertex `fade`
  * attribute, for the near-field relief mesh. `rim` is the height, 0–1 of

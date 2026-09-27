@@ -7,7 +7,7 @@ import type { SkyState } from '../lib/sky';
 import type { BandState } from '../lib/flightModel';
 import type { Attitude } from '../lib/useAttitude';
 import { biomeAt } from '../lib/biome';
-import { noTileShader, type NoTileParams } from './noTile';
+import { lakeShader, noTileShader, type LakeParams, type NoTileParams } from './noTile';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import { CABIN, cabinLevel, createCabin, rowZ } from './cabin';
 import { createAirframe } from './airframe';
@@ -467,9 +467,10 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
      hundred metres, where real ones are, and the same speed becomes visible
      because there is something to measure it by. */
   farmland.day.repeat.set(40, 40);
-  /* The lights repeat with the land, because they are the same land. */
+  /* The lights repeat with the land, because they are the same land. (So do
+     the lakes, which the ground reads through the day map's own
+     coordinates; see `lakeShader`.) */
   farmland.night.repeat.set(40, 40);
-  farmland.water.repeat.set(40, 40);
   /* Towns after dark.
 
      The night map is emissive rather than a second lit surface: street
@@ -546,32 +547,32 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
      plate, but another world's ground, hundreds of metres deep, meets it
      at its own average height — see `noTileShader`. */
   const nearRim = { value: 0 };
-  nearMat.onBeforeCompile = (shader) => noTileShader(shader, landNoTile, true, nearRim);
-  groundMat.onBeforeCompile = (shader) => noTileShader(shader, landNoTile, false);
+  /* The lakes are painted by the ground itself, plate and relief alike, so
+     they lie exactly on the land they belong to (see `lakeShader`). The
+     environment map is the sky they reflect; the land takes none of it. */
+  const lakes: LakeParams = {
+    map: { value: farmland.water },
+    fade: { value: 0 },
+    tint: { value: new THREE.Color(0x9ed9e5) },
+  };
+  nearMat.onBeforeCompile = (shader) => {
+    noTileShader(shader, landNoTile, true, nearRim);
+    lakeShader(shader, lakes);
+  };
+  groundMat.onBeforeCompile = (shader) => {
+    noTileShader(shader, landNoTile, false);
+    lakeShader(shader, lakes);
+  };
+  for (const mat of [groundMat, nearMat]) {
+    mat.envMap = envRT.texture;
+    mat.envMapIntensity = 0.7;
+  }
   const near = new THREE.Mesh(nearGeometry, nearMat);
   near.rotation.x = -Math.PI / 2;
   scene.add(near);
   ground.position.y = -2;
   groundMat.normalMap = farmland.normal;
   groundMat.needsUpdate = true;
-  const waterMat = new THREE.MeshPhysicalMaterial({
-    map: farmland.water,
-    color: 0x9ed9e5,
-    roughness: 0.18,
-    metalness: 0.08,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.12,
-    transparent: true,
-    depthWrite: false,
-    opacity: 0,
-  });
-  const water = new THREE.Mesh(groundGeometry, waterMat);
-  water.position.y = 0.025;
-  water.rotation.x = -Math.PI / 2;
-  water.visible = false;
-  scene.add(water);
-  waterMat.envMap = envRT.texture;
-  waterMat.envMapIntensity = 0.7;
 
   /* ── The sea ──────────────────────────────────────────────────────────
      Every few minutes the flight crosses a coast (`biomeAt`, shared with the
@@ -582,7 +583,20 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
      rate, which is the whole optical recipe for a liquid surface. Once the
      crossing completes, the plate itself takes the ocean maps and drops back
      to one opaque plane, so steady cruise over water costs what cruise over
-     land does. */
+     land does.
+
+     Both float three metres over the land they cover. They were laid a
+     couple of centimetres up, which is closer than a sixty-kilometre plane
+     and the hundred-metre triangles of the relief mesh can agree on from a
+     kilometre overhead, and every valley floor blinked between sea and field
+     for the length of the crossing. Three metres is far outside that doubt
+     and far inside anything the eye could measure from this height; the
+     hills sinking under the incoming sea simply go under at three metres
+     rather than at nothing. And they are drawn before anything else that
+     is see-through: the cloud billboards write no depth, so a sea drawn
+     after them would be painted straight over them. */
+  const OVERLAY_LIFT = 3;
+  const OVERLAY_ORDER = -0.5;
   const ocean = oceanTextures();
   ocean.day.repeat.set(40, 40);
   ocean.night.repeat.set(40, 40);
@@ -600,7 +614,8 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
   });
   const sea = new THREE.Mesh(groundGeometry, seaMat);
   sea.rotation.x = -Math.PI / 2;
-  sea.position.y = 0.02;
+  sea.position.y = OVERLAY_LIFT;
+  sea.renderOrder = OVERLAY_ORDER;
   sea.visible = false;
   scene.add(sea);
   const sheenMat = new THREE.MeshPhysicalMaterial({
@@ -618,11 +633,12 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
   });
   const sheen = new THREE.Mesh(groundGeometry, sheenMat);
   sheen.rotation.x = -Math.PI / 2;
-  sheen.position.y = 0.035;
+  // On the sea, and drawn after it.
+  sheen.position.y = OVERLAY_LIFT + 0.015;
+  sheen.renderOrder = OVERLAY_ORDER + 0.01;
   sheen.visible = false;
   scene.add(sheen);
-  // The lakes and the incoming sea shuffle with the ground they lie on.
-  waterMat.onBeforeCompile = (shader) => noTileShader(shader, waterNoTile, false);
+  // The incoming sea shuffles with the ground it comes in over.
   seaMat.onBeforeCompile = (shader) => noTileShader(shader, waterNoTile, false);
 
   /* ── The limb ─────────────────────────────────────────────────────────
@@ -768,6 +784,12 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
       s: (near ? 380 : 900) + Math.random() * (near ? 1250 : 2400),
     });
   }
+  /* Never culled as one object. The deck is all round the camera anyway,
+     and an instanced mesh takes its bounds from wherever its instances were
+     on the first frame it was tested — before the first update had placed
+     any, which left it a one-metre sphere on the ground under the aircraft,
+     and the whole deck vanished whenever that spot was out of shot. */
+  clouds.frustumCulled = false;
   scene.add(clouds);
 
   const fog = new THREE.FogExp2(0xa8c4e0, 0.00006);
@@ -969,8 +991,8 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
     const waterFade = band.band === 'atmosphere'
       ? (1 - THREE.MathUtils.smoothstep(height, 1450, 2150)) * (1 - seaBlend)
       : 0;
-    waterMat.opacity = waterFade;
-    water.visible = waterFade > 0.01;
+    // Zero skips the lake layer in the ground's shader altogether.
+    lakes.fade.value = waterFade > 0.01 ? waterFade : 0;
     /* The plate takes whichever map the moment calls for; the crossfade mesh
        only exists while the coast is actually going by. */
     const body = surfaceFor(band.band);
@@ -1158,7 +1180,6 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
     if (map) {
       const tile = GROUND / map.repeat.x;
       map.offset.set(shift.x / tile, shift.z / tile);
-      farmland.water.offset.copy(map.offset);
       /* The emissive map has to travel with the diffuse one to the pixel.
          Drifting them apart slides every town's lights off the town. */
       groundMat.emissiveMap?.offset.copy(map.offset);
