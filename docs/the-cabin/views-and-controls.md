@@ -26,7 +26,7 @@ Somebody shouts "FBI, open up!" and, on the bang, one engine explodes. From then
 * half the thrust cannot hold height *and* speed: it sinks, and pulling up bleeds speed until it **STALL**s;
 * the engine burns and trails black smoke, and the camera moves over its shoulder so you can see it.
 
-The flight lasts until it meets the ground. The way to fly it is the way pilots are taught — bank a little toward the good engine, and keep the nose down for speed. When it does meet the ground, it is **WASTED**: the picture freezes and goes grey, then red as the word lands, with a slow dolly zoom. Either way you are taken into the site a few seconds later. Add `?mayday` to the address to have the engine go at 1,500 ft instead.
+The flight lasts until it meets the ground — and as it comes up, the cabin starts screaming, timed from your height, your sink rate and the hills ahead so the screaming stops on the impact. The way to fly it is the way pilots are taught — bank a little toward the good engine, and keep the nose down for speed. When it does meet the ground, it is **WASTED**: the picture freezes and goes grey, then red as the word lands, with a slow dolly zoom. Either way you are taken into the site a few seconds later. Add `?mayday` to the address to have the engine go at 1,500 ft instead.
 
 ## The views
 

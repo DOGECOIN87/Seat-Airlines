@@ -32,11 +32,15 @@ export interface LandingHud {
   stall: RefObject<HTMLParagraphElement | null>;
 }
 
-/** The two sound effects, made on the gesture that started the game so they are allowed to play. */
+/** The sound effects, made on the gesture that started the game so they are allowed to play. */
 export interface LandingSounds {
   blast: HTMLAudioElement;
   wasted: HTMLAudioElement;
+  crowd: HTMLAudioElement;
 }
+
+/** The crowd plays under everything else: its own recording is already well below the other two. */
+const CROWD_VOLUME = 0.9;
 
 interface LandingSceneProps {
   feed: FlightFeed;
@@ -131,6 +135,29 @@ function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; s
   return { vs, stall };
 }
 
+/**
+ * Seconds until the aeroplane meets the ground, if it is going to: its
+ * height marched forward a quarter of a second at a time — at the climb
+ * rate it has, bent by how that is changing over the next couple of
+ * seconds — against the ground at each point along the way it is heading,
+ * hills and all. Infinity if nothing is hit within the crowd clip's reach.
+ */
+function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
+  const accel = Math.max(-6, Math.min(4, g.accel));
+  let lastT = 0;
+  let lastGap = g.agl - GAME.clearance;
+  if (lastGap <= 0) return 0;
+  for (let t = 0.25; t <= GAME.crowdLead + 1.5; t += 0.25) {
+    const bend = Math.min(t, 2.5);
+    const alt = g.alt + g.vs * t + accel * bend * (t - bend / 2);
+    const gap = alt - ground(Math.min(4000, g.speed * t)) - GAME.clearance;
+    if (gap <= 0) return lastT + (t - lastT) * (lastGap / (lastGap - gap));
+    lastT = t;
+    lastGap = gap;
+  }
+  return Infinity;
+}
+
 const LandingScene = ({
   feed, sky, band, controls, taken, playing, game, hud, sounds, onReady, onFail, onFlying, onFailure, onCrash,
 }: LandingSceneProps) => {
@@ -196,6 +223,60 @@ const LandingScene = ({
   const pose = useRef<ViewPose>({ seatIndex: 0, row: 1, yaw: 0, id: '1A', exterior: true, orbit: 0 });
   const flown = useRef<Attitude>({ pitch: 0, bank: 0, speed: 240, alt: 0, vs: 0, heading: 0, roll: 0 });
   const shown = useRef({ feet: -1, warn: false, stall: false });
+  const crowd = useRef({ on: false, gain: 0 });
+
+  /* The crowd: a recording of a cabin screaming that cuts off at a precise
+     point, and that point has to be the impact. Nobody can know when that
+     will be, so it is predicted every frame (see impactIn), and the clip
+     started as far into itself as puts its cut-off on the prediction. While
+     it plays it is kept on it: a little faster or slower as the ground comes
+     sooner or later — pitch held, so it is never audible — and a jump only
+     if the prediction moves by seconds. Pull out of the dive and it fades;
+     start another and it comes back. */
+  const syncCrowd = (g: FlightGame, tti: number, dt: number) => {
+    const clip = sounds.current?.crowd;
+    if (!clip) return;
+    const c = crowd.current;
+    const want = GAME.crowdEnd - tti;
+    if (!c.on) {
+      // A fall, not a dip: steeper before the engine goes, when a dive is a choice.
+      const falling = g.vs < (g.failed ? -2 : -15);
+      if (tti <= GAME.crowdLead && falling) {
+        clip.currentTime = Math.max(0, want);
+        clip.playbackRate = 1;
+        clip.volume = 0;
+        c.gain = 0;
+        c.on = true;
+        void clip.play().catch(() => { c.on = false; });
+      }
+      return;
+    }
+    if (clip.ended) {
+      c.on = false;
+      return;
+    }
+    if (!Number.isFinite(tti) || tti > GAME.crowdLead + 3) {
+      c.gain = Math.max(0, c.gain - dt / 0.6);
+      clip.volume = c.gain * CROWD_VOLUME;
+      if (c.gain === 0) {
+        clip.pause();
+        c.on = false;
+      }
+      return;
+    }
+    c.gain = Math.min(1, c.gain + dt / 0.35);
+    clip.volume = c.gain * CROWD_VOLUME;
+    // Past its cut-off with the aeroplane still up: let it finish rather than chase it.
+    if (want > GAME.crowdEnd + 0.3) return;
+    const behind = want - clip.currentTime;
+    if (Math.abs(behind) > 2) {
+      clip.currentTime = Math.max(0, want);
+      clip.playbackRate = 1;
+    } else {
+      const rate = Math.min(1.25, Math.max(0.8, 1 + behind * 0.5));
+      if (Math.abs(rate - clip.playbackRate) > 0.01) clip.playbackRate += (rate - clip.playbackRate) * Math.min(1, dt * 4);
+    }
+  };
 
   useAttitude(feed, (a) => {
     const w = world.current;
@@ -299,6 +380,7 @@ const LandingScene = ({
       const iy = live ? clampUnit(g.keys.y + g.stick.y) : 0;
       const step = fly(g, ix, iy, dt);
       stall = step.stall;
+      if (dt > 0) g.accel += ((step.vs - g.vs) / dt - g.accel) * (1 - Math.exp(-2 * dt));
       g.vs = step.vs;
       g.alt = Math.min(GAME.ceiling, g.alt + step.vs * dt);
       if (live) g.distance += g.speed * dt;
@@ -326,9 +408,11 @@ const LandingScene = ({
     if (g.phase === 'flying' && agl < GAME.clearance) {
       g.phase = 'crashed';
       g.phaseAt = now;
+      sounds.current?.crowd.pause();
       calls.current.onCrash(g.distance);
       return;
     }
+    if (g.phase === 'flying') syncCrowd(g, impactIn(g, w.groundAt), dt);
     // The readouts, written straight to the page: no React render a frame.
     if (!g.failed && hud.bar.current) hud.bar.current.style.transform = `scaleX(${Math.min(1, Math.max(0, agl / g.blastAlt))})`;
     const feet = Math.max(0, Math.round((agl * FEET) / 10) * 10);

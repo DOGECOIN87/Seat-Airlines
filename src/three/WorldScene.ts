@@ -153,9 +153,10 @@ export interface WorldHandles {
    * The highest ground under the aeroplane as of the last frame, in metres
    * on the same datum as `ViewPose.height`: the hills where they are drawn,
    * or the sea's surface. Read under the nose, the wing box and the tail,
-   * so flying into a slope counts when the nose meets it.
+   * so flying into a slope counts when the nose meets it — or, given
+   * `ahead`, that many metres further along the way it is pointing.
    */
-  groundAt: () => number;
+  groundAt: (ahead?: number) => number;
   dispose: () => void;
 }
 
@@ -1784,13 +1785,13 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       + at(x0, y0 + 1) * (1 - fx) * fy + at(x0 + 1, y0 + 1) * fx * fy;
     return h * underfoot.relief;
   };
-  const groundAt = () => {
+  const groundAt = (ahead = 0) => {
     const h = THREE.MathUtils.degToRad(underfoot.heading);
     const fx = Math.sin(h);
     const fz = -Math.cos(h);
     // The nose, the wing box and the tail, along the way it is pointing.
     let top = 0;
-    for (const along of [24, 0, -22]) top = Math.max(top, reliefAt(fx * along, fz * along));
+    for (const along of [24, 0, -22]) top = Math.max(top, reliefAt(fx * (along + ahead), fz * (along + ahead)));
     return Math.max(top, underfoot.floor);
   };
 

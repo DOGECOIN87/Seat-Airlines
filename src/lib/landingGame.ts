@@ -49,6 +49,8 @@ export interface FlightGame {
   /** Metres above the ground, and climbing at, as of the last frame. */
   agl: number;
   vs: number;
+  /** How fast the climb rate is changing, m/s², smoothed. */
+  accel: number;
   /** The warning — the clip that ends in the bang — has started. */
   warned: boolean;
   /** When it started, on `performance.now()`. */
@@ -99,6 +101,12 @@ export const GAME = {
   failSpeed: 150,
   /** Below this airspeed, on one engine, the wing quits. */
   stallSpeed: 95,
+  /**
+   * The crowd clip: seconds into it that the screaming cuts off — the
+   * moment of impact — and how long before that the screaming starts.
+   */
+  crowdEnd: 15.4,
+  crowdLead: 14.5,
 } as const;
 
 export const newGame = (): FlightGame => ({
@@ -116,6 +124,7 @@ export const newGame = (): FlightGame => ({
   blastAlt: GAME.blastFeet / FEET,
   agl: 0,
   vs: 0,
+  accel: 0,
   warned: false,
   warnedAt: 0,
   failed: 0,

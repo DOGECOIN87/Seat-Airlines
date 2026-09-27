@@ -89,8 +89,9 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
     if (gone.current) return;
     gone.current = true;
     setLeaving(true);
-    // The warning clip goes with the landing; the crash sound is left to ring out.
+    // The warning and the crowd go with the landing; the crash sound is left to ring out.
     sounds.current?.blast.pause();
+    sounds.current?.crowd.pause();
     timers.current.push(window.setTimeout(onEnter, 450));
   }, [onEnter]);
 
@@ -113,7 +114,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
       });
       return a;
     };
-    sounds.current = { blast: load('engine-blast.mp3', 0.9), wasted: load('wasted.mp3', 1) };
+    sounds.current = { blast: load('engine-blast.mp3', 0.9), wasted: load('wasted.mp3', 1), crowd: load('crash-crowd.mp3', 0.9) };
   };
 
   const start = useCallback(() => {
@@ -140,6 +141,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
     const s = sounds.current;
     if (s) {
       s.blast.pause();
+      s.crowd.pause();
       s.wasted.currentTime = WASTED_FROM;
       void s.wasted.play().catch(() => {});
     }
