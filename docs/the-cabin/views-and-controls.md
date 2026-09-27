@@ -28,6 +28,24 @@ Somebody shouts "FBI, open up!" and, on the bang, one engine explodes. From then
 
 The flight lasts until it meets the ground — and as it comes up, the cabin starts screaming, timed from your height, your sink rate and the hills ahead so the screaming stops on the impact. The way to fly it is the way pilots are taught — bank a little toward the good engine, and keep the nose down for speed. When it does meet the ground, it is **WASTED**: the picture freezes and goes grey, then red as the word lands, with a slow dolly zoom. Either way you are taken into the site a few seconds later. Add `?mayday` to the address to have the engine go at 1,500 ft instead.
 
+### Scoring and the leaderboard
+
+The run is scored as you fly:
+
+| | Points |
+| --- | --- |
+| Height, before the engine goes | a tenth of a point per foot of your best height |
+| Reaching 10,000 ft | 1,000 |
+| Getting there fast | 40 for every second under 75 |
+| Each second in the air on one engine | 100 |
+| … with the wings within 20° of level | × 1.5 |
+| … with the ground under 500 ft | × 2 |
+| … both | × 2.5 |
+
+The score and its multiplier are under the altimeter; your best is kept in this browser. On the **WASTED** screen you can put the score on the **Top pilots** board with any Solana wallet (Phantom, Solflare, Backpack): the wallet signs a short message naming the score — a message, not a transaction, so it moves nothing and approves nothing. Each wallet keeps its best.
+
+The server times every run from the moment you take the controls and refuses a score that time could not have earned, and each run can be posted once. That stops a made-up number; it cannot stop somebody patient enough to wait out the time their made-up number needs, so the board is for bragging rights, not prizes. `?mayday` runs are practice and are not posted.
+
 ## The views
 
 | View | What you see |

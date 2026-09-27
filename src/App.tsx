@@ -670,6 +670,7 @@ export default function App() {
         marketCap={tick.marketCap}
         controls={controls}
         taken={taken}
+        wallet={wallet}
         onEnter={enter}
       />
     );

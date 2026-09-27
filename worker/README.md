@@ -15,6 +15,21 @@ The wall:
 | `GET /holding` | one wallet's balance, so the page needs no RPC key of its own |
 | `GET /images/…` | the artwork, when it is kept in KV rather than R2 |
 
+The landing's leaderboard:
+
+| | |
+| --- | --- |
+| `GET /scores` | the top twenty, best first |
+| `POST /runs` | start a run: the server notes the time, and nothing else |
+| `POST /scores` | post a run's score, signed by the wallet over the score and the run |
+
+A score is kept only if the signature matches, the run is one this server
+started and has not posted before, and the score fits the time since the run
+began (`scoreCeiling` in `src/lib/scoring.ts`, shared with the page). Each
+wallet keeps its best. The two tables are made on first use, like the
+logbook's; `migrations/0003_leaderboard.sql` is the same schema for a
+database set up by hand.
+
 The directory, every route of which needs a session:
 
 | | |

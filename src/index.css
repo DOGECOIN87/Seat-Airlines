@@ -3181,10 +3181,10 @@ p { text-wrap-style: pretty; }
   left: 0;
   right: 0;
   /* Half the band, the word's height being 0.282 of its width, and some air. */
-  top: calc(50% + min(80vw, 40rem) * 0.141 + clamp(1.6rem, 4vh, 2.6rem));
+  top: calc(50% + min(80vw, 40rem) * 0.141 + clamp(1.2rem, 3vh, 2.2rem));
   display: grid;
   justify-items: center;
-  gap: 1rem;
+  gap: 0.7rem;
   padding-inline: 1.25rem;
   animation: sa-landing-fade 0.45s ease 2s both;
 }
@@ -3203,6 +3203,199 @@ p { text-wrap-style: pretty; }
   font-size: 1.05rem;
   line-height: 1.55;
   color: rgba(235, 240, 248, 0.88);
+}
+
+/* ── The score ─────────────────────────────────────────────────
+   Under the altimeter, the points; beside them, what they are building at
+   once an engine is gone: cyan for wings level, amber for low, both for
+   both. The climb bonus rises out of the middle as it is paid. */
+.sa-hud__stack { display: grid; gap: 0.5rem; justify-items: start; }
+.sa-hud__score .sa-hud__value { color: #7FE3F7; }
+.sa-hud__rate {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 6px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+.sa-hud__rate:empty { display: none; }
+.sa-hud__rate { background: rgba(255, 255, 255, 0.18); }
+.sa-hud__rate.is-level { background: rgba(0, 170, 235, 0.75); }
+.sa-hud__rate.is-low { background: rgba(255, 158, 40, 0.85); }
+.sa-hud__rate.is-level.is-low { background: linear-gradient(90deg, rgba(0, 170, 235, 0.85), rgba(255, 110, 40, 0.9)); }
+.sa-hud__bonus {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  transform: translateX(-50%);
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1;
+  color: #7FE3F7;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  animation: sa-hud-bonus 2.8s ease-out forwards;
+}
+.sa-hud__bonus small {
+  margin-top: 0.35rem;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #fff;
+}
+@keyframes sa-hud-bonus {
+  0% { opacity: 0; transform: translate(-50%, 16px) scale(0.8); }
+  12% { opacity: 1; transform: translate(-50%, 0) scale(1.08); }
+  22% { transform: translate(-50%, 0) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -28px); }
+}
+
+/* ── The board ─────────────────────────────────────────────────
+   Top pilots, on the landing: a glass card on the right of a wide screen,
+   the leader alone along the top of a phone's. */
+.sa-board {
+  position: absolute;
+  right: clamp(1rem, 3vw, 2.25rem);
+  bottom: max(clamp(2rem, 7vh, 4.5rem), calc(env(safe-area-inset-bottom) + 1.25rem));
+  width: min(19rem, 32vw);
+  padding: 0.9rem 1rem 0.8rem;
+  border-radius: 16px;
+  background: rgba(5, 7, 15, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+.sa-board__title,
+.sa-board__mine,
+.sa-board__empty {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.sa-board__title { color: #7FE3F7; font-weight: 600; }
+.sa-board__empty { margin-top: 0.5rem; letter-spacing: 0.08em; text-transform: none; line-height: 1.5; }
+.sa-board__mine { margin-top: 0.6rem; }
+.sa-board__list { display: grid; gap: 0.25rem; margin-top: 0.55rem; }
+.sa-board__list li {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.88);
+}
+.sa-board__list li.is-you { color: #7FE3F7; }
+.sa-board__rank { color: rgba(255, 255, 255, 0.45); font-size: 11px; }
+.sa-board__list li:first-child .sa-board__rank { color: #FFC940; }
+.sa-board__who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-board__score { font-variant-numeric: tabular-nums; font-weight: 600; }
+@media (max-width: 899px) {
+  .sa-board {
+    top: calc(max(1rem, env(safe-area-inset-top)) + 4.4rem);
+    bottom: auto;
+    width: auto;
+    left: clamp(1rem, 3vw, 2.25rem);
+    padding: 0.55rem 0.8rem;
+  }
+  .sa-board__list { margin-top: 0.3rem; }
+  .sa-board__list li:nth-child(n + 2),
+  .sa-board__mine { display: none; }
+}
+
+/* ── After the crash: the score, and the way onto the board ──── */
+.sa-landing__score {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+.sa-landing__best {
+  padding: 0.3rem 0.55rem;
+  border-radius: 8px;
+  background: #FFC940;
+  color: #1A1206;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-shadow: none;
+}
+.sa-landing__posted {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7FE3F7;
+  text-align: center;
+}
+.sa-landing__posted.is-error { color: #FFB0A8; text-transform: none; letter-spacing: 0.02em; }
+.sa-landing__end-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.7rem;
+}
+.sa-landing__post {
+  display: inline-flex;
+  align-items: center;
+  min-height: 3.75rem;
+  padding: 0 1.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.sa-landing__post:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
+.sa-landing__post:disabled { opacity: 0.7; cursor: progress; }
+.sa-landing__post:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+.sa-landing__fine {
+  max-width: 26rem;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  color: rgba(235, 240, 248, 0.6);
+}
+/* While the site is about to take over on its own, the way in shows it counting down. */
+.sa-landing__enter.is-counting { overflow: hidden; }
+.sa-landing__enter.is-counting::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.75);
+  transform-origin: left center;
+  animation: sa-landing-countdown var(--hold, 9s) linear forwards;
+}
+@keyframes sa-landing-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 
 /* ── An engine gone ─────────────────────────────────────────── */

@@ -69,6 +69,14 @@ export interface FlightGame {
   buffetRoll: number;
   buffetPitch: number;
   surge: number;
+  /** Points so far (see scoring.ts), and what they are building at. */
+  score: number;
+  rate: number;
+  /** The best height reached before the engine went, feet. */
+  bestFeet: number;
+  /** Seconds the climb to the blast altitude took, and what reaching it paid. */
+  climbTime: number;
+  bonus: number;
 }
 
 export const GAME = {
@@ -135,6 +143,11 @@ export const newGame = (): FlightGame => ({
   buffetRoll: 0,
   buffetPitch: 0,
   surge: 0,
+  score: 0,
+  rate: 0,
+  bestFeet: 0,
+  climbTime: 0,
+  bonus: 0,
 });
 
 /** Feet in a metre. */

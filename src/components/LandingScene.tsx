@@ -6,6 +6,7 @@ import type { SkyState } from '../lib/sky';
 import { useAttitude, type Attitude } from '../lib/useAttitude';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import { blastAltitude, clampUnit, FEET, GAME, speedAt, WASTED_AT, type FlightGame } from '../lib/landingGame';
+import { climbBonus, SCORING, survivalRate } from '../lib/scoring';
 
 /**
  * The landing page's aeroplane: the exterior scene, full screen, and — when
@@ -30,6 +31,9 @@ export interface LandingHud {
   alt: RefObject<HTMLSpanElement | null>;
   warn: RefObject<HTMLParagraphElement | null>;
   stall: RefObject<HTMLParagraphElement | null>;
+  /** The running score, and the multiplier it is building at. */
+  score: RefObject<HTMLSpanElement | null>;
+  rate: RefObject<HTMLSpanElement | null>;
 }
 
 /** The sound effects, made on the gesture that started the game so they are allowed to play. */
@@ -222,7 +226,7 @@ const LandingScene = ({
 
   const pose = useRef<ViewPose>({ seatIndex: 0, row: 1, yaw: 0, id: '1A', exterior: true, orbit: 0 });
   const flown = useRef<Attitude>({ pitch: 0, bank: 0, speed: 240, alt: 0, vs: 0, heading: 0, roll: 0 });
-  const shown = useRef({ feet: -1, warn: false, stall: false });
+  const shown = useRef({ feet: -1, warn: false, stall: false, score: -1, rate: -1 });
   const crowd = useRef({ on: false, gain: 0 });
 
   /* The crowd: a recording of a cabin screaming that cuts off at a precise
@@ -366,6 +370,10 @@ const LandingScene = ({
             g.failed = Math.random() < 0.5 ? -1 : 1;
             g.failedAt = now;
             g.damage = 0.5;
+            // Made it: the reach bonus, and the climb bonus for how fast.
+            g.climbTime = (now - g.phaseAt) / 1000;
+            g.bonus = SCORING.reached + climbBonus(g.climbTime);
+            g.score = g.bestFeet * SCORING.perFoot + g.bonus;
             // Half the thrust gone: from here it flies at an airliner's speed, not the height's.
             g.speed = Math.min(g.speed, GAME.failSpeed * 1.3);
             // The blast itself: a violent roll toward the dead engine, and the nose knocked down.
@@ -412,7 +420,33 @@ const LandingScene = ({
       calls.current.onCrash(g.distance);
       return;
     }
-    if (g.phase === 'flying') syncCrowd(g, impactIn(g, w.groundAt), dt);
+    if (g.phase === 'flying') {
+      syncCrowd(g, impactIn(g, w.groundAt), dt);
+      /* The score: height before the engine goes; after, time in the air,
+         paid more for wings kept level and for flying low. */
+      const ft = agl * FEET;
+      if (!g.failed) {
+        g.bestFeet = Math.max(g.bestFeet, ft);
+        g.score = g.bestFeet * SCORING.perFoot;
+        g.rate = 0;
+      } else {
+        const rate = survivalRate(g.bank, ft);
+        g.rate = rate / SCORING.perSecond;
+        g.score += rate * dt;
+      }
+      const points = Math.round(g.score);
+      if (points !== shown.current.score && hud.score.current) {
+        shown.current.score = points;
+        hud.score.current.textContent = points.toLocaleString('en-US');
+      }
+      if (g.rate !== shown.current.rate && hud.rate.current) {
+        shown.current.rate = g.rate;
+        const el = hud.rate.current;
+        el.textContent = g.rate ? `×${g.rate}` : '';
+        el.classList.toggle('is-level', g.rate === 1.5 || g.rate === 2.5);
+        el.classList.toggle('is-low', g.rate >= 2);
+      }
+    }
     // The readouts, written straight to the page: no React render a frame.
     if (!g.failed && hud.bar.current) hud.bar.current.style.transform = `scaleX(${Math.min(1, Math.max(0, agl / g.blastAlt))})`;
     const feet = Math.max(0, Math.round((agl * FEET) / 10) * 10);
