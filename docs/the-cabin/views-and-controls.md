@@ -25,6 +25,15 @@ The page opens **outside, on the whole aircraft**. Every other view is a step in
 * **Click any seat on the wall** to put the camera in it. Looking from any seat is free.
 * When you check in and are seated, the camera walks you to your own seat on its own.
 
+## The sections
+
+The seat map, the section network, the cabin chat and check-in open **beside the view** rather than further down the page, so the aircraft stays on the screen whichever one you are in.
+
+* **On a computer** the tabs run down the right edge of the view: **Seats**, **Network**, **Chat** and **Check in**. A tab opens its section in a panel between the view and the tabs, and the view narrows to make room. Click the tab again, the **×**, or press **Esc** to close it and give the view its width back.
+* **On a phone** the same four tabs sit in a bar along the bottom of the screen, and a section rises over the page as a sheet. Tap outside it, the **×**, or its tab again to put it away. Picking a seat on the wall closes the sheet so you can see the view from it.
+
+**Seats** opens on the seat map itself; how seating works is underneath it. The old links — `#wall`, `#network`, `#chat` and `#check-in` — open the matching section.
+
 ### Turning your head depends on your seat
 
 From **8A** the window is one turn to the left and fills the view. From **8F** that same window is on the far side of the cabin — two seats, the aisle, three more seats, and a porthole the size of a coin. From **8C** you look past 8B's shoulder to see any of it. The row is modelled as it really is — window, seats, aisle, seats, window — and read outward from wherever you sit.

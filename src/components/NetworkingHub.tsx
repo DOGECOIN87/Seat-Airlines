@@ -22,6 +22,13 @@ interface NetworkingHubProps {
   address: string | null;
   viewerZone: ZoneKey | null;
   sign: (message: string) => Promise<string>;
+  /**
+   * Which half to draw. The directory — who is aboard, their cards, your own,
+   * your introductions — and the chat — the PA and the cabins' rooms — each
+   * open in a panel of their own beside the view. Both read the same session,
+   * which is kept in storage, so moving between them signs nobody out.
+   */
+  part?: 'all' | 'directory' | 'chat';
 }
 
 const zoneAccent: Record<ZoneKey, string> = {
@@ -53,8 +60,10 @@ const Shell = ({ children }: { children: React.ReactNode }) => (
   </section>
 );
 
-const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubProps) => {
+const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: NetworkingHubProps) => {
   const directory = useDirectory(address, sign);
+  const showDirectory = part !== 'chat';
+  const showChat = part !== 'directory';
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState(false);
@@ -199,7 +208,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubPro
   const statusIsError = Boolean(directory.error ?? invalid);
 
   return (
-    <section className="ui-card" aria-label="Section networking">
+    <section className="ui-card" aria-label={part === 'chat' ? 'Cabin chat' : 'Section networking'}>
+      {showDirectory && (
       <header className="ui-rule-b px-5 py-5 sm:px-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -224,7 +234,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubPro
             {viewerZone ? `${sectionLabel(viewerZone)} access` : 'Connect to unlock'}
           </div>
         </div>
-        <div className="mt-5 grid gap-2 text-[11px] leading-relaxed text-ui-soft sm:grid-cols-2">
+        <div className="mt-5 grid gap-2 text-[11px] leading-relaxed text-ui-soft @lg:grid-cols-2">
           <p className="rounded-xl border border-ui-line bg-ui-bg px-3 py-2.5">
             <strong className="text-ui-ink">Names</strong> are the roster and belong to everyone.{' '}
             <strong className="text-ui-ink">Contact details</strong> go to the holder's own section and every cabin
@@ -236,6 +246,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubPro
           </p>
         </div>
       </header>
+      )}
 
       {/* The PA.
 
@@ -244,8 +255,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubPro
           included. It is shown to everybody and written by the flight deck,
           once a day, which is the perk their boarding pass has promised since
           long before there was anywhere to keep it. */}
-      {directory.session && (directory.announcements.length > 0 || canAnnounce(viewerZone)) && (
-        <div className="border-t border-ui-line bg-[#FFFBEA] px-5 py-5 sm:px-7">
+      {showChat && directory.session && (directory.announcements.length > 0 || canAnnounce(viewerZone)) && (
+        <div className={`${showDirectory ? 'border-t border-ui-line ' : ''}bg-[#FFFBEA] px-5 py-5 sm:px-7`}>
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8A6D00]">The PA</p>
           {directory.announcements.length > 0 ? (
             <ul className="mt-3 space-y-2">
@@ -284,7 +295,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubPro
         </div>
       )}
 
-      <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
+      {showDirectory && (
+      <div className="grid gap-5 p-5 sm:p-7 @4xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
         <div className="space-y-3">
           {manifest.entries.map((entry) => {
             const sameSection = canViewContact(viewerZone, entry.seat.zone);
@@ -378,7 +390,9 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubPro
           })}
         </div>
 
-        <aside className="rounded-2xl border border-ui-line bg-ui-bg p-4 sm:p-5">
+        {/* First when there is only room for one column, so signing in is not
+            a hundred and seventy-eight cards down. */}
+        <aside className="order-first rounded-2xl border border-ui-line bg-ui-bg p-4 sm:p-5 @4xl:order-none">
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep">Your networking card</p>
 
           {!address ? (
@@ -493,6 +507,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubPro
           )}
         </aside>
       </div>
+      )}
 
       {/* The rooms.
 
@@ -504,8 +519,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubPro
           Opens on your own cabin. The rest are a button away rather than
           always on, because five rooms at once buries the one you are in
           under whichever is busiest. */}
-      {directory.session && viewerZone && (
-        <div className="border-t border-ui-line px-5 py-6 sm:px-7">
+      {showChat && directory.session && viewerZone && (
+        <div className={`${showDirectory || directory.announcements.length > 0 || canAnnounce(viewerZone) ? 'border-t border-ui-line ' : ''}px-5 py-6 sm:px-7`}>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-ui-deep">The rooms</p>
@@ -554,7 +569,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubPro
             </button>
           </div>
 
-          <div className={`mt-5 grid gap-4 ${rooms.length > 1 ? 'lg:grid-cols-2' : ''}`}>
+          <div className={`mt-5 grid gap-4 ${rooms.length > 1 ? '@3xl:grid-cols-2' : ''}`}>
             {rooms.map((zone) => {
               /* Absent is not empty. A room the server has not been asked for
                  yet is still on its way; one it sent with nothing in it is
@@ -591,6 +606,43 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign }: NetworkingHubPro
             })}
           </div>
         </div>
+      )}
+
+      {/* The chat on its own, before there is anything to show: what it takes
+          to get in, said once, with the one button that does it. */}
+      {part === 'chat' && !(directory.session && viewerZone) && (
+        <div className="px-5 py-6 sm:px-7">
+          {!address ? (
+            <p className="text-[12px] leading-relaxed text-ui-soft">
+              Connect a wallet and take your seat to talk in your cabin. Every cabin has a room, and it belongs to
+              the people sitting in it.
+            </p>
+          ) : !directory.session ? (
+            <div className="space-y-3 text-[12px] leading-relaxed text-ui-soft">
+              <p>
+                Sign a one-line message to open the directory and your cabin&apos;s room. It proves the wallet is
+                yours, lasts a day, and authorises no transaction.
+              </p>
+              <button type="button" onClick={() => void directory.signIn()} disabled={directory.signingIn} className="sa-cta w-full justify-center disabled:opacity-60">
+                {directory.signingIn ? 'Check your wallet…' : 'Sign in to the directory'} <span aria-hidden>→</span>
+              </button>
+            </div>
+          ) : (
+            <p className="text-[12px] leading-relaxed text-ui-soft">
+              The rooms are for the cabins, and you are not seated in one yet. Out-hold somebody for a seat and
+              your cabin&apos;s room opens here.
+            </p>
+          )}
+        </div>
+      )}
+      {part === 'chat' && status && (
+        <p
+          role="status"
+          onClick={directory.dismiss}
+          className={`mx-5 mb-5 rounded-lg px-3 py-2 text-[11px] font-semibold sm:mx-7 ${statusIsError ? 'bg-[#FDECEC] text-[#96201F]' : 'bg-[#E8F7EF] text-[#17683B]'}`}
+        >
+          {status}
+        </p>
       )}
     </section>
   );

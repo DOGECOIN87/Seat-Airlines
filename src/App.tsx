@@ -7,6 +7,7 @@ import { ClimbRoute, DeckIcon, FlightReadouts, type DeckIconName } from './compo
 import AdvertDialog from './components/AdvertDialog';
 import SplitFlapBoard from './components/SplitFlapBoard';
 import DocsLink from './components/DocsLink';
+import { PANELS, SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
 import type { LogEntry } from './components/RadioLog';
 import {
   ALL_SEATS,
@@ -103,36 +104,13 @@ function useLogbookFragment(): [boolean, () => void] {
   return [open, close];
 }
 
-const Deferred = ({ children, minHeight = '6rem' }: { children: ReactNode; minHeight?: string }) => {
-  const host = useRef<HTMLDivElement>(null);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const node = host.current;
-    if (!node || !('IntersectionObserver' in window)) {
-      setReady(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        setReady(true);
-        observer.disconnect();
-      },
-      { rootMargin: '900px 0px' },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div ref={host} style={!ready ? { minHeight } : undefined}>
-      {ready ? <Suspense fallback={<div className="sa-view-loading" role="status" aria-label="Loading section" />}>
-        {children}
-      </Suspense> : null}
-    </div>
-  );
-};
+/* A section's contents load the first time its panel opens: nobody who
+   never opens the network downloads it. */
+const Loaded = ({ children, minHeight = '6rem' }: { children: ReactNode; minHeight?: string }) => (
+  <Suspense fallback={<div className="sa-view-loading" style={{ minHeight }} role="status" aria-label="Loading section" />}>
+    {children}
+  </Suspense>
+);
 
 /**
  * SEAT AIRLINES — the cabin.
@@ -174,6 +152,10 @@ const clockNow = () => {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
+
+/** How the page scrolls itself: smoothly, unless the visitor has asked for less motion. */
+const glide = (): ScrollBehavior =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
 
 /** The seat you would be shown when walking into a zone at a given position. */
 function representativeSeat(zone: ZoneKey, position: SeatPosition): CabinSeat {
@@ -487,8 +469,65 @@ export default function App() {
     // Only if it is actually off screen: scrolling a view somebody is already
     // looking at is worse than not scrolling at all.
     if (top > 40 && top < window.innerHeight - 160) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.scrollIntoView({ behavior: glide(), block: 'center' });
   }, []);
+
+  /* ── The sections ──────────────────────────────────────────────────
+     The wall, the network, the chat and check-in open beside the view
+     rather than under it, so whichever one you are in, the aeroplane is
+     still on the screen. Their old anchors still open them. */
+  const [panel, setPanel] = useState<PanelKey | null>(null);
+  const cockpitRef = useRef<HTMLDivElement>(null);
+  /* The panel and the tabs stick under the gate sign, whose height is its
+     content's — one row on a desk, two on a phone — so it is measured
+     rather than guessed. */
+  const topbarRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const bar = topbarRef.current;
+    if (!bar || !('ResizeObserver' in window)) return;
+    const root = document.documentElement;
+    const observer = new ResizeObserver(() => {
+      root.style.setProperty('--sa-topbar-h', `${Math.round(bar.getBoundingClientRect().height)}px`);
+    });
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
+  const openPanel = useCallback((key: PanelKey) => {
+    setPanel(key);
+    /* On a desk the panel opens beside the view, so the view comes up to
+       meet it: the pair fill the screen under the gate sign. A phone's
+       sheet covers the page wherever it is scrolled to. */
+    if (window.matchMedia(SHEET_QUERY).matches) return;
+    const el = cockpitRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    if (top > 120 || top < -80) el.scrollIntoView({ behavior: glide(), block: 'start' });
+  }, []);
+  useEffect(() => {
+    const read = () => {
+      const key = panelFromHash(window.location.hash);
+      if (key) openPanel(key);
+    };
+    read();
+    window.addEventListener('hashchange', read);
+    return () => window.removeEventListener('hashchange', read);
+  }, [openPanel]);
+  const closePanel = useCallback(() => {
+    setPanel(null);
+    /* A section opened from its anchor leaves the anchor in the address
+       bar; closing takes it back out, without a step in the history. */
+    if (panelFromHash(window.location.hash)) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, []);
+  const togglePanel = useCallback(
+    (key: PanelKey) => (panel === key ? closePanel() : openPanel(key)),
+    [panel, openPanel, closePanel],
+  );
+  const claimSeat = (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    openPanel('wall');
+  };
 
   /** Walk the camera to a seat. Looking is free; sitting there is not. */
   const visit = useCallback((id: string, zoneKey: ZoneKey) => {
@@ -497,9 +536,114 @@ export default function App() {
     setCamera(zoneKey === 'deck' ? 'deck' : 'seat');
     setFacing('forward');
     if (seat) setViewPosition(seat.position);
+    /* Beside the view the camera move is in plain sight. Over it, as a
+       phone's sheet, the sheet gets out of the way first. */
+    if (window.matchMedia(SHEET_QUERY).matches) setPanel(null);
     showView();
   }, [showView]);
 
+
+  /* What each section's panel holds. The copy that used to introduce each
+     section on the page now opens its panel, under the panel's own title. */
+  const section = (key: PanelKey): ReactNode => {
+    switch (key) {
+      case 'wall':
+        /* The seats first: they are what the panel opens for. How the
+           seating works is underneath, for anybody who reads on. */
+        return (
+          <>
+            <Loaded minHeight="42rem">
+              <SeatMap
+                manifest={manifest}
+                banners={banners}
+                mine={claimed}
+                canAdvertise={claimed}
+                onVisit={visit}
+                onAdvertise={setAdvertising}
+              />
+            </Loaded>
+            <h3 className="sa-panel__sub">How seating works</h3>
+            <p className="sa-lead mt-2">
+              Seats are not booked. The top {MANIFEST_SIZE} holders are seated in rank order and the rest of the
+              aeroplane stays empty, so the only way to move forward is to out-hold whoever is already there.
+              Pick any seat to look from it.
+            </p>
+            <ol className="sa-steps">
+              {[
+                { n: '01', h: 'Hold', b: 'Connect a wallet. Your balance is your bag, and nothing else counts.' },
+                { n: '02', h: 'Get seated', b: 'The manifest ranks every holder and seats them from row 1 back. Out-hold someone and you take their seat.' },
+                { n: '03', h: 'Advertise', b: 'Put a 1:1 image on the seat you hold. It goes up on the wall at the position you earned — and row 1 is never for sale, only for holding.' },
+              ].map((step) => (
+                <li key={step.n} className="sa-step">
+                  <span className="sa-step__no">{step.n}</span>
+                  <h4 className="sa-step__h">{step.h}</h4>
+                  <p className="sa-step__b">{step.b}</p>
+                </li>
+              ))}
+            </ol>
+          </>
+        );
+      case 'network':
+        return (
+          <>
+            <p className="sa-lead">
+              Everybody is on the roster. What the seat buys is the view aft: the contact details of your own
+              section and every cabin behind it. Look forward and there is nothing — the rows ahead of you keep
+              their cards to themselves.
+            </p>
+            <div className="mt-6">
+              <Loaded minHeight="32rem">
+                <NetworkingHub part="directory" manifest={manifest} address={seatKey} viewerZone={claimedSeat?.zone ?? null} sign={wallet.signMessage} />
+              </Loaded>
+            </div>
+          </>
+        );
+      case 'chat':
+        return (
+          <>
+            <p className="sa-lead">
+              Every cabin has a room, and your seat is how far back you can listen: your own cabin and every one
+              behind it. The PA is the flight deck&apos;s, and goes to everybody.
+            </p>
+            <div className="mt-6">
+              <Loaded minHeight="20rem">
+                <NetworkingHub part="chat" manifest={manifest} address={seatKey} viewerZone={claimedSeat?.zone ?? null} sign={wallet.signMessage} />
+              </Loaded>
+            </div>
+          </>
+        );
+      case 'check-in':
+        return (
+          <>
+            <p className="sa-lead">
+              You do not pick a seat. Connect a wallet, and where you sit is whatever your holding says it is —
+              recomputed the moment anybody else&apos;s changes.
+            </p>
+            <div className="mt-6 grid gap-5">
+              <Loaded>
+                <CheckIn wallet={wallet} holding={holding} berth={berth} loading={loadingHolding} />
+              </Loaded>
+              <Loaded>
+                <BoardingPass passenger={passenger} seat={claimed} zone={claimedZone} boardedAt={boardedAt} />
+              </Loaded>
+              <Loaded>
+                <BoardingLadder
+                  berth={berth}
+                  holding={holding}
+                  address={seatKey}
+                  manifestSize={manifest.entries.length}
+                />
+              </Loaded>
+              <div className="min-h-[14rem]">
+                <Loaded minHeight="14rem">
+                  <RadioLog entries={log} />
+                </Loaded>
+              </div>
+            </div>
+          </>
+        );
+    }
+  };
 
   return (
     <Suspense fallback={<SceneLoading />}>
@@ -509,7 +653,7 @@ export default function App() {
         <div className="sa-ground__pattern absolute inset-0" />
       </div>
 
-      <a href="#wall" className="sa-skip">Skip to the seat map</a>
+      <a href="#wall" onClick={claimSeat} className="sa-skip">Skip to the seat map</a>
 
       <ContractBar />
 
@@ -519,7 +663,7 @@ export default function App() {
           of the screen rather than scrolling away, because the numbers are the
           thing that is live — you should be able to see the altitude move
           while you are reading the seat map. */}
-      <header className="sa-topbar sticky top-0 z-40">
+      <header ref={topbarRef} className="sa-topbar sticky top-0 z-40">
         <div className="mx-auto flex max-w-[94rem] flex-wrap items-center gap-x-7 gap-y-2 px-5 py-2.5 sm:px-8">
           <a href="#top" className="sa-brand flex shrink-0 items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ui-blue">
             <Mark size={34} title="SEAT AIRLINES" />
@@ -575,13 +719,13 @@ export default function App() {
             </div>
             <div className="lg:pb-3">
               {/* One line. The board already says the rest, and everything
-                  else — attitude, the seat ladder, the wall — is a scroll
-                  away, where each has a section of its own. */}
+                  else — the seat ladder, the wall, the network — opens
+                  beside the view, from the tabs down its edge. */}
               <p className="sa-lead">
                 The plane flies the chart: market cap is altitude, and the biggest holders get the best seats.
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-3">
-                <a href="#wall" className="sa-cta sa-shine" onMouseEnter={prefetchSeatMap} onFocus={prefetchSeatMap}>
+                <a href="#wall" onClick={claimSeat} className="sa-cta sa-shine" onMouseEnter={prefetchSeatMap} onFocus={prefetchSeatMap}>
                   Claim a seat <span aria-hidden>→</span>
                 </a>
                 <button
@@ -595,8 +739,15 @@ export default function App() {
             </div>
           </div>
 
+          {/* ── The cockpit ──────────────────────────────────────────────
+              The view and its deck, with the page's sections a tab away down
+              its right edge. A section opens between the view and the tabs
+              and the view narrows to make room, so looking from a seat on the
+              wall happens beside the wall rather than a scroll above it. */}
+          <div ref={cockpitRef} className={`sa-cockpit mt-9${panel ? ' is-open' : ''}`}>
+          <div className="sa-cockpit__main">
           {/* ── The view ── */}
-          <div ref={viewportRef} className={`mt-9 scroll-mt-24 ${lamps.shaking ? 'sa-viewport sd-shake' : 'sa-viewport'}`}>
+          <div ref={viewportRef} className={`scroll-mt-24 ${lamps.shaking ? 'sa-viewport sd-shake' : 'sa-viewport'}`}>
             <ViewFrame
               label={
                 camera === 'exterior'
@@ -739,181 +890,46 @@ export default function App() {
             <Annunciators lamps={lamps} />
           </section>
           </div>
-        </section>
-
-        {/* ══════════════════════════════════════════════════════════════
-            02 · The wall
-            The seat map is the second thing on the page and the reason for
-            the first. Every seat is a square, every held square is a
-            billboard, and the front of the cabin is the front of the wall —
-            so it is given the width, the ground and the type to say so.
-            ══════════════════════════════════════════════════════════════ */}
-        <section id="wall" className="sa-wall scroll-mt-24" aria-labelledby="wall-title">
-          <div className="sa-wall__inner">
-            <header className="sa-section-head sa-section-head--split">
-              <div>
-                <p className="sa-eyebrow">The wall</p>
-                <h2 id="wall-title" className="sa-display sa-display--2 mt-3">
-                  Every seat is a billboard
-                </h2>
-              </div>
-              <p className="sa-lead">
-                Seats are not booked. The top {MANIFEST_SIZE} holders are seated in rank order and the rest
-                of the aeroplane stays empty, so the only way to move forward is to out-hold whoever is
-                already there.
-              </p>
-            </header>
-
-            <ol className="sa-steps">
-              {[
-                { n: '01', h: 'Hold', b: 'Connect a wallet. Your balance is your bag, and nothing else counts.' },
-                { n: '02', h: 'Get seated', b: 'The manifest ranks every holder and seats them from row 1 back. Out-hold someone and you take their seat.' },
-                { n: '03', h: 'Advertise', b: 'Put a 1:1 image on the seat you hold. It goes up on the wall at the position you earned — and row 1 is never for sale, only for holding.' },
-              ].map((step) => (
-                <li key={step.n} className="sa-step">
-                  <span className="sa-step__no">{step.n}</span>
-                  <h3 className="sa-step__h">{step.h}</h3>
-                  <p className="sa-step__b">{step.b}</p>
-                </li>
-              ))}
-            </ol>
-
-            <div className="mt-10">
-              <Deferred minHeight="42rem">
-                <SeatMap
-                  manifest={manifest}
-                  banners={banners}
-                  mine={claimed}
-                  canAdvertise={claimed}
-                  onVisit={visit}
-                  onAdvertise={setAdvertising}
-                />
-              </Deferred>
-            </div>
           </div>
-        </section>
 
-        {/* ══════════════════════════════════════════════════════════════
-            03 · Section network
-            ══════════════════════════════════════════════════════════════ */}
-        <section id="network" className="sa-section scroll-mt-24" aria-labelledby="network-title">
-          <header className="sa-section-head sa-section-head--split">
-            <div>
-              <p className="sa-eyebrow">Section network</p>
-              <h2 id="network-title" className="sa-display sa-display--2 mt-3">
-                Your seat is how far you can see
-              </h2>
-            </div>
-            <p className="sa-lead">
-              Everybody is on the roster. What the seat buys is the view aft: the contact details of your own
-              section and every cabin behind it, and the conversations those cabins are having. Look forward and
-              there is nothing — the rows ahead of you keep their cards and their messages to themselves.
-            </p>
-          </header>
-          <div className="mt-9">
-            <Deferred minHeight="32rem">
-              <NetworkingHub manifest={manifest} address={seatKey} viewerZone={claimedSeat?.zone ?? null} sign={wallet.signMessage} />
-            </Deferred>
-          </div>
-        </section>
-
-        {/* ══════════════════════════════════════════════════════════════
-            04 · Your pass
-            ══════════════════════════════════════════════════════════════ */}
-        <section id="check-in" className="sa-section scroll-mt-24" aria-labelledby="pass-title">
-          <header className="sa-section-head sa-section-head--split">
-            <div>
-              <p className="sa-eyebrow">Check in</p>
-              <h2 id="pass-title" className="sa-display sa-display--2 mt-3">
-                The aircraft seats you
-              </h2>
-            </div>
-            <p className="sa-lead">
-              You do not pick a seat. Connect a wallet, and where you sit is whatever your holding says it is —
-              recomputed the moment anybody else&apos;s changes.
-            </p>
-          </header>
-
-          {/* Two columns, each a pairing rather than a leftover: on the left
-              what the aircraft does with your holding, on the right what you
-              come away with. Three columns left the radio 176px tall beside an
-              832px neighbour — a hole, not a composition. Stretched to a common
-              height with the radio taking up the slack, the section ends on a
-              line. */}
-          <div className="mt-9 grid gap-6 lg:grid-cols-[minmax(0,1.382fr)_minmax(0,1fr)]">
-            <div className="flex flex-col gap-6">
-              <Deferred>
-                <CheckIn wallet={wallet} holding={holding} berth={berth} loading={loadingHolding} />
-              </Deferred>
-              <Deferred>
-                <BoardingLadder
-                  berth={berth}
-                  holding={holding}
-                  address={seatKey}
-                  manifestSize={manifest.entries.length}
-                />
-              </Deferred>
-            </div>
-
-            <div className="flex flex-col gap-6">
-              <Deferred>
-                <BoardingPass passenger={passenger} seat={claimed} zone={claimedZone} boardedAt={boardedAt} />
-              </Deferred>
-              {/* The log takes whatever height the column has left, so a live
-                  panel is as tall as the page can make it rather than a stub. */}
-              <div className="min-h-[14rem] flex-1">
-                <Deferred minHeight="14rem">
-                  <RadioLog entries={log} />
-                </Deferred>
-              </div>
-            </div>
+          <SectionPanel open={panel} onClose={closePanel} render={section} />
+          <SectionDock open={panel} onToggle={togglePanel} />
           </div>
         </section>
 
       </main>
 
-      {/* ══════════════════════════════════════════════════════════════
-          The footer
-          A page that simply stops reads as a page that ran out. This one
-          lands: the premise once more over the mark, then the three things
-          somebody who has read to the bottom still wants — where else to go,
-          what the aeroplane is actually reading, and whether any of it is
-          live. The status column is generated from the same values the
-          instruments are, so the footer cannot go stale against the page
-          above it.
-          ══════════════════════════════════════════════════════════════ */}
+      {/* ── The footer ─────────────────────────────────────────────────
+          A strip, not a finale. The page is one screen now — the sections
+          open beside the view — so the foot of it only has to sign off: the
+          airline, the same four sections as the tabs, the docs, and the line.
+          Full width, like the gate sign it answers at the top. */}
       <footer className="sa-footer">
-        <div className="mx-auto max-w-[94rem] px-5 sm:px-8">
-          <div className="sa-footer__card">
-          <div className="sa-close">
-            <Mark size={40} />
-            <p className="sa-close__line">Hold more. Fly higher.</p>
-            <a href="#wall" className="sa-cta sa-shine mt-2" onMouseEnter={prefetchSeatMap} onFocus={prefetchSeatMap}>
-              Claim a seat <span aria-hidden>→</span>
-            </a>
-          </div>
-
-          {/* One row of places to go. The two columns that used to sit beside
-              it repeated the hero (what flies the aircraft) and the gate sign
-              (the live figures, a fourth time), so the footer now only does
-              the job nothing above it does. */}
-          <nav className="sa-footer__nav" aria-label="On this page">
-            <a href="#top">The aircraft</a>
-            <a href="#wall">The wall</a>
-            <a href="#network">Section network</a>
-            <a href="#check-in">Check in</a>
+        <div className="sa-footer__inner">
+          <a href="#top" className="sa-footer__brand">
+            <Mark size={28} />
+            <span className="sa-footer__name">Seat Airlines</span>
+            <span className="sa-footer__code">SA350 · Nonstop</span>
+          </a>
+          <nav className="sa-footer__nav" aria-label="Sections">
+            {PANELS.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => openPanel(p.key)}
+                onMouseEnter={p.key === 'wall' ? prefetchSeatMap : undefined}
+                onFocus={p.key === 'wall' ? prefetchSeatMap : undefined}
+                aria-controls="sa-panel"
+                aria-expanded={panel === p.key}
+              >
+                {p.label}
+              </button>
+            ))}
           </nav>
-
-          {/* The one place to go that is not on this page: the docs. */}
           <div className="sa-footer__docs">
             <DocsLink />
           </div>
-
-          <div className="sa-footer__bar">
-            <span>Seat Airlines · SA350 · Nonstop</span>
-            <span>Your bag is your seat</span>
-          </div>
-          </div>
+          <p className="sa-footer__line">Hold more. Fly higher.</p>
         </div>
       </footer>
 

@@ -181,8 +181,12 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
       className="sa-map"
       /* One knob sets the whole grid: the seat is a square and everything is
          measured off it, so the map scales from a phone to a desktop without
-         a second layout. */
-      style={{ '--seat-base': 'clamp(30px, 5.4vw, 78px)', '--seat': 'var(--seat-base)', '--cabin-w': 'min(100%, 41rem)' } as CSSProperties}
+         a second layout. It is measured off the map's own well rather than
+         the window, so it fits whatever it is opened in — a panel beside the
+         view is a phone's width on the widest screen. Six seats and an
+         aisle, the row numbers and the gaps between them come to six seats
+         and nine rem. */
+      style={{ '--seat-base': 'clamp(26px, calc((100cqi - 9rem) / 6.2), 78px)', '--seat': 'var(--seat-base)', '--cabin-w': 'min(100%, 41rem)' } as CSSProperties}
     >
       <div className="sa-map__body">
         {/* ── Nose ── */}

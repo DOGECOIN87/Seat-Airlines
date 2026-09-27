@@ -28,7 +28,8 @@ import {
 
 export type DeckIconName =
   | 'plane' | 'deck' | 'first' | 'business' | 'exit' | 'economy' | 'hold'
-  | 'belt' | 'cup' | 'mask' | 'brace';
+  | 'belt' | 'cup' | 'mask' | 'brace'
+  | 'wall' | 'network' | 'chat' | 'pass';
 
 const ICON_PATHS: Record<DeckIconName, string[]> = {
   plane: ['M12 2.6c.9 0 1.5.9 1.5 2.2V10l7.3 4.1v2.1l-7.3-2.2v4.5l2.1 1.6v1.6L12 21l-3.6.7v-1.6l2.1-1.6V14l-7.3 2.2v-2.1L10.5 10V4.8c0-1.3.6-2.2 1.5-2.2z'],
@@ -42,6 +43,11 @@ const ICON_PATHS: Record<DeckIconName, string[]> = {
   cup: ['M5.5 9h11v5a4.5 4.5 0 0 1-4.5 4.5h-2A4.5 4.5 0 0 1 5.5 14z', 'M16.5 10.5h.8a2.3 2.3 0 0 1 0 4.6h-1', 'M9.2 3.8c-.7.8-.7 1.6 0 2.4M12.8 3.8c-.7.8-.7 1.6 0 2.4', 'M4.5 21h13'],
   mask: ['M8 10c0-2 1.8-3.6 4-3.6s4 1.6 4 3.6v2.6c0 2.4-1.8 4.4-4 4.4s-4-2-4-4.4z', 'M8 10.8 3.6 8.8M16 10.8l4.4-2', 'M12 17v2.4c0 .9.7 1.6 1.6 1.6H16'],
   brace: ['M12 4.2 21 19.6H3z', 'M12 10v4.4', 'M12 17.1v.01'],
+  // The sections beside the view: the wall of seats, the people aboard, their rooms, your pass.
+  wall: ['M4.5 4.5h5.5V10H4.5z', 'M14 4.5h5.5V10H14z', 'M4.5 14H10v5.5H4.5z', 'M14 14h5.5v5.5H14z'],
+  network: ['M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M3.5 19.5c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5', 'M15.8 5.3a3 3 0 0 1 0 5.4', 'M17.4 14.3c1.9.7 3.1 2.6 3.1 5.2'],
+  chat: ['M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-7.5L7 20v-3.5H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.5z', 'M7.5 10h9M7.5 13h6'],
+  pass: ['M5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4V7.5A1.5 1.5 0 0 1 5.5 6z', 'M14.5 7.8v1.4M14.5 11.3v1.4M14.5 14.8v1.4'],
 };
 
 export const DeckIcon = ({ name, className }: { name: DeckIconName; className?: string }) => (

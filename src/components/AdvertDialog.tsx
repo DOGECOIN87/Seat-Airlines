@@ -98,7 +98,7 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
     if (file) { e.preventDefault(); void take(file); }
   };
 
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2B2F37]/50 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Advertise on seat ${seat}`} onPaste={acceptPaste} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+  return <div className="fixed inset-0 z-[65] flex items-center justify-center bg-[#2B2F37]/50 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Advertise on seat ${seat}`} onPaste={acceptPaste} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
     {/* A column, not a scrolling box.
 
         This card used to carry `overflow-y-auto` itself, and it never

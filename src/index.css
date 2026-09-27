@@ -1203,8 +1203,7 @@ html {
   margin-top: 5.5rem;
   padding: 4.5rem clamp(1.25rem, 3vw, 2.75rem) 4rem;
 }
-.sa-wall::before,
-.sa-footer__card {
+.sa-wall::before {
   border-radius: var(--r-xl);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.6) inset,
@@ -1226,7 +1225,7 @@ html {
   gap: 1.25rem;
   margin-top: 2.5rem;
 }
-@media (min-width: 768px) { .sa-steps { grid-template-columns: repeat(3, 1fr); } }
+@container (min-width: 44rem) { .sa-steps { grid-template-columns: repeat(3, 1fr); } }
 .sa-step {
   position: relative;
   border-radius: var(--r-lg);
@@ -1266,64 +1265,6 @@ html {
   color: var(--ui-soft);
 }
 
-/* ── The footer ─────────────────────────────────────────────── */
-/* The footer is a card on the ground too, with the ground showing
-   below it as well as beside it. */
-.sa-footer {
-  position: relative;
-  margin-top: var(--sa-section);
-  padding-bottom: clamp(1.25rem, 3vw, 2rem);
-}
-.sa-footer__card {
-  position: relative;
-  padding: clamp(3rem, 5vw, 4.5rem) clamp(1.25rem, 3vw, 2.75rem) clamp(1rem, 2vw, 1.5rem);
-  background:
-    var(--g-accent) top / 100% 3px no-repeat,
-    linear-gradient(180deg, #D8D9DE 0%, #CFD0D6 100%);
-}
-
-.sa-close {
-  display: grid;
-  justify-items: center;
-  gap: 0.9rem;
-  text-align: center;
-}
-.sa-close__line {
-  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(var(--t-lg), 3.2vw, var(--t-xl));
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: -0.015em;
-  color: var(--ui-ink);
-}
-
-.sa-close__note {
-  max-width: var(--sa-measure);
-  margin-top: clamp(var(--s-3), 3.5vw, var(--s-4));
-  font-size: var(--t-sm);
-  line-height: 1.7;
-  color: var(--ui-faint);
-}
-
-.sa-footer__bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem 1.5rem;
-  margin-top: 1.75rem;
-  padding: 1.25rem 0 0.25rem;
-  /* The deck's own divider: a grey line above a white one, engraved. It
-     was an inset shadow, which draws at the *bottom* of the padded box —
-     unseen at the foot of a full-bleed band, a stray rule inside a card. */
-  border-top: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 -1px 0 rgba(163, 167, 180, 0.32);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--ui-faint);
-}
-.sa-footer__bar > :last-child { margin-left: auto; }
 
 /* Anything that is a number, a seat, or an address. */
 .sa-data,
@@ -1543,7 +1484,7 @@ html {
   box-shadow: var(--e-lg);
   overflow: hidden;
 }
-@media (min-width: 1100px) {
+@container (min-width: 62rem) {
   .sa-map {
     grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr);
     align-items: stretch;
@@ -1554,11 +1495,14 @@ html {
 /* The aircraft sits in a recess cut into the panel. */
 .sa-map__body {
   min-width: 0;
+  /* The seats are measured off this box (see SeatMap), so the map fits
+     whatever it is opened in: a panel beside the view, a phone's sheet. */
+  container-type: inline-size;
   padding: var(--s-3) var(--s-2) var(--s-3);
   background: var(--ui-sink);
   box-shadow: var(--e-well);
 }
-@media (min-width: 1100px) {
+@container (min-width: 62rem) {
   .sa-map__body { padding: var(--s-3); }
 }
 .sa-map__cabin {
@@ -1726,7 +1670,7 @@ html {
 .sa-rownum { color: var(--ui-faint); }
 
 .sa-map__side { padding: var(--s-3) var(--s-2); }
-@media (min-width: 1100px) {
+@container (min-width: 62rem) {
   .sa-map__side {
     padding: var(--s-3);
     border-left: 1px solid rgba(255, 255, 255, 0.9);
@@ -1734,7 +1678,7 @@ html {
   }
   /* Sticky within the panel, so the seat you are pointing at stays
      read out while the cabin scrolls past it. */
-  .sa-map__sticky { position: sticky; top: 6rem; }
+  .sa-map__sticky { position: sticky; top: var(--s-2); }
 }
 .sa-map__card { padding: 0; }
 .sa-map__label {
@@ -2246,10 +2190,6 @@ p { text-wrap-style: pretty; }
 .sa-map__note,
 .sa-map__alt { line-height: 1.6; }
 
-.sa-footer__bar {
-  line-height: 1.4;
-}
-
 @media (max-width: 639px) {
   .sa-display { letter-spacing: -0.015em; }
   .sa-lead { font-size: 0.96rem; line-height: 1.58; }
@@ -2362,21 +2302,22 @@ p { text-wrap-style: pretty; }
   --e:    0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 10px 24px rgba(0, 0, 0, 0.42);
   --e-lg: 0 1px 0 rgba(255, 255, 255, 0.10) inset, 0 18px 44px rgba(0, 0, 0, 0.5);
 }
-.sa-hero :is(.sa-deck, .sd-viewframe, .ui-card, .sa-map) > *,
+.sa-hero :is(.sa-deck, .sd-viewframe, .ui-card, .sa-map, .sa-dock__track) > *,
 .sa-section :is(.sa-deck, .ui-card, .sa-map) > *,
 .sa-wall,
+.sa-panel,
 .sa-footer {
   --e-sm:    -3px -3px 8px var(--lit),    3px 3px 8px var(--shade);
   --e:       -6px -6px 16px var(--lit),   7px 7px 18px var(--shade);
   --e-lg:    -12px -12px 30px var(--lit), 14px 14px 34px var(--shade);
 }
 /* The ghost button on navy: a quiet glass pill, not a lit plastic one. */
-.sa-hero > div .sa-ghost {
+.sa-hero > div:not(.sa-cockpit) .sa-ghost {
   background: rgba(255, 255, 255, 0.08);
   color: #E8EEF6;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
-.sa-hero > div .sa-ghost:hover { background: rgba(255, 255, 255, 0.14); color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34); }
+.sa-hero > div:not(.sa-cockpit) .sa-ghost:hover { background: rgba(255, 255, 255, 0.14); color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34); }
 
 /* ── Controls: one height per tier, and touchable ─────────────
    Primary actions 48px; chips and pills 36px with pointer, 44px
@@ -2412,41 +2353,11 @@ p { text-wrap-style: pretty; }
 }
 
 
-/* ── Footer navigation ────────────────────────────────────────
-   One centred row under the closing line: the footer's only job is
-   somewhere to go next, so it is set as a row of places, not as a
-   card of them. Touch-sized, and the same ink as the rest of the
-   footer's quiet type. */
-.sa-footer__nav {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.25rem 2rem;
-  margin-top: clamp(2.5rem, 5vw, 3.5rem);
-}
-.sa-footer__nav a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  font-size: var(--t-base);
-  font-weight: 600;
-  color: var(--ui-soft);
-  border-radius: var(--r-sm);
-  transition: color 0.15s ease;
-}
-.sa-footer__nav a:hover { color: var(--accent-deep); }
-.sa-footer__nav a:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
-
 /* ── The docs ─────────────────────────────────────────────────
    Under the row of places on the page, the one place that is not:
    the documentation, marked with GitBook's own logo. A raised pill,
    the same control as the pump.fun one beside the contract address,
    with the mark in the blue that lights whatever leads somewhere. */
-.sa-footer__docs {
-  display: flex;
-  justify-content: center;
-  margin-top: var(--s-2);
-}
 .sa-docs {
   display: inline-flex;
   align-items: center;
@@ -2493,4 +2404,344 @@ p { text-wrap-style: pretty; }
 @media (pointer: coarse) {
   .sa-brand { min-height: 2.75rem; }
   .sa-pump { min-width: 2.75rem; justify-content: center; }
+}
+
+/* ============================================================
+   The cockpit
+   ────────────────────────────────────────────────────────────
+   The view and its deck, a panel for whichever section is open,
+   and the tabs that open them, side by side. Closed, the panel's
+   column is nothing and the view has the whole width; open, the
+   panel takes its share and the view narrows to give it, in one
+   eased move. The panel keeps its own width while its column
+   grows, so it slides out from under the tabs rather than
+   reflowing all the way open.
+
+   A phone has no width to share: there the tabs are a bar along
+   the bottom of the screen and a section rises over the page as a
+   sheet (the media query below).
+   ============================================================ */
+.sa-cockpit {
+  --panel-w: clamp(25rem, 35vw, 42rem);
+  --dock-w: 5.75rem;
+  /* Under the gate sign, which stays at the top of the screen (App
+     measures it). */
+  --sa-top: calc(var(--sa-topbar-h, 3.4rem) + 0.75rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 0 var(--dock-w);
+  align-items: start;
+  scroll-margin-top: var(--sa-top);
+  transition: grid-template-columns 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sa-cockpit.is-open { grid-template-columns: minmax(0, 1fr) var(--panel-w) var(--dock-w); }
+.sa-cockpit__main { min-width: 0; }
+
+.sa-panel-slot {
+  position: sticky;
+  top: var(--sa-top);
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+  height: calc(100dvh - var(--sa-top) - 0.75rem);
+  overflow: hidden;
+}
+.sa-panel-scrim { display: none; }
+
+/* The section: a light card, like the wall used to be, with the
+   accent along its top edge. Its head stays put and its body
+   scrolls, so the title and the close are never a scroll away. */
+.sa-panel {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: calc(var(--panel-w) - 0.75rem);
+  height: 100%;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  background:
+    var(--g-accent) top / 100% 3px no-repeat,
+    linear-gradient(180deg, #D9DADF 0%, #DDDEE3 40%, #D7D8DD 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 18px 44px rgba(0, 0, 0, 0.5);
+}
+.sa-panel__head {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem 1.1rem 1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 0 rgba(163, 167, 180, 0.32);
+}
+.sa-panel__title {
+  margin-top: 0.45rem;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--t-lg);
+  font-weight: 800;
+  line-height: 1.12;
+  text-transform: uppercase;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  color: var(--ui-ink);
+}
+.sa-panel__title:focus { outline: none; }
+.sa-panel__title:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 4px; border-radius: 4px; }
+.sa-panel__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: var(--face);
+  box-shadow: var(--e-sm);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--ui-soft);
+  transition: box-shadow 0.15s ease, color 0.15s ease;
+}
+.sa-panel__close:hover { color: var(--accent-deep); box-shadow: var(--e); }
+.sa-panel__close:active { box-shadow: var(--e-press); }
+.sa-panel__close:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+.sa-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 1.25rem 1.25rem 2rem 1.5rem;
+}
+/* The hero's type is set for the navy ground; the panel is light. */
+.sa-panel .sa-lead { color: var(--ui-soft); }
+.sa-panel .sa-eyebrow { color: var(--accent-deep); }
+.sa-panel__sub {
+  margin-top: 2rem;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent-deep);
+}
+/* The three steps, as a numbered list rather than three cards: the seat
+   map is what the panel is for, so it starts a screen sooner. */
+.sa-panel .sa-steps { margin-top: 1.25rem; gap: 0.5rem; }
+.sa-panel .sa-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.85rem;
+  align-items: start;
+  padding: 0.8rem 1rem 0.85rem 0.85rem;
+  border-radius: var(--r);
+  box-shadow: var(--e-sm);
+}
+.sa-panel .sa-step__no { grid-row: span 2; }
+.sa-panel .sa-step__h { margin-top: 0.1rem; font-size: var(--t-sm); }
+.sa-panel .sa-step__b { max-width: none; margin-top: 0.15rem; font-size: var(--t-sm); line-height: 1.5; }
+
+/* The tabs: a rail down the view's right edge, the same panel
+   material as the deck under the view, with the open section
+   lit in the blue. */
+.sa-dock {
+  position: sticky;
+  top: var(--sa-top);
+  margin-left: 0.75rem;
+}
+.sa-dock__track {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.4rem;
+  border-radius: var(--r-xl);
+  background: var(--face-flat);
+  box-shadow: var(--e);
+}
+.sa-dock__btn {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 0.8rem 0.2rem 0.7rem;
+  border-radius: calc(var(--r-xl) - 0.4rem);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  color: var(--ui-soft);
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sa-dock__icon { width: 1.4rem; height: 1.4rem; color: var(--ui-faint); transition: color 0.15s ease; }
+.sa-dock__btn:hover { color: var(--ui-ink); background-color: rgba(255, 255, 255, 0.55); }
+.sa-dock__btn:hover .sa-dock__icon { color: var(--accent-deep); }
+.sa-dock__btn:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: -2px; }
+.sa-dock__btn.is-on {
+  background: var(--g-accent-text);
+  color: #fff;
+  box-shadow: 2px 5px 14px rgba(0, 105, 194, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.sa-dock__btn.is-on .sa-dock__icon { color: #fff; }
+
+/* ── A phone: a tab bar and a sheet ───────────────────────────
+   The view keeps the whole width. The tabs sit in a bar along the
+   bottom of the screen, under the thumb, and a section rises over
+   the page as a sheet between the gate sign and the bar — which
+   stays in reach to change section or put it away. */
+@media (max-width: 1023.98px) {
+  .sa-app {
+    --dock-h: 4.25rem;
+    padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom));
+  }
+  .sa-cockpit { display: block; }
+  .sa-dock {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 55;
+    margin: 0;
+    padding: 0.35rem max(0.5rem, env(safe-area-inset-right)) calc(0.35rem + env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+    background: rgba(221, 222, 227, 0.94);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    backdrop-filter: blur(14px) saturate(1.2);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 -10px 28px rgba(0, 0, 0, 0.35);
+  }
+  .sa-dock__track {
+    flex-direction: row;
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .sa-dock__btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 3.5rem;
+    padding: 0.5rem 0.2rem 0.45rem;
+    gap: 0.3rem;
+    border-radius: var(--r);
+  }
+  .sa-dock__icon { width: 1.3rem; height: 1.3rem; }
+
+  .sa-panel-slot {
+    position: fixed;
+    inset: auto 0 calc(var(--dock-h) + env(safe-area-inset-bottom));
+    z-index: 54;
+    height: calc(100dvh - var(--dock-h) - env(safe-area-inset-bottom) - max(3rem, env(safe-area-inset-top)));
+    padding: 0 0.4rem;
+    overflow: visible;
+    visibility: hidden;
+    transform: translateY(calc(100% + var(--dock-h) + 2rem));
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.4s;
+  }
+  .sa-cockpit.is-open .sa-panel-slot {
+    visibility: visible;
+    transform: none;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+  }
+  .sa-panel {
+    width: 100%;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 -12px 40px rgba(0, 0, 0, 0.45);
+  }
+  .sa-panel__head { padding: 1rem 0.9rem 0.85rem 1.15rem; }
+  .sa-panel__title { font-size: var(--t-md); }
+  .sa-panel__body { padding: 1rem 0.9rem 1.5rem 1.15rem; scrollbar-gutter: auto; }
+  .sa-panel-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 53;
+    background: rgba(3, 8, 20, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .sa-cockpit.is-open .sa-panel-scrim { opacity: 1; pointer-events: auto; }
+}
+
+/* ── The footer ───────────────────────────────────────────────
+   A strip the full width of the window, like the gate sign it
+   answers at the top: the airline, the four sections, the docs
+   and the line, on one row where there is room for one. */
+.sa-footer {
+  position: relative;
+  margin-top: var(--s-5);
+  background: linear-gradient(180deg, #D9DADF 0%, #CFD0D6 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 -14px 34px rgba(0, 0, 0, 0.28);
+}
+.sa-footer::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--g-accent);
+}
+.sa-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1.75rem;
+  max-width: 94rem;
+  margin: 0 auto;
+  padding: 0.85rem 1.25rem;
+}
+@media (min-width: 640px) { .sa-footer__inner { padding-inline: 2rem; } }
+.sa-footer__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  border-radius: var(--r-sm);
+}
+.sa-footer__brand:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+.sa-footer__name {
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--t-base);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: var(--ui-ink);
+}
+.sa-footer__code,
+.sa-footer__line {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  white-space: nowrap;
+  color: var(--ui-faint);
+}
+.sa-footer__nav { display: flex; flex-wrap: wrap; gap: 0 0.25rem; }
+.sa-footer__nav button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.7rem;
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ui-soft);
+  transition: color 0.15s ease;
+}
+.sa-footer__nav button:hover,
+.sa-footer__nav button[aria-expanded='true'] { color: var(--accent-deep); }
+.sa-footer__nav button:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: -2px; }
+.sa-footer__docs { margin-left: auto; }
+.sa-footer .sa-docs { min-height: 2.5rem; padding-block: 0.45rem; font-size: var(--t-sm); }
+@media (max-width: 1023.98px) {
+  /* The tab bar is the navigation here, so the footer does not repeat it. */
+  .sa-footer__nav { display: none; }
+  .sa-footer__line { flex-basis: 100%; }
+}
+@media (max-width: 639px) {
+  .sa-footer__code { display: none; }
+  .sa-footer__inner { justify-content: space-between; column-gap: 1rem; }
+  .sa-footer__docs { margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-cockpit, .sa-panel-slot, .sa-cockpit.is-open .sa-panel-slot, .sa-panel-scrim { transition: none; }
 }
