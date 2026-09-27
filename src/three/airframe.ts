@@ -55,6 +55,9 @@ const WING = {
 };
 const R = CABIN.radius;
 
+/** Where each engine hangs, starboard side (mirror x for port), in the airframe's frame. */
+export const ENGINE_AT = { x: 6.6, y: -2.25, z: WING.rootZ + WING.engineZ } as const;
+
 /* ── Fuselage ─────────────────────────────────────────────────────────────
    A body of revolution swept along z, which is the only honest way to get the
    three things that make an airliner readable in silhouette: an ogive nose
@@ -873,6 +876,11 @@ export interface AirframeHandles {
   /** Smoothly deploy the trailing-edge flaps from 0 (retracted) to 1. */
   setFlapDeployment(target: number): void;
   /**
+   * Which engine has failed: -1 the port (left) one, 1 the starboard, 0
+   * neither. A failed engine's fan runs down to a slow windmill.
+   */
+  setEngineOut(side: -1 | 0 | 1): void;
+  /**
    * Advance the parts of the aeroplane that live: the fans turn, the
    * strobes and beacons flash, the contrails stream, and the control
    * surfaces fly the bank.
@@ -928,7 +936,11 @@ export function createAirframe(): AirframeHandles {
   const dispose: (() => void)[] = [];
   const track = <T extends { dispose(): void }>(x: T) => (dispose.push(() => x.dispose()), x);
   const flapGroups: THREE.Group[] = [];
+  /* Built starboard first (the wing loop runs over [1, -1]), so fan 0 is
+     the starboard engine's and fan 1 the port's. */
   const fans: THREE.Group[] = [];
+  const fanSpeed = [1, 1];
+  let engineOut: -1 | 0 | 1 = 0;
 
   /* A control surface: its own solid, in a group sitting on its hinge line
      and turned about it. */
@@ -1400,7 +1412,12 @@ export function createAirframe(): AirframeHandles {
        enough that the intake plainly holds a turning machine — and each
        engine a hair off its neighbour's speed, which is true of real pairs
        and is what keeps them from reading as mirrored copies. */
-    for (const [i, fan] of fans.entries()) fan.rotation.z -= dt * (13 + i * 0.9);
+    for (const [i, fan] of fans.entries()) {
+      // A dead engine spins down over a few seconds and windmills in the airflow.
+      const target = engineOut === (i === 0 ? 1 : -1) ? 0.07 : 1;
+      fanSpeed[i] += (target - fanSpeed[i]) * (1 - Math.exp(-0.9 * dt));
+      fan.rotation.z -= dt * (13 + i * 0.9) * fanSpeed[i];
+    }
     lamps.update(dt, { night, cabin, mood, calm });
     // Instruments, faintly, behind the flight-deck glass once it is dark.
     deckGlass.emissiveIntensity = 0.55 * night;
@@ -1450,6 +1467,7 @@ export function createAirframe(): AirframeHandles {
     group,
     setRowsLit,
     setFlapDeployment,
+    setEngineOut: (side) => { engineOut = side; },
     update,
     place: (camera) => lamps.place(camera, group),
     dispose: () => {

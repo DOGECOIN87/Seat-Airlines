@@ -96,8 +96,39 @@ const scheduleOccasionalSeatbelt = (rig: AudioRig) => {
   }, delay);
 };
 
+/* Sound is on unless the visitor has turned it off, and that choice is
+   remembered. Storage can be missing or refuse (a private window), in which
+   case it is simply on. */
+const SOUND_KEY = 'sa.sound';
+const soundWanted = (): boolean => {
+  try {
+    return window.localStorage.getItem(SOUND_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+};
+const rememberSound = (on: boolean) => {
+  try {
+    window.localStorage.setItem(SOUND_KEY, on ? 'on' : 'off');
+  } catch {
+    /* Nowhere to keep it: it will be on again next time. */
+  }
+};
+
+/** Whether the browser counts the event being handled as the visitor's own doing, so sound may start. */
+const activated = (): boolean => {
+  const ua = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+  return ua ? ua.isActive : true;
+};
+
 export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: FlightBand) {
-  const [enabled, setEnabled] = useState(false);
+  const [enabled, setEnabled] = useState(() => typeof window === 'undefined' || soundWanted());
+  /* Read by a start already under way, which can outlast a change of mind:
+     switched off while the sounds were still loading, it must not go on to
+     play them. */
+  const wanted = useRef(enabled);
+  wanted.current = enabled;
+  const starting = useRef(false);
   const rig = useRef<AudioRig | null>(null);
   const previous = useRef({ seatbelt: lamps.seatbelt, oxygen: lamps.oxygen, brace: lamps.brace, band });
 
@@ -115,11 +146,27 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
   }, []);
 
   const start = useCallback(async () => {
-    if (rig.current) return;
+    if (rig.current || starting.current) return;
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
+    starting.current = true;
+    try {
+      await begin(AudioContextClass);
+    } finally {
+      starting.current = false;
+    }
+  }, []);
+
+  const begin = async (AudioContextClass: typeof AudioContext) => {
     const ctx = new AudioContextClass();
-    await ctx.resume();
+    /* Without the visitor's say-so a context stays suspended and resuming
+       it never settles; give up after a moment rather than wait forever,
+       and the next click or key tries again. */
+    await Promise.race([ctx.resume(), new Promise((r) => window.setTimeout(r, 1500))]);
+    if (ctx.state !== 'running' || !wanted.current) {
+      void ctx.close();
+      return;
+    }
     const master = ctx.createGain();
     master.gain.value = 0.12;
     master.connect(ctx.destination);
@@ -162,19 +209,42 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
       stopped: false,
     };
 
+    // Switched off while it was loading: nothing to start after all.
+    if (!wanted.current) {
+      void ctx.close();
+      return;
+    }
     recording.start();
     rig.current = nextRig;
     scheduleIntercom(nextRig, true);
     scheduleOccasionalSeatbelt(nextRig);
-  }, []);
+  };
 
   const toggle = useCallback(() => {
     setEnabled(value => {
       const next = !value;
+      wanted.current = next;
+      rememberSound(next);
       if (next) void start().catch(() => setEnabled(false)); else stop();
       return next;
     });
   }, [start, stop]);
+
+  /* On by default — but no browser will make a sound before the visitor has
+     touched the page, so it starts on their first click, tap or key: the
+     landing's Enter, as often as not. */
+  useEffect(() => {
+    if (!enabled || rig.current) return;
+    const events = ['pointerup', 'click', 'touchend', 'keydown'] as const;
+    const detach = () => events.forEach((type) => window.removeEventListener(type, go, true));
+    function go() {
+      if (!activated() || rig.current) return;
+      detach();
+      void start().catch(() => {});
+    }
+    events.forEach((type) => window.addEventListener(type, go, true));
+    return detach;
+  }, [enabled, start]);
 
   useEffect(() => () => stop(), [stop]);
   useEffect(() => {

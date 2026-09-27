@@ -10,8 +10,9 @@ import { biomeAt } from '../lib/biome';
 import { lakeShader, noTileShader, type LakeParams, type NoTileParams } from './noTile';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import { CABIN, cabinLevel, createCabin, rowZ } from './cabin';
-import { createAirframe } from './airframe';
+import { createAirframe, ENGINE_AT } from './airframe';
 import { createScenery } from './scenery';
+import { createEngineFire } from './engineFire';
 
 /**
  * The world outside, rendered.
@@ -91,6 +92,33 @@ export interface ViewPose {
    * it. Eased out as the chase comes in.
    */
   frame?: { x: number; y: number };
+  /**
+   * The landing's game: m/s over the ground, overriding the band's, for an
+   * aeroplane that has lost speed.
+   */
+  speed?: number;
+  /**
+   * An engine gone: -1 the port one, 1 the starboard, 0 or absent neither.
+   * The change to one is the explosion; from then on it burns. Needs a
+   * world built with `{ damage: true }`.
+   */
+  failed?: -1 | 0 | 1;
+  /** 0–1, how fiercely it burns. */
+  fury?: number;
+  /** Degrees the nose is yawed right of the path it is flying: the sideslip a dead engine drags it into. */
+  slip?: number;
+  /**
+   * Degrees the chase camera swings round toward starboard (negative: port)
+   * from dead astern, and metres it rises: over a burning engine's shoulder,
+   * where its smoke streams across the frame rather than straight at the lens.
+   */
+  chaseSide?: number;
+  chaseLift?: number;
+}
+
+export interface WorldOptions {
+  /** Build the engine fire the landing's game can set off. */
+  damage?: boolean;
 }
 
 export interface WorldHandles {
@@ -120,7 +148,7 @@ export interface WorldHandles {
   dispose: () => void;
 }
 
-export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
+export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {}): WorldHandles {
   /* The exterior camera's own heading, which trails the aircraft's through a
      turn (see where the airframe is posed), and whether the visitor asked
      for less motion — in which case it does not trail. */
@@ -180,6 +208,13 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
 
   /* The aeroplane itself, for when the camera is outside it. */
   const airframe = createAirframe();
+  /* The engine fire, for the landing's game only: its glow is a light, and
+     a light every lit material has to account for is not worth carrying on
+     the pages that never set one off. */
+  const fire = options.damage ? createEngineFire() : null;
+  let burning: -1 | 0 | 1 = 0;
+  const engineLocal = new THREE.Vector3();
+  const exhaustWorld = new THREE.Vector3();
   airframe.group.visible = false;
   aircraft.add(airframe.group);
 
@@ -219,6 +254,10 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
       }
     }
   });
+  if (fire) {
+    scene.add(fire.world);
+    airframe.group.add(fire.local);
+  }
 
   /* Cabin lighting. A tube blocks the sun, and there is no bounce in here. */
   const cabinLight = new THREE.PointLight(0xffd8a8, 11, 10, 2);
@@ -1221,7 +1260,7 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
     const now = performance.now();
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    const groundSpeed = THREE.MathUtils.clamp(height * V_OVER_H, SPEED_FLOOR, SPEED_CAP);
+    const groundSpeed = pose.speed ?? THREE.MathUtils.clamp(height * V_OVER_H, SPEED_FLOOR, SPEED_CAP);
     /* Nose to tail, whatever the heading. The aircraft is yawed by −heading,
        so its nose points along (sin h, 0, −cos h); the texture offsets and
        the cloud wrap below move features by −Δshift.x in x and +Δshift.z in
@@ -1229,8 +1268,10 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
        fixed to the world instead, the flow only stayed nose-to-tail while
        the heading did — and the aircraft turns now, on purpose. */
     const hdg = THREE.MathUtils.degToRad(a.heading);
-    shift.x += groundSpeed * Math.sin(hdg) * dt;
-    shift.z += groundSpeed * Math.cos(hdg) * dt;
+    const stepX = groundSpeed * Math.sin(hdg) * dt;
+    const stepZ = groundSpeed * Math.cos(hdg) * dt;
+    shift.x += stepX;
+    shift.z += stepZ;
 
     /* The ground is one repeating plane, so flying over it is an offset. */
     const map = groundMat.map;
@@ -1409,7 +1450,7 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
     const turnPitch = pose.exterior ? Math.abs(a.bank) * 0.18 : 0;
     airframe.group.rotation.set(
       THREE.MathUtils.degToRad(turnPitch),
-      THREE.MathUtils.degToRad(-yawLag),
+      THREE.MathUtils.degToRad(-yawLag - (pose.exterior ? pose.slip ?? 0 : 0)),
       THREE.MathUtils.degToRad(pose.exterior ? a.roll - a.bank : 0),
       'YXZ',
     );
@@ -1475,11 +1516,11 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
       /* The chase swings the same station round behind the tail on an arc,
          rather than cutting across, and looks past the nose at the ground
          ahead rather than at the wing box. */
-      const a = THREE.MathUtils.degToRad(lerp((pose.orbit ?? 0) - 34, 90, chase));
+      const a = THREE.MathUtils.degToRad(lerp((pose.orbit ?? 0) - 34, 90 - (pose.chaseSide ?? 0), chase));
       const radius = lerp(38, 53, chase);
       // Raised to about sixteen degrees: level with the wing, a swept
       // planform is a line. From above it is a shape.
-      extPos.set(Math.cos(a) * radius, lerp(9.6, 12.5, chase), 11 + Math.sin(a) * radius);
+      extPos.set(Math.cos(a) * radius, lerp(9.6, 12.5 + (pose.chaseLift ?? 0), chase), 11 + Math.sin(a) * radius);
       extTarget.set(0, lerp(0.35, 1.5, chase), lerp(10.8, -20, chase));
       extDir.copy(extTarget).sub(extPos);
       camera.position.copy(extPos);
@@ -1599,6 +1640,33 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
       }
     }
 
+    /* The engine fire, once the aeroplane is posed: the explosion on the
+       frame an engine goes, the flames and the smoke every frame after —
+       and whatever is still in the air played out once it is over. */
+    if (fire) {
+      const out = pose.failed ?? 0;
+      if (out !== burning) {
+        if (out === 0) fire.reset();
+        airframe.setEngineOut(out);
+      }
+      const side = out || burning || 1;
+      engineLocal.set(ENGINE_AT.x * side, ENGINE_AT.y + 0.15, ENGINE_AT.z + 1.2);
+      airframe.group.updateWorldMatrix(true, false);
+      exhaustWorld.set(ENGINE_AT.x * side, ENGINE_AT.y, ENGINE_AT.z + 3.1);
+      airframe.group.localToWorld(exhaustWorld);
+      if (out !== 0 && out !== burning) fire.blast(engineLocal, exhaustWorld);
+      burning = out;
+      fire.update(dt, out !== 0, {
+        local: engineLocal,
+        world: exhaustWorld,
+        // World-fixed things move against the shift (see the cloud deck).
+        flowX: -stepX,
+        flowZ: stepZ,
+        night,
+        fury: pose.fury ?? 0.5,
+      });
+    }
+
     /* The aeroplane's lights are shaded where the camera sees them, so they
        are placed once the aeroplane and the camera are both posed. */
     camera.updateWorldMatrix(true, false);
@@ -1706,6 +1774,7 @@ export function createWorld(canvas: HTMLCanvasElement): WorldHandles {
 
   const dispose = () => {
     cabin.dispose();
+    fire?.dispose();
     airframe.dispose();
     farmland.day.dispose();
     farmland.night.dispose();

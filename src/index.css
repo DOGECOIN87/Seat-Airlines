@@ -3103,8 +3103,11 @@ p { text-wrap-style: pretty; }
 }
 
 /* ── How it ended ───────────────────────────────────────────── */
+/* Down: the picture holds on the last frame and drains to grey, the way a
+   certain game does it, while the word it is waiting for arrives. */
 .sa-landing.is-crashed .sa-landing__scene {
-  filter: saturate(0.35) contrast(1.1) brightness(0.8);
+  filter: grayscale(1) contrast(1.12) brightness(0.7);
+  transition: filter 1s ease;
   animation: sa-landing-shake 0.55s linear;
 }
 .sa-landing__flash {
@@ -3126,7 +3129,51 @@ p { text-wrap-style: pretty; }
   background: radial-gradient(ellipse at center, rgba(4, 7, 14, 0.45) 0%, rgba(4, 7, 14, 0.82) 100%);
   animation: sa-landing-fade 0.45s ease both;
 }
-.sa-landing__end--crash { background: radial-gradient(ellipse at center, rgba(110, 12, 10, 0.4) 0%, rgba(18, 3, 3, 0.86) 100%); }
+/* WASTED: across the middle of the screen on a dark band, landing with the
+   hit in the crash sound (see WASTED_FROM in Landing). The band holds the
+   centre whatever is under it; the note and the way in sit below it. */
+.sa-landing__end--crash {
+  display: block;
+  padding: 0;
+  background: none;
+}
+.sa-landing.is-crashed .sa-hud,
+.sa-landing.is-crashed .sa-landing__live { opacity: 0; transition: opacity 0.5s ease; }
+.sa-wasted {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  padding: clamp(0.9rem, 3vh, 1.8rem) 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.66) 24%, rgba(0, 0, 0, 0.66) 76%, rgba(0, 0, 0, 0) 100%);
+  animation: sa-landing-fade 0.3s ease-out 1.15s both;
+}
+.sa-wasted__word {
+  width: min(80vw, 40rem);
+  height: auto;
+  fill: #C8221E;
+  stroke: #000;
+  stroke-width: 34;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.5));
+  animation: sa-wasted-in 0.34s cubic-bezier(0.2, 1.4, 0.4, 1) 1.25s both;
+}
+.sa-landing__end-after {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Half the band, the word's height being 0.282 of its width, and some air. */
+  top: calc(50% + min(80vw, 40rem) * 0.141 + clamp(1.6rem, 4vh, 2.6rem));
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  padding-inline: 1.25rem;
+  animation: sa-landing-fade 0.45s ease 2s both;
+}
 .sa-landing__end-title {
   font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(2.8rem, 10vw, 6.4rem);
@@ -3136,7 +3183,6 @@ p { text-wrap-style: pretty; }
   text-transform: uppercase;
   text-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
 }
-.sa-landing__end--crash .sa-landing__end-title { color: #FF6A5C; }
 .sa-landing__end-note {
   max-width: 30rem;
   margin-bottom: 0.6rem;
@@ -3145,6 +3191,47 @@ p { text-wrap-style: pretty; }
   color: rgba(235, 240, 248, 0.88);
 }
 
+/* ── An engine gone ─────────────────────────────────────────── */
+/* The airframe shakes for as long as it burns, and hard at the blast. */
+.sa-landing.is-failing:not(.is-crashed) .sa-landing__scene { animation: sa-landing-rattle 0.14s steps(2, end) infinite; }
+.sa-landing.is-blast:not(.is-crashed) .sa-landing__scene { animation: sa-landing-shake 0.7s linear; }
+.sa-landing__blast {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 58%, rgba(255, 244, 214, 0.85) 0%, rgba(255, 150, 50, 0.4) 34%, rgba(255, 90, 20, 0) 70%);
+  animation: sa-landing-flash 0.6s ease-out forwards;
+}
+.sa-hud__master {
+  background: rgba(120, 8, 8, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(255, 96, 86, 0.7), 0 0 28px rgba(255, 40, 30, 0.35);
+}
+.sa-hud__master .sa-hud__label { color: rgba(255, 214, 210, 0.85); }
+.sa-hud__master .sa-hud__value {
+  color: #fff;
+  letter-spacing: 0.06em;
+  animation: sa-hud-warn 0.9s steps(1, end) infinite;
+}
+.sa-hud__warn--stall {
+  top: 52%;
+  color: #FFB22E;
+  text-shadow: 0 0 22px rgba(255, 170, 40, 0.7);
+  box-shadow: inset 0 0 0 2px rgba(255, 178, 46, 0.8);
+}
+.sa-hud__help--mayday {
+  background: rgba(120, 8, 8, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(255, 96, 86, 0.6);
+  animation-duration: 9s;
+}
+
+@keyframes sa-wasted-in {
+  from { opacity: 0; transform: scale(1.7); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sa-landing-rattle {
+  0% { transform: translate(1.5px, -1px); }
+  50% { transform: translate(-1.5px, 1px); }
+}
 @keyframes sa-landing-rise {
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: none; }
@@ -3197,7 +3284,10 @@ p { text-wrap-style: pretty; }
 @media (prefers-reduced-motion: reduce) {
   .sa-landing__hero, .sa-landing__end { animation: none; }
   .sa-landing__enter::after { animation: none; opacity: 0; }
-  .sa-landing.is-crashed .sa-landing__scene { animation: none; }
+  .sa-landing.is-crashed .sa-landing__scene,
+  .sa-landing.is-failing .sa-landing__scene,
+  .sa-landing.is-blast .sa-landing__scene { animation: none; }
+  .sa-wasted__word { animation-name: sa-landing-fade; }
   .sa-landing__flash { animation-duration: 0.01s; }
   .sa-hud__warn.is-on { animation: none; opacity: 1; }
 }

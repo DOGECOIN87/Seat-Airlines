@@ -1,11 +1,12 @@
 import { createRef, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import Mark from './Mark';
+import Wasted from './Wasted';
 import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import type { ManualControls } from '../lib/manualControls';
 import { clampUnit, GAME, newGame, type Phase } from '../lib/landingGame';
-import type { LandingHud } from './LandingScene';
+import type { LandingHud, LandingSounds } from './LandingScene';
 
 /* The scene is the chunk with three.js in it. Everything here — the way in
    above all — is up and working before it arrives. */
@@ -50,7 +51,13 @@ const STICK_REACH = 64;
 /** Less than this much stick is none, so a resting thumb does not wander. */
 const DEAD_ZONE = 0.08;
 /** How long the verdict stays up before the site takes over. */
-const END_HOLD = { crash: 3000, time: 2600 } as const;
+const END_HOLD = { crash: 5400, time: 2600 } as const;
+/**
+ * Where in the crash sound it starts: its big hit lands 2.45 s in, and
+ * starting 1.2 s in puts that hit, and the WASTED that lands with it, a
+ * second and a quarter after the aeroplane does (see `.sa-wasted__word`).
+ */
+const WASTED_FROM = 1.2;
 
 const deadZone = (v: number) => (Math.abs(v) < DEAD_ZONE ? 0 : v);
 
@@ -59,9 +66,16 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const [result, setResult] = useState<{ why: 'crash' | 'time'; metres: number } | null>(null);
+  const [result, setResult] = useState<{ why: 'crash' | 'time'; metres: number; after: number | null } | null>(null);
+  /** Which engine has gone, once one has. */
+  const [failure, setFailure] = useState<-1 | 1 | null>(null);
+  /** The moment of the blast, for the shake and the flash. */
+  const [blasted, setBlasted] = useState(false);
   const game = useRef(newGame());
-  const [hud] = useState<LandingHud>(() => ({ timer: createRef(), bar: createRef(), alt: createRef(), warn: createRef() }));
+  const [hud] = useState<LandingHud>(() => ({
+    timer: createRef(), bar: createRef(), alt: createRef(), warn: createRef(), stall: createRef(),
+  }));
+  const sounds = useRef<LandingSounds | null>(null);
   const [touch] = useState(() => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
 
   /* Going in fades the landing out first, so the site arrives from black
@@ -73,12 +87,37 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
     if (gone.current) return;
     gone.current = true;
     setLeaving(true);
+    // The warning clip goes with the landing; the crash sound is left to ring out.
+    sounds.current?.blast.pause();
     timers.current.push(window.setTimeout(onEnter, 450));
   }, [onEnter]);
+
+  /* The game's two sounds, made inside the click or key that starts it:
+     each is played once, muted, there and then, which is what a browser
+     wants to see before it lets a page make a noise later on its own. */
+  const makeSounds = () => {
+    if (sounds.current) return;
+    const load = (file: string, volume: number) => {
+      const a = new Audio(`${import.meta.env.BASE_URL}${file}`);
+      a.preload = 'auto';
+      a.volume = volume;
+      a.muted = true;
+      void a.play().then(() => {
+        a.pause();
+        a.currentTime = 0;
+        a.muted = false;
+      }, () => {
+        a.muted = false;
+      });
+      return a;
+    };
+    sounds.current = { blast: load('engine-blast.mp3', 0.9), wasted: load('wasted.mp3', 1) };
+  };
 
   const start = useCallback(() => {
     const g = game.current;
     if (!ready || g.phase !== 'idle' || gone.current) return;
+    makeSounds();
     g.phase = 'intro';
     g.phaseAt = performance.now();
     setPhase('intro');
@@ -87,9 +126,21 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
   const onReady = useCallback(() => setReady(true), []);
   const onFail = useCallback(() => setFailed(true), []);
   const onFlying = useCallback(() => setPhase('flying'), []);
+  const onFailure = useCallback((side: -1 | 1) => {
+    setFailure(side);
+    setBlasted(true);
+    timers.current.push(window.setTimeout(() => setBlasted(false), 900));
+  }, []);
   const onEnd = useCallback((why: 'crash' | 'time', metres: number) => {
-    setResult({ why, metres });
+    const g = game.current;
+    setResult({ why, metres, after: g.failed ? (performance.now() - g.failedAt) / 1000 : null });
     setPhase(why === 'crash' ? 'crashed' : 'timeup');
+    const s = sounds.current;
+    if (why === 'crash' && s) {
+      s.blast.pause();
+      s.wasted.currentTime = WASTED_FROM;
+      void s.wasted.play().catch(() => {});
+    }
     timers.current.push(window.setTimeout(leave, END_HOLD[why]));
   }, [leave]);
 
@@ -176,10 +227,13 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
 
   const inGame = phase !== 'idle';
   const km = result ? (result.metres / 1000).toFixed(1) : '0';
+  /** Engines are numbered from the left: 1 is the port one, 2 the starboard. */
+  const engineNo = failure === -1 ? 1 : 2;
 
   return (
     <div
-      className={`sa-landing is-${phase}${leaving ? ' is-leaving' : ''}${ready ? ' is-ready' : ''}`}
+      className={`sa-landing is-${phase}${leaving ? ' is-leaving' : ''}${ready ? ' is-ready' : ''}${
+        failure ? ' is-failing' : ''}${blasted ? ' is-blast' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={letGo}
@@ -197,9 +251,11 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
               playing={inGame}
               game={game}
               hud={hud}
+              sounds={sounds}
               onReady={onReady}
               onFail={onFail}
               onFlying={onFlying}
+              onFailure={onFailure}
               onEnd={onEnd}
             />
           </Suspense>
@@ -263,15 +319,24 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
                 <small> ft</small>
               </span>
             </div>
-            <div className="sa-hud__panel sa-hud__clock">
-              <span className="sa-hud__label">Time</span>
-              <span ref={hud.timer} className="sa-hud__value">
-                {`${Math.floor(GAME.seconds / 60)}:${String(GAME.seconds % 60).padStart(2, '0')}`}
-              </span>
-              <span className="sa-hud__track" aria-hidden>
-                <span ref={hud.bar} className="sa-hud__bar" />
-              </span>
-            </div>
+            {failure ? (
+              /* An engine gone stops the clock: the master warning takes its
+                 place, and the flight lasts until the ground ends it. */
+              <div className="sa-hud__panel sa-hud__clock sa-hud__master" role="alert">
+                <span className="sa-hud__label">Master warning</span>
+                <span className="sa-hud__value">ENG {engineNo} FIRE</span>
+              </div>
+            ) : (
+              <div className="sa-hud__panel sa-hud__clock">
+                <span className="sa-hud__label">Time</span>
+                <span ref={hud.timer} className="sa-hud__value">
+                  {`${Math.floor(GAME.seconds / 60)}:${String(GAME.seconds % 60).padStart(2, '0')}`}
+                </span>
+                <span className="sa-hud__track" aria-hidden>
+                  <span ref={hud.bar} className="sa-hud__bar" />
+                </span>
+              </div>
+            )}
             <button type="button" onClick={leave} className="sa-hud__skip">
               Enter <span aria-hidden>→</span>
             </button>
@@ -279,8 +344,16 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
           <p ref={hud.warn} className="sa-hud__warn" aria-hidden>
             Pull up
           </p>
+          <p ref={hud.stall} className="sa-hud__warn sa-hud__warn--stall" aria-hidden>
+            Stall
+          </p>
           {phase === 'intro' && <p className="sa-hud__note">Dropping to the deck…</p>}
-          {(phase === 'intro' || phase === 'flying') && (
+          {failure && phase === 'flying' && (
+            <p key="mayday" className="sa-hud__help sa-hud__help--mayday">
+              Engine {engineNo} is gone · bank away from the fire · keep the nose down for speed
+            </p>
+          )}
+          {!failure && (phase === 'intro' || phase === 'flying') && (
             <p className="sa-hud__help">
               {touch ? (
                 'Drag anywhere · up to climb · down to dive · sideways to turn'
@@ -296,16 +369,30 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, o
         </div>
       )}
 
+      {blasted && <div className="sa-landing__blast" aria-hidden />}
       {phase === 'crashed' && <div className="sa-landing__flash" aria-hidden />}
 
-      {result && (
-        <div className={`sa-landing__end sa-landing__end--${result.why}`} role="status">
-          <p className="sa-landing__end-title">{result.why === 'crash' ? 'Crashed' : 'Time’s up'}</p>
-          <p className="sa-landing__end-note">
-            {result.why === 'crash'
-              ? `You flew ${km} km before the ground got in the way. The cabin crew will see you now.`
-              : `${km} km flown, and not a scratch on the paintwork. Boarding now.`}
-          </p>
+      {result?.why === 'crash' && (
+        <div className="sa-landing__end sa-landing__end--crash" role="status">
+          <div className="sa-wasted">
+            <Wasted className="sa-wasted__word" />
+          </div>
+          <div className="sa-landing__end-after">
+            <p className="sa-landing__end-note">
+              {result.after !== null
+                ? `Engine ${engineNo} blew, and you kept it in the air for ${Math.round(result.after)} more seconds. ${km} km in all.`
+                : `You flew ${km} km before the ground got in the way.`}
+            </p>
+            <button type="button" onClick={leave} className="sa-landing__enter">
+              Board now <span aria-hidden>→</span>
+            </button>
+          </div>
+        </div>
+      )}
+      {result?.why === 'time' && (
+        <div className="sa-landing__end sa-landing__end--time" role="status">
+          <p className="sa-landing__end-title">Time’s up</p>
+          <p className="sa-landing__end-note">{`${km} km flown, and not a scratch on the paintwork. Boarding now.`}</p>
           <button type="button" onClick={leave} className="sa-landing__enter">
             Board now <span aria-hidden>→</span>
           </button>

@@ -15,7 +15,18 @@ On the way in you can take the controls for a minute. Press **Fly the plane** �
 | Keyboard | **↑** / **↓** (or **W** / **S**) | **←** / **→** (or **A** / **D**) |
 | Touch or mouse | drag up / down from where you pressed | drag left / right |
 
-The clock counts down from **1:00** and the altitude reads your height above the ground. **PULL UP** means the ground is close. Fly into it and the game ends early; either way, you are taken into the site a few seconds later. **Enter** (or **Esc**) goes in at any point.
+The clock counts down from **1:00** and the altitude reads your height above the ground. **PULL UP** means the ground is close. Fly into it and it is **WASTED**; either way, you are taken into the site a few seconds later. **Enter** (or **Esc**) goes in at any point.
+
+### Engine failure
+
+Every so often — about one flight in three — somebody shouts "FBI, open up!" and, on the bang, one engine explodes. From then on:
+
+* the aircraft yaws and rolls toward the dead engine, and keeps rolling unless you hold it;
+* the controls go soft, and softer as the fire spreads;
+* half the thrust cannot hold height *and* speed: it sinks, and pulling up bleeds speed until it **STALL**s;
+* the engine burns and trails black smoke, and the camera moves over its shoulder so you can see it.
+
+The clock stops: there is no time limit on one engine, and the flight lasts until it meets the ground. The way to fly it is the way pilots are taught — bank a little toward the good engine, and keep the nose down for speed. Add `?mayday` to the address to make sure it happens.
 
 The market still sets the sky — your clock, your weather — but for that minute the height and the heading are yours. Nobody else sees you flying it.
 
@@ -68,7 +79,7 @@ A plain scroll without Ctrl scrolls the page, not the view. **Zooming out past 1
 
 ## Sound
 
-**Sound off / Sound on**, on the view's control bar, turns on the cabin ambience, the seat-belt chime and the crew announcements. See [The overhead panel and the PA](../how-it-flies/overhead-panel.md#sound).
+Sound is **on by default**: the cabin ambience, the seat-belt chime and the crew announcements start with your first click, tap or key press (browsers allow no sound before that). **Sound on / Sound off**, on the view's control bar, switches it, and the page remembers your choice. See [The overhead panel and the PA](../how-it-flies/overhead-panel.md#sound).
 
 {% hint style="info" %}
 The drawn views are pictures, so screen readers skip them. Every value they show is also published as text — in the overhead panel and the readouts under the view — and the seat map's seats are real buttons.
