@@ -11,7 +11,7 @@ import type { SkyState } from '../lib/sky';
 import type { ManualControls } from '../lib/manualControls';
 import { blastAltitude, clampUnit, FEET, newGame, type Cause, type Phase } from '../lib/landingGame';
 import {
-  canShareFile, cardAssets, cardJpeg, composeCard, hostCard, intentUrl, saveFile, shareFile, shareText, SITE_URL,
+  canShareFile, cardAssets, cardJpeg, composeCard, hostCard, hostsCards, intentUrl, saveFile, shareFile, shareText, SITE_URL,
   type SharedFlight,
 } from '../lib/shareCard';
 import { recordVideo, videoType } from '../lib/shareVideo';
@@ -149,6 +149,8 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   const [failure, setFailure] = useState<{ side: -1 | 1; cause: Cause; feet: number; both: boolean; second: Cause | null } | null>(null);
   /** The moment lightning hits: the screen goes blue-white. */
   const [struck, setStruck] = useState(false);
+  /** The UFO took a wing: which, and whether the caption saying so is up. */
+  const [wingHit, setWingHit] = useState<{ side: -1 | 1; caption: boolean } | null>(null);
   /** The moment of the blast, for the shake and the flash. */
   const [blasted, setBlasted] = useState(false);
   const game = useRef(newGame());
@@ -341,6 +343,15 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     }
   }, []);
 
+  const onStrike = useCallback((side: -1 | 1) => {
+    setWingHit({ side, caption: true });
+    setBlasted(true);
+    setStruck(true);
+    timers.current.push(window.setTimeout(() => setStruck(false), 700));
+    timers.current.push(window.setTimeout(() => setBlasted(false), 900));
+    timers.current.push(window.setTimeout(() => setWingHit((w) => (w ? { ...w, caption: false } : w)), 3200));
+  }, []);
+
   /* The card, then the video: made as soon as the flight is over, so they
      are there by the time anybody asks for them. */
   const makeShare = useCallback(async (flight: SharedFlight) => {
@@ -380,11 +391,19 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       void shareFile(file, text);
       return;
     }
-    const tab = window.open('about:blank', '_blank');
     if (share.video) {
       saveFile(share.video);
       setShareNote('Video saved · add it to your post');
     }
+    // Straight to X with the site's link, where the domain cannot serve the card's own page.
+    if (!hostsCards) {
+      const to = intentUrl(text, SITE_URL);
+      const tab = window.open(to, '_blank');
+      if (tab) tab.opener = null;
+      else window.location.href = to;
+      return;
+    }
+    const tab = window.open('about:blank', '_blank');
     void (async () => {
       const link = hosted.current ?? (share.still ? await hostCard(share.still, runId.current) : null) ?? SITE_URL;
       hosted.current = link;
@@ -415,6 +434,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       both: g.both,
       secondCause: g.both ? g.causes[1] : null,
       feet: g.failed ? Math.round((g.blastAlt * FEET) / 100) * 100 : null,
+      ufo: g.wingLost !== 0,
     });
     const s = sounds.current;
     if (s) {
@@ -600,6 +620,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               onFail={onFail}
               onFlying={onFlying}
               onFailure={onFailure}
+              onStrike={onStrike}
               onCrash={onCrash}
             />
           </Suspense>
@@ -756,14 +777,22 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 <span ref={hud.score} className="sa-hud__value">0</span>
               </div>
             </div>
-            {failure ? (
+            {failure || wingHit ? (
               /* Once an engine is gone the brief is over: the master warning
                  takes its place, and the flight lasts until the ground ends it. */
-              <div className={`sa-hud__panel sa-hud__clock sa-hud__master${failure.cause === 'lightning' && !failure.both ? ' is-struck' : ''}`} role="alert">
+              <div
+                className={`sa-hud__panel sa-hud__clock sa-hud__master${
+                  failure ? (failure.cause === 'lightning' && !failure.both ? ' is-struck' : '') : ' is-ufo'}`}
+                role="alert"
+              >
                 <span className="sa-hud__label">
-                  {failure.both ? 'Both engines' : failure.cause === 'lightning' ? 'Lightning strike' : 'Master warning'}
+                  {!failure
+                    ? 'UFO strike'
+                    : failure.both ? 'Both engines' : failure.cause === 'lightning' ? 'Lightning strike' : 'Master warning'}
                 </span>
-                <span className="sa-hud__value">{failure.both ? 'ENG 1 · 2 FIRE' : `ENG ${engineNo} FIRE`}</span>
+                <span className="sa-hud__value">
+                  {!failure ? 'WING DAMAGE' : failure.both ? 'ENG 1 · 2 FIRE' : `ENG ${engineNo} FIRE`}
+                </span>
               </div>
             ) : (
               <div className="sa-hud__panel sa-hud__clock">
@@ -788,7 +817,13 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             Stall
           </p>
           {phase === 'intro' && <p className="sa-hud__note">Dropping to the deck…</p>}
-          {bonusPop !== null && (
+          {wingHit?.caption && (
+            <p className="sa-hud__bonus sa-hud__bonus--ufo" aria-live="polite">
+              UFO strike
+              <small>{wingHit.side === -1 ? 'left' : 'right'} wing gone</small>
+            </p>
+          )}
+          {bonusPop !== null && !wingHit?.caption && (
             <p className="sa-hud__bonus" aria-live="polite">
               +{bonusPop.toLocaleString('en-US')}
               <small>

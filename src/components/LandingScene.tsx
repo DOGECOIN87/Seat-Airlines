@@ -8,6 +8,7 @@ import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import { airspeedAt, clampUnit, dealFailures, FEET, fly, GAME, leadFor, speedAt, WASTED_AT, type Cause, type FlightGame } from '../lib/landingGame';
 import { climbBonus, SCORING, survivalRate } from '../lib/scoring';
 import { FPM, KNOTS, speedAngle, varioAngle } from '../lib/instruments';
+import { slowAt, ufoAt } from '../lib/ufo';
 
 /**
  * The landing page's aeroplane: the exterior scene, full screen, and — when
@@ -85,6 +86,8 @@ interface LandingSceneProps {
   onFlying: () => void;
   /** An engine has just gone: -1 the port one, 1 the starboard; how; and whether it is the second. */
   onFailure: (side: -1 | 1, cause: Cause, second: boolean) => void;
+  /** The UFO has taken the outer wing off one side. */
+  onStrike: (side: -1 | 1) => void;
   /** The aeroplane is down. */
   onCrash: (metres: number) => void;
 }
@@ -149,14 +152,14 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 }
 
 const LandingScene = ({
-  feed, sky, band, controls, taken, playing, game, hud, sounds, shot, onReady, onFail, onFlying, onFailure, onCrash,
+  feed, sky, band, controls, taken, playing, game, hud, sounds, shot, onReady, onFail, onFlying, onFailure, onStrike, onCrash,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
   const latest = useRef({ sky, band });
   latest.current = { sky, band };
-  const calls = useRef({ onReady, onFail, onFlying, onFailure, onCrash });
-  calls.current = { onReady, onFail, onFlying, onFailure, onCrash };
+  const calls = useRef({ onReady, onFail, onFlying, onFailure, onStrike, onCrash });
+  calls.current = { onReady, onFail, onFlying, onFailure, onStrike, onCrash };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -392,6 +395,21 @@ const LandingScene = ({
         }
       }
 
+      /* The UFO: where it is on the flight's own clock, the slow motion
+         around the moment it hits, and the hit itself. */
+      if (live) {
+        g.clock += dt;
+        if (g.ufo && Number.isFinite(g.ufo.hitAt)) g.slow = slowAt(g.ufo, g.clock);
+        if (g.ufo?.strike && !g.wingLost && g.clock >= g.ufo.hitAt) {
+          g.wingLost = g.ufo.strike;
+          // The blow: a lurch toward the short side, and the nose knocked down.
+          g.rollRate += g.wingLost * 70;
+          g.bank += g.wingLost * 8;
+          g.pitch -= 3;
+          calls.current.onStrike(g.wingLost);
+        }
+      }
+
       const ix = live ? clampUnit(g.keys.x + g.stick.x) : 0;
       const iy = live ? clampUnit(g.keys.y + g.stick.y) : 0;
       const step = fly(g, ix, iy, dt);
@@ -408,6 +426,8 @@ const LandingScene = ({
     f.heading = g.heading;
     p.height = g.alt;
     p.timeScale = g.slow;
+    p.ufo = g.phase === 'flying' ? ufoAt(g.ufo, g.clock) : undefined;
+    p.wingLost = g.wingLost;
     p.failed = g.failed;
     p.both = g.both;
     p.struck = (g.causes[0] === 'lightning' ? bit(g.failed) : 0) | (g.both && g.causes[1] === 'lightning' ? bit(-g.failed) : 0);
@@ -419,7 +439,8 @@ const LandingScene = ({
     p.slip = g.failed ? g.failed * (3 + 4 * g.damage) * g.thrust : 0;
     /* After the blast the camera eases round over the burning engine's
        shoulder and up a little, so the smoke streams away across the frame. */
-    const side = g.failed ? g.failed * 38 : 0;
+    // In the slow motion, round to the wing it is coming for, to see it go.
+    const side = g.slow < 0.9 && g.ufo?.strike ? g.ufo.strike * 30 : g.failed ? g.failed * 38 : 0;
     p.chaseSide = (p.chaseSide ?? 0) + (side - (p.chaseSide ?? 0)) * (1 - Math.exp(-1.2 * dt));
     p.chaseLift = (p.chaseLift ?? 0) + ((g.failed ? 9 : 0) - (p.chaseLift ?? 0)) * (1 - Math.exp(-1.2 * dt));
     w.render(f, skyState, lowRef.current, p);

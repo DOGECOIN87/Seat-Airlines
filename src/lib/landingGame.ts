@@ -24,6 +24,8 @@
  * scene has loaded, and the tests can fly it without a screen.
  */
 
+import { planUfo, type UfoPlan } from './ufo';
+
 export type Phase = 'idle' | 'intro' | 'flying' | 'crashed';
 
 /** What takes an engine: it lets go on its own, or lightning hits it. */
@@ -88,6 +90,12 @@ export interface FlightGame {
   draftPeak: number;
   /** How fast the game's time runs against the clock's: 1, or less in slow motion. */
   slow: number;
+  /** Seconds of game time since the controls were handed over. */
+  clock: number;
+  /** This flight's UFO, if it has one (see ufo.ts). */
+  ufo: UfoPlan | null;
+  /** The outer wing it took: -1 port, 1 starboard, 0 neither. */
+  wingLost: -1 | 0 | 1;
   /** 0.5 at the blast to 1 as the fire takes hold: how badly it flies. */
   damage: number;
   /** 0 until the fire has done its worst, then up to 1 as it takes the wing: the roll it cannot hold. */
@@ -202,6 +210,9 @@ export const newGame = (): FlightGame => ({
   draftLeft: 0,
   draftPeak: 0,
   slow: 1,
+  clock: 0,
+  ufo: null,
+  wingLost: 0,
   damage: 0,
   decay: 0,
   speed: 120,
@@ -252,6 +263,9 @@ export function dealFailures(g: FlightGame): void {
   g.causes = [asked('strike') ? 'lightning' : cause(), cause()];
   g.secondAfter = asked('dual') || Math.random() < GAME.secondOdds ? between(GAME.secondFrom, GAME.secondTo) : Infinity;
   g.draftIn = between(...GAME.draftFirst);
+  g.clock = 0;
+  g.wingLost = 0;
+  g.ufo = asked('noufo') ? null : planUfo(asked('ufohit') ? 'hit' : asked('ufo') ? 'seen' : 'none');
 }
 
 /** Seconds into its warning clip that an engine goes, for what takes it. */
@@ -334,6 +348,11 @@ function air(g: FlightGame, dt: number): number {
  * wings as level as the fire allows, and hold the speed just above the
  * stall — nose down for it, never up.
  *
+ * A UFO can take the outer wing off one side: from then on the aeroplane
+ * wants to roll toward the side that lost it — with both engines, a bank
+ * the stick has to hold off; on one, a push the roll never loses — and it
+ * sinks a little more.
+ *
  * Two things change it. When the other engine goes too, the pull to one
  * side goes with its thrust — it is suddenly easier to hold level — but
  * there is nothing left to hold height or speed at all, and it comes down
@@ -342,15 +361,17 @@ function air(g: FlightGame, dt: number): number {
  * and the smoother air over the wing gives the stick back some of its bite.
  */
 export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; stall: number } {
+  const lost = g.wingLost;
   if (g.failed === 0) {
     g.pitch += (iy * GAME.maxPitch - g.pitch) * (1 - Math.exp(-3.2 * dt));
     // At the ceiling the nose will not come up any further.
     if (g.alt >= GAME.ceiling && g.pitch > 0) g.pitch *= 1 - Math.min(1, dt * 6);
-    g.bank += (ix * GAME.maxBank - g.bank) * (1 - Math.exp(-3.5 * dt));
+    // A wing short: it banks toward the short side unless the stick holds it off.
+    g.bank += (ix * GAME.maxBank + lost * 18 - g.bank) * (1 - Math.exp(-3.5 * dt));
     g.heading = (g.heading + g.bank * GAME.turnRate * dt + 360) % 360;
     g.speed = speedAt(g.alt);
     g.rollRate = 0;
-    const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain;
+    const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain - Math.abs(lost) * 6;
     return { vs: Math.max(-GAME.maxClimb, Math.min(GAME.maxClimb, vs)), stall: 0 };
   }
 
@@ -379,10 +400,10 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // spreads and the wing goes; the dead engine, the spiral, the buffet and a
   // stall push it. Full stick outruns the push to begin with, only just
   // outruns it once the fire is at its worst, and loses to it as the wing goes.
-  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.5 * u);
+  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.5 * u) * (lost ? 0.88 : 1);
   const commanded = ix * 80 * authority;
-  // The good engine's pull goes with its thrust; the burning wing's does not.
-  const push = dead * ((32 + 10 * k) * t + 30 * w) * (1 + 0.5 * g.surge);
+  // The good engine's pull goes with its thrust; the burning wing's does not; nor does a missing wingtip's.
+  const push = dead * ((32 + 10 * k) * t + 30 * w) * (1 + 0.5 * g.surge) + lost * 24;
   g.rollRate += ((commanded - g.rollRate) * 2.6 + push + Math.sin(g.bank * DEG) * 55
     + g.buffetRoll * (40 + 60 * k + 20 * glide) * (1 - 0.35 * u) + dead * stall * 80) * dt;
   g.bank = wrap180(g.bank + g.rollRate * dt);
@@ -398,7 +419,7 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // Height: what the pitch buys at this speed, less what half the thrust (or
   // none) and a burning wing cannot hold — a stalled one holds nothing —
   // less what a bank spills, plus whatever rising air a level wing catches.
-  const sink = 10 + 18 * k + 24 * w + 22 * glide + stall * 40;
+  const sink = 10 + 18 * k + 24 * w + 22 * glide + stall * 40 + Math.abs(lost) * 5;
   const vs = v * Math.sin(g.pitch * DEG) - sink - (1 - lift) * v * 0.4
     + u * GAME.draftLift * Math.max(0, lift) ** 3 * (1 - 0.4 * w);
   // Speed: gravity along the flight path — the nose down is the only way to

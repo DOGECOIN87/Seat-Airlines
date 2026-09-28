@@ -437,6 +437,12 @@ function hingeSeams(p: Panel, t0: number, t1: number, f: number, symmetric: bool
   return g;
 }
 
+/**
+ * Where the outer wing comes away when something hits it: just outboard of
+ * the flaps, well outboard of the engine. Metres out from the centreline.
+ */
+export const WING_CUT = CABIN.radius * 0.6 + WING.span * 0.685;
+
 /** Where the ailerons are: outboard, spanwise, and their hinge chord. */
 const AILERON = { t0: 0.72, t1: 0.95, hinge: 0.74 };
 
@@ -880,6 +886,10 @@ export interface AirframeHandles {
    * neither. A failed engine's fan runs down to a slow windmill.
    */
   setEnginesOut(port: boolean, starboard: boolean): void;
+  /** The parts of a wing beyond WING_CUT — for the piece that comes away. */
+  outboard(side: -1 | 1): readonly THREE.Object3D[];
+  /** The outer wing on one side has gone (0: neither): its lamps go with it. */
+  loseWingTip(side: -1 | 0 | 1): void;
   /**
    * Advance the parts of the aeroplane that live: the fans turn, the
    * strobes and beacons flash, the contrails stream, and the control
@@ -962,6 +972,8 @@ export function createAirframe(): AirframeHandles {
     return { group: hinge, axis };
   };
   const ailerons: Hinge[] = [];
+  /** Everything on each wing that reaches past WING_CUT. */
+  const outboard: Record<number, THREE.Object3D[]> = { [-1]: [], [1]: [] };
   const elevators: { hinge: Hinge; side: number }[] = [];
   let flapDeployment = 0;
 
@@ -1023,10 +1035,12 @@ export function createAirframe(): AirframeHandles {
     /* Flaps inboard, aileron outboard, and the spoiler run ahead of the
        flaps — the three things that move on a wing, and the three lines
        that stop it reading as a slab. */
-    group.add(new THREE.LineSegments(
+    const seams = new THREE.LineSegments(
       track(controlSeams(wingPanel, 0.74, [[0.1, 0.42], [0.46, 0.66]])),
       seamMat,
-    ));
+    );
+    group.add(seams);
+    outboard[side].push(wing, seams);
 
     /* Two independently hinged trailing-edge panels. They are real meshes,
        rather than another seam, so deployment changes the silhouette and
@@ -1048,8 +1062,11 @@ export function createAirframe(): AirframeHandles {
     }
 
     // The aileron: a real surface now, cut out of the wing and hinged.
-    ailerons.push(hinged(wingPanel, AILERON.t0, AILERON.t1, AILERON.hinge, false, flapMat, group));
-    group.add(new THREE.LineSegments(track(hingeSeams(wingPanel, AILERON.t0, AILERON.t1, AILERON.hinge, false)), seamMat));
+    const aileron = hinged(wingPanel, AILERON.t0, AILERON.t1, AILERON.hinge, false, flapMat, group);
+    ailerons.push(aileron);
+    const aileronSeams = new THREE.LineSegments(track(hingeSeams(wingPanel, AILERON.t0, AILERON.t1, AILERON.hinge, false)), seamMat);
+    group.add(aileronSeams);
+    outboard[side].push(aileron.group, aileronSeams);
 
     // Winglet, raked up off the tip.
     const winglet = new THREE.Mesh(
@@ -1062,6 +1079,7 @@ export function createAirframe(): AirframeHandles {
     );
     winglet.castShadow = winglet.receiveShadow = true;
     group.add(winglet);
+    outboard[side].push(winglet);
 
     /* The wingtip's lights. The position lamp sits in the leading edge —
        red to port, green to starboard — and is seen from dead ahead round
@@ -1099,6 +1117,7 @@ export function createAirframe(): AirframeHandles {
       fairing.scale.set(0.16, 0.11, 0.72 - t * 0.25);
       fairing.castShadow = fairing.receiveShadow = true;
       group.add(fairing);
+      if (Math.abs(fairing.position.x) > WING_CUT - 0.5) outboard[side].push(fairing);
     }
 
     // Tailplane
@@ -1473,6 +1492,8 @@ export function createAirframe(): AirframeHandles {
     setRowsLit,
     setFlapDeployment,
     setEnginesOut: (port, starboard) => { engineOut[-1] = port; engineOut[1] = starboard; },
+    outboard: (side) => outboard[side],
+    loseWingTip: (side) => lamps.douse(side ? (at) => at.x * side > WING_CUT : null),
     update,
     place: (camera) => lamps.place(camera, group),
     dispose: () => {

@@ -10,10 +10,11 @@ import { biomeAt } from '../lib/biome';
 import { lakeShader, noTileShader, type LakeParams, type NoTileParams } from './noTile';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import { CABIN, cabinLevel, createCabin, rowZ } from './cabin';
-import { createAirframe, ENGINE_AT } from './airframe';
+import { createAirframe, ENGINE_AT, WING_CUT } from './airframe';
 import { createScenery } from './scenery';
 import { createEngineFire } from './engineFire';
 import { createLightning } from './lightning';
+import { createUfoCraft, createWingBreak, type UfoPose, type WingBreak } from './ufoCraft';
 
 /**
  * The world outside, rendered.
@@ -116,6 +117,10 @@ export interface ViewPose {
   struck?: number;
   /** 0–1, how fiercely it burns. */
   fury?: number;
+  /** The UFO, when there is one out there (see lib/ufo.ts). */
+  ufo?: UfoPose;
+  /** The outer wing it took: -1 port, 1 starboard, 0 or absent neither. */
+  wingLost?: -1 | 0 | 1;
   /** Degrees the nose is yawed right of the path it is flying: the sideslip a dead engine drags it into. */
   slip?: number;
   /**
@@ -251,6 +256,13 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     : null;
   const bolt = options.damage ? createLightning() : null;
   let failedSide: -1 | 0 | 1 = 0;
+  const ufo = options.damage ? createUfoCraft(`${import.meta.env.BASE_URL}ufo.glb`) : null;
+  let wingBreak: WingBreak | null = null;
+  let wingLost: -1 | 0 | 1 = 0;
+  const ufoBase = new THREE.Vector3();
+  const ufoTarget = new THREE.Vector3();
+  const cutLocal = new THREE.Vector3();
+  const cutWorld = new THREE.Vector3();
   airframe.group.visible = false;
   aircraft.add(airframe.group);
 
@@ -291,11 +303,16 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     }
   });
   if (fires && bolt) {
+    /* The wing that can come away: its clip goes on the airframe's own
+       materials, so it is built before anything else rides on the airframe. */
+    renderer.localClippingEnabled = true;
+    wingBreak = createWingBreak(airframe.group, airframe.outboard, WING_CUT, scene);
     for (const e of fires) {
       scene.add(e.fire.world);
       airframe.group.add(e.fire.local);
     }
     scene.add(bolt.group);
+    if (ufo) scene.add(ufo.group);
   }
 
   /* Cabin lighting. A tube blocks the sun, and there is no bounce in here. */
@@ -1724,6 +1741,31 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       }
       const lit = bolt.side;
       const flash = lit ? bolt.update(dt, fires[lit === -1 ? 0 : 1].hit, camera) : 0;
+      /* The UFO, and the wing it takes: on the frame it hits, the outer
+         wing comes away in a burst of fire and wreckage at the cut. */
+      const lost = pose.wingLost ?? 0;
+      if (lost !== wingLost) {
+        if (lost === 0) {
+          wingBreak?.reset();
+          airframe.loseWingTip(0);
+        } else {
+          wingBreak?.snap(lost);
+          airframe.loseWingTip(lost);
+          cutLocal.set(lost * (WING_CUT + 0.6), -0.2, 13.4);
+          cutWorld.copy(cutLocal);
+          airframe.group.localToWorld(cutWorld);
+          fires[lost === -1 ? 0 : 1].fire.blast(cutLocal, cutWorld);
+        }
+        wingLost = lost;
+      }
+      wingBreak?.update(dt, -stepX, stepZ);
+      if (ufo) {
+        airframe.group.getWorldPosition(ufoBase);
+        const side = pose.ufo?.strike?.side ?? 1;
+        ufoTarget.set(side * (WING_CUT + 2.8), 0.4, 14.2);
+        airframe.group.localToWorld(ufoTarget);
+        ufo.update(dt, pose.ufo, ufoBase, a.heading, ufoTarget);
+      }
       for (const e of fires) {
         e.fire.update(dt, e.burning, {
           local: e.local,
@@ -1847,6 +1889,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     cabin.dispose();
     fires?.forEach((e) => e.fire.dispose());
     bolt?.dispose();
+    ufo?.dispose();
+    wingBreak?.dispose();
     airframe.dispose();
     farmland.day.dispose();
     farmland.night.dispose();

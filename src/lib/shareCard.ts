@@ -45,6 +45,8 @@ export interface SharedFlight {
   secondCause: Cause | null;
   /** The height the first engine went at, feet. */
   feet: number | null;
+  /** A UFO took a wing. */
+  ufo: boolean;
 }
 
 const MONO = "'IBM Plex Mono', ui-monospace, monospace";
@@ -59,7 +61,9 @@ const fmt = (n: number) => n.toLocaleString('en-US');
 /** The line that says what happened, for the card and for the post. */
 export function whatHappened(f: SharedFlight): string {
   const s = Math.round(f.survived ?? 0);
-  if (!f.cause) return `Flew ${f.km} km, into the ground`;
+  const ufo = f.ufo ? 'A UFO took a wing · ' : '';
+  if (!f.cause) return `${ufo}Flew ${f.km} km, into the ground`;
+  if (f.ufo) return `${ufo}${f.both ? 'then both engines' : `then ENG ${f.engine}`} · ${s} s in the air`;
   if (f.both) return `Lost both engines · ${s} s in the air`;
   const at = f.feet ? ` at ${fmt(f.feet)} ft` : '';
   return f.cause === 'lightning'
@@ -72,7 +76,8 @@ export function shareText(f: SharedFlight): string {
   const s = Math.round(f.survived ?? 0);
   const at = f.feet ? ` at ${fmt(f.feet)} ft` : '';
   let line: string;
-  if (!f.cause) line = `Flew it straight into the ground.`;
+  if (f.ufo) line = `👽 A UFO took my wing off${f.cause ? ` — then ${f.both ? 'both engines went' : `ENG ${f.engine} went`}` : ''}. Kept her in the air ${s}s.`;
+  else if (!f.cause) line = `Flew it straight into the ground.`;
   else if (f.both) {
     line = `${f.cause === 'lightning' || f.secondCause === 'lightning' ? '⚡🔥' : '🔥🔥'} Lost BOTH engines and kept her in the air ${s}s.`;
   } else if (f.cause === 'lightning') line = `⚡ Lightning hit ENG ${f.engine}${at}. Kept her in the air ${s}s.`;
@@ -185,6 +190,8 @@ function paintPattern(ctx: CanvasRenderingContext2D, p: PatternLayers, drift: nu
   ctx.restore();
 }
 
+/** A saucer: the badge's icon for a UFO, in a 24-square. */
+const SAUCER = new Path2D('M12 5.5c-2.6 0-4.6 1.9-4.9 4.3C3.9 10.5 1.5 11.9 1.5 13.6c0 2.3 4.7 4.1 10.5 4.1s10.5-1.8 10.5-4.1c0-1.7-2.4-3.1-5.6-3.8-.3-2.4-2.3-4.3-4.9-4.3zM6 13.6a1.1 1.1 0 1 1 0 .1zm5 .9a1.1 1.1 0 1 1 2 0 1.1 1.1 0 1 1-2 0zm6-.9a1.1 1.1 0 1 1 0 .1z');
 /** A bolt, and a flame: the badge's icon, in a 24-square. */
 const BOLT = new Path2D('M13.5 1.5 4 13.2h6.2L8.8 22.5 20 9.6h-6.4z');
 const FLAME = new Path2D('M12 1.8c.9 3.4 4.9 5.6 4.9 10.5a4.9 4.9 0 0 1-9.8 0c0-2 .9-3.4 2-4.5.2 1.7 1 2.8 2.2 3.2-.6-3.4.2-6.3.7-9.2zM12 22.4c-3.9 0-7-2.8-7-6.6 0-1.3.3-2.5 1-3.6.3 3.3 2.9 5.6 6 5.6s5.7-2.3 6-5.6c.7 1.1 1 2.3 1 3.6 0 3.8-3.1 6.6-7 6.6z');
@@ -224,8 +231,8 @@ export async function composeCard(shot: HTMLCanvasElement | null, f: SharedFligh
 
   const { logo } = await cardAssets();
 
-  // Blue-white for a lightning strike; red for fire, and for losing both, whatever took them.
-  const struck = !f.both && f.cause === 'lightning';
+  // Blue-white for a lightning strike; red for fire, and for losing both, whatever took them; green for a UFO.
+  const struck = !f.ufo && !f.both && f.cause === 'lightning';
   const glow = struck ? 'rgba(120, 140, 255, 0.55)' : 'rgba(255, 110, 40, 0.5)';
 
   /* The sky behind everything: dusk, for the edges the picture leaves bare
@@ -359,8 +366,8 @@ export async function composeCard(shot: HTMLCanvasElement | null, f: SharedFligh
   write('SEAT AIRLINES', M + (logo ? mark * 1.32 : 0), headMid - capOf() / 2);
 
   // What happened, as a badge on the right margin: blue-white for lightning, red for fire.
-  if (f.cause) {
-    const label = f.both ? 'BOTH ENGINES OUT' : struck ? 'LIGHTNING STRIKE' : `ENG ${f.engine} FIRE`;
+  if (f.cause || f.ufo) {
+    const label = f.ufo ? 'UFO STRIKE' : f.both ? 'BOTH ENGINES OUT' : struck ? 'LIGHTNING STRIKE' : `ENG ${f.engine} FIRE`;
     const h = 40;
     const icon = 20;
     const pad = 16;
@@ -370,18 +377,18 @@ export async function composeCard(shot: HTMLCanvasElement | null, f: SharedFligh
     const x = W - M - w;
     const y = headMid - h / 2;
     pill(ctx, x, y, w, h);
-    ctx.fillStyle = struck ? 'rgba(96, 118, 255, 0.3)' : 'rgba(255, 64, 44, 0.32)';
+    ctx.fillStyle = f.ufo ? 'rgba(30, 190, 120, 0.3)' : struck ? 'rgba(96, 118, 255, 0.3)' : 'rgba(255, 64, 44, 0.32)';
     ctx.fill();
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = struck ? 'rgba(186, 198, 255, 0.85)' : 'rgba(255, 128, 104, 0.85)';
+    ctx.strokeStyle = f.ufo ? 'rgba(110, 250, 180, 0.85)' : struck ? 'rgba(186, 198, 255, 0.85)' : 'rgba(255, 128, 104, 0.85)';
     ctx.stroke();
     ctx.save();
     ctx.translate(x + pad, headMid - icon / 2);
     ctx.scale(icon / 24, icon / 24);
-    ctx.fillStyle = struck ? '#E4E9FF' : '#FFB08A';
+    ctx.fillStyle = f.ufo ? '#B8FFD9' : struck ? '#E4E9FF' : '#FFB08A';
     ctx.shadowColor = glow;
     ctx.shadowBlur = 10;
-    ctx.fill(struck ? BOLT : FLAME);
+    ctx.fill(f.ufo ? SAUCER : struck ? BOLT : FLAME);
     ctx.restore();
     ctx.fillStyle = '#fff';
     write(label, x + pad + icon + gap, headMid - capOf() / 2);
@@ -511,12 +518,21 @@ export function cardJpeg(card: CardLayers): Promise<Blob | null> {
 }
 
 /**
- * Hands the card to the Worker, which keeps it and gives back the page that
- * shows it (see worker/src/cards.ts): the link a post carries. Null when
- * there is no Worker, or no flight it started, or it would not take it.
+ * Where a card's own page is served, on the site's own domain — when the
+ * domain routes `/c/*` to the Worker (see worker/src/cards.ts). A post
+ * never links to the Worker's own address: nobody should see that. Unset,
+ * posts link to the site, whose preview is its own picture.
+ */
+const SHARE_ORIGIN = (import.meta.env.VITE_SHARE_ORIGIN as string | undefined)?.replace(/\/+$/, '');
+
+/**
+ * Hands the card to the Worker, which keeps it, and gives back its page on
+ * the site's domain: the link a post carries. Null when the domain does not
+ * serve cards, or there is no flight the Worker started, or it would not
+ * take it.
  */
 export async function hostCard(card: Blob, run: string | null): Promise<string | null> {
-  if (!WORKER_API || !run) return null;
+  if (!SHARE_ORIGIN || !WORKER_API || !run) return null;
   try {
     const res = await fetch(`${WORKER_API}/cards/${encodeURIComponent(run)}`, {
       method: 'PUT',
@@ -524,12 +540,15 @@ export async function hostCard(card: Blob, run: string | null): Promise<string |
       body: card,
     });
     if (!res.ok) return null;
-    const body = (await res.json()) as { url?: unknown };
-    return typeof body.url === 'string' ? body.url : null;
+    const body = (await res.json()) as { id?: unknown };
+    return typeof body.id === 'string' && /^[0-9a-f]{24}$/.test(body.id) ? `${SHARE_ORIGIN}/c/${body.id}` : null;
   } catch {
     return null;
   }
 }
+
+/** Whether posts can carry their own card's page, or link to the site. */
+export const hostsCards = Boolean(SHARE_ORIGIN && WORKER_API);
 
 /** The card, or the video, as a file with a name worth keeping. */
 export const asFile = (blob: Blob): File =>

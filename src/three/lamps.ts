@@ -96,6 +96,8 @@ export interface LampRig {
   update(dt: number, light: LampLight): void;
   /** Put the lights where the camera sees them. Call after the pose is final. */
   place(camera: THREE.Camera, airframe: THREE.Object3D): void;
+  /** Put out every lamp `gone` says has gone with the part it was on — or, given null, light them all again. */
+  douse(gone: ((at: THREE.Vector3) => boolean) | null): void;
   dispose(): void;
 }
 
@@ -438,6 +440,12 @@ export function createLampRig(
   let paneGlow = 0;
   const level = new Float32Array(L);
   const seen = new Float32Array(L).fill(1);
+  /** Lamps that are no longer on the aeroplane. */
+  const out = new Array<boolean>(L).fill(false);
+  const douse = (gone: ((at: THREE.Vector3) => boolean) | null) => {
+    lamps.forEach((lamp, i) => { out[i] = gone ? gone(lamp.at) : false; });
+  };
+
   const update = (dt: number, { night, cabin, mood, calm }: LampLight) => {
     clock += dt;
     lastDt = dt;
@@ -455,6 +463,11 @@ export function createLampRig(
             ? 0.45 * swell(t, lamp.kind === 'strobe' ? STROBE_CYCLE * 2 : BEACON_CYCLE * 2)
             : across(lamp.kind === 'strobe' ? strobe : beacon, t, dt);
       const bead = beads[i];
+      if (out[i]) {
+        level[i] = 0;
+        bead.emissiveIntensity = 0;
+        return;
+      }
       bead.emissiveIntensity = lamp.kind === 'nav'
         ? 2.6
         : lamp.kind === 'logo'
@@ -531,6 +544,7 @@ export function createLampRig(
     setRowsLit,
     update,
     place,
+    douse,
     dispose: () => disposables.forEach((d) => d.dispose()),
   };
 }
