@@ -10,7 +10,7 @@ import { formatCap, type BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import type { ManualControls } from '../lib/manualControls';
 import { blastAltitude, clampUnit, FEET, newGame, type Phase } from '../lib/landingGame';
-import { fetchBoard, hasBoard, keepBest, postScore, readBest, shortWallet, startRun, type BoardEntry, type Posted } from '../lib/scoresApi';
+import { fetchBoard, hasBoard, keepBest, postScore, readBest, startRun, type BoardEntry, type Posted } from '../lib/scoresApi';
 import type { WalletState } from '../lib/useWallet';
 import type { LandingHud, LandingSounds } from './LandingScene';
 
@@ -32,9 +32,9 @@ const prefetchScores = () => { void loadScores(); };
  * connected — the arrow keys, or a drag on a touch screen, put the nose up
  * and down and bank it round, low over the country the cabin windows look
  * out on — with a brief to climb to 10,000 ft, where an engine blows. It is scored (see `scoring.ts`), the best scores go
- * on a board any Solana wallet can sign its way onto — Top pilots, in the
- * corner, opens it in the same window as the site's Scores tab — and when the
- * aeroplane meets the ground it goes in on its own.
+ * on a board any Solana wallet can sign its way onto — Scores, at the end of
+ * the row of buttons, opens it in the same window as the site's Scores tab —
+ * and when the aeroplane meets the ground it goes in on its own.
  *
  * Before any of it, for a few seconds, the splash: the departure board in the
  * middle of the screen, boarding the airline's line and a few more, then
@@ -520,23 +520,12 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 <svg viewBox="0 0 24 24" aria-hidden className="sa-landing__fly-icon">
                   <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" />
                 </svg>
-                {wallet.address ? 'Fly the plane' : 'Connect wallet to fly'}
+                {wallet.address ? 'Fly' : 'Connect & fly'}
               </button>
             )}
-          </div>
-          {/* The line under the buttons, and Top pilots level with it at the
-              far right: one row, so the line wraps short of the button
-              rather than running under it. */}
-          <div className="sa-landing__foot">
-            {!failed && (
-              <p className="sa-landing__hint">
-                {!ready
-                  ? 'Warming up the engines…'
-                  : !wallet.address
-                    ? `A Solana wallet is your ticket · climb to ${goalFeet.toLocaleString('en-US')} ft · mind the hills`
-                    : `${touch ? 'Drag' : 'Press an arrow key'} to fly · climb to ${goalFeet.toLocaleString('en-US')} ft · flying as ${shortWallet(wallet.address)}`}
-              </p>
-            )}
+            {/* The board, on the same row as the way in and the controls but
+                apart from them at its far end: the one thing here that is not
+                a way forward. */}
             {hasBoard && (
               <button
                 type="button"
@@ -548,10 +537,17 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 className="sa-pilots"
               >
                 <DeckIcon name="trophy" className="sa-pilots__icon" />
-                Top pilots
+                Scores
               </button>
             )}
           </div>
+          {!failed && (
+            <p className="sa-landing__hint">
+              {!ready
+                ? 'Warming up…'
+                : `${!wallet.address ? 'Solana wallet required' : touch ? 'Drag to fly' : 'Arrow keys to fly'}\u00a0· climb to ${goalFeet.toLocaleString('en-US')}\u00a0ft`}
+            </p>
+          )}
         </main>
       )}
       {!inGame && preflight !== 'off' && (

@@ -24,7 +24,7 @@ Your balance is merged into the seating the moment it is read, so you do not wai
 
 ## Flying the plane
 
-The game on the way in needs a connected wallet too: **Connect wallet to fly** connects it and takes off. It is the same connection as checking in, so connect once and both are done. See [Views and controls](../the-cabin/views-and-controls.md#fly-the-plane).
+The game on the way in needs a connected wallet too: **Connect & fly** connects it and takes off. It is the same connection as checking in, so connect once and both are done. See [Views and controls](../the-cabin/views-and-controls.md#fly-the-plane).
 
 ## What connecting shares
 
