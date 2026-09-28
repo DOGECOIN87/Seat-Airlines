@@ -657,7 +657,7 @@ export default function App() {
         <div className="mx-auto flex max-w-[94rem] flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-2 sm:px-8 lg:gap-x-7 lg:py-2.5">
           <a href="#top" className="sa-brand flex shrink-0 items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ui-blue">
             <Mark size={34} title="SEAT AIRLINES" />
-            <span className="whitespace-nowrap font-heading text-lg leading-none text-ui-ink">Seat Airlines</span>
+            <span className="sa-brand__name whitespace-nowrap font-heading text-lg leading-none text-ui-ink">Seat Airlines</span>
             <span className="hidden font-mono text-[11px] uppercase tracking-[0.16em] text-ui-faint sm:inline">
               SA350 · Nonstop
             </span>

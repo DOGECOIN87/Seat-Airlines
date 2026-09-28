@@ -107,17 +107,22 @@
   --r-xl: 28px;
   --r-2xl: 36px;
 
-  /* ── The foot of the screen ─────────────────────────────────
-     What the bottom of the screen keeps clear: the home indicator
-     on an iPhone added to the home screen. The page does not ask to
-     draw under a phone's own bars (no `viewport-fit=cover`), so on
-     Android nothing is ever in the way — but a wallet's in-app
-     browser reports its system bar as if it were, with the wallet's
-     own toolbar already between the two, and the tab bar stood half
-     empty on top of it. Android is told to keep nothing clear. */
+  /* ── The edges of the screen ─────────────────────────────────
+     What each edge keeps clear: the home indicator and the notch on
+     an iPhone. The page does not ask to draw under a phone's own bars
+     (no `viewport-fit=cover`), so on Android nothing is ever in the
+     way — but a wallet's in-app browser reports the system bars as if
+     they were, with its own toolbars already between them and the
+     page: Phantom's the navigation bar, and the tab bar stood half
+     empty on top of it; Solflare's the status bar, and the landing's
+     brand sat a bar's height down. Android is told to keep nothing
+     clear, and every edge goes through these, never env() itself. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
-:root.is-android { --safe-bottom: 0px; }
+:root.is-android { --safe-top: 0px; --safe-right: 0px; --safe-bottom: 0px; --safe-left: 0px; }
 
 body {
   margin: 0;
@@ -239,6 +244,12 @@ html {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75) inset, 0 10px 30px rgba(150, 155, 170, 0.28);
 }
 .sa-topbar dl { scrollbar-gutter: stable both-edges; }
+/* On a phone the brand shares its row with Claim a seat, which needs
+   about 350px between them: the name a size down fits from 375px, and
+   narrower still the mark is the brand on its own (it carries the name
+   for a screen reader). */
+@media (max-width: 639.98px) { .sa-brand__name { font-size: 15px; } }
+@media (max-width: 374.98px) { .sa-brand__name { display: none; } }
 /* A departure board rules its figures apart. The rule is drawn in
    the middle of the gap by a pseudo-element so the flex layout keeps
    its own measure — and only once the row has stopped distributing
@@ -2512,7 +2523,7 @@ p { text-wrap-style: pretty; }
   position: fixed;
   inset: auto 0 0;
   z-index: 55;
-  padding: 0.35rem max(0.5rem, env(safe-area-inset-right)) calc(0.35rem + var(--safe-bottom)) max(0.5rem, env(safe-area-inset-left));
+  padding: 0.35rem max(0.5rem, var(--safe-right)) calc(0.35rem + var(--safe-bottom)) max(0.5rem, var(--safe-left));
   background: rgba(221, 222, 227, 0.94);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
   backdrop-filter: blur(14px) saturate(1.2);
@@ -2565,7 +2576,7 @@ p { text-wrap-style: pretty; }
     position: fixed;
     inset: auto 0 calc(var(--dock-h) + var(--safe-bottom));
     z-index: 54;
-    height: calc(100dvh - var(--dock-h) - var(--safe-bottom) - max(3rem, env(safe-area-inset-top)));
+    height: calc(100dvh - var(--dock-h) - var(--safe-bottom) - max(3rem, var(--safe-top)));
     padding: 0 0.4rem;
     overflow: visible;
     visibility: hidden;
@@ -2709,7 +2720,7 @@ p { text-wrap-style: pretty; }
   z-index: 75;
   display: grid;
   place-items: center;
-  padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.75rem, var(--safe-bottom)) max(0.75rem, env(safe-area-inset-left));
+  padding: max(0.75rem, var(--safe-top)) max(0.75rem, var(--safe-right)) max(0.75rem, var(--safe-bottom)) max(0.75rem, var(--safe-left));
   animation: sa-modal-in 0.2s ease both;
 }
 /* The card: the panel's material, with the accent along its top. */
@@ -3105,40 +3116,67 @@ p { text-wrap-style: pretty; }
 }
 .sa-landing:not(.is-idle) .sa-landing__scrim { opacity: 0.45; }
 
+/* The brand, the live line and the docs: a grid, not a row that wraps.
+   A wrapping row put the docs wherever the width ran out — under the
+   brand, at 680px — so each width has its layout decided here instead:
+   all three on one row, the live line shortened to fit (below), and on a
+   phone the live line on a row of its own. Whatever is left over, the
+   band's name gives up first; nothing ever moves to a line it was not
+   put on. */
 .sa-landing__top {
   position: absolute;
   inset: 0 0 auto;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'brand live docs';
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem 1.5rem;
-  padding: max(1rem, env(safe-area-inset-top)) clamp(1rem, 3vw, 2.25rem) 0;
+  padding: max(1rem, var(--safe-top)) clamp(1rem, 3vw, 2.25rem) 0;
   pointer-events: none;
 }
 .sa-landing__brand {
+  grid-area: brand;
   display: inline-flex;
   align-items: center;
   gap: 0.7rem;
+  white-space: nowrap;
   font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.05rem;
+  /* Down to fit beside the docs on the narrowest phone. */
+  font-size: clamp(0.85rem, 3.6vw, 1.05rem);
   font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
-.sa-landing__top .sa-docs { pointer-events: auto; }
+.sa-landing__top .sa-docs { grid-area: docs; pointer-events: auto; }
 .sa-landing__live {
-  margin-left: auto;
-  display: inline-flex;
+  grid-area: live;
+  justify-self: end;
+  display: flex;
   align-items: center;
   gap: 0.55rem;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #7FE3F7;
+}
+/* In the game the docs go, and the live line keeps to the right edge. */
+.sa-landing__top:not(:has(.sa-docs)) .sa-landing__live { grid-column: 2 / -1; }
+.sa-landing__seg { flex: none; }
+.sa-landing__seg + .sa-landing__seg::before { content: '·' / ''; margin-right: 0.55rem; }
+.sa-landing__seg--band { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Narrower than the full row needs (about 880px): the flight number
+   goes, and the docs are the mark and the one word. */
+@media (max-width: 880px) {
+  .sa-landing__top { column-gap: 1rem; }
+  .sa-landing__top .sa-docs__on,
+  .sa-landing__seg--code { display: none; }
+  .sa-landing__live { letter-spacing: 0.14em; }
 }
 
 .sa-landing__hero {
@@ -3156,7 +3194,10 @@ p { text-wrap-style: pretty; }
 }
 .sa-landing__title {
   font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(2.6rem, 6.4vw, 5.6rem);
+  /* By the height as well as the width: on a phone held sideways the
+     width alone set two lines taller than the room under the brand. */
+  font-size: min(clamp(2.6rem, 6.4vw, 5.6rem), 11vh);
+  font-size: min(clamp(2.6rem, 6.4vw, 5.6rem), 11svh);
   font-weight: 800;
   line-height: 0.94;
   letter-spacing: -0.025em;
@@ -3400,7 +3441,7 @@ p { text-wrap-style: pretty; }
 .sa-hud { position: absolute; inset: 0; pointer-events: none; }
 .sa-hud__top {
   position: absolute;
-  top: calc(max(1rem, env(safe-area-inset-top)) + 3.4rem);
+  top: calc(max(1rem, var(--safe-top)) + 3.4rem);
   left: 0;
   right: 0;
   display: flex;
@@ -3923,13 +3964,12 @@ p { text-wrap-style: pretty; }
 }
 
 @media (max-width: 640px) {
-  .sa-landing__live { font-size: 10px; letter-spacing: 0.14em; }
-  /* The docs beside the brand — the mark and the one word, to fit — and
-     the live line under both. */
-  .sa-landing__top { column-gap: 1rem; }
-  .sa-landing__top .sa-docs { margin-left: auto; }
-  .sa-landing__top .sa-docs__on { display: none; }
-  .sa-landing__top .sa-landing__live { order: 2; flex-basis: 100%; margin-left: 0; }
+  /* The docs beside the brand, and the live line under both. */
+  .sa-landing__top {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'brand docs' 'live live';
+  }
+  .sa-landing__live { justify-self: start; font-size: 10px; }
   /* In the game the instruments need the room under the brand. */
   .sa-landing:not(.is-idle) .sa-landing__live { display: none; }
   .sa-landing__hero { justify-items: stretch; gap: 0.9rem; padding-right: clamp(1.25rem, 5vw, 4.5rem); }
@@ -3945,6 +3985,28 @@ p { text-wrap-style: pretty; }
   .sa-hud__value { font-size: 1.15rem; }
   .sa-hud__clock { top: 3.6rem; }
   .sa-hud__help { width: calc(100% - 2rem); border-radius: 14px; }
+}
+
+/* A short screen — a phone on its side, a window split in two: the
+   words come down to the headline, the buttons and the line under them,
+   closer together, so the way in never climbs into the brand. */
+@media (max-height: 560px) {
+  .sa-landing__lead { display: none; }
+  .sa-landing__hero { gap: 0.75rem; padding-bottom: max(1rem, calc(var(--safe-bottom) + 0.75rem)); }
+}
+/* And one narrow enough to count as a phone but wide enough for a row:
+   the rows of a wider screen, not the stacks of an upright phone, which
+   are too tall for it. */
+@media (max-width: 640px) and (min-width: 520px) and (max-height: 480px) {
+  .sa-landing__top {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'brand live docs';
+  }
+  .sa-landing__live { justify-self: end; font-size: 11px; }
+  .sa-landing__actions { display: flex; }
+  .sa-landing__enter, .sa-landing__fly { width: auto; }
+  .sa-pilots { margin-left: auto; }
+  .sa-landing__hint { text-align: left; }
 }
 
 @media (prefers-reduced-motion: reduce) {

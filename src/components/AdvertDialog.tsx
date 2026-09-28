@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { BANNER_SIZE, type Banner } from '../lib/banners';
-import { defaultEdit, filterCss, loadImage, loadImageFromSrc, panBy, renderBanner, type EditState } from '../lib/imageEdit';
+import { defaultEdit, loadImage, loadImageFromSrc, panBy, renderBanner, type EditState } from '../lib/imageEdit';
 
 interface AdvertDialogProps {
   seat: string; current: Banner | null;
@@ -13,13 +13,6 @@ interface AdvertDialogProps {
   shared?: boolean; onClose: () => void;
 }
 
-const sliders: Array<{ key: keyof EditState['filter']; label: string; min: number; max: number; step: number }> = [
-  { key: 'brightness', label: 'Bright', min: .4, max: 1.8, step: .05 },
-  { key: 'contrast', label: 'Contrast', min: .4, max: 1.8, step: .05 },
-  { key: 'saturate', label: 'Colour', min: 0, max: 2, step: .05 },
-  { key: 'grayscale', label: 'Mono', min: 0, max: 1, step: .05 },
-  { key: 'sepia', label: 'Sepia', min: 0, max: 1, step: .05 },
-];
 const prettyBytes = (n: number) => n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
 
 export default function AdvertDialog({ seat, current, onSave, onClear, onClose, shared }: AdvertDialogProps) {
@@ -37,11 +30,21 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
   const input = useRef<HTMLInputElement>(null);
   const drag = useRef<{ id: number; x: number; y: number } | null>(null);
 
+  /* Focus goes to the close button once, as the dialog opens. It used to go
+     there whenever `onClose` changed — and the page hands down a new one
+     every time it draws, which on a live page is every few seconds — so
+     typing a description, the focus was taken back to the top of the
+     dialog: the field lost it, a phone's keyboard closed, and the dialog
+     scrolled up to the button. Escape reads the latest `onClose` instead. */
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     first.current?.focus();
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close.current(); };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
-  }, [onClose]);
+  }, []);
   useEffect(() => {
     if (!own?.image) return;
     loadImageFromSrc(own.image).then(setSource).catch(() => undefined);
@@ -119,17 +122,16 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
       <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_220px]">
         <div>
           <div className="sa-editor-crop ui-well relative mx-auto aspect-square max-w-[360px] overflow-hidden" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => { drag.current = null; }} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); void take(e.dataTransfer.files[0]); }}>
-            {image ? <img src={image} alt="Edited advert preview" className="h-full w-full object-cover" style={{ filter: filterCss(edit.filter) }} /> : <button type="button" onClick={() => input.current?.click()} className="h-full w-full text-[11px] uppercase tracking-[.14em] text-ui-faint">Drop, paste, or choose an image</button>}
+            {image ? <img src={image} alt="Edited advert preview" className="h-full w-full object-cover" /> : <button type="button" onClick={() => input.current?.click()} className="h-full w-full text-[11px] uppercase tracking-[.14em] text-ui-faint">Drop, paste, or choose an image</button>}
             {grid && image && <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,transparent_32.9%,rgba(255,255,255,.6)_33%,transparent_33.4%,transparent_66.2%,rgba(255,255,255,.6)_66.5%,transparent_67%),linear-gradient(0deg,transparent_32.9%,rgba(255,255,255,.6)_33%,transparent_33.4%,transparent_66.2%,rgba(255,255,255,.6)_66.5%,transparent_67%)]" />}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2"><input ref={input} type="file" accept="image/*" hidden onChange={e => void take(e.target.files?.[0])} /><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => input.current?.click()}>Choose image</button><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => setEdit(defaultEdit())} disabled={!source}>Reset edits</button><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => setGrid(v => !v)} disabled={!image}>{grid ? 'Hide grid' : 'Show grid'}</button><span className="ml-auto text-[11px] uppercase tracking-[.12em] text-ui-faint">{busy ? 'Processing…' : bytes ? `${prettyBytes(bytes)} ready` : `${BANNER_SIZE}px square`}</span></div>
+          <div className="mt-3 flex flex-wrap items-center gap-2"><input ref={input} type="file" accept="image/*" hidden onChange={e => void take(e.target.files?.[0])} /><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => input.current?.click()}>Choose image</button><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => setEdit(defaultEdit())} disabled={!source}>Reset</button><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => setGrid(v => !v)} disabled={!image}>{grid ? 'Hide grid' : 'Show grid'}</button><span className="ml-auto text-[11px] uppercase tracking-[.12em] text-ui-faint">{busy ? 'Processing…' : bytes ? `${prettyBytes(bytes)} ready` : `${BANNER_SIZE}px square`}</span></div>
           <p className="mt-2 text-[11px] leading-relaxed text-ui-faint">Drag to reposition.</p>
         </div>
         <div className="space-y-3">
           <div className="sa-adpreview mx-auto"><img src={image || current?.image || ''} alt="" /></div>
           <p className="text-center text-[11px] uppercase tracking-[.14em] text-ui-faint">Preview</p>
           <label className="block text-[11px] uppercase tracking-[.14em] text-ui-faint">Zoom <input className="mt-1 w-full" type="range" min="1" max="4" step=".05" value={edit.zoom} onChange={e => setEdit(v => ({ ...v, zoom: Number(e.target.value) }))} /></label>
-          {sliders.map(s => <label key={s.key} className="block text-[11px] uppercase tracking-[.14em] text-ui-faint">{s.label}<input className="mt-1 w-full" type="range" min={s.min} max={s.max} step={s.step} value={edit.filter[s.key]} onChange={e => setEdit(v => ({ ...v, filter: { ...v.filter, [s.key]: Number(e.target.value) } }))} /></label>)}
           <div className="flex gap-2"><button type="button" className="sa-ghost flex-1 px-2 py-1.5 text-[11px]" onClick={() => setEdit(v => ({ ...v, rotate: ((v.rotate + 90) % 360) as EditState['rotate'] }))}>Rotate</button><button type="button" className="sa-ghost flex-1 px-2 py-1.5 text-[11px]" onClick={() => setEdit(v => ({ ...v, flip: !v.flip }))}>Mirror</button></div>
         </div>
       </div>
@@ -141,7 +143,7 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
       {/* ── The action bar ──
           Its own row rather than the last thing in the scroll, because it is
           the point of the dialog: under the preview, the image controls, the
-          filters, the rotate pair and two text fields, it was a long way
+          rotate pair and two text fields, it was a long way
           past everything else even once scrolling worked. Somebody looking
           for a button called "Save" never found it at all — it is called
           "Sign & publish", and it is now always on screen to be read.

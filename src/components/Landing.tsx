@@ -494,9 +494,14 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
           <Mark size={34} />
           <span>Seat Airlines</span>
         </span>
+        {/* In parts, so a narrower screen can drop the flight number and,
+            last of all, shorten the band — never the figure. */}
         <span className="sa-landing__live">
           <span className="sa-live" aria-hidden />
-          Live · SA350 · {band.label} · {formatCap(marketCap)}
+          <span className="sa-landing__seg">Live</span>
+          <span className="sa-landing__seg sa-landing__seg--code">SA350</span>
+          <span className="sa-landing__seg sa-landing__seg--band">{band.label}</span>
+          <span className="sa-landing__seg">{formatCap(marketCap)}</span>
         </span>
         {!inGame && <DocsLink night />}
       </header>
