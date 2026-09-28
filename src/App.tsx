@@ -8,6 +8,8 @@ import AdvertDialog from './components/AdvertDialog';
 import DocsLink from './components/DocsLink';
 import Wordmark from './components/Wordmark';
 import WalletPicker from './components/WalletPicker';
+import SeatChange from './components/SeatChange';
+import SeatTicker, { type TickerItem } from './components/SeatTicker';
 import Landing from './components/Landing';
 import { SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
 import type { LogEntry } from './components/RadioLog';
@@ -38,7 +40,8 @@ import { useWallet } from './lib/useWallet';
 import { holdingsSource, type Holding } from './lib/holdings';
 import { berthFromManifest } from './lib/seatLadder';
 import { useManifest } from './lib/useManifest';
-import { MANIFEST_SIZE } from './lib/manifest';
+import { MANIFEST_SIZE, shortAddress, type Manifest } from './lib/manifest';
+import { headlines, personalMove, type PersonalMove } from './lib/seatMoves';
 import { resetClientStateForToken } from './lib/tokenReset';
 import {
   houseAdverts,
@@ -452,6 +455,48 @@ export default function App() {
       'pa',
     );
   }, [berth.seat?.id, berth.hold, berth.rung, wallet.address, boardedAt, tick.marketCap, say]);
+
+  /* ── Seats changing hands ─────────────────────────────────────────────
+     Each new reading of the manifest is set against the last. Whoever climbed
+     by holding more goes on the ticker and into the cabin radio, for
+     everybody; a change to your own seat stops the page, with the chime.
+
+     Your own seat is only compared once there is a reading that already has
+     your bag in it — connecting, the first one with your balance merged in
+     would otherwise read as boarding, or as a seat change nobody made. */
+  const [ticker, setTicker] = useState<readonly TickerItem[]>([]);
+  const tickerId = useRef(0);
+  const tickerShown = useCallback((id: number) => setTicker((q) => q.filter((t) => t.id !== id)), []);
+  const [seatChange, setSeatChange] = useState<PersonalMove | null>(null);
+  const lastManifest = useRef<Manifest | null>(null);
+  const comparedFor = useRef<string | null>(null);
+  const { ding } = aircraftAudio;
+  useEffect(() => {
+    const before = lastManifest.current;
+    lastManifest.current = manifest;
+    if (!before || before === manifest) return;
+
+    const news = headlines(before, manifest).filter((h) => h.address !== seatKey && h.took !== seatKey);
+    if (news.length) {
+      const lines = news.map((h) => `${shortAddress(h.address)} took ${h.to} from ${shortAddress(h.took)}`);
+      setTicker((q) => [...q, ...lines.map((text) => ({ id: ++tickerId.current, text }))].slice(-6));
+      lines.forEach((line) => say(`${line}.`, 'pa'));
+    }
+
+    if (!seatKey || !holding) {
+      comparedFor.current = null;
+      return;
+    }
+    if (comparedFor.current !== seatKey) {
+      comparedFor.current = seatKey;
+      return;
+    }
+    const mine = personalMove(before, manifest, seatKey, holding.balance);
+    if (mine) {
+      setSeatChange(mine);
+      ding();
+    }
+  }, [manifest, seatKey, holding, say, ding]);
 
   const walkTo = (zone: ZoneKey) => {
     setViewZone(zone);
@@ -967,6 +1012,15 @@ export default function App() {
 
       {/* Asked by `wallet.connect()` when this browser has more than one. */}
       <WalletPicker wallet={wallet} />
+
+      {seatChange && (
+        <SeatChange
+          move={seatChange}
+          onSeats={() => { setSeatChange(null); openPanel('wall'); }}
+          onClose={() => setSeatChange(null)}
+        />
+      )}
+      <SeatTicker items={ticker} onShown={tickerShown} />
 
       {/* Its own Suspense, with nothing for a fallback. The page's outer one
           would blank the whole site while this chunk loaded — a flash of the

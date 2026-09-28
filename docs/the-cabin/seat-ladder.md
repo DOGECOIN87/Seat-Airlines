@@ -48,6 +48,10 @@ The **Boarding ladder**, in the Check in section, lists every cabin with the ran
 
 When your seat changes, the camera walks you to it and the PA announces it: _"Passenger reseated to 7C. BUSINESS."_
 
+**A seat change stops the page.** With the seat-belt chime (when your sound is on), a card shows your old seat and your new one, who went past you, and exactly how many more tokens it takes to win the old seat back — _"7xK2…9fQ passed you. Hold 12.4K more to win 12A back."_ Moving forward gets the same card as an **Upgrade**, naming who you passed. **Seats** opens the seat map.
+
+**Everybody sees seats being taken.** A line above the tab bar names each holder who climbed by holding more, and whose seat they took — _"7xK2…9fQ took 2A from Ab3c…Zz9L"_ — and the cabin radio keeps it. Only the holder who climbed is named: the holders it bumped back one place each are not news.
+
 ## How often it updates
 
 * The holder list is re-read every **90 seconds**, and the server behind it keeps the chain's answer for a minute.

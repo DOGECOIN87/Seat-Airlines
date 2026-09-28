@@ -256,5 +256,13 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
     previous.current = { seatbelt: lamps.seatbelt, oxygen: lamps.oxygen, brace: lamps.brace, band };
   }, [enabled, lamps, band]);
 
-  return { enabled, toggle };
+  /* The cabin chime, on demand: a change of seat is announced the way the
+     seat-belt sign is. Only with the sound on and running — a chime is never
+     the thing that starts the cabin's sound. */
+  const ding = useCallback(() => {
+    const current = rig.current;
+    if (wanted.current && current) playBuffer(current, current.seatbeltBuffer, 0.8);
+  }, []);
+
+  return { enabled, toggle, ding };
 }
