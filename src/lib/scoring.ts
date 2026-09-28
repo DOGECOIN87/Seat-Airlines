@@ -10,7 +10,8 @@
  * Before the engine goes, a tenth of a point per foot of the best height
  * reached. Reaching the blast altitude is worth a flat bonus, and reaching
  * it quickly is worth more: forty points for every second under a par of
- * seventy-five. After that, the points are for staying in the air — a
+ * seventy-five — for the whole 10,000 ft, and in proportion when the engine
+ * goes early, so a fast climb pays the same by the foot. After that, the points are for staying in the air — a
  * hundred a second, and more for doing it well or dangerously: half again
  * with the wings within twenty degrees of level (which, on one engine, is
  * the skill), and double with the ground under five hundred feet (which is
@@ -38,6 +39,11 @@ export const SCORING = {
   climbPerSecond: 40,
   /** No climb to 10,000 ft can be faster than this, at the game's best climb rate. */
   climbFloor: 18,
+  /**
+   * And no engine can go sooner than this after the controls are handed
+   * over: the fastest climb there is to the lowest it can go, 4,000 ft.
+   */
+  firstFailure: 6,
   /** Points a second, in the air on one engine. */
   perSecond: 100,
   /** Added to the rate while the wings are within `levelWithin` degrees of level. */
@@ -55,10 +61,14 @@ export const SCORING = {
 /** The best rate there is: level and low at once. */
 export const MAX_RATE = SCORING.perSecond * (1 + SCORING.level + SCORING.low);
 
-/** The bonus for reaching the blast altitude in this many seconds. */
-export function climbBonus(seconds: number): number {
-  const t = Math.max(SCORING.climbFloor, seconds);
-  return Math.max(0, Math.round((SCORING.climbPar - t) * SCORING.climbPerSecond));
+/**
+ * The bonus for reaching the blast altitude in this many seconds, when it
+ * is `share` of the 10,000 ft brief: par and floor both come down with it.
+ */
+export function climbBonus(seconds: number, share = 1): number {
+  const s = Math.min(1, Math.max(0, share));
+  const t = Math.max(SCORING.climbFloor * s, seconds);
+  return Math.max(0, Math.round((SCORING.climbPar * s - t) * SCORING.climbPerSecond));
 }
 
 /** The rate points build at on one engine: wings level and ground close both pay. */
@@ -71,16 +81,16 @@ export function survivalRate(bankDegrees: number, feetAboveGround: number): numb
 
 /**
  * The most a run could honestly score in `elapsedMs` of real time since the
- * controls were taken. Before the fastest possible climb could be over,
- * only height points; after it, those, the whole reach bonus, the best
- * climb bonus, and every second since at the best rate there is — each with
- * ten per cent and a few hundred points of slack for clocks and rounding.
+ * controls were taken. Before the earliest an engine could go, only height
+ * points; after it, those, the whole reach bonus, the best climb bonus, and
+ * every second since at the best rate there is — each with ten per cent and
+ * a few hundred points of slack for clocks and rounding.
  */
 export function scoreCeiling(elapsedMs: number): number {
   const seconds = Math.max(0, elapsedMs / 1000);
   const slack = (points: number) => Math.round(points * 1.1 + 300);
-  if (seconds < SCORING.climbFloor) return slack(SCORING.maxHeightPoints);
-  const flying = Math.min(SCORING.maxSurvival, seconds - SCORING.climbFloor);
+  if (seconds < SCORING.firstFailure) return slack(SCORING.maxHeightPoints);
+  const flying = Math.min(SCORING.maxSurvival, seconds - SCORING.firstFailure);
   return slack(SCORING.maxHeightPoints + SCORING.reached + climbBonus(SCORING.climbFloor) + flying * MAX_RATE);
 }
 

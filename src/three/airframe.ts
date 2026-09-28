@@ -876,10 +876,10 @@ export interface AirframeHandles {
   /** Smoothly deploy the trailing-edge flaps from 0 (retracted) to 1. */
   setFlapDeployment(target: number): void;
   /**
-   * Which engine has failed: -1 the port (left) one, 1 the starboard, 0
+   * Which engines have failed: the port (left) one, the starboard, both or
    * neither. A failed engine's fan runs down to a slow windmill.
    */
-  setEngineOut(side: -1 | 0 | 1): void;
+  setEnginesOut(port: boolean, starboard: boolean): void;
   /**
    * Advance the parts of the aeroplane that live: the fans turn, the
    * strobes and beacons flash, the contrails stream, and the control
@@ -940,7 +940,8 @@ export function createAirframe(): AirframeHandles {
      the starboard engine's and fan 1 the port's. */
   const fans: THREE.Group[] = [];
   const fanSpeed = [1, 1];
-  let engineOut: -1 | 0 | 1 = 0;
+  /** Dead engines, by side: -1 port, 1 starboard. */
+  const engineOut = { [-1]: false, [1]: false } as Record<number, boolean>;
 
   /* A control surface: its own solid, in a group sitting on its hinge line
      and turned about it. */
@@ -1417,7 +1418,7 @@ export function createAirframe(): AirframeHandles {
        and is what keeps them from reading as mirrored copies. */
     for (const [i, fan] of fans.entries()) {
       // A dead engine spins down over a few seconds and windmills in the airflow.
-      const target = engineOut === (i === 0 ? 1 : -1) ? 0.07 : 1;
+      const target = engineOut[i === 0 ? 1 : -1] ? 0.07 : 1;
       fanSpeed[i] += (target - fanSpeed[i]) * (1 - Math.exp(-0.9 * dt));
       fan.rotation.z -= dt * (13 + i * 0.9) * fanSpeed[i];
     }
@@ -1428,7 +1429,7 @@ export function createAirframe(): AirframeHandles {
        the air's decision, passed in from the scene: none in the warm air
        down low, solid ribbons in the cold above the deck. After dark there
        is no sun on them, and they go from white to a moonlit grey. */
-    for (const trail of trails) trail.mesh.visible = trail.side !== engineOut;
+    for (const trail of trails) trail.mesh.visible = !engineOut[trail.side];
     for (const [i, seg] of CONTRAIL.entries()) {
       contrailMats[i].opacity = seg.o * contrail;
       contrailMats[i].visible = contrail > 0.02;
@@ -1471,7 +1472,7 @@ export function createAirframe(): AirframeHandles {
     group,
     setRowsLit,
     setFlapDeployment,
-    setEngineOut: (side) => { engineOut = side; },
+    setEnginesOut: (port, starboard) => { engineOut[-1] = port; engineOut[1] = starboard; },
     update,
     place: (camera) => lamps.place(camera, group),
     dispose: () => {

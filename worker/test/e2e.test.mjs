@@ -1288,6 +1288,64 @@ await check('the flight controls cannot be deleted, only levelled', async () => 
   assert(res.status === 405, `status ${res.status}`);
 });
 
+console.log('\nshared flights');
+
+/** A JPEG's bones at the card's size: SOI, a frame header, EOI. */
+const cardJpeg = (width = 1200, height = 630) => Uint8Array.from([
+  0xff, 0xd8,
+  0xff, 0xc0, 0x00, 0x11, 0x08, height >> 8, height & 255, width >> 8, width & 255, 0x03, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1,
+  0xff, 0xd9,
+]);
+const putCard = (run, bytes) => fetch(`${BASE}/cards/${run}`, {
+  method: 'PUT',
+  headers: { origin: ORIGIN, 'content-type': 'image/jpeg' },
+  body: bytes,
+});
+const flight = await (await fetch(`${BASE}/runs`, { method: 'POST', headers: { origin: ORIGIN } })).json();
+let cardLink = '';
+
+await check('a flight this server started can leave a card, and gets its page back', async () => {
+  assert(/^[0-9a-f]{32}$/.test(flight.run ?? ''), 'no run to share');
+  const res = await putCard(flight.run, cardJpeg());
+  assert(res.status === 200, `status ${res.status}`);
+  const body = await res.json();
+  assert(/\/c\/[0-9a-f]{24}$/.test(body.url), `url ${body.url}`);
+  assert(!body.url.includes(flight.run), 'the page gives the run away');
+  cardLink = body.url;
+});
+
+await check('the page names the card for X, and the card is served as a JPEG', async () => {
+  const page = await fetch(cardLink, { redirect: 'manual' });
+  assert(page.status === 200, `status ${page.status}`);
+  const html = await page.text();
+  assert(html.includes('summary_large_image'), 'no large-image card');
+  assert(html.includes(`${cardLink}.jpg`), 'the page does not name the card');
+  const img = await fetch(`${cardLink}.jpg`);
+  assert(img.status === 200 && img.headers.get('content-type') === 'image/jpeg', `status ${img.status} ${img.headers.get('content-type')}`);
+  assert((await img.arrayBuffer()).byteLength === cardJpeg().length, 'the card came back changed');
+});
+
+await check('a flight keeps its first card', async () => {
+  const res = await putCard(flight.run, cardJpeg());
+  assert(res.status === 200, `status ${res.status}`);
+  assert((await res.json()).url === cardLink, 'a second card replaced the first');
+});
+
+await check('no card without a flight, and none that is not a card', async () => {
+  const stranger = await putCard('0'.repeat(32), cardJpeg());
+  assert(stranger.status === 404, `unknown run: status ${stranger.status}`);
+  const other = await (await fetch(`${BASE}/runs`, { method: 'POST', headers: { origin: ORIGIN } })).json();
+  const svg = await putCard(other.run, new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>'));
+  assert(svg.status === 400, `svg: status ${svg.status}`);
+  const small = await putCard(other.run, cardJpeg(800, 600));
+  assert(small.status === 400, `wrong size: status ${small.status}`);
+});
+
+await check('a card that is not there sends a person to the site', async () => {
+  const res = await fetch(`${BASE}/c/${'a'.repeat(24)}`, { redirect: 'manual' });
+  assert(res.status === 302 && /^http/.test(res.headers.get('location') ?? ''), `status ${res.status}`);
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 holders.close();
 process.exit(fail ? 1 : 0);

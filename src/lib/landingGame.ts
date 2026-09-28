@@ -6,12 +6,17 @@
  * screen) put the nose up and down and bank it round, over the same country
  * the cabin windows look out on. The brief is to climb to 10,000 ft.
  *
- * At 10,000 ft it goes wrong. A voice outside shouts, the door goes in, and
- * one engine explodes: from then on the aeroplane yaws and rolls toward the
+ * Somewhere on the way up it goes wrong: at 10,000 ft on half the flights,
+ * and anywhere from 4,000 ft on the rest. A voice outside shouts, the door
+ * goes in, and one engine explodes — or, one flight in three, a bolt of
+ * lightning hits it. From then on the aeroplane yaws and rolls toward the
  * dead engine, sinks on half its thrust, shakes, and answers the stick less
  * and less as the fire spreads — and once the fire has done its worst, it
- * starts on the wing. There is no clock. It ends when it meets the ground,
- * which for the best pilots is about a minute later.
+ * starts on the wing. On about a third of flights the other engine follows
+ * it. Now and then it flies into rising air, which gives a pilot with the
+ * wings level a few seconds of climb and a stick that bites again. There is
+ * no clock. It ends when it meets the ground, which for the best pilots is
+ * about a minute later.
  *
  * This module is the state the page and the scene share, the numbers the
  * flying is tuned by, and the flying itself. It has no three.js in it, so
@@ -20,6 +25,9 @@
  */
 
 export type Phase = 'idle' | 'intro' | 'flying' | 'crashed';
+
+/** What takes an engine: it lets go on its own, or lightning hits it. */
+export type Cause = 'blast' | 'lightning';
 
 /** -1 to 1 on each axis: x banks right, y climbs. */
 export interface Stick {
@@ -61,6 +69,25 @@ export interface FlightGame {
   failed: -1 | 0 | 1;
   /** When it went, on `performance.now()`. */
   failedAt: number;
+  /** How the first engine goes, and how the second does if it goes too. */
+  causes: [Cause, Cause];
+  /** Seconds after the first engine that the second one goes: Infinity if it holds. */
+  secondAfter: number;
+  /** The second engine has gone too. */
+  both: boolean;
+  /** When it went, on `performance.now()`. */
+  bothAt: number;
+  /** 1 while the good engine pulls, down to 0 as it spools down once it has gone as well. */
+  thrust: number;
+  /** 0 in still air, up to about 1 inside an updraft. */
+  updraft: number;
+  /** Seconds until the next updraft; and, inside one, how long it lasts, how long is left and how strong it is. */
+  draftIn: number;
+  draftLen: number;
+  draftLeft: number;
+  draftPeak: number;
+  /** How fast the game's time runs against the clock's: 1, or less in slow motion. */
+  slow: number;
   /** 0.5 at the blast to 1 as the fire takes hold: how badly it flies. */
   damage: number;
   /** 0 until the fire has done its worst, then up to 1 as it takes the wing: the roll it cannot hold. */
@@ -102,8 +129,24 @@ export const GAME = {
   climbGain: 1.7,
   /** Metres a second, up or down, however fast the ground is going by. */
   maxClimb: 130,
-  /** Where the engine goes, feet above the ground — as the altimeter reads. */
+  /** The brief: the climb to here, feet above the ground — as the altimeter reads. */
   blastFeet: 10_000,
+  /** Half the time the engine goes early, anywhere from here up. */
+  earliestFeet: 4_000,
+  earlyOdds: 0.5,
+  /** How often it is lightning that takes an engine, rather than the engine itself. */
+  lightningOdds: 1 / 3,
+  /** Seconds into the lightning clip that the crack lands. */
+  strikeAt: 0.58,
+  /** How often the second engine goes too, and how long after the first. */
+  secondOdds: 0.35,
+  secondFrom: 12,
+  secondTo: 30,
+  /** Seconds between updrafts once an engine has gone, and the first one's wait. */
+  draftGap: [9, 17] as readonly [number, number],
+  draftFirst: [5, 10] as readonly [number, number],
+  /** Metres a second an updraft at full strength lifts a wings-level aeroplane. */
+  draftLift: 60,
   /**
    * Seconds into the warning clip that the bang lands. The engine goes on
    * the clip's own clock, so the fireball and the bang are the same moment.
@@ -125,6 +168,9 @@ export const GAME = {
   crowdLead: 14.5,
 } as const;
 
+const between = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
+const cause = (): Cause => (Math.random() < GAME.lightningOdds ? 'lightning' : 'blast');
+
 export const newGame = (): FlightGame => ({
   phase: 'idle',
   phaseAt: 0,
@@ -145,6 +191,17 @@ export const newGame = (): FlightGame => ({
   warnedAt: 0,
   failed: 0,
   failedAt: 0,
+  causes: ['blast', 'blast'],
+  secondAfter: Infinity,
+  both: false,
+  bothAt: 0,
+  thrust: 1,
+  updraft: 0,
+  draftIn: 0,
+  draftLen: 0,
+  draftLeft: 0,
+  draftPeak: 0,
+  slow: 1,
   damage: 0,
   decay: 0,
   speed: 120,
@@ -169,18 +226,52 @@ export const FEET = 3.281;
  */
 export const WASTED_AT = 1.25;
 
+const asked = (flag: string) => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has(flag);
+
 /**
- * Where this flight's engine goes, metres above the ground: 10,000 ft, or
- * 1,500 with `?mayday` on the address, for anybody who wants to get to it
- * without the climb.
+ * The height the brief names, metres above the ground: 10,000 ft, or 1,500
+ * with `?mayday` on the address, for anybody who wants to get to it without
+ * the climb.
  */
 export function blastAltitude(): number {
-  const soon = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mayday');
-  return (soon ? 1_500 : GAME.blastFeet) / FEET;
+  return (asked('mayday') ? 1_500 : GAME.blastFeet) / FEET;
 }
 
-/** Ground speed at a height, as the scene flies it: v/h held constant, floored and capped. */
+/**
+ * Where this flight's engine actually goes, what takes it, and whether the
+ * other one follows: dealt as the controls are handed over. Half the time
+ * it is the height the brief names; the rest, anywhere from 4,000 ft up to
+ * it. `?strike` makes it lightning and `?dual` loses both, for anybody who
+ * wants to see either.
+ */
+export function dealFailures(g: FlightGame): void {
+  const brief = blastAltitude();
+  const earliest = Math.min(brief, GAME.earliestFeet / FEET);
+  g.blastAlt = Math.random() < GAME.earlyOdds ? between(earliest, brief - 500 / FEET) : brief;
+  if (g.blastAlt < earliest) g.blastAlt = brief;
+  g.causes = [asked('strike') ? 'lightning' : cause(), cause()];
+  g.secondAfter = asked('dual') || Math.random() < GAME.secondOdds ? between(GAME.secondFrom, GAME.secondTo) : Infinity;
+  g.draftIn = between(...GAME.draftFirst);
+}
+
+/** Seconds into its warning clip that an engine goes, for what takes it. */
+export const leadFor = (c: Cause): number => (c === 'lightning' ? GAME.strikeAt : GAME.blastAt);
+
+/**
+ * What the climb is worked out from, at a height: it grows with the height
+ * so the climb to 10,000 ft takes half a minute, not two. It is not how fast
+ * the ground goes by — see `airspeedAt`.
+ */
 export const speedAt = (height: number): number => Math.min(2200, Math.max(120, height * 0.15));
+
+/**
+ * The airspeed with both engines, metres a second, at a height above the
+ * ground: an airliner's, a little faster as it climbs. This is what the
+ * ground goes by at and what the airspeed dial reads, so low down, where
+ * the same speed is a great deal more of the height every second, the
+ * ground rushes past — and at 10,000 ft it drifts.
+ */
+export const airspeedAt = (agl: number): number => Math.min(150, 122 + Math.max(0, agl) * 0.012);
 
 export const clampUnit = (v: number): number => Math.max(-1, Math.min(1, v));
 
@@ -190,6 +281,27 @@ const smoothstep = (a: number, b: number, x: number) => smooth(Math.min(1, Math.
 const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 /** Band-limited noise: a random target, followed at a rate. */
 const drift = (v: number, rate: number, dt: number) => v + (Math.random() * 2 - 1 - v) * (1 - Math.exp(-rate * dt));
+
+/**
+ * The air, once an engine has gone: still, and every so often rising, for
+ * a few seconds at a time — in over a second, out over a second and a half.
+ */
+function air(g: FlightGame, dt: number): number {
+  if (g.draftLeft > 0) {
+    g.draftLeft = Math.max(0, g.draftLeft - dt);
+    const since = g.draftLen - g.draftLeft;
+    g.updraft = g.draftPeak * smooth(Math.min(1, since / 1.2)) * smooth(Math.min(1, g.draftLeft / 1.5));
+    if (g.draftLeft === 0) g.draftIn = between(...GAME.draftGap);
+  } else {
+    g.updraft = 0;
+    g.draftIn -= dt;
+    if (g.draftIn <= 0) {
+      g.draftLen = g.draftLeft = between(4.5, 7.5);
+      g.draftPeak = between(0.75, 1.15);
+    }
+  }
+  return g.updraft;
+}
 
 /**
  * One frame of flying, both ways.
@@ -221,6 +333,13 @@ const drift = (v: number, rate: number, dt: number) => v + (Math.random() * 2 - 
  * the way pilots are taught: bank a little toward the good engine, keep the
  * wings as level as the fire allows, and hold the speed just above the
  * stall — nose down for it, never up.
+ *
+ * Two things change it. When the other engine goes too, the pull to one
+ * side goes with its thrust — it is suddenly easier to hold level — but
+ * there is nothing left to hold height or speed at all, and it comes down
+ * a good deal faster. And rising air, now and then, lifts it: only as much
+ * as the wings are level, so it is worth most to whoever is flying best,
+ * and the smoother air over the wing gives the stick back some of its bite.
  */
 export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; stall: number } {
   if (g.failed === 0) {
@@ -236,25 +355,36 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   }
 
   const dead = g.failed;
-  // The fire takes twenty seconds to do its worst, then fifty more to take the wing.
-  g.damage = Math.min(1, g.damage + dt / 40);
+  // Rising air, and how much of it the wing catches: all of it level, little in a bank.
+  const u = air(g, dt);
+  const caught = Math.max(0, Math.cos(g.bank * DEG)) ** 3;
+  // The fire takes twenty seconds to do its worst, then fifty more to take
+  // the wing — and while a level wing rides rising air, the cool air over it
+  // holds the fire back, and that clock all but stops.
+  const burn = dt * (1 - 0.85 * u * caught);
+  g.damage = Math.min(1, g.damage + burn / 40);
   const k = g.damage;
-  g.decay = k >= 1 ? Math.min(1, g.decay + dt / 50) : 0;
+  g.decay = k >= 1 ? Math.min(1, g.decay + burn / 50) : 0;
   const w = g.decay;
   g.surge = drift(g.surge, 0.8, dt);
   g.buffetRoll = drift(g.buffetRoll, 10, dt);
   g.buffetPitch = drift(g.buffetPitch, 8, dt);
+  // The other engine gone as well: its thrust spools down over three seconds.
+  if (g.both) g.thrust = Math.max(0, g.thrust - dt / 3);
+  const t = g.thrust;
+  const glide = 1 - t;
 
   const stall = smoothstep(GAME.stallSpeed + 6, GAME.stallSpeed - 4, g.speed);
   // Roll: the stick drives the roll rate, with less to drive it as the fire
   // spreads and the wing goes; the dead engine, the spiral, the buffet and a
   // stall push it. Full stick outruns the push to begin with, only just
   // outruns it once the fire is at its worst, and loses to it as the wing goes.
-  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w);
+  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.5 * u);
   const commanded = ix * 80 * authority;
-  const push = dead * (32 + 10 * k + 30 * w) * (1 + 0.5 * g.surge);
+  // The good engine's pull goes with its thrust; the burning wing's does not.
+  const push = dead * ((32 + 10 * k) * t + 30 * w) * (1 + 0.5 * g.surge);
   g.rollRate += ((commanded - g.rollRate) * 2.6 + push + Math.sin(g.bank * DEG) * 55
-    + g.buffetRoll * (40 + 60 * k) + dead * stall * 80) * dt;
+    + g.buffetRoll * (40 + 60 * k + 20 * glide) * (1 - 0.35 * u) + dead * stall * 80) * dt;
   g.bank = wrap180(g.bank + g.rollRate * dt);
   const lift = Math.cos(g.bank * DEG);
   // Pitch: softer elevator, heavier nose; it falls in a bank, and drops outright in a stall.
@@ -263,17 +393,18 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   g.pitch += (aim - g.pitch) * (1 - Math.exp(-2.4 * dt));
   g.pitch = Math.max(-60, Math.min(20, g.pitch));
   // Heading: the bank turns it while the wing still lifts, and the good engine yaws it toward the dead one.
-  g.heading = (g.heading + (g.bank * GAME.turnRate * Math.max(0, lift) + dead * (5 + 5 * k)) * dt + 360) % 360;
+  g.heading = (g.heading + (g.bank * GAME.turnRate * Math.max(0, lift) + dead * (5 + 5 * k) * t) * dt + 360) % 360;
   const v = g.speed;
-  // Height: what the pitch buys at this speed, less what half the thrust and
-  // a burning wing cannot hold — a stalled one holds nothing — less what a
-  // bank spills.
-  const sink = 10 + 18 * k + 24 * w + stall * 40;
-  const vs = v * Math.sin(g.pitch * DEG) - sink - (1 - lift) * v * 0.4;
+  // Height: what the pitch buys at this speed, less what half the thrust (or
+  // none) and a burning wing cannot hold — a stalled one holds nothing —
+  // less what a bank spills, plus whatever rising air a level wing catches.
+  const sink = 10 + 18 * k + 24 * w + 22 * glide + stall * 40;
+  const vs = v * Math.sin(g.pitch * DEG) - sink - (1 - lift) * v * 0.4
+    + u * GAME.draftLift * Math.max(0, lift) ** 3 * (1 - 0.4 * w);
   // Speed: gravity along the flight path — the nose down is the only way to
   // buy it — against drag that grows with speed and with bank, and that no
   // thrust is left to cancel.
-  const drag = (0.5 + 0.4 * k + 0.6 * w) * (0.6 + 0.4 * (v / 130) ** 2) + Math.abs(Math.sin(g.bank * DEG)) * 3.5;
+  const drag = (0.5 + 0.4 * k + 0.6 * w + 1.6 * glide) * (0.6 + 0.4 * (v / 130) ** 2) + Math.abs(Math.sin(g.bank * DEG)) * 3.5;
   g.speed = Math.max(45, Math.min(260, v + (-9.81 * Math.sin(g.pitch * DEG) - drag) * dt));
   return { vs, stall };
 }

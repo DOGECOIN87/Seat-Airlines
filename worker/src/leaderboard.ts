@@ -73,8 +73,9 @@ export function implausible(post: ScorePost, startedAt: number, now: number): st
   if (elapsed < 0) return 'That flight has not started yet.';
   if (post.score > scoreCeiling(elapsed)) return 'That is more than the flight could have scored in the time it took.';
   const seconds = elapsed / 1000;
-  if (post.survived > Math.max(0, seconds - SCORING.climbFloor) + 5) return 'That flight lasted longer than the run did.';
-  if (post.survived > 0 && post.climb < SCORING.climbFloor - 1) return 'Nobody climbs to the blast altitude that fast.';
+  // The engine can go as low as 4,000 ft, so as soon as the fastest climb to there.
+  if (post.survived > Math.max(0, seconds - SCORING.firstFailure) + 5) return 'That flight lasted longer than the run did.';
+  if (post.survived > 0 && post.climb < SCORING.firstFailure - 1) return 'Nobody climbs to the blast altitude that fast.';
   if (post.climb > seconds + 5) return 'That climb took longer than the run did.';
   return null;
 }

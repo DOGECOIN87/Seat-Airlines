@@ -9,7 +9,13 @@ import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import type { ManualControls } from '../lib/manualControls';
-import { blastAltitude, clampUnit, FEET, newGame, type Phase } from '../lib/landingGame';
+import { blastAltitude, clampUnit, FEET, newGame, type Cause, type Phase } from '../lib/landingGame';
+import {
+  canShareFile, cardAssets, cardJpeg, composeCard, hostCard, intentUrl, saveFile, shareFile, shareText, SITE_URL,
+  type SharedFlight,
+} from '../lib/shareCard';
+import { recordVideo, videoType } from '../lib/shareVideo';
+import FlightInstruments, { type EngineState } from './FlightInstruments';
 import { fetchBoard, hasBoard, keepBest, postScore, readBest, startRun, type BoardEntry, type Posted } from '../lib/scoresApi';
 import type { WalletState } from '../lib/useWallet';
 import type { LandingHud, LandingSounds } from './LandingScene';
@@ -139,14 +145,33 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   const [goalFeet] = useState(() => Math.round((blastAltitude() * FEET) / 100) * 100);
   /** `?mayday` puts the engine at 1,500 ft: practice, not a run for the board. */
   const practice = goalFeet !== 10_000;
-  /** Which engine has gone, once one has. */
-  const [failure, setFailure] = useState<-1 | 1 | null>(null);
+  /** Which engine went first, what took it and at what height; and whether the other followed, and to what. */
+  const [failure, setFailure] = useState<{ side: -1 | 1; cause: Cause; feet: number; both: boolean; second: Cause | null } | null>(null);
+  /** The moment lightning hits: the screen goes blue-white. */
+  const [struck, setStruck] = useState(false);
   /** The moment of the blast, for the shake and the flash. */
   const [blasted, setBlasted] = useState(false);
   const game = useRef(newGame());
   const [hud] = useState<LandingHud>(() => ({
     bar: createRef(), alt: createRef(), warn: createRef(), stall: createRef(), score: createRef(), rate: createRef(),
+    speedNeedle: createRef(), speedText: createRef(), varioNeedle: createRef(), varioText: createRef(), horizon: createRef(),
+    lift: createRef(),
   }));
+  /** The scene's picture of the moment the engine went, for the card. */
+  const shot = useRef<HTMLCanvasElement | null>(null);
+  /* Sharing the flight: the card as a picture as soon as the flight is
+     over, and the video after it, which takes as long as it plays. */
+  const [share, setShare] = useState<{ still: Blob | null; video: Blob | null; making: boolean }>({ still: null, video: null, making: false });
+  const [shareNote, setShareNote] = useState<string | null>(null);
+  const shared = useRef<SharedFlight | null>(null);
+  const hosted = useRef<string | null>(null);
+  const recording = useRef<AbortController | null>(null);
+  const shareProgress = useRef<HTMLSpanElement>(null);
+  useEffect(() => () => recording.current?.abort(), []);
+  // Dev only: what would be shared, for the headless checks.
+  useEffect(() => {
+    if (import.meta.env.DEV) Object.assign(window, { __saShare: { ...share, flight: shared.current } });
+  }, [share]);
   const sounds = useRef<LandingSounds | null>(null);
   const [touch] = useState(() => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
 
@@ -220,7 +245,9 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     setLeaving(true);
     // The warning and the crowd go with the landing; the crash sound is left to ring out.
     sounds.current?.blast.pause();
+    sounds.current?.lightning.pause();
     sounds.current?.crowd.pause();
+    recording.current?.abort();
     timers.current.push(window.setTimeout(onEnter, 450));
   }, [onEnter]);
 
@@ -243,7 +270,12 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       });
       return a;
     };
-    sounds.current = { blast: load('engine-blast.mp3', 0.9), wasted: load('wasted.mp3', 1), crowd: load('crash-crowd.mp3', 0.9) };
+    sounds.current = {
+      blast: load('engine-blast.mp3', 0.9),
+      lightning: load('lightning-strike.mp3', 1),
+      wasted: load('wasted.mp3', 1),
+      crowd: load('crash-crowd.mp3', 0.9),
+    };
   };
 
   const takeOff = useCallback(() => {
@@ -294,13 +326,77 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     // The server starts timing now; nothing is asked of anybody to start it.
     void startRun().then((id) => { runId.current = id; });
   }, []);
-  const onFailure = useCallback((side: -1 | 1) => {
-    setFailure(side);
+  const onFailure = useCallback((side: -1 | 1, cause: Cause, second: boolean) => {
+    const feet = Math.round((game.current.blastAlt * FEET) / 100) * 100;
+    setFailure((f) => (second && f ? { ...f, both: true, second: cause } : { side, cause, feet, both: false, second: null }));
     setBlasted(true);
-    setBonusPop(Math.round(game.current.bonus));
     timers.current.push(window.setTimeout(() => setBlasted(false), 900));
-    timers.current.push(window.setTimeout(() => setBonusPop(null), 2800));
+    if (cause === 'lightning') {
+      setStruck(true);
+      timers.current.push(window.setTimeout(() => setStruck(false), 700));
+    }
+    if (!second) {
+      setBonusPop(Math.round(game.current.bonus));
+      timers.current.push(window.setTimeout(() => setBonusPop(null), 2800));
+    }
   }, []);
+
+  /* The card, then the video: made as soon as the flight is over, so they
+     are there by the time anybody asks for them. */
+  const makeShare = useCallback(async (flight: SharedFlight) => {
+    shared.current = flight;
+    hosted.current = null;
+    const card = await composeCard(shot.current, flight);
+    if (!card) return;
+    const still = await cardJpeg(card);
+    const canRecord = videoType() !== null;
+    setShare({ still, video: null, making: canRecord });
+    if (!canRecord) return;
+    const ctl = new AbortController();
+    recording.current = ctl;
+    const { logo } = await cardAssets();
+    const video = await recordVideo(card, logo, {
+      signal: ctl.signal,
+      progress: (p) => shareProgress.current?.style.setProperty('--p', p.toFixed(3)),
+    });
+    if (!ctl.signal.aborted) setShare((s) => ({ ...s, video, making: false }));
+  }, []);
+
+  /* Post it. A phone hands the video (or the card, if the video is not
+     ready) to its share sheet, which puts it in a post in the X app. A
+     desktop opens X with the post written and the card's page linked —
+     X shows a link's picture, and takes nothing else — and saves the
+     video beside it, to be dropped in. */
+  const onShare = useCallback(() => {
+    if (autoLeave.current !== null) {
+      window.clearTimeout(autoLeave.current);
+      autoLeave.current = null;
+    }
+    const flight = shared.current;
+    if (!flight) return;
+    const text = shareText(flight);
+    const file = share.video ?? share.still;
+    if (file && canShareFile(file)) {
+      void shareFile(file, text);
+      return;
+    }
+    const tab = window.open('about:blank', '_blank');
+    if (share.video) {
+      saveFile(share.video);
+      setShareNote('Video saved · add it to your post');
+    }
+    void (async () => {
+      const link = hosted.current ?? (share.still ? await hostCard(share.still, runId.current) : null) ?? SITE_URL;
+      hosted.current = link;
+      const to = intentUrl(text, link);
+      if (tab && !tab.closed) {
+        tab.opener = null;
+        tab.location.href = to;
+      } else {
+        window.location.href = to;
+      }
+    })();
+  }, [share]);
   const onCrash = useCallback((metres: number) => {
     const g = game.current;
     const after = g.failed ? (performance.now() - g.failedAt) / 1000 : null;
@@ -309,16 +405,28 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     if (beaten) keepBest(score);
     setResult({ metres, after, score, climb: g.failed ? g.climbTime : 0, survived: after ?? 0, best: beaten });
     setPhase('crashed');
+    void makeShare({
+      score,
+      best: beaten,
+      survived: after,
+      km: (metres / 1000).toFixed(1),
+      cause: g.failed ? g.causes[0] : null,
+      engine: g.failed === -1 ? 1 : g.failed === 1 ? 2 : null,
+      both: g.both,
+      secondCause: g.both ? g.causes[1] : null,
+      feet: g.failed ? Math.round((g.blastAlt * FEET) / 100) * 100 : null,
+    });
     const s = sounds.current;
     if (s) {
       s.blast.pause();
+      s.lightning.pause();
       s.crowd.pause();
       s.wasted.currentTime = WASTED_FROM;
       void s.wasted.play().catch(() => {});
     }
     autoLeave.current = window.setTimeout(leave, END_HOLD);
     timers.current.push(autoLeave.current);
-  }, [leave]);
+  }, [leave, makeShare]);
 
   /* The board: read once for the landing, and again after a post. */
   useEffect(() => {
@@ -457,7 +565,13 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   const inGame = phase !== 'idle';
   const km = result ? (result.metres / 1000).toFixed(1) : '0';
   /** Engines are numbered from the left: 1 is the port one, 2 the starboard. */
-  const engineNo = failure === -1 ? 1 : 2;
+  const engineNo = failure?.side === -1 ? 1 : 2;
+  const engineState = (side: -1 | 1): EngineState => {
+    if (!failure) return { state: 'run' };
+    if (failure.side === side) return { state: failure.cause };
+    return { state: failure.both ? failure.second ?? 'blast' : 'run' };
+  };
+  const engines: [EngineState, EngineState] = [engineState(-1), engineState(1)];
 
   return (
     <div
@@ -481,6 +595,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               game={game}
               hud={hud}
               sounds={sounds}
+              shot={shot}
               onReady={onReady}
               onFail={onFail}
               onFlying={onFlying}
@@ -644,9 +759,11 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             {failure ? (
               /* Once an engine is gone the brief is over: the master warning
                  takes its place, and the flight lasts until the ground ends it. */
-              <div className="sa-hud__panel sa-hud__clock sa-hud__master" role="alert">
-                <span className="sa-hud__label">Master warning</span>
-                <span className="sa-hud__value">ENG {engineNo} FIRE</span>
+              <div className={`sa-hud__panel sa-hud__clock sa-hud__master${failure.cause === 'lightning' && !failure.both ? ' is-struck' : ''}`} role="alert">
+                <span className="sa-hud__label">
+                  {failure.both ? 'Both engines' : failure.cause === 'lightning' ? 'Lightning strike' : 'Master warning'}
+                </span>
+                <span className="sa-hud__value">{failure.both ? 'ENG 1 · 2 FIRE' : `ENG ${engineNo} FIRE`}</span>
               </div>
             ) : (
               <div className="sa-hud__panel sa-hud__clock">
@@ -674,7 +791,11 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
           {bonusPop !== null && (
             <p className="sa-hud__bonus" aria-live="polite">
               +{bonusPop.toLocaleString('en-US')}
-              <small>made it to {goalFeet.toLocaleString('en-US')} ft</small>
+              <small>
+                {failure && failure.feet < goalFeet
+                  ? `engine out at ${failure.feet.toLocaleString('en-US')} ft`
+                  : `made it to ${goalFeet.toLocaleString('en-US')} ft`}
+              </small>
             </p>
           )}
           {failure && phase === 'flying' && (
@@ -698,7 +819,9 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
         </div>
       )}
 
-      {blasted && <div className="sa-landing__blast" aria-hidden />}
+      {inGame && phase !== 'crashed' && <FlightInstruments hud={hud} engines={engines} />}
+      {blasted && !struck && <div className="sa-landing__blast" aria-hidden />}
+      {struck && <div className="sa-landing__strike" aria-hidden />}
       {phase === 'crashed' && <div className="sa-landing__flash" aria-hidden />}
       {phase === 'crashed' && <div className="sa-landing__redout" aria-hidden />}
 
@@ -714,7 +837,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             </p>
             <p className="sa-landing__end-note">
               {result.after !== null
-                ? `${Math.round(result.after)} s on one engine`
+                ? `${Math.round(result.after)} s ${failure?.both ? '· both engines lost' : 'on one engine'}`
                 : `${km} km flown`}
             </p>
             {post.state === 'done' && (
@@ -746,6 +869,20 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                   </button>
                 )
               )}
+              {share.still && (
+                <button
+                  type="button"
+                  onClick={onShare}
+                  aria-label="Post on X"
+                  className={`sa-landing__share${share.making ? ' is-making' : ''}`}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden className="sa-landing__x">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  Post
+                  <span ref={shareProgress} className="sa-landing__share-progress" aria-hidden />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={leave}
@@ -755,6 +892,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 Board now <span aria-hidden>→</span>
               </button>
             </div>
+            {shareNote && <p className="sa-landing__posted" role="status">{shareNote}</p>}
             {!practice && hasBoard && board !== null && post.state === 'idle' && (
               <p className="sa-landing__fine">Signs a message. No transaction.</p>
             )}

@@ -4025,6 +4025,193 @@ p { text-wrap-style: pretty; }
   animation-duration: 9s;
 }
 
+/* ── The instruments ───────────────────────────────────────────
+   Airspeed, attitude and climb rate on one glass panel along the foot of
+   the screen, with the engines under them. Each dial is sized from one
+   token, so the cluster scales as one object; the needles are turned by
+   the scene, so nothing here animates them. */
+.sa-landing { --gauge: clamp(78px, 9.5vw, 116px); }
+.sa-gauges {
+  position: absolute;
+  left: 50%;
+  bottom: max(1rem, calc(var(--safe-bottom) + 0.6rem));
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  pointer-events: none;
+}
+.sa-gauges__row {
+  display: flex;
+  gap: clamp(0.45rem, 1.2vw, 0.9rem);
+  padding: 0.5rem 0.65rem;
+  border-radius: calc(var(--gauge) * 0.28);
+  background: linear-gradient(180deg, rgba(12, 18, 34, 0.74), rgba(4, 7, 15, 0.8));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 18px 40px rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.sa-gauge { display: block; width: var(--gauge); height: var(--gauge); overflow: visible; }
+.sa-gauge__rim { fill: #0A1222; stroke: rgba(255, 255, 255, 0.18); stroke-width: 1; }
+.sa-gauge__band { fill: none; stroke-width: 3.4; }
+.sa-gauge__band.is-red { stroke: #FF4B4B; }
+.sa-gauge__band.is-amber { stroke: #FFB22E; }
+.sa-gauge__band.is-green { stroke: #37D67A; }
+.sa-gauge__band.is-soft { opacity: 0.5; }
+.sa-gauge__tick { stroke: rgba(255, 255, 255, 0.45); stroke-width: 0.9; }
+.sa-gauge__tick.is-major { stroke: #fff; stroke-width: 1.6; }
+.sa-gauge__num,
+.sa-gauge__unit,
+.sa-gauge__read {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-variant-numeric: tabular-nums;
+}
+.sa-gauge__num { fill: rgba(255, 255, 255, 0.82); font-size: 8.5px; }
+.sa-gauge__unit { fill: #7FE3F7; font-size: 5.5px; letter-spacing: 0.14em; }
+.sa-gauge__needle { fill: #fff; stroke: rgba(0, 0, 0, 0.45); stroke-width: 0.6; }
+.sa-gauge__hub { fill: #0A1222; stroke: #7FE3F7; stroke-width: 1.3; }
+.sa-gauge__read { fill: #fff; font-size: 11px; paint-order: stroke; stroke: #060A14; stroke-width: 3px; stroke-linejoin: round; }
+.sa-gauge__read.is-small { font-size: 9.5px; }
+.sa-adi__horizon { stroke: #fff; stroke-width: 1.3; }
+.sa-adi__ladder { stroke: rgba(255, 255, 255, 0.9); stroke-width: 1.1; stroke-linecap: round; }
+.sa-adi__ladder.is-half { opacity: 0.55; }
+.sa-adi__bank { stroke: #fff; stroke-width: 1.4; }
+.sa-adi__index { fill: #FFC93C; }
+.sa-adi__plane { fill: none; stroke: #FFC93C; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.sa-adi__dot { fill: #FFC93C; }
+.sa-adi__glass { fill: none; stroke: rgba(0, 0, 0, 0.55); stroke-width: 2.5; }
+.sa-gauges__engines { display: flex; gap: 0.45rem; }
+.sa-engine {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(5, 7, 15, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.85);
+}
+.sa-engine__lamp {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #37D67A;
+  box-shadow: 0 0 8px rgba(55, 214, 122, 0.85);
+}
+.sa-engine__state { font-weight: 700; color: #fff; }
+.sa-engine.is-blast { background: rgba(120, 8, 8, 0.82); box-shadow: inset 0 0 0 1px rgba(255, 96, 86, 0.75), 0 0 16px rgba(255, 40, 30, 0.35); }
+.sa-engine.is-blast .sa-engine__lamp { background: #FF4B4B; box-shadow: 0 0 10px rgba(255, 75, 75, 0.95); animation: sa-hud-warn 0.9s steps(1, end) infinite; }
+.sa-engine.is-lightning { background: rgba(40, 48, 140, 0.84); box-shadow: inset 0 0 0 1px rgba(170, 185, 255, 0.8), 0 0 16px rgba(120, 140, 255, 0.4); }
+.sa-engine.is-lightning .sa-engine__lamp { background: #E4E9FF; box-shadow: 0 0 10px rgba(200, 212, 255, 0.95); animation: sa-hud-warn 0.9s steps(1, end) infinite; }
+/* Rising air: lit while the aeroplane is in it. */
+.sa-gauges__lift {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.32rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(16, 110, 64, 0.85);
+  box-shadow: inset 0 0 0 1px rgba(90, 240, 160, 0.75), 0 0 18px rgba(55, 214, 122, 0.45);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.sa-gauges__lift.is-on { opacity: 1; transform: none; }
+.sa-gauges__lift svg { width: 10px; height: 10px; fill: currentColor; }
+/* The help line rides above the cluster rather than under it. */
+.sa-landing.is-intro .sa-hud__help,
+.sa-landing.is-flying .sa-hud__help { bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.6rem)) + var(--gauge) + 5.4rem); }
+/* A short screen: a phone on its side. Smaller dials, and the engines beside them. */
+@media (max-height: 480px) {
+  .sa-landing { --gauge: 64px; }
+  .sa-gauges { grid-auto-flow: column; align-items: center; gap: 0.5rem; }
+  .sa-gauges__engines { flex-direction: column; }
+  .sa-gauges__lift { position: absolute; bottom: calc(100% + 0.4rem); left: 50%; translate: -50% 0; }
+  .sa-landing.is-intro .sa-hud__help,
+  .sa-landing.is-flying .sa-hud__help { bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.6rem)) + var(--gauge) + 1.8rem); }
+}
+
+/* Lightning: the screen goes blue-white, flickering with the bolt. */
+.sa-landing__strike {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 38%, rgba(240, 244, 255, 0.95) 0%, rgba(170, 188, 255, 0.55) 38%, rgba(110, 130, 255, 0) 78%);
+  mix-blend-mode: screen;
+  animation: sa-landing-strike 0.7s linear forwards;
+}
+@keyframes sa-landing-strike {
+  0% { opacity: 1; }
+  9% { opacity: 0.2; }
+  14% { opacity: 0.95; }
+  21% { opacity: 0.3; }
+  29% { opacity: 0.7; }
+  35% { opacity: 0.15; }
+  100% { opacity: 0; }
+}
+.sa-hud__master.is-struck {
+  background: rgba(36, 44, 130, 0.82);
+  box-shadow: inset 0 0 0 1px rgba(170, 185, 255, 0.75), 0 0 28px rgba(120, 140, 255, 0.4);
+}
+.sa-hud__master.is-struck .sa-hud__label { color: rgba(222, 228, 255, 0.9); }
+
+/* Post: the flight to X, in X's own black. While the video is still being
+   made, a line along the foot fills as it goes. */
+.sa-landing__share {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 3.75rem;
+  padding: 0 1.6rem 0 1.4rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #000;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28), 0 10px 30px rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.sa-landing__share:hover { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 10px 30px rgba(0, 0, 0, 0.45); }
+.sa-landing__share:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+.sa-landing__x { width: 1.05rem; height: 1.05rem; fill: currentColor; }
+.sa-landing__share-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--g-accent);
+  transform: scaleX(var(--p, 0));
+  transform-origin: left center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.sa-landing__share.is-making .sa-landing__share-progress { opacity: 1; }
+
 @keyframes sa-wasted-in {
   from { opacity: 0; transform: scale(1.7); }
   to { opacity: 1; transform: none; }
@@ -4089,7 +4276,9 @@ p { text-wrap-style: pretty; }
   .sa-landing__hint { text-align: center; }
   .sa-hud__panel { min-width: 0; padding: 0.45rem 0.7rem 0.55rem; }
   .sa-hud__value { font-size: 1.15rem; }
-  .sa-hud__clock { top: 3.6rem; }
+  /* Under the way in, on the right: in the middle it met the score panel,
+     and the warnings are wider than the brief it replaces. */
+  .sa-hud__clock { top: 3.6rem; left: auto; right: clamp(1rem, 3vw, 2.25rem); transform: none; justify-items: end; }
   .sa-hud__help { width: calc(100% - 2rem); border-radius: 14px; }
 }
 
@@ -4130,4 +4319,6 @@ p { text-wrap-style: pretty; }
   .sa-wasted__word { animation-name: sa-landing-fade; }
   .sa-landing__flash { animation-duration: 0.01s; }
   .sa-hud__warn.is-on { animation: none; opacity: 1; }
+  .sa-landing__strike { animation: sa-landing-flash 0.5s ease-out forwards; }
+  .sa-engine__lamp { animation: none !important; }
 }

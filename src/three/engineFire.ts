@@ -31,6 +31,8 @@ export interface EngineFireFrame {
   night: number;
   /** 0–1, how badly it is burning now. */
   fury: number;
+  /** 0–1, lightning in this engine this frame: the glow goes blue-white and blinding. */
+  zap?: number;
 }
 
 export interface EngineFire {
@@ -199,6 +201,8 @@ function billboards(count: number, glow: boolean, map: THREE.Texture) {
 const rnd = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
 /** The glow sits above and behind the burning engine, over the wing. */
 const GLOW_AT = new THREE.Vector3(0, 0.9, 1.2);
+const FIRE_LIGHT = new THREE.Color(0xff6a1f);
+const BOLT_LIGHT = new THREE.Color(0xc9d6ff);
 
 export function createEngineFire(): EngineFire {
   const smokeTex = puffTexture(true);
@@ -352,7 +356,10 @@ export function createEngineFire(): EngineFire {
     flash *= Math.exp(-7 * dt);
     const wobble = 0.72 + 0.14 * Math.sin(flicker * 23.1) + 0.09 * Math.sin(flicker * 37.7 + 1.3) + 0.05 * Math.sin(flicker * 61.9 + 4.1);
     light.position.copy(f.local).add(GLOW_AT);
-    light.intensity = (burning ? (70 + 70 * fury) * wobble : 0) + flash * 4000;
+    const fireLight = (burning ? (70 + 70 * fury) * wobble : 0) + flash * 4000;
+    const boltLight = (f.zap ?? 0) * 14000;
+    light.intensity = fireLight + boltLight;
+    light.color.copy(FIRE_LIGHT).lerp(BOLT_LIGHT, boltLight / Math.max(1, fireLight + boltLight));
   };
 
   const reset = () => {

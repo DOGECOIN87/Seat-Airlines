@@ -61,6 +61,7 @@ import { HANDS_OFF, clamped, handsOff, type ManualControls } from '../../src/lib
 import { CABIN_ZONES } from '../../src/content/cabin';
 import { scoreChallenge } from '../../src/lib/scoring';
 import { BOARD_SIZE, RUN_TTL_MS, RUNS_PER_HOUR, implausible, newRunId, readScorePost } from './leaderboard';
+import { CARD_TTL_SECONDS, cardId, cardPage, cardProblem, isCardId } from './cards';
 import {
   ANNOUNCEMENT, canAnnounce, canMessage, canPostToChannel, canReadChannel, canViewContact,
   channelFor, zoneOfChannel,
@@ -1071,6 +1072,65 @@ async function handle(request: Request, env: Env): Promise<Response> {
       }
 
       return json({ error: 'Not found.' }, 404, priv);
+    }
+
+    /* ── Shared flights ─────────────────────────────────────────────────
+       The card a flight is shared on (see cards.ts): left by the page for a
+       run this server started, then served as a picture and as the page X
+       reads it from. First card wins; each is kept ninety days. */
+    const cardUpload = url.pathname.match(/^\/cards\/([0-9a-f]{32})$/);
+    if (request.method === 'PUT' && cardUpload) {
+      const priv = { ...cors, 'cache-control': 'no-store' };
+      const db = env.DIRECTORY;
+      if (!db) return json({ error: 'This deployment has no leaderboard configured.' }, 503, priv);
+      const run = cardUpload[1];
+      let started: { started_at: number } | null = null;
+      try {
+        started = await db.prepare('SELECT started_at FROM game_runs WHERE id = ?').bind(run).first<{ started_at: number }>();
+      } catch {
+        // No table yet: no flight has started, so this is not one.
+      }
+      if (!started) return json({ error: 'That flight is not one this server started.' }, 404, priv);
+      const id = await cardId(run);
+      const key = `card:${id}`;
+      const link = `${url.origin}/c/${id}`;
+      if (await env.BANNERS.get(key, 'arrayBuffer')) return json({ id, url: link }, 200, priv);
+      const bytes = new Uint8Array(await request.arrayBuffer());
+      const wrong = cardProblem(bytes);
+      if (wrong) return json({ error: wrong }, wrong.includes('large') ? 413 : 400, priv);
+      await env.BANNERS.put(key, bytes, { expirationTtl: CARD_TTL_SECONDS });
+      return json({ id, url: link }, 200, priv);
+    }
+    const shared = url.pathname.match(/^\/c\/([0-9a-f]+)(\.jpg)?$/);
+    if ((request.method === 'GET' || request.method === 'HEAD') && shared && isCardId(shared[1])) {
+      const [, id, jpg] = shared;
+      const card = await env.BANNERS.get(`card:${id}`, 'arrayBuffer');
+      const site = (env.ALLOWED_ORIGINS ?? '').split(',')[0]?.trim() || 'https://seat-airlines.space';
+      if (!card) {
+        // Gone, or never was: the site, rather than an error nobody asked for.
+        return new Response(null, { status: 302, headers: { location: site } });
+      }
+      if (jpg) {
+        return new Response(request.method === 'HEAD' ? null : card, {
+          headers: {
+            'content-type': 'image/jpeg',
+            'content-length': String(card.byteLength),
+            'cache-control': 'public, max-age=31536000, immutable',
+            'x-content-type-options': 'nosniff',
+            'access-control-allow-origin': '*',
+          },
+        });
+      }
+      const page = `${url.origin}/c/${id}`;
+      return new Response(request.method === 'HEAD' ? null : cardPage({ image: `${page}.jpg`, page, site: `${site}/` }), {
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'public, max-age=3600',
+          'x-content-type-options': 'nosniff',
+          'content-security-policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
+          'referrer-policy': 'no-referrer',
+        },
+      });
     }
 
     /* ── The directory ──────────────────────────────────────────────────

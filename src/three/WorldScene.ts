@@ -13,6 +13,7 @@ import { CABIN, cabinLevel, createCabin, rowZ } from './cabin';
 import { createAirframe, ENGINE_AT } from './airframe';
 import { createScenery } from './scenery';
 import { createEngineFire } from './engineFire';
+import { createLightning } from './lightning';
 
 /**
  * The world outside, rendered.
@@ -96,8 +97,8 @@ export interface ViewPose {
    */
   frame?: { x: number; y: number };
   /**
-   * The landing's game: m/s over the ground, overriding the band's, for an
-   * aeroplane that has lost speed.
+   * The landing's game: m/s over the ground, overriding the band's — the
+   * airspeed it is being flown at, whatever the height.
    */
   speed?: number;
   /**
@@ -106,6 +107,13 @@ export interface ViewPose {
    * world built with `{ damage: true }`.
    */
   failed?: -1 | 0 | 1;
+  /** The other engine has gone as well. */
+  both?: boolean;
+  /**
+   * Engines that lightning takes, as bits: 1 the port one, 2 the starboard.
+   * An engine going with its bit set goes in a bolt out of the sky.
+   */
+  struck?: number;
   /** 0–1, how fiercely it burns. */
   fury?: number;
   /** Degrees the nose is yawed right of the path it is flying: the sideslip a dead engine drags it into. */
@@ -119,6 +127,8 @@ export interface ViewPose {
   chaseLift?: number;
   /** Stop the world where it is: nothing moves, ages or turns, but the camera. */
   freeze?: boolean;
+  /** How fast the world's time runs: 1, or less in slow motion. */
+  timeScale?: number;
   /**
    * 0–1 through a dolly zoom: the exterior camera backs away along its line
    * of sight while the lens zooms in to match, so the aeroplane holds its
@@ -157,6 +167,11 @@ export interface WorldHandles {
    * `ahead`, that many metres further along the way it is pointing.
    */
   groundAt: (ahead?: number) => number;
+  /**
+   * Where the aeroplane is in the last frame drawn, 0–1 across and down the
+   * canvas: for framing a picture of it.
+   */
+  planeOnScreen: () => { x: number; y: number };
   dispose: () => void;
 }
 
@@ -223,10 +238,19 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   /* The engine fire, for the landing's game only: its glow is a light, and
      a light every lit material has to account for is not worth carrying on
      the pages that never set one off. */
-  const fire = options.damage ? createEngineFire() : null;
-  let burning: -1 | 0 | 1 = 0;
-  const engineLocal = new THREE.Vector3();
-  const exhaustWorld = new THREE.Vector3();
+  const fires = options.damage
+    ? ([-1, 1] as const).map((side) => ({
+      side,
+      fire: createEngineFire(),
+      burning: false,
+      local: new THREE.Vector3(),
+      world: new THREE.Vector3(),
+      /** The top of the nacelle, in the world: where lightning hits. */
+      hit: new THREE.Vector3(),
+    }))
+    : null;
+  const bolt = options.damage ? createLightning() : null;
+  let failedSide: -1 | 0 | 1 = 0;
   airframe.group.visible = false;
   aircraft.add(airframe.group);
 
@@ -266,9 +290,12 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       }
     }
   });
-  if (fire) {
-    scene.add(fire.world);
-    airframe.group.add(fire.local);
+  if (fires && bolt) {
+    for (const e of fires) {
+      scene.add(e.fire.world);
+      airframe.group.add(e.fire.local);
+    }
+    scene.add(bolt.group);
   }
 
   /* Cabin lighting. A tube blocks the sun, and there is no bounce in here. */
@@ -950,14 +977,18 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   const underfoot = { relief: 0, floor: -2, heading: 0 };
   let last = performance.now();
   const CLOUD_SPAN = 44000;
-  /* v/h constant — for real this time. The old constant 18 m/s was honest
-     physics for a cruise altitude and therefore read as a parked aeroplane:
-     at 900 m it moved the ground one degree a second, which no eye calls
-     flying. What the eye reads as speed is v/h, so the drift is a fraction
-     of the camera's height per second, floored so the bottom of the first
-     band still visibly goes, and capped so the space band's kilometres of
-     height do not spin the limb. */
-  const V_OVER_H = 0.15;
+  /* What the eye reads as speed is v/h: the ground's speed over the
+     camera's height. An honest airliner's 250 m/s at 10 km is a parked
+     aeroplane — one degree a second — so the speed grows with height; but
+     held at v/h exactly, the ground drifted at one rate at every height,
+     and low down, where the ground should rush, it only drifted. So it
+     grows as the square root of the height instead: the same drift as
+     before at 2 km, faster and faster below it — skimming the lowest band,
+     the ground races — and slower above it, as it does from any window at
+     altitude, though never so slow the space band's limb stops turning.
+     Floored so the bottom of the first band still visibly goes, and capped
+     so the space band's kilometres of height do not spin the limb. */
+  const V_ROOT = 6.7;
   const SPEED_FLOOR = 120;
   const SPEED_CAP = 2200;
   const wrap = (v: number) => ((((v + CLOUD_SPAN / 2) % CLOUD_SPAN) + CLOUD_SPAN) % CLOUD_SPAN) - CLOUD_SPAN / 2;
@@ -1270,9 +1301,9 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
        the top-left. It is intentionally independent of the aircraft heading
        so banking or market movement cannot make the scenery reverse direction. */
     const now = performance.now();
-    const dt = pose.freeze ? 0 : Math.min(0.1, (now - last) / 1000);
+    const dt = pose.freeze ? 0 : Math.min(0.1, (now - last) / 1000) * (pose.timeScale ?? 1);
     last = now;
-    const groundSpeed = pose.speed ?? THREE.MathUtils.clamp(height * V_OVER_H, SPEED_FLOOR, SPEED_CAP);
+    const groundSpeed = pose.speed ?? THREE.MathUtils.clamp(Math.sqrt(Math.max(0, height)) * V_ROOT, SPEED_FLOOR, SPEED_CAP);
     /* Nose to tail, whatever the heading. The aircraft is yawed by −heading,
        so its nose points along (sin h, 0, −cos h); the texture offsets and
        the cloud wrap below move features by −Δshift.x in x and +Δshift.z in
@@ -1666,28 +1697,45 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     /* The engine fire, once the aeroplane is posed: the explosion on the
        frame an engine goes, the flames and the smoke every frame after —
        and whatever is still in the air played out once it is over. */
-    if (fire) {
-      const out = pose.failed ?? 0;
-      if (out !== burning) {
-        if (out === 0) fire.reset();
-        airframe.setEngineOut(out);
+    if (fires && bolt) {
+      const first = pose.failed ?? 0;
+      // A new flight: everything still burning or in the air goes at once.
+      if (first === 0 && failedSide !== 0) {
+        for (const e of fires) e.fire.reset();
+        bolt.reset();
       }
-      const side = out || burning || 1;
-      engineLocal.set(ENGINE_AT.x * side, ENGINE_AT.y + 0.15, ENGINE_AT.z + 1.2);
+      failedSide = first;
+      const out = (side: -1 | 1) => first !== 0 && (side === first || pose.both === true);
+      airframe.setEnginesOut(out(-1), out(1));
       airframe.group.updateWorldMatrix(true, false);
-      exhaustWorld.set(ENGINE_AT.x * side, ENGINE_AT.y, ENGINE_AT.z + 3.1);
-      airframe.group.localToWorld(exhaustWorld);
-      if (out !== 0 && out !== burning) fire.blast(engineLocal, exhaustWorld);
-      burning = out;
-      fire.update(dt, out !== 0, {
-        local: engineLocal,
-        world: exhaustWorld,
-        // World-fixed things move against the shift (see the cloud deck).
-        flowX: -stepX,
-        flowZ: stepZ,
-        night,
-        fury: pose.fury ?? 0.5,
-      });
+      camera.updateWorldMatrix(true, false);
+      for (const e of fires) {
+        e.local.set(ENGINE_AT.x * e.side, ENGINE_AT.y + 0.15, ENGINE_AT.z + 1.2);
+        e.world.set(ENGINE_AT.x * e.side, ENGINE_AT.y, ENGINE_AT.z + 3.1);
+        airframe.group.localToWorld(e.world);
+        e.hit.set(ENGINE_AT.x * e.side, ENGINE_AT.y + 1.1, ENGINE_AT.z + 0.6);
+        airframe.group.localToWorld(e.hit);
+        const burning = out(e.side);
+        if (burning && !e.burning) {
+          e.fire.blast(e.local, e.world);
+          if ((pose.struck ?? 0) & (e.side === -1 ? 1 : 2)) bolt.strike(e.hit, e.side);
+        }
+        e.burning = burning;
+      }
+      const lit = bolt.side;
+      const flash = lit ? bolt.update(dt, fires[lit === -1 ? 0 : 1].hit, camera) : 0;
+      for (const e of fires) {
+        e.fire.update(dt, e.burning, {
+          local: e.local,
+          world: e.world,
+          // World-fixed things move against the shift (see the cloud deck).
+          flowX: -stepX,
+          flowZ: stepZ,
+          night,
+          fury: pose.fury ?? 0.5,
+          zap: e.side === lit ? flash : 0,
+        });
+      }
     }
 
     /* The aeroplane's lights are shaded where the camera sees them, so they
@@ -1797,7 +1845,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
 
   const dispose = () => {
     cabin.dispose();
-    fire?.dispose();
+    fires?.forEach((e) => e.fire.dispose());
+    bolt?.dispose();
     airframe.dispose();
     farmland.day.dispose();
     farmland.night.dispose();
@@ -1852,5 +1901,11 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     renderer.dispose();
   };
 
-  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, groundAt, dispose };
+  const onScreen = new THREE.Vector3();
+  const planeOnScreen = () => {
+    airframe.group.getWorldPosition(onScreen).project(camera);
+    return { x: (onScreen.x + 1) / 2, y: (1 - onScreen.y) / 2 };
+  };
+
+  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, groundAt, planeOnScreen, dispose };
 }

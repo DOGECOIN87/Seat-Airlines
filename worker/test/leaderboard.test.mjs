@@ -100,7 +100,13 @@ await check('a score the run had no time for is refused', () => {
   const started = 1_000_000;
   assert.match(implausible(post({ score: 50_000 }), started, started + 40_000), /more than the flight could have scored/);
   assert.match(implausible(post({ survived: 120 }), started, started + 60_000), /longer than the run/);
-  assert.match(implausible(post({ climb: 5 }), started, started + 60_000), /that fast/);
+  assert.match(implausible(post({ climb: 3 }), started, started + 60_000), /that fast/);
+});
+
+await check('an engine that went early, low and fast, is believed', () => {
+  const started = 1_000_000;
+  // Gone at 4,000 ft after a nine-second climb, then forty seconds down.
+  assert.equal(implausible(post({ climb: 9, survived: 40, score: 6000 }), started, started + 50_000), null);
 });
 
 await check('the ceiling only rises with time, and starts above an honest short flight', () => {
@@ -118,6 +124,9 @@ await check('the climb bonus pays for speed and stops at par', () => {
   assert.ok(climbBonus(30) > climbBonus(60));
   // No faster than the floor, however fast it is claimed.
   assert.equal(climbBonus(1), climbBonus(SCORING.climbFloor));
+  // An engine gone at half the height pays half as much for the same pace.
+  assert.equal(climbBonus(15, 0.5), Math.round(climbBonus(30) / 2));
+  assert.ok(climbBonus(1, 0.4) <= climbBonus(SCORING.climbFloor));
 });
 
 await check('level and low both pay, and together pay most', () => {

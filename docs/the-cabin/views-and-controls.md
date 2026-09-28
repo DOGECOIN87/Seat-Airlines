@@ -19,16 +19,29 @@ On the way in you can take the controls. Press **Fly** — or just press an arro
 
 There is no clock. The altitude reads your height above the ground and the bar under **Climb to** fills as you go; **PULL UP** means the ground is close. **Enter** (or **Esc**) goes in at any point.
 
-### At 10,000 ft
+Along the foot of the screen are three instruments: **airspeed** (the red arc is the stall), the **attitude** indicator (the horizon moves behind the fixed yellow aircraft), and the **climb rate**, in thousands of feet a minute. Under them, **ENG 1** and **ENG 2** light green while they run. The ground goes by at the airspeed, so the lower you fly, the faster it rushes past.
 
-Somebody shouts "FBI, open up!" and, on the bang, one engine explodes. From then on:
+### When it goes wrong
+
+Somewhere on the way up an engine goes. Half the time it is at 10,000 ft; the rest, it is anywhere from 4,000 ft up — and you do not know which until it happens. Somebody shouts "FBI, open up!" and, on the bang, one engine explodes — or, one flight in three, a **bolt of lightning** comes down out of the cloud and hits it, with a crack of thunder and a blue-white flash. From then on:
 
 * the aircraft yaws and rolls toward the dead engine, and keeps rolling unless you hold it;
 * the controls go soft, and softer as the fire spreads — and about twenty seconds in, when the fire is at its worst, it starts on the wing: the roll toward the dead side grows until nobody can hold it;
 * it cannot stay up. It sinks whatever you do, drag takes the speed off even with the wings level, and only the nose going down puts speed back. Pull up to stop the sink and it bleeds speed until it **STALL**s and drops like a stone. Every bank costs height too;
 * the engine burns and trails black smoke, and the camera moves over its shoulder so you can see it.
 
-Left alone it is down in under twenty seconds; holding the nose up buys about half a minute; flown about as well as it can be, it lasts about a minute. The flight lasts until it meets the ground — and as it comes up, the cabin starts screaming, timed from your height, your sink rate and the hills ahead so the screaming stops on the impact. The way to fly it is the way pilots are taught — bank a little toward the good engine, keep the wings as level as the fire allows, and hold the speed just above the stall: nose down for it, never up. When it does meet the ground, it is **WASTED**: the picture freezes and goes grey, then red as the word lands, with a slow dolly zoom. Either way you are taken into the site a few seconds later. Add `?mayday` to the address to have the engine go at 1,500 ft instead.
+On about a third of flights **the other engine goes too**, somewhere between 12 and 30 seconds later. With no thrust on either side the pull toward the dead engine goes — it is easier to hold level — but it sinks a great deal faster.
+
+Now and then you fly into **rising air**: **UPDRAFT** lights over the instruments and, for a few seconds, a wing held level climbs again, the controls bite harder and the fire holds back. It lifts a banked wing hardly at all, so it is worth most to whoever is flying best.
+
+Left alone it is down in under twenty seconds; holding the nose up buys about half a minute; flown about as well as it can be, it lasts about a minute in still air, and a good deal longer riding the updrafts. The flight lasts until it meets the ground — and as it comes up, the cabin starts screaming, timed from your height, your sink rate and the hills ahead so the screaming stops on the impact. The way to fly it is the way pilots are taught — bank a little toward the good engine, keep the wings as level as the fire allows, and hold the speed just above the stall: nose down for it, never up. When it does meet the ground, it is **WASTED**: the picture freezes and goes grey, then red as the word lands, with a slow dolly zoom. Either way you are taken into the site a few seconds later. Add `?mayday` to the address to have the engine go at 1,500 ft instead (`?strike` makes it lightning, `?dual` loses both).
+
+### Sharing a flight
+
+**Post** on the **WASTED** screen shares the flight to X, tagging @solana and @pumpdotfun. The card is made from the flight itself: the moment the engine went — the fireball, or the bolt — with your score, what happened and where.
+
+* **On a phone**, Post opens your phone's share sheet with a short video: the card, then the departure board turning up **HOLD MORE / FLY HIGHER** and **NOW BOARDING**, then the logo. Choose X and it goes into a post, words and all. (Where the browser cannot make the video, the card goes as a picture.)
+* **On a computer**, Post opens X with the post written and a link whose preview is the card, and saves the video beside it to drop into the post if you want it.
 
 ### Scoring and the leaderboard
 
@@ -37,8 +50,8 @@ The run is scored as you fly:
 | | Points |
 | --- | --- |
 | Height, before the engine goes | a tenth of a point per foot of your best height |
-| Reaching 10,000 ft | 1,000 |
-| Getting there fast | 40 for every second under 75 |
+| Getting to where the engine goes | 1,000 |
+| Getting there fast | 40 for every second under 75 — in proportion when it goes early, so a fast climb pays the same by the foot |
 | Each second in the air on one engine | 100 |
 | … with the wings within 20° of level | × 1.5 |
 | … with the ground under 500 ft | × 2 |

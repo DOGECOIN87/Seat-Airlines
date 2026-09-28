@@ -5,12 +5,14 @@
  * for minutes. These fly the real flight model, from 10,000 ft over flat
  * ground, with three pilots — nobody at the controls, somebody holding the
  * nose up (the old trick), and one flying it about as well as it can be
- * flown — and hold the model to the minute or so a great pilot should get,
- * and no more.
+ * flown — and hold the model to the minute or so a great pilot should get
+ * in still air, a good deal more for riding the updrafts well, and no more
+ * than that. Then the rest of what can happen: the engine going early, and
+ * the other one following it.
  *
  *   npm test
  */
-import { FEET, GAME, fly, newGame } from '../dist-test/landingGame.js';
+import { FEET, GAME, dealFailures, fly, newGame } from '../dist-test/landingGame.js';
 
 let pass = 0, fail = 0;
 const check = (name, fn) => {
@@ -34,16 +36,20 @@ const pilots = {
       return [x, 1];
     };
   },
-  /* Analog and instant: a little bank toward the good engine, and the speed just above the stall. */
+  /* Analog and instant: a little bank toward the good engine (while there is one), and the speed just above the stall. */
   great: () => (g) => [
-    clamp(0.12 * (-g.failed * 5 - g.bank) - 0.05 * g.rollRate, -1, 1),
+    clamp(0.12 * (-g.failed * 5 * g.thrust - g.bank) - 0.05 * g.rollRate, -1, 1),
     clamp(0.12 * (g.speed - 108), -1, 1),
   ],
 };
 const reaction = { nobody: 0, holdingUp: 0.4, great: 0 };
 
-/** Seconds from the blast to the ground, for each of `runs` flights. */
-function flights(name, runs = 24) {
+/**
+ * Seconds from the blast to the ground, for each of `runs` flights: from
+ * `feet`, in still air or with the updrafts, and losing the other engine
+ * `bothAfter` seconds in.
+ */
+function flights(name, { runs = 24, feet = GAME.blastFeet, still = false, bothAfter = Infinity } = {}) {
   const times = [];
   for (let r = 0; r < runs; r++) {
     seed = 1000 + r * 7919;
@@ -54,13 +60,15 @@ function flights(name, runs = 24) {
     g.speed = GAME.failSpeed;
     g.pitch = -5;
     g.rollRate = g.failed * 60;
-    g.alt = GAME.blastFeet / FEET;
+    g.alt = feet / FEET;
+    g.draftIn = still ? Infinity : GAME.draftFirst[0] + Math.random() * (GAME.draftFirst[1] - GAME.draftFirst[0]);
     const pilot = pilots[name]();
     const dt = 1 / 60;
     const lag = Math.round(reaction[name] / dt);
     const seen = [];
     let t = 0;
     while (g.alt > GAME.clearance && t < 600) {
+      if (t >= bothAfter) g.both = true;
       seen.push({ ...g });
       const [ix, iy] = pilot(seen[Math.max(0, seen.length - 1 - lag)]);
       const { vs } = fly(g, ix, iy, dt);
@@ -80,6 +88,8 @@ console.log('\nthe landing, on one engine');
 const nobody = flights('nobody');
 const holdingUp = flights('holdingUp');
 const great = flights('great');
+const greatStill = flights('great', { still: true });
+const holdingUpStill = flights('holdingUp', { still: true });
 
 check(`left to itself it is down inside half a minute (${show(nobody)})`, () => {
   assert(nobody[nobody.length - 1] < 30, 'an untouched aeroplane stayed up too long');
@@ -89,17 +99,73 @@ check(`holding the nose up no longer keeps it flying (${show(holdingUp)})`, () =
   assert(holdingUp[holdingUp.length - 1] < 40, 'the nose-up trick still works');
 });
 
-check(`flown about as well as it can be, it lasts about a minute (${show(great)})`, () => {
-  assert(median(great) > 50 && median(great) < 75, 'a great pilot should get about a minute');
+check(`flown about as well as it can be, in still air, it lasts about a minute (${show(greatStill)})`, () => {
+  assert(median(greatStill) > 50 && median(greatStill) < 75, 'a great pilot should get about a minute');
+});
+
+check(`riding the updrafts well buys a good deal more (${show(great)})`, () => {
+  assert(median(great) > median(greatStill) + 8, 'the updrafts should be worth real time to a pilot who flies them level');
+  assert(median(great) - median(greatStill) > median(holdingUp) - median(holdingUpStill) + 5,
+    'they should be worth more to a pilot who flies well than to one who does not');
 });
 
 check('nobody can glide it for minutes', () => {
-  for (const xs of [nobody, holdingUp, great]) assert(xs[xs.length - 1] < 90, `a flight lasted ${xs[xs.length - 1].toFixed(0)} s`);
+  for (const xs of [nobody, holdingUp, great]) assert(xs[xs.length - 1] < 100, `a flight lasted ${xs[xs.length - 1].toFixed(0)} s`);
 });
 
 check('skill is worth something', () => {
   assert(median(great) > median(holdingUp) + 15, 'flying it well should buy a good deal more time than holding the nose up');
   assert(median(holdingUp) > median(nobody), 'trying should beat not trying');
+});
+
+const early = flights('great', { feet: GAME.earliestFeet });
+check(`an engine going at ${GAME.earliestFeet.toLocaleString('en-US')} ft can still be flown (${show(early)})`, () => {
+  assert(median(early) > 35, 'the earliest failure should still leave a great pilot something to fly');
+  assert(median(early) < median(great), 'less height should mean less time');
+});
+
+const dual = flights('great', { bothAfter: GAME.secondFrom });
+check(`losing the other engine brings it down sooner (${show(dual)})`, () => {
+  assert(median(dual) < median(great) - 5, 'no thrust at all should cost time');
+  assert(median(dual) > 30, 'but it should still be worth flying');
+});
+
+check('the failures are dealt as described', () => {
+  const heights = [], causes = [], seconds = [];
+  for (let i = 0; i < 3000; i++) {
+    const g = newGame();
+    dealFailures(g);
+    heights.push(g.blastAlt * FEET);
+    causes.push(g.causes[0]);
+    seconds.push(g.secondAfter);
+  }
+  assert(heights.every((f) => f >= GAME.earliestFeet - 1 && f <= GAME.blastFeet + 1), 'an engine went outside 4,000–10,000 ft');
+  const atBrief = heights.filter((f) => Math.abs(f - GAME.blastFeet) < 1).length / heights.length;
+  assert(Math.abs(atBrief - (1 - GAME.earlyOdds)) < 0.05, `${(atBrief * 100).toFixed(0)}% went at the brief's height`);
+  const struck = causes.filter((c) => c === 'lightning').length / causes.length;
+  assert(Math.abs(struck - GAME.lightningOdds) < 0.05, `${(struck * 100).toFixed(0)}% were lightning`);
+  const both = seconds.filter(Number.isFinite);
+  assert(Math.abs(both.length / seconds.length - GAME.secondOdds) < 0.05, `${((both.length / seconds.length) * 100).toFixed(0)}% lost both`);
+  assert(both.every((s) => s >= GAME.secondFrom && s <= GAME.secondTo), 'the second engine went outside its window');
+});
+
+check('an updraft lifts a level aeroplane, and hardly one in a steep bank', () => {
+  const climb = (bank) => {
+    seed = 42;
+    const g = newGame();
+    g.phase = 'flying';
+    g.failed = 1;
+    g.damage = 0.5;
+    g.speed = 110;
+    g.alt = 2000;
+    g.draftIn = Infinity;
+    const still = fly({ ...g, bank, rollRate: 0 }, 0, 0, 1 / 60).vs;
+    Object.assign(g, { bank, rollRate: 0, draftLeft: 3, draftLen: 6, draftPeak: 1 });
+    const { vs } = fly(g, 0, 0, 1 / 60);
+    return vs - still;
+  };
+  assert(climb(0) > GAME.draftLift * 0.8, `level, it gained only ${climb(0).toFixed(1)} m/s`);
+  assert(climb(60) < GAME.draftLift * 0.2, `banked 60°, it still gained ${climb(60).toFixed(1)} m/s`);
 });
 
 check('with both engines, up still climbs', () => {
