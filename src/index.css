@@ -3700,8 +3700,8 @@ p { text-wrap-style: pretty; }
 }
 
 /* ── Top pilots ─────────────────────────────────────────────────
-   The leaderboard, on the landing: a glass card on the right of a wide screen,
-   the leader alone along the top of a phone's. */
+   The leaderboard, on the landing: a glass card in the bottom-right corner
+   at every size — never across the top, over the aeroplane. */
 .sa-pilots {
   position: absolute;
   right: clamp(1rem, 3vw, 2.25rem);
@@ -3742,17 +3742,20 @@ p { text-wrap-style: pretty; }
 .sa-pilots__list li:first-child .sa-pilots__rank { color: #FFC940; }
 .sa-pilots__who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sa-pilots__score { font-variant-numeric: tabular-nums; font-weight: 600; }
-@media (max-width: 899px) {
+/* Narrower, the corner has less room: the card is cut down to the leader,
+   and the way in stands on top of it rather than running into it. */
+@media (max-width: 999px) {
   .sa-pilots {
-    top: calc(max(1rem, env(safe-area-inset-top)) + 4.4rem);
-    bottom: auto;
-    width: auto;
-    left: clamp(1rem, 3vw, 2.25rem);
+    bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+    width: min(17rem, calc(100% - 2rem));
     padding: 0.55rem 0.8rem;
   }
   .sa-pilots__list { margin-top: 0.3rem; }
   .sa-pilots__list li:nth-child(n + 2),
   .sa-pilots__mine { display: none; }
+  .sa-landing:has(.sa-pilots) .sa-landing__hero {
+    padding-bottom: calc(max(1rem, calc(env(safe-area-inset-bottom) + 0.75rem)) + 5.5rem);
+  }
 }
 
 /* ── After the crash: the score, and the way onto the board ──── */
