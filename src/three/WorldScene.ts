@@ -15,6 +15,8 @@ import { createScenery } from './scenery';
 import { createEngineFire } from './engineFire';
 import { createLightning } from './lightning';
 import { createUfoCraft, createWingBreak, type UfoPose, type WingBreak } from './ufoCraft';
+import { createThermalsCraft } from './thermalsCraft';
+import type { Thermal } from '../lib/thermals';
 
 /**
  * The world outside, rendered.
@@ -121,6 +123,8 @@ export interface ViewPose {
   ufo?: UfoPose;
   /** The outer wing it took: -1 port, 1 starboard, 0 or absent neither. */
   wingLost?: -1 | 0 | 1;
+  /** The thermals about, relative to the aeroplane (see lib/thermals.ts). */
+  thermals?: readonly Thermal[];
   /** Degrees the nose is yawed right of the path it is flying: the sideslip a dead engine drags it into. */
   slip?: number;
   /**
@@ -257,6 +261,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   const bolt = options.damage ? createLightning() : null;
   let failedSide: -1 | 0 | 1 = 0;
   const ufo = options.damage ? createUfoCraft(`${import.meta.env.BASE_URL}ufo.glb`) : null;
+  const thermals = options.damage ? createThermalsCraft() : null;
   let wingBreak: WingBreak | null = null;
   let wingLost: -1 | 0 | 1 = 0;
   const ufoBase = new THREE.Vector3();
@@ -313,6 +318,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     }
     scene.add(bolt.group);
     if (ufo) scene.add(ufo.group);
+    if (thermals) scene.add(thermals.group);
   }
 
   /* Cabin lighting. A tube blocks the sun, and there is no bounce in here. */
@@ -1759,6 +1765,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
         wingLost = lost;
       }
       wingBreak?.update(dt, -stepX, stepZ);
+      thermals?.update(dt, pose.thermals, night);
       if (ufo) {
         airframe.group.getWorldPosition(ufoBase);
         const side = pose.ufo?.strike?.side ?? 1;
@@ -1892,6 +1899,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     bolt?.dispose();
     ufo?.dispose();
     wingBreak?.dispose();
+    thermals?.dispose();
     airframe.dispose();
     farmland.day.dispose();
     farmland.night.dispose();

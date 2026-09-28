@@ -66,6 +66,7 @@ export function readScorePost(body: unknown): ScorePost | string {
 
 /**
  * Whether a score could have been flown in the time the run has been going,
+ * allowing for everything scoring.ts pays for — the UFO dodge's bonus among it —
  * or why not. `startedAt` and `now` are the server's own clock.
  */
 export function implausible(post: ScorePost, startedAt: number, now: number): string | null {

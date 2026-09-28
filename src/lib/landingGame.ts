@@ -24,7 +24,8 @@
  * scene has loaded, and the tests can fly it without a screen.
  */
 
-import { planUfo, type UfoPlan } from './ufo';
+import { planUfo, UFO, type DodgeLock, type UfoPlan } from './ufo';
+import { newAir, stepAir, type Air } from './thermals';
 
 export type Phase = 'idle' | 'intro' | 'flying' | 'crashed';
 
@@ -81,13 +82,10 @@ export interface FlightGame {
   bothAt: number;
   /** 1 while the good engine pulls, down to 0 as it spools down once it has gone as well. */
   thrust: number;
-  /** 0 in still air, up to about 1 inside an updraft. */
+  /** 0 in still air, up to about 1 in the middle of a thermal. */
   updraft: number;
-  /** Seconds until the next updraft; and, inside one, how long it lasts, how long is left and how strong it is. */
-  draftIn: number;
-  draftLen: number;
-  draftLeft: number;
-  draftPeak: number;
+  /** The thermals about: where they are, and when the next turns up (see thermals.ts). */
+  air: Air;
   /** How fast the game's time runs against the clock's: 1, or less in slow motion. */
   slow: number;
   /** Seconds of game time since the controls were handed over. */
@@ -96,6 +94,13 @@ export interface FlightGame {
   ufo: UfoPlan | null;
   /** The outer wing it took: -1 port, 1 starboard, 0 neither. */
   wingLost: -1 | 0 | 1;
+  /** Where the aeroplane was when the UFO locked on, while its run lasts. */
+  dodgeLock: DodgeLock | null;
+  /** How far off its line the wingtip was when it arrived, metres right and up, and whether that was enough. */
+  ufoMiss: { right: number; up: number } | null;
+  dodged: boolean;
+  /** Points paid for things done along the way: getting out of the UFO's way. */
+  extra: number;
   /** 0.5 at the blast to 1 as the fire takes hold: how badly it flies. */
   damage: number;
   /** 0 until the fire has done its worst, then up to 1 as it takes the wing: the roll it cannot hold. */
@@ -150,10 +155,7 @@ export const GAME = {
   secondOdds: 0.35,
   secondFrom: 12,
   secondTo: 30,
-  /** Seconds between updrafts once an engine has gone, and the first one's wait. */
-  draftGap: [9, 17] as readonly [number, number],
-  draftFirst: [5, 10] as readonly [number, number],
-  /** Metres a second an updraft at full strength lifts a wings-level aeroplane. */
+  /** Metres a second a thermal at full strength lifts a wings-level aeroplane. */
   draftLift: 60,
   /**
    * Seconds into the warning clip that the bang lands. The engine goes on
@@ -205,14 +207,15 @@ export const newGame = (): FlightGame => ({
   bothAt: 0,
   thrust: 1,
   updraft: 0,
-  draftIn: 0,
-  draftLen: 0,
-  draftLeft: 0,
-  draftPeak: 0,
+  air: newAir(),
   slow: 1,
   clock: 0,
   ufo: null,
   wingLost: 0,
+  dodgeLock: null,
+  ufoMiss: null,
+  dodged: false,
+  extra: 0,
   damage: 0,
   decay: 0,
   speed: 120,
@@ -262,9 +265,13 @@ export function dealFailures(g: FlightGame): void {
   if (g.blastAlt < earliest) g.blastAlt = brief;
   g.causes = [asked('strike') ? 'lightning' : cause(), cause()];
   g.secondAfter = asked('dual') || Math.random() < GAME.secondOdds ? between(GAME.secondFrom, GAME.secondTo) : Infinity;
-  g.draftIn = between(...GAME.draftFirst);
+  g.air = newAir();
   g.clock = 0;
   g.wingLost = 0;
+  g.dodgeLock = null;
+  g.ufoMiss = null;
+  g.dodged = false;
+  g.extra = 0;
   g.ufo = asked('noufo') ? null : planUfo(asked('ufohit') ? 'hit' : asked('ufo') ? 'seen' : 'none');
 }
 
@@ -295,27 +302,6 @@ const smoothstep = (a: number, b: number, x: number) => smooth(Math.min(1, Math.
 const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 /** Band-limited noise: a random target, followed at a rate. */
 const drift = (v: number, rate: number, dt: number) => v + (Math.random() * 2 - 1 - v) * (1 - Math.exp(-rate * dt));
-
-/**
- * The air, once an engine has gone: still, and every so often rising, for
- * a few seconds at a time — in over a second, out over a second and a half.
- */
-function air(g: FlightGame, dt: number): number {
-  if (g.draftLeft > 0) {
-    g.draftLeft = Math.max(0, g.draftLeft - dt);
-    const since = g.draftLen - g.draftLeft;
-    g.updraft = g.draftPeak * smooth(Math.min(1, since / 1.2)) * smooth(Math.min(1, g.draftLeft / 1.5));
-    if (g.draftLeft === 0) g.draftIn = between(...GAME.draftGap);
-  } else {
-    g.updraft = 0;
-    g.draftIn -= dt;
-    if (g.draftIn <= 0) {
-      g.draftLen = g.draftLeft = between(4.5, 7.5);
-      g.draftPeak = between(0.75, 1.15);
-    }
-  }
-  return g.updraft;
-}
 
 /**
  * One frame of flying, both ways.
@@ -362,12 +348,14 @@ function air(g: FlightGame, dt: number): number {
  */
 export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; stall: number } {
   const lost = g.wingLost;
+  // In the UFO's slow motion the aeroplane answers the stick sharply and steadily: 0 normally, 1 in it.
+  const assist = Math.min(1, Math.max(0, (1 - g.slow) / (1 - UFO.slow)));
   if (g.failed === 0) {
-    g.pitch += (iy * GAME.maxPitch - g.pitch) * (1 - Math.exp(-3.2 * dt));
+    g.pitch += (iy * GAME.maxPitch - g.pitch) * (1 - Math.exp(-3.2 * (1 + 1.5 * assist) * dt));
     // At the ceiling the nose will not come up any further.
     if (g.alt >= GAME.ceiling && g.pitch > 0) g.pitch *= 1 - Math.min(1, dt * 6);
     // A wing short: it banks toward the short side unless the stick holds it off.
-    g.bank += (ix * GAME.maxBank + lost * 18 - g.bank) * (1 - Math.exp(-3.5 * dt));
+    g.bank += (ix * GAME.maxBank + lost * 18 - g.bank) * (1 - Math.exp(-3.5 * (1 + 1.5 * assist) * dt));
     g.heading = (g.heading + g.bank * GAME.turnRate * dt + 360) % 360;
     g.speed = speedAt(g.alt);
     g.rollRate = 0;
@@ -377,7 +365,9 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
 
   const dead = g.failed;
   // Rising air, and how much of it the wing catches: all of it level, little in a bank.
-  const u = air(g, dt);
+  // The thermals go by; the lift is whatever the aeroplane is flying through.
+  const u = stepAir(g.air, dt, g.speed, g.heading, g.alt);
+  g.updraft = u;
   const caught = Math.max(0, Math.cos(g.bank * DEG)) ** 3;
   // The fire takes twenty seconds to do its worst, then fifty more to take
   // the wing — and while a level wing rides rising air, the cool air over it
@@ -400,12 +390,12 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // spreads and the wing goes; the dead engine, the spiral, the buffet and a
   // stall push it. Full stick outruns the push to begin with, only just
   // outruns it once the fire is at its worst, and loses to it as the wing goes.
-  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.5 * u) * (lost ? 0.88 : 1);
+  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.5 * u) * (lost ? 0.88 : 1) * (1 + 0.8 * assist);
   const commanded = ix * 80 * authority;
   // The good engine's pull goes with its thrust; the burning wing's does not; nor does a missing wingtip's.
   const push = dead * ((32 + 10 * k) * t + 30 * w) * (1 + 0.5 * g.surge) + lost * 24;
   g.rollRate += ((commanded - g.rollRate) * 2.6 + push + Math.sin(g.bank * DEG) * 55
-    + g.buffetRoll * (40 + 60 * k + 20 * glide) * (1 - 0.35 * u) + dead * stall * 80) * dt;
+    + g.buffetRoll * (40 + 60 * k + 20 * glide) * (1 - 0.35 * u) * (1 - 0.6 * assist) + dead * stall * 80) * dt;
   g.bank = wrap180(g.bank + g.rollRate * dt);
   const lift = Math.cos(g.bank * DEG);
   // Pitch: softer elevator, heavier nose; it falls in a bank, and drops outright in a stall.

@@ -47,6 +47,8 @@ export interface SharedFlight {
   feet: number | null;
   /** A UFO took a wing. */
   ufo: boolean;
+  /** A UFO came for a wing and missed. */
+  dodged?: boolean;
 }
 
 const MONO = "'IBM Plex Mono', ui-monospace, monospace";
@@ -61,14 +63,14 @@ const fmt = (n: number) => n.toLocaleString('en-US');
 /** The line that says what happened, for the card and for the post. */
 export function whatHappened(f: SharedFlight): string {
   const s = Math.round(f.survived ?? 0);
-  const ufo = f.ufo ? 'A UFO took a wing · ' : '';
+  const ufo = f.ufo ? 'A UFO took a wing · ' : f.dodged ? 'Dodged a UFO · ' : '';
   if (!f.cause) return `${ufo}Flew ${f.km} km, into the ground`;
   if (f.ufo) return `${ufo}${f.both ? 'then both engines' : `then ENG ${f.engine}`} · ${s} s in the air`;
-  if (f.both) return `Lost both engines · ${s} s in the air`;
+  if (f.both) return `${ufo}Lost both engines · ${s} s in the air`;
   const at = f.feet ? ` at ${fmt(f.feet)} ft` : '';
   return f.cause === 'lightning'
-    ? `Lightning took ENG ${f.engine}${at} · ${s} s on one engine`
-    : `ENG ${f.engine} blew${at} · ${s} s on one engine`;
+    ? `${ufo}Lightning took ENG ${f.engine}${at} · ${s} s on one engine`
+    : `${ufo}ENG ${f.engine} blew${at} · ${s} s on one engine`;
 }
 
 /** The post: what happened, the score, the dare, and the tags. The link goes on after it. */
@@ -76,7 +78,8 @@ export function shareText(f: SharedFlight): string {
   const s = Math.round(f.survived ?? 0);
   const at = f.feet ? ` at ${fmt(f.feet)} ft` : '';
   let line: string;
-  if (f.ufo) line = `👽 A UFO took my wing off${f.cause ? ` — then ${f.both ? 'both engines went' : `ENG ${f.engine} went`}` : ''}. Kept her in the air ${s}s.`;
+  if (f.dodged && !f.ufo) line = `👽 Dodged a UFO${f.cause ? `, then ${f.both ? 'lost both engines' : `lost ENG ${f.engine}`}` : ''}. Kept her in the air ${s}s.`;
+  else if (f.ufo) line = `👽 A UFO took my wing off${f.cause ? ` — then ${f.both ? 'both engines went' : `ENG ${f.engine} went`}` : ''}. Kept her in the air ${s}s.`;
   else if (!f.cause) line = `Flew it straight into the ground.`;
   else if (f.both) {
     line = `${f.cause === 'lightning' || f.secondCause === 'lightning' ? '⚡🔥' : '🔥🔥'} Lost BOTH engines and kept her in the air ${s}s.`;

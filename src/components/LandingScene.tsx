@@ -8,7 +8,8 @@ import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import { airspeedAt, clampUnit, dealFailures, FEET, fly, GAME, leadFor, speedAt, WASTED_AT, type Cause, type FlightGame } from '../lib/landingGame';
 import { climbBonus, SCORING, survivalRate } from '../lib/scoring';
 import { FPM, KNOTS, speedAngle, varioAngle } from '../lib/instruments';
-import { slowAt, ufoAt } from '../lib/ufo';
+import { dodge, planeTimeScale, slowAt, ufoAt, UFO } from '../lib/ufo';
+import { startAir } from '../lib/thermals';
 
 /**
  * The landing page's aeroplane: the exterior scene, full screen, and — when
@@ -52,7 +53,16 @@ export interface LandingHud {
 export interface LandingSounds {
   blast: HTMLAudioElement;
   lightning: HTMLAudioElement;
+  /** When the UFO blinks into being. */
+  ufo: HTMLAudioElement;
+  /** Wind, looping, as loud as the rising air the aeroplane is in. */
+  wind: HTMLAudioElement;
+  /** The crash: one of these three, picked each time (see Landing). */
   wasted: HTMLAudioElement;
+  fahh: HTMLAudioElement;
+  trombone: HTMLAudioElement;
+  /** Getting away with something: a UFO dodged. */
+  wow: HTMLAudioElement;
   crowd: HTMLAudioElement;
 }
 
@@ -64,6 +74,10 @@ export const SHOT = { width: 1200, height: 630 } as const;
 
 /** The crowd plays under everything else: its own recording is already well below the other two. */
 const CROWD_VOLUME = 0.9;
+/** The UFO's music, over the engines but under a blast. */
+const UFO_VOLUME = 0.85;
+/** The wind in a thermal, at its strongest. */
+const WIND_VOLUME = 0.8;
 
 interface LandingSceneProps {
   feed: FlightFeed;
@@ -86,8 +100,12 @@ interface LandingSceneProps {
   onFlying: () => void;
   /** An engine has just gone: -1 the port one, 1 the starboard; how; and whether it is the second. */
   onFailure: (side: -1 | 1, cause: Cause, second: boolean) => void;
-  /** The UFO has taken the outer wing off one side. */
+  /** The UFO has started its run at a wing: get out of the way. */
+  onUfoWarn: () => void;
+  /** It has taken the outer wing off one side. */
   onStrike: (side: -1 | 1) => void;
+  /** It went past. */
+  onDodge: () => void;
   /** The aeroplane is down. */
   onCrash: (metres: number) => void;
 }
@@ -152,14 +170,15 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 }
 
 const LandingScene = ({
-  feed, sky, band, controls, taken, playing, game, hud, sounds, shot, onReady, onFail, onFlying, onFailure, onStrike, onCrash,
+  feed, sky, band, controls, taken, playing, game, hud, sounds, shot,
+  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
   const latest = useRef({ sky, band });
   latest.current = { sky, band };
-  const calls = useRef({ onReady, onFail, onFlying, onFailure, onStrike, onCrash });
-  calls.current = { onReady, onFail, onFlying, onFailure, onStrike, onCrash };
+  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash });
+  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -217,6 +236,10 @@ const LandingScene = ({
   const flown = useRef<Attitude>({ pitch: 0, bank: 0, speed: 240, alt: 0, vs: 0, heading: 0, roll: 0 });
   const shown = useRef({ feet: -1, warn: false, stall: false, score: -1, rate: -1, kt: -1, fpm: NaN, lift: false });
   const crowd = useRef({ on: false, gain: 0 });
+  /** The wind in the thermals: how loud it is now. */
+  const windGain = useRef(0);
+  /** The UFO's music: which flight's UFO it has played for, and how loud it still is. */
+  const ufoTune = useRef<{ plan: unknown; gain: number }>({ plan: null, gain: 1 });
 
   /* The crowd: a recording of a cabin screaming that cuts off at a precise
      point, and that point has to be the impact. Nobody can know when that
@@ -276,8 +299,10 @@ const LandingScene = ({
     if (!w) return;
     const g = game.current;
     const now = performance.now();
-    // Game time: the clock's, or less of it in slow motion.
-    const dt = Math.min(0.1, g.last ? (now - g.last) / 1000 : 0) * g.slow;
+    // Game time: the clock's, or less of it in slow motion — and the aeroplane's own, which slows less.
+    const realDt = Math.min(0.1, g.last ? (now - g.last) / 1000 : 0);
+    const dt = realDt * g.slow;
+    const flyDt = realDt * planeTimeScale(g.slow);
     g.last = now;
     const { sky: skyState, band: bandState } = latest.current;
     const p = pose.current;
@@ -373,10 +398,12 @@ const LandingScene = ({
               g.failedAt = now;
               g.damage = 0.5;
               g.decay = 0;
+              // From here there is rising air to look for.
+              startAir(g.air);
               // Made it: the reach bonus, and the climb bonus for how fast — by the foot.
               g.climbTime = (now - g.phaseAt) / 1000;
               g.bonus = SCORING.reached + climbBonus(g.climbTime, (g.blastAlt * FEET) / GAME.blastFeet);
-              g.score = g.bestFeet * SCORING.perFoot + g.bonus;
+              g.score = g.bestFeet * SCORING.perFoot + g.bonus + g.extra;
               // Half the thrust gone: from here it flies at an airliner's speed, not the height's.
               g.speed = GAME.failSpeed;
               // The blast itself: a violent roll toward the dead engine, and the nose knocked down.
@@ -397,27 +424,85 @@ const LandingScene = ({
 
       /* The UFO: where it is on the flight's own clock, the slow motion
          around the moment it hits, and the hit itself. */
+      const u = g.ufo;
       if (live) {
         g.clock += dt;
-        if (g.ufo && Number.isFinite(g.ufo.hitAt)) g.slow = slowAt(g.ufo, g.clock);
-        if (g.ufo?.strike && !g.wingLost && g.clock >= g.ufo.hitAt) {
-          g.wingLost = g.ufo.strike;
-          // The blow: a lurch toward the short side, and the nose knocked down.
-          g.rollRate += g.wingLost * 70;
-          g.bank += g.wingLost * 8;
-          g.pitch -= 3;
-          calls.current.onStrike(g.wingLost);
+        if (u && Number.isFinite(u.hitAt)) g.slow = slowAt(u, g.clock);
+        /* As the slow motion begins it locks on: from here it is coming for
+           where the wingtip was going, and the aeroplane has the time it
+           needs to be somewhere else. */
+        if (u?.strike && !g.dodgeLock && !g.ufoMiss && g.clock >= u.hitAt - UFO.slowBefore) {
+          g.dodgeLock = { alt: g.alt, heading: g.heading, bank: g.bank, lateral: 0 };
+          calls.current.onUfoWarn();
+        }
+        if (g.dodgeLock) {
+          const off = ((g.heading - g.dodgeLock.heading + 540) % 360) - 180;
+          g.dodgeLock.lateral += (g.failed ? g.speed : airspeedAt(g.agl)) * Math.sin((off * Math.PI) / 180) * flyDt;
+        }
+        if (u?.strike && g.dodgeLock && g.clock >= u.hitAt) {
+          const d = dodge(g.dodgeLock, u.strike, g.alt, g.bank);
+          g.ufoMiss = { right: d.right, up: d.up };
+          g.dodgeLock = null;
+          if (d.miss < UFO.hitRadius) {
+            g.wingLost = u.strike;
+            // The blow: a lurch toward the short side, and the nose knocked down.
+            g.rollRate += g.wingLost * 70;
+            g.bank += g.wingLost * 8;
+            g.pitch -= 3;
+            calls.current.onStrike(g.wingLost);
+          } else {
+            g.dodged = true;
+            g.extra += UFO.dodgeBonus;
+            if (g.failed) g.score += UFO.dodgeBonus;
+            calls.current.onDodge();
+          }
+        }
+      }
+
+      /* Its music, as it blinks into being — and if it comes for the wing,
+         faded to nothing in the slow motion, so the moment it arrives is
+         silent but for whatever happens next. */
+      const tune = sounds.current?.ufo;
+      if (tune && u && live) {
+        const t = ufoTune.current;
+        if (t.plan !== u && g.clock >= u.at) {
+          t.plan = u;
+          t.gain = 1;
+          tune.currentTime = 0;
+          tune.volume = UFO_VOLUME;
+          void tune.play().catch(() => {});
+        }
+        if (t.plan === u && u.strike && g.clock >= u.hitAt - UFO.slowBefore && t.gain > 0) {
+          t.gain = Math.max(0, t.gain - realDt / 1.0);
+          tune.volume = t.gain * UFO_VOLUME;
+          if (t.gain === 0) tune.pause();
+        }
+      }
+
+      /* The wind, rising and falling with the lift: loudest in the middle of
+         a thermal, gone outside one — so a pilot can hear the way in. */
+      const wind = sounds.current?.wind;
+      if (wind) {
+        const want = live ? Math.min(1, g.updraft * 1.15) : 0;
+        windGain.current += (want - windGain.current) * (1 - Math.exp(-realDt / 0.45));
+        const level = windGain.current;
+        if (level > 0.02) {
+          wind.volume = level * WIND_VOLUME;
+          wind.playbackRate = 0.9 + 0.2 * level;
+          if (wind.paused) void wind.play().catch(() => {});
+        } else if (!wind.paused) {
+          wind.pause();
         }
       }
 
       const ix = live ? clampUnit(g.keys.x + g.stick.x) : 0;
       const iy = live ? clampUnit(g.keys.y + g.stick.y) : 0;
-      const step = fly(g, ix, iy, dt);
+      const step = fly(g, ix, iy, flyDt);
       stall = step.stall;
-      if (dt > 0) g.accel += ((step.vs - g.vs) / dt - g.accel) * (1 - Math.exp(-2 * dt));
+      if (flyDt > 0) g.accel += ((step.vs - g.vs) / flyDt - g.accel) * (1 - Math.exp(-2 * flyDt));
       g.vs = step.vs;
-      g.alt = Math.min(GAME.ceiling, g.alt + step.vs * dt);
-      if (live) g.distance += (g.failed ? g.speed : airspeedAt(g.agl)) * dt;
+      g.alt = Math.min(GAME.ceiling, g.alt + step.vs * flyDt);
+      if (live) g.distance += (g.failed ? g.speed : airspeedAt(g.agl)) * flyDt;
       p.chase = 1;
     }
 
@@ -426,7 +511,15 @@ const LandingScene = ({
     f.heading = g.heading;
     p.height = g.alt;
     p.timeScale = g.slow;
-    p.ufo = g.phase === 'flying' ? ufoAt(g.ufo, g.clock) : undefined;
+    p.thermals = g.phase === 'flying' ? g.air.list : undefined;
+    if (g.phase === 'flying') {
+      const saucer = ufoAt(g.ufo, g.clock);
+      // Off the line it was aimed along: while it closes, and as it goes past.
+      const miss = g.dodgeLock && g.ufo?.strike ? dodge(g.dodgeLock, g.ufo.strike, g.alt, g.bank) : g.ufoMiss;
+      p.ufo = miss ? { ...saucer, dev: { right: miss.right, up: miss.up } } : saucer;
+    } else {
+      p.ufo = undefined;
+    }
     p.wingLost = g.wingLost;
     p.failed = g.failed;
     p.both = g.both;
@@ -461,6 +554,8 @@ const LandingScene = ({
       g.phase = 'crashed';
       g.phaseAt = now;
       sounds.current?.crowd.pause();
+      sounds.current?.ufo.pause();
+      sounds.current?.wind.pause();
       calls.current.onCrash(g.distance);
       return;
     }
@@ -471,7 +566,7 @@ const LandingScene = ({
       const ft = agl * FEET;
       if (!g.failed) {
         g.bestFeet = Math.max(g.bestFeet, ft);
-        g.score = g.bestFeet * SCORING.perFoot;
+        g.score = g.bestFeet * SCORING.perFoot + g.extra;
         g.rate = 0;
       } else {
         const rate = survivalRate(g.bank, ft);

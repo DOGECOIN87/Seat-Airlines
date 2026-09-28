@@ -5,7 +5,7 @@
  *
  *   npm test
  */
-import { UFO, WINGTIP, planUfo, slowAt, ufoAt } from '../dist-test/ufo.js';
+import { UFO, WINGTIP, dodge, planUfo, planeTimeScale, slowAt, ufoAt } from '../dist-test/ufo.js';
 import { GAME, fly, newGame } from '../dist-test/landingGame.js';
 
 let pass = 0, fail = 0;
@@ -102,6 +102,28 @@ check('the slow motion is around the hit and nowhere else, and eases in and out'
     prev = s;
   }
   assert(slowAt(planUfo('seen'), 20) === 1 && slowAt(null, 20) === 1, 'slow with no hit');
+});
+
+check('in the slow motion the aeroplane keeps more than half its own speed', () => {
+  assert(planeTimeScale(1) === 1, 'slowed with no slow motion');
+  assert(Math.abs(planeTimeScale(UFO.slow) - UFO.planeSlow) < 1e-9, `at the slowest it runs at ${planeTimeScale(UFO.slow)}`);
+  assert(UFO.planeSlow / UFO.slow > 3, 'not enough of an edge over the UFO');
+});
+
+check('the warning comes about three seconds of the clock before the hit', () => {
+  const real = UFO.slowBefore / UFO.slow;
+  assert(real > 2.5 && real < 4, `${real.toFixed(1)} s`);
+});
+
+check('holding course, it hits; ten metres off the line, it misses', () => {
+  const lock = { alt: 1500, heading: 90, bank: 0, lateral: 0 };
+  assert(dodge(lock, 1, 1500, 0).miss < UFO.hitRadius, 'held course and it missed');
+  assert(dodge(lock, 1, 1500 + UFO.hitRadius + 1, 0).miss >= UFO.hitRadius, 'climbed clear and it still hit');
+  assert(dodge(lock, -1, 1500 - UFO.hitRadius - 1, 0).miss >= UFO.hitRadius, 'dived clear and it still hit');
+  assert(dodge({ ...lock, lateral: UFO.hitRadius + 1 }, 1, 1500, 0).miss >= UFO.hitRadius, 'turned clear and it still hit');
+  // Banking 45° away lifts that wingtip by more than ten metres.
+  assert(dodge(lock, 1, 1500, -45).miss >= UFO.hitRadius, 'banked the tip up and away and it still hit');
+  assert(dodge(lock, 1, 1500, 3).miss < UFO.hitRadius, 'a wobble was enough to get clear');
 });
 
 check('with a wingtip gone, hands off, it banks toward the short side', () => {

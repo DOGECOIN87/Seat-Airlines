@@ -9,17 +9,23 @@
  * and is gone.
  *
  * Now and then it comes for the aeroplane instead: one last dash, at the
- * better part of a thousand metres a second, straight at a wingtip. The
- * game drops into slow motion for the moment it hits (see `slowAt`), the
- * outer wing shears off and tumbles away, and the UFO carries on past and
- * up and out of sight. The aeroplane flies on, rolling hard toward the
- * side that lost its tip.
+ * better part of a thousand metres a second, straight at a wingtip. As it
+ * starts its run the game drops into slow motion (see `slowAt`) — but not
+ * the aeroplane, which keeps more than half its own speed and answers the
+ * stick crisply (see `planeTimeScale`): bullet time, to get out of the way
+ * in. The UFO is aimed where the wingtip was going when it started; climb,
+ * dive or bank far enough off that line (see `dodge`) and it goes past.
+ * Hold course, and the outer wing shears off and tumbles away, and the UFO
+ * carries on past and up and out of sight. The aeroplane flies on, rolling
+ * hard toward the side that lost its tip.
  *
  * This is the plan and the path, in plain numbers — metres right, up and
  * ahead of the aeroplane, against the flight's own clock — so the page can
  * hold it and the tests can fly it. The scene draws it (see WorldScene),
  * and where the dash at the wing ends is the wingtip the scene draws.
  */
+
+import { SCORING } from './scoring';
 
 /** Metres right, up and ahead of the aeroplane. */
 export interface Offset {
@@ -67,10 +73,19 @@ export const UFO = {
   to: 45,
   /** How long the dash at the wing takes, and how long it is stopped in the air before. */
   strikeFor: 0.85,
-  /** Slow motion: this fast, from this long before the hit to this long after. */
+  /**
+   * Slow motion: this fast, from this long before the hit (game seconds —
+   * about three of the clock's) to this long after. The aeroplane's own
+   * time meanwhile runs at `planeSlow`.
+   */
   slow: 0.15,
-  slowBefore: 0.12,
+  slowBefore: 0.45,
   slowAfter: 0.18,
+  planeSlow: 0.55,
+  /** Metres off the line the UFO was aimed along, at the moment it arrives, that it misses by. */
+  hitRadius: 10,
+  /** Points for getting out of the way. */
+  dodgeBonus: SCORING.ufoDodge,
   /** Where it keeps to, relative to the aeroplane. */
   box: { right: [-700, 700], up: [-120, 350], ahead: [500, 1700] } as Record<keyof Offset, readonly [number, number]>,
 } as const;
@@ -165,6 +180,38 @@ export function ufoAt(plan: UfoPlan | null, t: number): UfoNow {
     visible: true, scale, dash: f,
     right: a.right + (b.right - a.right) * e, up: a.up + (b.up - a.up) * e, ahead: a.ahead + (b.ahead - a.ahead) * e,
   };
+}
+
+/**
+ * How fast the aeroplane's own time runs, for the world's `slow`: in the
+ * UFO's slow motion it keeps more than half its speed, so a pilot can move
+ * out of the way of something that is barely moving.
+ */
+export function planeTimeScale(slow: number): number {
+  if (slow >= 1) return 1;
+  const into = Math.min(1, Math.max(0, (1 - slow) / (1 - UFO.slow)));
+  return 1 + (UFO.planeSlow - 1) * into;
+}
+
+/** Where the aeroplane was when the UFO started its run at the wing. */
+export interface DodgeLock {
+  alt: number;
+  heading: number;
+  bank: number;
+  /** Metres it has gone sideways off its heading since, right positive. */
+  lateral: number;
+}
+
+/**
+ * How far the wingtip is now off the line the UFO was aimed along: metres
+ * right and up, and in all. The tip rises and falls with the bank as well
+ * as with the aeroplane.
+ */
+export function dodge(lock: DodgeLock, side: -1 | 1, alt: number, bank: number): { right: number; up: number; miss: number } {
+  const DEG = Math.PI / 180;
+  const up = alt - lock.alt - side * WINGTIP.right * (Math.sin(bank * DEG) - Math.sin(lock.bank * DEG));
+  const right = lock.lateral;
+  return { right, up, miss: Math.hypot(right, up) };
 }
 
 /** How fast the game's time runs at `t`: slow motion around the moment it hits, and 1 otherwise. */

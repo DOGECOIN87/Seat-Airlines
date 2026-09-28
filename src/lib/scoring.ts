@@ -56,6 +56,8 @@ export const SCORING = {
   intro: 2.4,
   /** Longer than any flight on one engine could last: it sinks the whole time. */
   maxSurvival: 900,
+  /** For getting out of a UFO's way. */
+  ufoDodge: 2500,
 } as const;
 
 /** The best rate there is: level and low at once. */
@@ -91,7 +93,7 @@ export function scoreCeiling(elapsedMs: number): number {
   const slack = (points: number) => Math.round(points * 1.1 + 300);
   if (seconds < SCORING.firstFailure) return slack(SCORING.maxHeightPoints);
   const flying = Math.min(SCORING.maxSurvival, seconds - SCORING.firstFailure);
-  return slack(SCORING.maxHeightPoints + SCORING.reached + climbBonus(SCORING.climbFloor) + flying * MAX_RATE);
+  return slack(SCORING.maxHeightPoints + SCORING.reached + climbBonus(SCORING.climbFloor) + SCORING.ufoDodge + flying * MAX_RATE);
 }
 
 /** What the wallet signs to post a score. Readable on purpose: it is what the wallet shows. */

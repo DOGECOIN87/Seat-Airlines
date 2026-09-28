@@ -24,6 +24,8 @@ export interface UfoPose {
   scale: number;
   dash: number;
   strike?: { side: -1 | 1; p: number };
+  /** How far the aeroplane has moved off the line the UFO was aimed along, metres right and up. */
+  dev?: { right: number; up: number };
 }
 
 /** Across the saucer, metres: small enough to take a wingtip, not the aeroplane. */
@@ -105,6 +107,7 @@ export function createUfoCraft(url: string): UfoCraft {
     });
 
   const at = new THREE.Vector3();
+  const aim = new THREE.Vector3();
   const last = new THREE.Vector3();
   const vel = new THREE.Vector3();
   let seen = false;
@@ -124,8 +127,19 @@ export function createUfoCraft(url: string): UfoCraft {
       base.y + pose.up,
       base.z + Math.sin(h) * pose.right - Math.cos(h) * pose.ahead,
     );
-    // The dash at the wing ends on the wing the scene drew, not the plan's idea of it.
-    if (pose.strike) at.lerp(target, pose.strike.p * pose.strike.p);
+    /* The dash at the wing ends on the wing the scene drew — less however
+       far the aeroplane has got out of the way since it locked on. */
+    const dx = pose.dev ? -Math.cos(h) * pose.dev.right : 0;
+    const dz = pose.dev ? -Math.sin(h) * pose.dev.right : 0;
+    const dy = pose.dev ? -pose.dev.up : 0;
+    if (pose.strike) {
+      aim.set(target.x + dx, target.y + dy, target.z + dz);
+      at.lerp(aim, pose.strike.p * pose.strike.p);
+    } else if (pose.dev) {
+      at.x += dx;
+      at.y += dy;
+      at.z += dz;
+    }
     if (seen && dt > 0) vel.copy(at).sub(last).divideScalar(dt);
     else vel.set(0, 0, 0);
     last.copy(at);

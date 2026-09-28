@@ -16,6 +16,7 @@ import {
 } from '../lib/shareCard';
 import { recordVideo, videoType } from '../lib/shareVideo';
 import FlightInstruments, { type EngineState } from './FlightInstruments';
+import { UFO } from '../lib/ufo';
 import { fetchBoard, hasBoard, keepBest, postScore, readBest, startRun, type BoardEntry, type Posted } from '../lib/scoresApi';
 import type { WalletState } from '../lib/useWallet';
 import type { LandingHud, LandingSounds } from './LandingScene';
@@ -87,11 +88,29 @@ const DEAD_ZONE = 0.08;
 /** How long the verdict stays up before the site takes over — longer when there is a score to post. */
 const END_HOLD = hasBoard ? 9000 : 5400;
 /**
- * Where in the crash sound it starts: its big hit lands 2.45 s in, and
- * starting 1.2 s in puts that hit, and the WASTED that lands with it, a
- * second and a quarter after the aeroplane does (see `.sa-wasted__word`).
+ * The crash sounds, one picked at random each flight and never the same one
+ * twice running, each started so that its big moment lands with the WASTED,
+ * a second and a quarter after the aeroplane does (see `.sa-wasted__word`).
+ * The GTA one builds up to its hit 2.45 s in, so it starts at once, 1.2 s
+ * in; the other two open on theirs, so they wait for it: `from` is where in
+ * the sound to start, `wait` how long after the crash.
  */
-const WASTED_FROM = 1.2;
+const LOSSES = [
+  { sound: 'wasted', from: 1.2, wait: 0 },
+  { sound: 'fahh', from: 0, wait: 1.05 },
+  { sound: 'trombone', from: 0, wait: 1.2 },
+] as const;
+let lastLoss = -1;
+const pickLoss = () => {
+  let i: number;
+  if (lastLoss < 0) i = Math.floor(Math.random() * LOSSES.length);
+  else {
+    i = Math.floor(Math.random() * (LOSSES.length - 1));
+    if (i >= lastLoss) i++;
+  }
+  lastLoss = i;
+  return LOSSES[i];
+};
 
 const deadZone = (v: number) => (Math.abs(v) < DEAD_ZONE ? 0 : v);
 
@@ -149,8 +168,17 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   const [failure, setFailure] = useState<{ side: -1 | 1; cause: Cause; feet: number; both: boolean; second: Cause | null } | null>(null);
   /** The moment lightning hits: the screen goes blue-white. */
   const [struck, setStruck] = useState(false);
-  /** The UFO took a wing: which, and whether the caption saying so is up. */
-  const [wingHit, setWingHit] = useState<{ side: -1 | 1; caption: boolean } | null>(null);
+  /** The UFO took a wing: which. */
+  const [wingHit, setWingHit] = useState<-1 | 1 | null>(null);
+  /** What the UFO is doing, said across the middle of the screen while it matters. */
+  const [ufoCaption, setUfoCaption] = useState<{ kind: 'warn' | 'hit' | 'dodged'; side?: -1 | 1 } | null>(null);
+  const captionTimer = useRef<number | null>(null);
+  const sayUfo = useCallback((kind: 'warn' | 'hit' | 'dodged', side?: -1 | 1, ms = 3000) => {
+    setUfoCaption({ kind, side });
+    if (captionTimer.current !== null) window.clearTimeout(captionTimer.current);
+    captionTimer.current = window.setTimeout(() => setUfoCaption(null), ms);
+    timers.current.push(captionTimer.current);
+  }, []);
   /** The moment of the blast, for the shake and the flash. */
   const [blasted, setBlasted] = useState(false);
   const game = useRef(newGame());
@@ -248,12 +276,14 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     // The warning and the crowd go with the landing; the crash sound is left to ring out.
     sounds.current?.blast.pause();
     sounds.current?.lightning.pause();
+    sounds.current?.ufo.pause();
+    sounds.current?.wind.pause();
     sounds.current?.crowd.pause();
     recording.current?.abort();
     timers.current.push(window.setTimeout(onEnter, 450));
   }, [onEnter]);
 
-  /* The game's two sounds, made inside the click or key that starts it:
+  /* The game's sounds, made inside the click or key that starts it:
      each is played once, muted, there and then, which is what a browser
      wants to see before it lets a page make a noise later on its own. */
   const makeSounds = () => {
@@ -275,7 +305,16 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     sounds.current = {
       blast: load('engine-blast.mp3', 0.9),
       lightning: load('lightning-strike.mp3', 1),
+      ufo: load('ufo-appear.mp3', 0.85),
+      wind: (() => {
+        const a = load('updraft-wind.mp3', 0);
+        a.loop = true;
+        return a;
+      })(),
       wasted: load('wasted.mp3', 1),
+      fahh: load('fail-fahh.mp3', 0.7),
+      trombone: load('fail-trombone.mp3', 0.9),
+      wow: load('wow.mp3', 0.9),
       crowd: load('crash-crowd.mp3', 0.9),
     };
   };
@@ -343,14 +382,23 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     }
   }, []);
 
+  const onUfoWarn = useCallback(() => sayUfo('warn', undefined, 4000), [sayUfo]);
   const onStrike = useCallback((side: -1 | 1) => {
-    setWingHit({ side, caption: true });
+    setWingHit(side);
+    sayUfo('hit', side, 3200);
     setBlasted(true);
     setStruck(true);
     timers.current.push(window.setTimeout(() => setStruck(false), 700));
     timers.current.push(window.setTimeout(() => setBlasted(false), 900));
-    timers.current.push(window.setTimeout(() => setWingHit((w) => (w ? { ...w, caption: false } : w)), 3200));
-  }, []);
+  }, [sayUfo]);
+  const onDodge = useCallback(() => {
+    sayUfo('dodged', undefined, 2800);
+    const wow = sounds.current?.wow;
+    if (wow) {
+      wow.currentTime = 0;
+      void wow.play().catch(() => {});
+    }
+  }, [sayUfo]);
 
   /* The card, then the video: made as soon as the flight is over, so they
      are there by the time anybody asks for them. */
@@ -435,14 +483,18 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       secondCause: g.both ? g.causes[1] : null,
       feet: g.failed ? Math.round((g.blastAlt * FEET) / 100) * 100 : null,
       ufo: g.wingLost !== 0,
+      dodged: g.dodged,
     });
     const s = sounds.current;
     if (s) {
       s.blast.pause();
       s.lightning.pause();
       s.crowd.pause();
-      s.wasted.currentTime = WASTED_FROM;
-      void s.wasted.play().catch(() => {});
+      const loss = pickLoss();
+      const a = s[loss.sound];
+      a.currentTime = loss.from;
+      if (loss.wait) timers.current.push(window.setTimeout(() => void a.play().catch(() => {}), loss.wait * 1000));
+      else void a.play().catch(() => {});
     }
     autoLeave.current = window.setTimeout(leave, END_HOLD);
     timers.current.push(autoLeave.current);
@@ -620,7 +672,9 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               onFail={onFail}
               onFlying={onFlying}
               onFailure={onFailure}
+              onUfoWarn={onUfoWarn}
               onStrike={onStrike}
+              onDodge={onDodge}
               onCrash={onCrash}
             />
           </Suspense>
@@ -817,13 +871,23 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             Stall
           </p>
           {phase === 'intro' && <p className="sa-hud__note">Dropping to the deck…</p>}
-          {wingHit?.caption && (
-            <p className="sa-hud__bonus sa-hud__bonus--ufo" aria-live="polite">
-              UFO strike
-              <small>{wingHit.side === -1 ? 'left' : 'right'} wing gone</small>
+          {ufoCaption && (
+            <p
+              key={ufoCaption.kind}
+              className={`sa-hud__bonus sa-hud__bonus--ufo is-${ufoCaption.kind}`}
+              aria-live="assertive"
+            >
+              {ufoCaption.kind === 'warn' ? 'Dodge!' : ufoCaption.kind === 'hit' ? 'UFO strike' : `Dodged +${UFO.dodgeBonus.toLocaleString('en-US')}`}
+              <small>
+                {ufoCaption.kind === 'warn'
+                  ? 'climb, dive or bank away'
+                  : ufoCaption.kind === 'hit'
+                    ? `${ufoCaption.side === -1 ? 'left' : 'right'} wing gone`
+                    : 'it missed'}
+              </small>
             </p>
           )}
-          {bonusPop !== null && !wingHit?.caption && (
+          {bonusPop !== null && !ufoCaption && (
             <p className="sa-hud__bonus" aria-live="polite">
               +{bonusPop.toLocaleString('en-US')}
               <small>

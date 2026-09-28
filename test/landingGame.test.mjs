@@ -13,6 +13,7 @@
  *   npm test
  */
 import { FEET, GAME, dealFailures, fly, newGame } from '../dist-test/landingGame.js';
+import { bearingTo, presence, startAir } from '../dist-test/thermals.js';
 
 let pass = 0, fail = 0;
 const check = (name, fn) => {
@@ -36,11 +37,25 @@ const pilots = {
       return [x, 1];
     };
   },
-  /* Analog and instant: a little bank toward the good engine (while there is one), and the speed just above the stall. */
-  great: () => (g) => [
-    clamp(0.12 * (-g.failed * 5 * g.thrust - g.bank) - 0.05 * g.rollRate, -1, 1),
-    clamp(0.12 * (g.speed - 108), -1, 1),
-  ],
+  /*
+   * Analog and instant: a little bank toward the good engine (while there
+   * is one), the speed just above the stall — and a turn toward the
+   * nearest thermal in sight, rolling level again as it gets there.
+   */
+  great: () => (g) => {
+    let steer = 0;
+    const near = g.air.list
+      .filter((t) => presence(t) > 0.2)
+      .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0];
+    if (near && Math.hypot(near.x, near.z) > near.r * 0.3) {
+      const off = ((bearingTo(near) - g.heading + 540) % 360) - 180;
+      steer = clamp(off * 0.8, -14, 14);
+    }
+    return [
+      clamp(0.12 * (-g.failed * 5 * g.thrust + steer - g.bank) - 0.05 * g.rollRate, -1, 1),
+      clamp(0.12 * (g.speed - 108), -1, 1),
+    ];
+  },
 };
 const reaction = { nobody: 0, holdingUp: 0.4, great: 0 };
 
@@ -61,7 +76,7 @@ function flights(name, { runs = 24, feet = GAME.blastFeet, still = false, bothAf
     g.pitch = -5;
     g.rollRate = g.failed * 60;
     g.alt = feet / FEET;
-    g.draftIn = still ? Infinity : GAME.draftFirst[0] + Math.random() * (GAME.draftFirst[1] - GAME.draftFirst[0]);
+    if (!still) startAir(g.air);
     const pilot = pilots[name]();
     const dt = 1 / 60;
     const lag = Math.round(reaction[name] / dt);
@@ -149,23 +164,25 @@ check('the failures are dealt as described', () => {
   assert(both.every((s) => s >= GAME.secondFrom && s <= GAME.secondTo), 'the second engine went outside its window');
 });
 
-check('an updraft lifts a level aeroplane, and hardly one in a steep bank', () => {
-  const climb = (bank) => {
+check('a thermal lifts a level aeroplane in its middle, and hardly one in a steep bank or at its edge', () => {
+  const climb = (bank, at = 0) => {
+    const g = () => {
+      const x = newGame();
+      Object.assign(x, { phase: 'flying', failed: 1, damage: 0.5, speed: 110, alt: 2000, bank, rollRate: 0 });
+      return x;
+    };
     seed = 42;
-    const g = newGame();
-    g.phase = 'flying';
-    g.failed = 1;
-    g.damage = 0.5;
-    g.speed = 110;
-    g.alt = 2000;
-    g.draftIn = Infinity;
-    const still = fly({ ...g, bank, rollRate: 0 }, 0, 0, 1 / 60).vs;
-    Object.assign(g, { bank, rollRate: 0, draftLeft: 3, draftLen: 6, draftPeak: 1 });
-    const { vs } = fly(g, 0, 0, 1 / 60);
-    return vs - still;
+    const calm = g();
+    const still = fly(calm, 0, 0, 1 / 60).vs;
+    seed = 42;
+    const lifted = g();
+    lifted.air.list.push({ x: at, z: 0, r: 250, peak: 1, age: 10, life: 30, cap: 2400 });
+    return fly(lifted, 0, 0, 1 / 60).vs - still;
   };
-  assert(climb(0) > GAME.draftLift * 0.8, `level, it gained only ${climb(0).toFixed(1)} m/s`);
+  assert(climb(0) > GAME.draftLift * 0.8, `level, in the middle, it gained only ${climb(0).toFixed(1)} m/s`);
   assert(climb(60) < GAME.draftLift * 0.2, `banked 60°, it still gained ${climb(60).toFixed(1)} m/s`);
+  assert(climb(0, 240) < GAME.draftLift * 0.1, `at the edge, it still gained ${climb(0, 240).toFixed(1)} m/s`);
+  assert(climb(0, 400) === 0, 'outside it, it still gained');
 });
 
 check('with both engines, up still climbs', () => {
