@@ -1,7 +1,7 @@
 import { createRef, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import DocsLink from './DocsLink';
 import { DeckIcon } from './InstrumentDeck';
-import Mark from './Mark';
+import Wordmark from './Wordmark';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
 import { SPLASH_BETWEEN, SPLASH_FIRST, SPLASH_LAST } from '../content/cabin';
@@ -490,17 +490,10 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       <div className="sa-landing__scrim" aria-hidden />
 
       <header className="sa-landing__top">
-        <span className="sa-landing__brand">
-          <Mark size={34} />
-          <span>Seat Airlines</span>
-        </span>
-        {/* In parts, so a narrower screen can drop the flight number and,
-            last of all, shorten the band — never the figure. */}
+        <Wordmark className="sa-landing__brand" />
         <span className="sa-landing__live">
           <span className="sa-live" aria-hidden />
           <span className="sa-landing__seg">Live</span>
-          <span className="sa-landing__seg sa-landing__seg--code">SA350</span>
-          <span className="sa-landing__seg sa-landing__seg--band">{band.label}</span>
           <span className="sa-landing__seg">{formatCap(marketCap)}</span>
         </span>
         {!inGame && <DocsLink night />}
@@ -781,8 +774,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             />
           </div>
           <p className="sa-splash__brand" aria-hidden>
-            <Mark size={22} />
-            <span>Seat Airlines · SA350</span>
+            <Wordmark />
           </p>
           <div className="sa-splash__docs">
             <DocsLink night />

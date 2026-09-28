@@ -244,12 +244,41 @@ html {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75) inset, 0 10px 30px rgba(150, 155, 170, 0.28);
 }
 .sa-topbar dl { scrollbar-gutter: stable both-edges; }
-/* On a phone the brand shares its row with Claim a seat, which needs
-   about 350px between them: the name a size down fits from 375px, and
-   narrower still the mark is the brand on its own (it carries the name
-   for a screen reader). */
-@media (max-width: 639.98px) { .sa-brand__name { font-size: 15px; } }
-@media (max-width: 374.98px) { .sa-brand__name { display: none; } }
+
+/* ── The wordmark ──────────────────────────────────────────────
+   The mark and the name on one line: Montserrat's heaviest
+   capitals at half the mark's height (its capitals are 0.7 of its
+   size), trimmed to the capitals so they centre on the mark. Every
+   place that shows it sets only `--mark`, and the rest follows. */
+.sa-wordmark {
+  --mark: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--mark) * 0.32);
+  white-space: nowrap;
+}
+.sa-wordmark__mark { width: var(--mark); height: var(--mark); flex: none; }
+.sa-wordmark__name {
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: calc(var(--mark) * 0.714);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-box: trim-both cap alphabetic;
+}
+@supports not (text-box: trim-both cap alphabetic) {
+  .sa-wordmark__name { line-height: 0.74; }
+}
+/* The gate sign's: at 36px on a tablet and a desk; on a phone it shares
+   its row with Claim a seat, so a size down, and on the narrowest (under
+   360px) the mark alone — the name out of sight but still the link's
+   name for a screen reader. */
+.sa-topbar .sa-wordmark { --mark: 36px; }
+@media (max-width: 639.98px) { .sa-topbar .sa-wordmark { --mark: 22px; } }
+@media (max-width: 359.98px) {
+  .sa-topbar .sa-wordmark__name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+}
 /* A departure board rules its figures apart. The rule is drawn in
    the middle of the gap by a pseudo-element so the flex layout keeps
    its own measure — and only once the row has stopped distributing
@@ -2651,16 +2680,7 @@ p { text-wrap-style: pretty; }
   border-radius: var(--r-sm);
 }
 .sa-footer__brand:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
-.sa-footer__name {
-  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
-  font-size: var(--t-base);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  color: var(--ui-ink);
-}
-.sa-footer__code,
+.sa-footer__brand .sa-wordmark { --mark: 28px; color: var(--ui-ink); }
 .sa-footer__line {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 11px;
@@ -2675,7 +2695,6 @@ p { text-wrap-style: pretty; }
   .sa-footer__line { flex-basis: 100%; }
 }
 @media (max-width: 639px) {
-  .sa-footer__code { display: none; }
   .sa-footer__inner { justify-content: space-between; column-gap: 1rem; }
   .sa-footer__docs { margin-left: 0; }
 }
@@ -3135,17 +3154,9 @@ p { text-wrap-style: pretty; }
   pointer-events: none;
 }
 .sa-landing__brand {
+  --mark: 40px;
   grid-area: brand;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7rem;
-  white-space: nowrap;
-  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
-  /* Down to fit beside the docs on the narrowest phone. */
-  font-size: clamp(0.85rem, 3.6vw, 1.05rem);
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  color: #fff;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
 .sa-landing__top .sa-docs { grid-area: docs; pointer-events: auto; }
@@ -3169,13 +3180,11 @@ p { text-wrap-style: pretty; }
 .sa-landing__top:not(:has(.sa-docs)) .sa-landing__live { grid-column: 2 / -1; }
 .sa-landing__seg { flex: none; }
 .sa-landing__seg + .sa-landing__seg::before { content: '·' / ''; margin-right: 0.55rem; }
-.sa-landing__seg--band { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-/* Narrower than the full row needs (about 880px): the flight number
-   goes, and the docs are the mark and the one word. */
+/* Narrower than the full row needs (about 880px): the docs are the
+   mark and the one word. */
 @media (max-width: 880px) {
   .sa-landing__top { column-gap: 1rem; }
-  .sa-landing__top .sa-docs__on,
-  .sa-landing__seg--code { display: none; }
+  .sa-landing__top .sa-docs__on { display: none; }
   .sa-landing__live { letter-spacing: 0.14em; }
 }
 
@@ -3330,17 +3339,11 @@ p { text-wrap-style: pretty; }
 }
 .sa-splash.is-fading .sa-splash__board { transform: scale(1.06); }
 .sa-splash__brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65rem;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: rgba(214, 228, 242, 0.72);
+  margin: 0;
+  color: rgba(214, 228, 242, 0.85);
   animation: sa-landing-fade 0.6s ease 0.3s both;
 }
+.sa-splash__brand .sa-wordmark { --mark: 24px; }
 .sa-splash__docs { animation: sa-landing-fade 0.6s ease 0.5s both; }
 .sa-landing.is-splash .sa-landing__hero { animation-play-state: paused; }
 
@@ -3969,6 +3972,7 @@ p { text-wrap-style: pretty; }
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: 'brand docs' 'live live';
   }
+  .sa-landing__brand { --mark: 28px; }
   .sa-landing__live { justify-self: start; font-size: 10px; }
   /* In the game the instruments need the room under the brand. */
   .sa-landing:not(.is-idle) .sa-landing__live { display: none; }
@@ -3993,6 +3997,11 @@ p { text-wrap-style: pretty; }
 @media (max-height: 560px) {
   .sa-landing__lead { display: none; }
   .sa-landing__hero { gap: 0.75rem; padding-bottom: max(1rem, calc(var(--safe-bottom) + 0.75rem)); }
+}
+/* The narrowest phones: the docs are the mark alone beside the brand,
+   the word still their name for a screen reader. */
+@media (max-width: 359.98px) {
+  .sa-landing__top .sa-docs__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
 /* And one narrow enough to count as a phone but wide enough for a row:
    the rows of a wider screen, not the stacks of an upright phone, which

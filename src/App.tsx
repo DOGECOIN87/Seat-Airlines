@@ -1,11 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import Mark, { logoMarkup } from './components/Mark';
+import { logoMarkup } from './components/Mark';
 import ContractBar from './components/ContractBar';
 import ViewFrame from './components/ViewFrame';
 import Annunciators from './components/Annunciators';
 import { ClimbRoute, DeckIcon, FlightReadouts, type DeckIconName } from './components/InstrumentDeck';
 import AdvertDialog from './components/AdvertDialog';
 import DocsLink from './components/DocsLink';
+import Wordmark from './components/Wordmark';
 import Landing from './components/Landing';
 import { SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
 import type { LogEntry } from './components/RadioLog';
@@ -655,12 +656,8 @@ export default function App() {
           while you are reading the seat map. */}
       <header ref={topbarRef} className="sa-topbar sticky top-0 z-40">
         <div className="mx-auto flex max-w-[94rem] flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-2 sm:px-8 lg:gap-x-7 lg:py-2.5">
-          <a href="#top" className="sa-brand flex shrink-0 items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ui-blue">
-            <Mark size={34} title="SEAT AIRLINES" />
-            <span className="sa-brand__name whitespace-nowrap font-heading text-lg leading-none text-ui-ink">Seat Airlines</span>
-            <span className="hidden font-mono text-[11px] uppercase tracking-[0.16em] text-ui-faint sm:inline">
-              SA350 · Nonstop
-            </span>
+          <a href="#top" className="sa-brand flex shrink-0 items-center text-ui-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ui-blue">
+            <Wordmark />
           </a>
 
           {/* The one call to action, where it is always on the screen: beside
@@ -883,9 +880,7 @@ export default function App() {
       <footer className="sa-footer">
         <div className="sa-footer__inner">
           <a href="#top" className="sa-footer__brand">
-            <Mark size={28} />
-            <span className="sa-footer__name">Seat Airlines</span>
-            <span className="sa-footer__code">SA350 · Nonstop</span>
+            <Wordmark />
           </a>
           <div className="sa-footer__docs">
             <DocsLink />
