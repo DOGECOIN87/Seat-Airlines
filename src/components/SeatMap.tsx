@@ -105,12 +105,10 @@ interface SeatMapProps {
   mine: string | null;
   /** The seat this visitor may advertise on, if any. */
   canAdvertise: string | null;
-  /** Put the camera in a seat: the seat's window has the button for it. */
-  onVisit: (id: string, zone: ZoneKey) => void;
   onAdvertise: (seat: string) => void;
 }
 
-const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, onVisit, onAdvertise }: SeatMapProps) {
+const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, onAdvertise }: SeatMapProps) {
   const [inspecting, setInspecting] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   /** The seat open in its own window, over the page. */
@@ -413,7 +411,6 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
           mine={mine === open.id}
           canAdvertise={canAdvertise === open.id}
           seated={manifest.entries.length}
-          onLook={() => { setOpen(null); onVisit(open.id, open.zone); }}
           onAdvertise={() => { setOpen(null); onAdvertise(open.id); }}
           onClose={closeSeat}
         />

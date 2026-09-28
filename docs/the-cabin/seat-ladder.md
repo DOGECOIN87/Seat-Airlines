@@ -62,4 +62,4 @@ If you are in the hold, the Boarding ladder tells you what the last seat aboard 
 
 ## Looking is free
 
-You can walk the camera to any seat on the aircraft — open it on the wall and press **Look from this seat**, or use **Walk the aircraft** — and see exactly what it sees. Only your holding decides where you are ticketed.
+You can walk the camera anywhere on the aircraft with **Walk the aircraft** — any cabin, and a window, middle or aisle seat in it — and see exactly what it sees. Only your holding decides where you are ticketed.

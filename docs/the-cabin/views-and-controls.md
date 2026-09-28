@@ -64,7 +64,7 @@ The server times every run from the moment you take the controls and refuses a s
 * **Walk the aircraft**, under the view: **Outside**, **Flight Deck**, **First**, **Business**, **Exit Row**, **Economy**, **Cargo hold**.
 * **Seat** — when you are in a seat, choose **Window**, **Middle** or **Aisle**.
 * **← Look left**, **Forward**, **Look right →** turn your head.
-* **Click any seat on the wall** to open it in a window — its advert on the left, whoever holds it on the right — and press **Look from this seat** to put the camera in it. Looking from any seat is free.
+* **Click any seat on the wall** to open it in a window — its advert on the left, whoever holds it on the right.
 * When you check in and are seated, the camera walks you to your own seat on its own.
 
 ## The sections
@@ -72,7 +72,7 @@ The server times every run from the moment you take the controls and refuses a s
 The seat map, the section network, the cabin chat and check-in open from a **tab bar along the bottom of the screen** — **Seats**, **Network**, **Chat** and **Check in** — rather than further down the page, so the aircraft stays on the screen whichever one you are in. **Scores**, at the end of the bar, opens the high scores.
 
 * **On a computer** a tab opens its section in a panel beside the view, and the view narrows to make room. Click the tab again, the **×**, or press **Esc** to close it and give the view its width back.
-* **On a phone** a section rises over the page as a sheet. Tap outside it, the **×**, or its tab again to put it away. **Look from this seat**, in a seat's window, closes the sheet so you can see the view from it.
+* **On a phone** a section rises over the page as a sheet. Tap outside it, the **×**, or its tab again to put it away.
 
 Windows — a seat, the high scores, the advert editor — open over the page with the page frosted behind them. **Esc**, the **×** or a click on the frost closes one, and leaves the section under it open.
 

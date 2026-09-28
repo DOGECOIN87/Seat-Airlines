@@ -16,8 +16,6 @@ interface SeatDialogProps {
   canAdvertise: boolean;
   /** How many holders are seated: what an open seat costs is out-holding the last of them. */
   seated: number;
-  /** Put the camera in this seat. */
-  onLook: () => void;
   onAdvertise: () => void;
   onClose: () => void;
 }
@@ -31,8 +29,7 @@ const WHERE: Record<string, string> = { window: 'Window seat', middle: 'Middle s
  * so the one thing somebody browsing the wall wanted — whose square is this,
  * and what are they running on it — was a hover away on a desk and nowhere
  * at all on a touch screen. Now a seat opens here: the advert at a size
- * worth looking at on the left, whoever holds the seat on the right, and
- * looking from it one button away rather than the only thing a click did.
+ * worth looking at on the left, whoever holds the seat on the right.
  *
  * Everything in it is already on the page — the manifest, the wall — so
  * opening a seat asks nothing of the network. It used to read the holder's
@@ -40,7 +37,7 @@ const WHERE: Record<string, string> = { window: 'Window seat', middle: 'Middle s
  * seat the pointer crossed; that is gone.
  */
 export default function SeatDialog({
-  id, zone, entry, banner, mine, canAdvertise, seated, onLook, onAdvertise, onClose,
+  id, zone, entry, banner, mine, canAdvertise, seated, onAdvertise, onClose,
 }: SeatDialogProps) {
   const title = useId();
   const [copied, setCopied] = useState(false);
@@ -147,16 +144,13 @@ export default function SeatDialog({
             </div>
           )}
 
-          <div className="sa-seatwin__actions">
-            {canAdvertise && (
+          {canAdvertise && (
+            <div className="sa-seatwin__actions">
               <button type="button" onClick={onAdvertise} className="sa-seatwin__advertise">
                 {own ? 'Change your advert' : 'Advertise here'}
               </button>
-            )}
-            <button type="button" onClick={onLook} className="sa-seatwin__look">
-              Look from this seat <span aria-hidden>→</span>
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </ModalWindow>

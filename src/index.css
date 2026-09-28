@@ -2887,9 +2887,10 @@ p { text-wrap-style: pretty; }
 }
 .sa-seatwin__advert .sa-map__alt { margin-top: 0.45rem; font-size: 13px; }
 .sa-seatwin__link { margin-top: 0.35rem; }
-/* The window's actions: one compact row under the details, the
-   size of the holder's own buttons, so the card ends about where
-   the picture does rather than under a pair of full-width bars. */
+/* On your own seat, the way to put an advert on it: one compact
+   button under the details, the size of the holder's own, so the
+   card still ends about where the picture does. Anybody else's
+   seat has nothing to press, and the card ends at the advert. */
 .sa-seatwin__actions {
   display: flex;
   flex-wrap: wrap;
@@ -2900,7 +2901,6 @@ p { text-wrap-style: pretty; }
   border-top: 1px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 -1px 0 rgba(163, 167, 180, 0.24);
 }
-.sa-seatwin__look,
 .sa-seatwin__advertise {
   display: inline-flex;
   align-items: center;
@@ -2914,13 +2914,6 @@ p { text-wrap-style: pretty; }
   letter-spacing: 0.14em;
   transition: box-shadow 0.15s ease, filter 0.15s ease;
 }
-.sa-seatwin__look {
-  background: var(--face);
-  box-shadow: var(--e-sm);
-  color: var(--accent-deep);
-}
-.sa-seatwin__look:hover { box-shadow: var(--e); }
-.sa-seatwin__look:active { box-shadow: var(--e-press); }
 .sa-seatwin__advertise {
   background: var(--g-accent-text);
   box-shadow: 2px 4px 12px rgba(0, 105, 194, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.3);
@@ -2928,10 +2921,9 @@ p { text-wrap-style: pretty; }
 }
 .sa-seatwin__advertise:hover { filter: brightness(1.07); }
 .sa-seatwin__advertise:active { box-shadow: inset 3px 3px 9px rgba(0, 70, 135, 0.45); }
-.sa-seatwin__look:focus-visible,
 .sa-seatwin__advertise:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
 @media (pointer: coarse) {
-  .sa-seatwin__explorer, .sa-seatwin__link, .sa-seatwin__look, .sa-seatwin__advertise { min-height: 2.75rem; }
+  .sa-seatwin__explorer, .sa-seatwin__link, .sa-seatwin__advertise { min-height: 2.75rem; }
 }
 
 /* ── The high scores ──────────────────────────────────────────

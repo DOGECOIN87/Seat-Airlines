@@ -14,7 +14,6 @@ import {
   CABIN_ZONES,
   CALLOUTS,
   CHATTER,
-  findSeat,
   type CabinSeat,
   type Facing,
   type SeatPosition,
@@ -144,7 +143,7 @@ const FACINGS: { key: Facing; label: string }[] = [
  *
  * `exterior` is the default and where the page opens: the whole aeroplane,
  * from outside. `seat` is a step inward — sitting down, looking forward — and
- * is where Look from this seat, in any seat's window on the wall, takes you.
+ * is where Step inside, on the view's own bar, takes you.
  */
 type Camera = 'exterior' | 'deck' | 'seat' | 'hold';
 
@@ -458,20 +457,6 @@ export default function App() {
     if (zone === 'deck') setFacing('forward');
   };
 
-  /* The view lives at the top of the page and the wall lives below it, so
-     clicking a seat has to bring the two back together — otherwise the camera
-     moves somewhere nobody is looking. */
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const showView = useCallback(() => {
-    const el = viewportRef.current;
-    if (!el) return;
-    const top = el.getBoundingClientRect().top;
-    // Only if it is actually off screen: scrolling a view somebody is already
-    // looking at is worse than not scrolling at all.
-    if (top > 40 && top < window.innerHeight - 160) return;
-    el.scrollIntoView({ behavior: glide(), block: 'center' });
-  }, []);
-
   /* ── The way in ────────────────────────────────────────────────────
      Every visit opens on the landing: the aeroplane full screen, a button
      to go in, and a minute at the controls for anybody who wants one. A
@@ -548,19 +533,6 @@ export default function App() {
     openPanel('wall');
   };
 
-  /** Walk the camera to a seat. Looking is free; sitting there is not. */
-  const visit = useCallback((id: string, zoneKey: ZoneKey) => {
-    const seat = findSeat(id);
-    setViewZone(zoneKey);
-    setCamera(zoneKey === 'deck' ? 'deck' : 'seat');
-    setFacing('forward');
-    if (seat) setViewPosition(seat.position);
-    /* Beside the view the camera move is in plain sight. Over it, as a
-       phone's sheet, the sheet gets out of the way first. */
-    if (window.matchMedia(SHEET_QUERY).matches) setPanel(null);
-    showView();
-  }, [showView]);
-
 
   /* What each section's panel holds. The copy that used to introduce each
      section on the page now opens its panel, under the panel's own title. */
@@ -577,7 +549,6 @@ export default function App() {
                 banners={banners}
                 mine={claimed}
                 canAdvertise={claimed}
-                onVisit={visit}
                 onAdvertise={setAdvertising}
               />
             </Loaded>
@@ -585,7 +556,7 @@ export default function App() {
             <p className="sa-lead mt-2">
               Seats are not booked. The top {MANIFEST_SIZE} holders are seated in rank order and the rest of the
               aeroplane stays empty, so the only way to move forward is to out-hold whoever is already there.
-              Open any seat to see who holds it, and look from it.
+              Open any seat to see who holds it.
             </p>
             <ol className="sa-steps">
               {[
@@ -761,7 +732,7 @@ export default function App() {
           <div ref={cockpitRef} className={`sa-cockpit${panel ? ' is-open' : ''}`}>
           <div className="sa-cockpit__main">
           {/* ── The view ── */}
-          <div ref={viewportRef} className={`scroll-mt-24 ${lamps.shaking ? 'sa-viewport sd-shake' : 'sa-viewport'}`}>
+          <div className={lamps.shaking ? 'sa-viewport sd-shake' : 'sa-viewport'}>
             <ViewFrame
               label={
                 camera === 'exterior'
