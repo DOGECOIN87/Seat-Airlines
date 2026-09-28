@@ -1762,7 +1762,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       if (ufo) {
         airframe.group.getWorldPosition(ufoBase);
         const side = pose.ufo?.strike?.side ?? 1;
-        ufoTarget.set(side * (WING_CUT + 2.8), 0.4, 14.2);
+        // Its inner rim through the wing just inboard of the cut.
+        ufoTarget.set(side * (WING_CUT + 6.5), 0.4, 14.2);
         airframe.group.localToWorld(ufoTarget);
         ufo.update(dt, pose.ufo, ufoBase, a.heading, ufoTarget);
       }

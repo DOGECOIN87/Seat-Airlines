@@ -26,8 +26,8 @@ export interface UfoPose {
   strike?: { side: -1 | 1; p: number };
 }
 
-/** Across the saucer, metres: an airliner's wingspan and a bit. */
-const DIAMETER = 38;
+/** Across the saucer, metres: small enough to take a wingtip, not the aeroplane. */
+const DIAMETER = 16;
 
 function glowTexture(): THREE.CanvasTexture {
   const n = 128;
@@ -68,7 +68,7 @@ export function createUfoCraft(url: string): UfoCraft {
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTex, color: 0x9ff7ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
   }));
-  glow.scale.setScalar(DIAMETER * 2.4);
+  glow.scale.setScalar(DIAMETER * 3.4);
   glow.renderOrder = 4;
   group.add(glow);
 
@@ -135,7 +135,8 @@ export function createUfoCraft(url: string): UfoCraft {
     // It blinks into being, a touch too big and back.
     const pop = pose.scale < 1 ? pose.scale * (1 + 0.25 * Math.sin(pose.scale * Math.PI)) : 1;
     tilt.scale.setScalar(Math.max(0.001, pop));
-    glow.scale.setScalar(DIAMETER * (2.2 + 0.6 * pose.dash) * Math.max(0.001, pop));
+    // The glow carries it at a distance, where the saucer itself is a speck.
+    glow.scale.setScalar(DIAMETER * (3.2 + 0.8 * pose.dash) * Math.max(0.001, pop));
     (glow.material as THREE.SpriteMaterial).opacity = 0.55 + 0.35 * Math.sin(clock * 9) ** 2;
     // Spinning, and tipped into the way it is going — hard, while it dashes.
     spin.rotation.y += dt * 7;
