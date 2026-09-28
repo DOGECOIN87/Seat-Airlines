@@ -524,15 +524,34 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               </button>
             )}
           </div>
-          {!failed && (
-            <p className="sa-landing__hint">
-              {!ready
-                ? 'Warming up the engines…'
-                : !wallet.address
-                  ? `A Solana wallet is your ticket · climb to ${goalFeet.toLocaleString('en-US')} ft · mind the hills`
-                  : `${touch ? 'Drag' : 'Press an arrow key'} to fly · climb to ${goalFeet.toLocaleString('en-US')} ft · flying as ${shortWallet(wallet.address)}`}
-            </p>
-          )}
+          {/* The line under the buttons, and Top pilots level with it at the
+              far right: one row, so the line wraps short of the button
+              rather than running under it. */}
+          <div className="sa-landing__foot">
+            {!failed && (
+              <p className="sa-landing__hint">
+                {!ready
+                  ? 'Warming up the engines…'
+                  : !wallet.address
+                    ? `A Solana wallet is your ticket · climb to ${goalFeet.toLocaleString('en-US')} ft · mind the hills`
+                    : `${touch ? 'Drag' : 'Press an arrow key'} to fly · climb to ${goalFeet.toLocaleString('en-US')} ft · flying as ${shortWallet(wallet.address)}`}
+              </p>
+            )}
+            {hasBoard && (
+              <button
+                type="button"
+                onClick={openScores}
+                onPointerEnter={prefetchScores}
+                onFocus={prefetchScores}
+                aria-haspopup="dialog"
+                aria-expanded={scoresOpen}
+                className="sa-pilots"
+              >
+                <DeckIcon name="trophy" className="sa-pilots__icon" />
+                Top pilots
+              </button>
+            )}
+          </div>
         </main>
       )}
       {!inGame && preflight !== 'off' && (
@@ -596,20 +615,6 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             </p>
           </div>
         </div>
-      )}
-      {!inGame && preflight === 'off' && hasBoard && (
-        <button
-          type="button"
-          onClick={openScores}
-          onPointerEnter={prefetchScores}
-          onFocus={prefetchScores}
-          aria-haspopup="dialog"
-          aria-expanded={scoresOpen}
-          className="sa-pilots"
-        >
-          <DeckIcon name="trophy" className="sa-pilots__icon" />
-          Top pilots
-        </button>
       )}
       {/* Its own Suspense, as in the site: nothing shows while the chunk loads. */}
       {scoresOpen && (

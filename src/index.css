@@ -3148,8 +3148,10 @@ p { text-wrap-style: pretty; }
   display: grid;
   justify-items: start;
   gap: 1.1rem;
-  width: min(100%, 62rem);
-  padding: 0 clamp(1.25rem, 5vw, 4.5rem) max(clamp(2rem, 7vh, 4.5rem), calc(var(--safe-bottom) + 1.25rem));
+  /* The whole width, for the row at its foot that ends in Top pilots in
+     the corner; nothing else in it is wide enough to need a cap. */
+  width: 100%;
+  padding: 0 clamp(1rem, 3vw, 2.25rem) max(clamp(2rem, 7vh, 4.5rem), calc(var(--safe-bottom) + 1.25rem)) clamp(1.25rem, 5vw, 4.5rem);
   animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .sa-landing__title {
@@ -3233,6 +3235,13 @@ p { text-wrap-style: pretty; }
 .sa-landing__fly:disabled { opacity: 0.5; cursor: progress; }
 .sa-landing__fly:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
 .sa-landing__fly-icon { width: 1.25rem; height: 1.25rem; fill: currentColor; transform: rotate(45deg); }
+.sa-landing__foot {
+  justify-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+}
 .sa-landing__hint {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 11px;
@@ -3283,7 +3292,7 @@ p { text-wrap-style: pretty; }
   animation: sa-landing-fade 0.6s ease 0.3s both;
 }
 .sa-splash__docs { animation: sa-landing-fade 0.6s ease 0.5s both; }
-.sa-landing.is-splash :is(.sa-landing__hero, .sa-pilots) { animation-play-state: paused; }
+.sa-landing.is-splash .sa-landing__hero { animation-play-state: paused; }
 
 /* ── Before take-off: a word about the board ─────────────────── */
 .sa-preflight {
@@ -3712,17 +3721,17 @@ p { text-wrap-style: pretty; }
 }
 
 /* ── Top pilots ─────────────────────────────────────────────────
-   The way to the leaderboard, on the landing: a glass button in the
-   bottom-right corner at every size — never across the top, over the
-   aeroplane — that opens the same window as the site's Scores tab. */
+   The way to the leaderboard, on the landing: a glass button at the far
+   right of the line under the way in, level with it — in the bottom-right
+   corner, never across the top over the aeroplane — that opens the same
+   window as the site's Scores tab. */
 .sa-pilots {
-  position: absolute;
-  right: clamp(1rem, 3vw, 2.25rem);
-  bottom: max(clamp(2rem, 7vh, 4.5rem), calc(var(--safe-bottom) + 1.25rem));
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 0.55rem;
   min-height: 2.75rem;
+  margin-left: auto;
   padding: 0 1.15rem 0 0.95rem;
   border-radius: 999px;
   background: rgba(5, 7, 15, 0.58);
@@ -3737,20 +3746,10 @@ p { text-wrap-style: pretty; }
   backdrop-filter: blur(10px);
   cursor: pointer;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
-  animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
 }
 .sa-pilots:hover { background: rgba(5, 7, 15, 0.72); box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.55); }
 .sa-pilots:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
 .sa-pilots__icon { width: 1.15rem; height: 1.15rem; flex: none; color: #FFC940; }
-/* Narrower, the corner is under the way in: the button keeps to the
-   foot of the screen, and the words stand on top of it rather than
-   running into it. */
-@media (max-width: 999px) {
-  .sa-pilots { bottom: max(1rem, calc(var(--safe-bottom) + 0.75rem)); }
-  .sa-landing:has(.sa-pilots) .sa-landing__hero {
-    padding-bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.75rem)) + 3.5rem);
-  }
-}
 
 /* ── After the crash: the score, and the way onto the board ──── */
 .sa-landing__score {
@@ -3922,10 +3921,14 @@ p { text-wrap-style: pretty; }
   .sa-landing__top .sa-landing__live { order: 2; flex-basis: 100%; margin-left: 0; }
   /* In the game the instruments need the room under the brand. */
   .sa-landing:not(.is-idle) .sa-landing__live { display: none; }
-  .sa-landing__hero { justify-items: stretch; gap: 0.9rem; }
+  .sa-landing__hero { justify-items: stretch; gap: 0.9rem; padding-right: clamp(1.25rem, 5vw, 4.5rem); }
   .sa-landing__actions { display: grid; }
   .sa-landing__enter, .sa-landing__fly { width: 100%; justify-content: center; }
   .sa-landing__hint { text-align: center; }
+  /* No room for the line and the button side by side: the line keeps the
+     width, and the button goes under it, still at the right. */
+  .sa-landing__foot { flex-wrap: wrap; }
+  .sa-landing__foot .sa-landing__hint { flex-basis: 100%; }
   .sa-hud__panel { min-width: 0; padding: 0.45rem 0.7rem 0.55rem; }
   .sa-hud__value { font-size: 1.15rem; }
   .sa-hud__clock { top: 3.6rem; }
