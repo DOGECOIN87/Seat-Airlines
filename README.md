@@ -124,7 +124,7 @@ Step inside to a seat, turn your head, walk the aircraft, climb into the **fligh
 
 178 seats across five cabins — **flight deck, first, business, exit row, economy** — filled strictly by rank. Your seat is your placement on the wall, the size of your tile, and how far forward you can see in the directory.
 
-Check in with **Phantom, Solflare or Backpack** and your boarding pass is issued on the spot.
+Check in with **Phantom, Solflare, Backpack or Nightly** and your boarding pass is issued on the spot.
 
 → [The seat ladder](docs/the-cabin/seat-ladder.md) · [Cabins and seats](docs/the-cabin/cabins-and-seats.md)
 

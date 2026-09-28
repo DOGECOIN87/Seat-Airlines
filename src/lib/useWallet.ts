@@ -1,41 +1,46 @@
 /**
  * Wallet connect, without a wallet library.
  *
- * The page needs one thing from a wallet — the public key — so it talks to the
- * injected provider directly rather than pulling in an adapter stack an order
- * of magnitude larger than the rest of the app. Phantom, Solflare and Backpack
- * all expose the same `connect()` shape.
+ * The page needs two things from a wallet — the public key, and a signature
+ * on a plain-text message — so it talks to the wallets directly rather than
+ * pulling in an adapter stack an order of magnitude larger than the rest of
+ * the app. `wallets.ts` finds them, whichever they are: Phantom, Solflare,
+ * Backpack, Nightly, and any other Solana wallet that registers itself.
  *
- * If no provider is installed, `connect` reports that plainly instead of
+ * With one wallet in the browser, connecting goes straight to it. With more,
+ * the page asks which (`picking`, answered by `choose`), and remembers the
+ * answer: that wallet signs everything after, and is the one reconnected
+ * quietly on the next visit.
+ *
+ * If no wallet is installed, `connect` reports that plainly instead of
  * failing silently, and the page stays fully usable without one.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { listWallets, onWalletsChange, type WalletAdapter } from './wallets';
 
-interface InjectedProvider {
-  connect: (opts?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey?: { toString(): string } }>;
-  /* Every Solana wallet exposes this, and it is the only thing standing
-     between the advertising wall and anybody who can type a POST. */
-  signMessage?: (data: Uint8Array, encoding?: string) => Promise<{ signature: Uint8Array } | Uint8Array>;
-  disconnect?: () => Promise<void>;
-  on?: (event: string, handler: (...args: unknown[]) => void) => void;
-  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
-  publicKey?: { toString(): string } | null;
-  isPhantom?: boolean;
-}
-
-type Injected = Window & {
-  solana?: InjectedProvider;
-  solflare?: InjectedProvider;
-  backpack?: InjectedProvider;
+/** The wallet a person chose last, by name, so a return visit reconnects to it. */
+const CHOSEN_KEY = 'sa.wallet';
+const readChosen = (): string | null => {
+  try {
+    return window.localStorage.getItem(CHOSEN_KEY);
+  } catch {
+    return null;
+  }
+};
+const keepChosen = (name: string | null) => {
+  try {
+    if (name) window.localStorage.setItem(CHOSEN_KEY, name);
+    else window.localStorage.removeItem(CHOSEN_KEY);
+  } catch {
+    /* Nowhere to keep it: the next visit asks again. */
+  }
 };
 
-function findProvider(): { name: string; provider: InjectedProvider } | null {
-  if (typeof window === 'undefined') return null;
-  const w = window as Injected;
-  if (w.solana) return { name: w.solana.isPhantom ? 'Phantom' : 'Wallet', provider: w.solana };
-  if (w.solflare) return { name: 'Solflare', provider: w.solflare };
-  if (w.backpack) return { name: 'Backpack', provider: w.backpack };
-  return null;
+/** A wallet as the picker shows it. */
+export interface WalletOption {
+  id: string;
+  name: string;
+  icon: string | null;
 }
 
 export interface WalletState {
@@ -46,7 +51,16 @@ export interface WalletState {
   error: string | null;
   /** True when no wallet extension is present at all. */
   unavailable: boolean;
-  /** Resolves to the address once connected, or null if it did not connect — refused, or no wallet. */
+  /** Every wallet in this browser, in the order the picker offers them. */
+  wallets: WalletOption[];
+  /** True while the page is asking which wallet to connect. */
+  picking: boolean;
+  /** The answer to `picking`: a wallet's id, or null for none. */
+  choose: (id: string | null) => void;
+  /**
+   * Resolves to the address once connected, or null if it did not connect —
+   * refused, no wallet, or none chosen. With more than one wallet, asks which.
+   */
   connect: () => Promise<string | null>;
   disconnect: () => Promise<void>;
   /**
@@ -88,44 +102,76 @@ export function useWallet(): WalletState {
   const [walletName, setWalletName] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [unavailable, setUnavailable] = useState(false);
+  const [found, setFound] = useState<WalletAdapter[]>(() => (typeof window === 'undefined' ? [] : listWallets()));
+  const [picking, setPicking] = useState(false);
+  /** The wallet that is connected: it signs, and it is the one disconnected. */
+  const active = useRef<WalletAdapter | null>(null);
+  const answer = useRef<((wallet: WalletAdapter | null) => void) | null>(null);
 
-  // Reconnect silently if this browser has already trusted the site, so a
-  // returning holder is seated without being asked again.
+  // Wallets register as they load, so the list is kept current rather than read once.
   useEffect(() => {
-    const found = findProvider();
-    if (!found) {
-      setUnavailable(true);
-      return;
-    }
-    setWalletName(found.name);
-    found.provider
-      .connect({ onlyIfTrusted: true })
-      .then((res) => {
-        const key = res?.publicKey ?? found.provider.publicKey;
-        if (key) setAddress(key.toString());
+    const update = () => setFound(listWallets());
+    update();
+    return onWalletsChange(update);
+  }, []);
+
+  // Reconnect quietly if this browser has already trusted the site, so a
+  // returning holder is seated without being asked again: the wallet they
+  // chose last, or the only one there is.
+  const triedQuietly = useRef(false);
+  useEffect(() => {
+    if (triedQuietly.current || address) return;
+    const chosen = readChosen();
+    const wallet = chosen
+      ? found.find((w) => w.name === chosen)
+      : found.length === 1 ? found[0] : undefined;
+    if (!wallet) return;
+    triedQuietly.current = true;
+    wallet
+      .connect(true)
+      .then((key) => {
+        if (!key) return;
+        active.current = wallet;
+        setWalletName(wallet.name);
+        setAddress(key);
       })
       .catch(() => {
         /* not previously trusted — wait to be asked */
       });
+  }, [found, address]);
+
+  const choose = useCallback((id: string | null) => {
+    setPicking(false);
+    const resolve = answer.current;
+    answer.current = null;
+    resolve?.(id ? listWallets().find((w) => w.id === id) ?? null : null);
   }, []);
 
   const connect = useCallback(async (): Promise<string | null> => {
-    const found = findProvider();
-    if (!found) {
-      setUnavailable(true);
-      setError('No Solana wallet found. Install Phantom, Solflare or Backpack, then try again.');
+    const wallets = listWallets();
+    if (!wallets.length) {
+      setError('No Solana wallet found. Install Phantom, Solflare, Backpack or Nightly, then try again.');
       return null;
     }
+    // One wallet goes straight to it; more, and the person picks.
+    answer.current?.(null);
+    const wallet = wallets.length === 1
+      ? wallets[0]
+      : await new Promise<WalletAdapter | null>((resolve) => {
+        answer.current = resolve;
+        setPicking(true);
+      });
+    if (!wallet) return null;
     setConnecting(true);
     setError(null);
     try {
-      const res = await found.provider.connect();
-      const key = res?.publicKey ?? found.provider.publicKey;
+      const key = await wallet.connect(false);
       if (!key) throw new Error('The wallet connected but did not return an address.');
-      setWalletName(found.name);
-      setAddress(key.toString());
-      return key.toString();
+      active.current = wallet;
+      keepChosen(wallet.name);
+      setWalletName(wallet.name);
+      setAddress(key);
+      return key;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       // A refused prompt is a choice, not a failure worth shouting about.
@@ -137,9 +183,11 @@ export function useWallet(): WalletState {
   }, []);
 
   const disconnect = useCallback(async () => {
-    const found = findProvider();
+    const wallet = active.current;
+    active.current = null;
+    keepChosen(null);
     try {
-      await found?.provider.disconnect?.();
+      await wallet?.disconnect();
     } catch {
       /* disconnecting is best-effort; drop the address either way */
     }
@@ -147,17 +195,15 @@ export function useWallet(): WalletState {
   }, []);
 
   const signMessage = useCallback(async (message: string) => {
-    const found = findProvider();
-    if (!found) throw new Error('No wallet to sign with.');
-    if (!found.provider.signMessage) {
-      throw new Error(`${found.name} cannot sign messages.`);
-    }
-    const res = await found.provider.signMessage(new TextEncoder().encode(message), 'utf8');
-    // Phantom returns { signature }, some others return the bytes directly.
-    const sig = res instanceof Uint8Array ? res : res.signature;
-    if (!sig?.length) throw new Error('The wallet returned no signature.');
+    const wallet = active.current;
+    if (!wallet) throw new Error('No wallet to sign with.');
+    const sig = await wallet.signMessage(new TextEncoder().encode(message));
     return toBase58(sig);
   }, []);
 
-  return { address, walletName, connecting, error, unavailable, connect, disconnect, signMessage };
+  const wallets = found.map(({ id, name, icon }) => ({ id, name, icon }));
+  return {
+    address, walletName, connecting, error, unavailable: found.length === 0,
+    wallets, picking, choose, connect, disconnect, signMessage,
+  };
 }

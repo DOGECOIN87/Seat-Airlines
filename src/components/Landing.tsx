@@ -197,12 +197,15 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     preflightOpen.current = preflight !== 'off';
   }, [preflight]);
   const [walletLinks] = useState(() => {
-    if (typeof window === 'undefined') return { phantom: '', solflare: '' };
+    if (typeof window === 'undefined') return { phantom: '', solflare: '', backpack: '' };
     const here = encodeURIComponent(window.location.href);
     const ref = encodeURIComponent(window.location.origin);
+    /* Each wallet's own "open this page in my browser" link. Nightly has no
+       such link to give, so a phone is sent to get it instead. */
     return {
       phantom: `https://phantom.app/ul/browse/${here}?ref=${ref}`,
       solflare: `https://solflare.com/ul/v1/browse/${here}?ref=${ref}`,
+      backpack: `https://backpack.app/ul/v1/browse/${here}?ref=${ref}`,
     };
   });
 
@@ -556,13 +559,15 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               <>
                 <h2 id="sa-preflight-title" className="sa-preflight__title">Get a Solana wallet</h2>
                 <p className="sa-preflight__text">
-                  {touch ? 'Open this page in your wallet’s browser.' : 'Install Phantom, Solflare or Backpack, then come back.'}
+                  {touch ? 'Open this page in your wallet’s browser.' : 'Install Phantom, Solflare, Backpack or Nightly, then come back.'}
                 </p>
                 <div className="sa-preflight__actions">
                   {touch ? (
                     <>
                       <a href={walletLinks.phantom} className="sa-preflight__connect">Open in Phantom</a>
                       <a href={walletLinks.solflare} className="sa-preflight__skip">Open in Solflare</a>
+                      <a href={walletLinks.backpack} className="sa-preflight__skip">Open in Backpack</a>
+                      <a href="https://nightly.app/download" target="_blank" rel="noopener noreferrer" className="sa-preflight__skip">Get Nightly</a>
                     </>
                   ) : (
                     <>
@@ -571,6 +576,12 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                       </a>
                       <a href="https://solflare.com" target="_blank" rel="noopener noreferrer" className="sa-preflight__skip">
                         Get Solflare
+                      </a>
+                      <a href="https://backpack.app" target="_blank" rel="noopener noreferrer" className="sa-preflight__skip">
+                        Get Backpack
+                      </a>
+                      <a href="https://nightly.app" target="_blank" rel="noopener noreferrer" className="sa-preflight__skip">
+                        Get Nightly
                       </a>
                     </>
                   )}

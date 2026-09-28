@@ -7,6 +7,7 @@ import { ClimbRoute, DeckIcon, FlightReadouts, type DeckIconName } from './compo
 import AdvertDialog from './components/AdvertDialog';
 import DocsLink from './components/DocsLink';
 import Wordmark from './components/Wordmark';
+import WalletPicker from './components/WalletPicker';
 import Landing from './components/Landing';
 import { SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
 import type { LogEntry } from './components/RadioLog';
@@ -623,16 +624,19 @@ export default function App() {
 
   if (!entered && !logbookOpen) {
     return (
-      <Landing
-        feed={feed}
-        sky={sky}
-        band={band}
-        marketCap={tick.marketCap}
-        controls={controls}
-        taken={taken}
-        wallet={wallet}
-        onEnter={enter}
-      />
+      <>
+        <Landing
+          feed={feed}
+          sky={sky}
+          band={band}
+          marketCap={tick.marketCap}
+          controls={controls}
+          taken={taken}
+          wallet={wallet}
+          onEnter={enter}
+        />
+        <WalletPicker wallet={wallet} />
+      </>
     );
   }
 
@@ -960,6 +964,9 @@ export default function App() {
           <ScoresDialog address={wallet.address} onClose={closeScores} />
         </Suspense>
       )}
+
+      {/* Asked by `wallet.connect()` when this browser has more than one. */}
+      <WalletPicker wallet={wallet} />
 
       {/* Its own Suspense, with nothing for a fallback. The page's outer one
           would blank the whole site while this chunk loaded — a flash of the

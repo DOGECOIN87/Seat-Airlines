@@ -60,7 +60,7 @@ No. Checking in, putting up an advert, publishing a card and sending messages ar
 
 <summary>Which wallets work? Can I use my phone?</summary>
 
-Phantom, Solflare and Backpack. On a phone, open seat-airlines.space in your wallet app's built-in browser to check in. See [Connecting a wallet](../getting-started/connecting-a-wallet.md).
+Phantom, Solflare, Backpack and Nightly, and any other Solana wallet that registers itself with the page. On a phone, open seat-airlines.space in your wallet app's built-in browser to check in. See [Connecting a wallet](../getting-started/connecting-a-wallet.md).
 
 </details>
 

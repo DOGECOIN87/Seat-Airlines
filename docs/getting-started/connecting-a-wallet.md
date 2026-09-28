@@ -6,18 +6,23 @@ description: Which wallets work, what connecting shares, and how to check in on 
 
 ## Supported wallets
 
-Seat Airlines talks directly to the wallet your browser puts into the page. These work:
+Seat Airlines talks directly to the wallets your browser puts into the page. These work:
 
 * **Phantom**
 * **Solflare**
 * **Backpack**
+* **Nightly**
 
-On a computer, use the wallet's browser extension. **On a phone, open seat-airlines.space inside your wallet app's own browser** — for example, the browser tab in Phantom or Solflare. An ordinary mobile browser has no wallet in the page to connect to.
+Any other Solana wallet that registers itself with the page (the Wallet Standard) works too, and is listed by its own name.
+
+**More than one installed?** **Connect wallet** asks which, showing each wallet's own name and icon. The one you pick signs everything after, and is the one reconnected next time.
+
+On a computer, use the wallet's browser extension. **On a phone, open seat-airlines.space inside your wallet app's own browser** — for example, the browser tab in Phantom, Solflare, Backpack or Nightly. An ordinary mobile browser has no wallet in the page to connect to; with none installed, the page offers **Open in Phantom**, **Open in Solflare** and **Open in Backpack**, and a link to get Nightly.
 
 ## Checking in
 
-1. Scroll to **Check in** at the bottom of the page.
-2. Press **Connect wallet** and approve the connection in your wallet.
+1. Open **Check in** in the tab bar.
+2. Press **Connect wallet**, pick your wallet if you have more than one, and approve the connection in it.
 3. The card turns into your receipt: **Passenger** (your address, shortened), **Cabin**, **Holding** and **Share of supply**.
 
 Your balance is merged into the seating the moment it is read, so you do not wait for the next refresh to see where you sit.

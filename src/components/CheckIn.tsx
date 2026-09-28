@@ -54,7 +54,7 @@ const CheckIn = ({ wallet, holding, berth, loading }: CheckInProps) => {
           )}
           {unavailable && !error && (
             <p className="mt-3 text-[12px] leading-relaxed text-ui-faint">
-              No wallet found. Try Phantom, Solflare or Backpack.
+              No wallet found. Try Phantom, Solflare, Backpack or Nightly.
             </p>
           )}
         </div>
