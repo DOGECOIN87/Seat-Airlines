@@ -29,7 +29,7 @@ import {
 export type DeckIconName =
   | 'plane' | 'deck' | 'first' | 'business' | 'exit' | 'economy' | 'hold'
   | 'belt' | 'cup' | 'mask' | 'brace'
-  | 'wall' | 'network' | 'chat' | 'pass';
+  | 'wall' | 'network' | 'chat' | 'pass' | 'trophy';
 
 const ICON_PATHS: Record<DeckIconName, string[]> = {
   plane: ['M12 2.6c.9 0 1.5.9 1.5 2.2V10l7.3 4.1v2.1l-7.3-2.2v4.5l2.1 1.6v1.6L12 21l-3.6.7v-1.6l2.1-1.6V14l-7.3 2.2v-2.1L10.5 10V4.8c0-1.3.6-2.2 1.5-2.2z'],
@@ -48,6 +48,7 @@ const ICON_PATHS: Record<DeckIconName, string[]> = {
   network: ['M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M3.5 19.5c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5', 'M15.8 5.3a3 3 0 0 1 0 5.4', 'M17.4 14.3c1.9.7 3.1 2.6 3.1 5.2'],
   chat: ['M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-7.5L7 20v-3.5H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.5z', 'M7.5 10h9M7.5 13h6'],
   pass: ['M5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4V7.5A1.5 1.5 0 0 1 5.5 6z', 'M14.5 7.8v1.4M14.5 11.3v1.4M14.5 14.8v1.4'],
+  trophy: ['M7.5 4h9v4.5a4.5 4.5 0 0 1-9 0z', 'M7.5 6h-3c0 2.6 1.4 4.3 3.6 4.6', 'M16.5 6h3c0 2.6-1.4 4.3-3.6 4.6', 'M12 13v3.5', 'M9.3 20.5l.7-4h4l.7 4', 'M7.5 20.5h9'],
 };
 
 export const DeckIcon = ({ name, className }: { name: DeckIconName; className?: string }) => (

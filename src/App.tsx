@@ -7,7 +7,7 @@ import { ClimbRoute, DeckIcon, FlightReadouts, type DeckIconName } from './compo
 import AdvertDialog from './components/AdvertDialog';
 import DocsLink from './components/DocsLink';
 import Landing from './components/Landing';
-import { PANELS, SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
+import { SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
 import type { LogEntry } from './components/RadioLog';
 import {
   ALL_SEATS,
@@ -69,6 +69,7 @@ const SeatMap = lazy(loadSeatMap);
 const BoardingPass = lazy(() => import('./components/BoardingPass'));
 const NetworkingHub = lazy(() => import('./components/NetworkingHub'));
 const RadioLog = lazy(() => import('./components/RadioLog'));
+const ScoresDialog = lazy(() => import('./components/ScoresDialog'));
 const prefetchFlightDeck = () => { void loadFlightDeck(); };
 const prefetchSeatMap = () => { void loadSeatMap(); };
 
@@ -143,7 +144,7 @@ const FACINGS: { key: Facing; label: string }[] = [
  *
  * `exterior` is the default and where the page opens: the whole aeroplane,
  * from outside. `seat` is a step inward — sitting down, looking forward — and
- * is where clicking any seat on the wall takes you.
+ * is where Look from this seat, in any seat's window on the wall, takes you.
  */
 type Camera = 'exterior' | 'deck' | 'seat' | 'hold';
 
@@ -538,6 +539,10 @@ export default function App() {
     (key: PanelKey) => (panel === key ? closePanel() : openPanel(key)),
     [panel, openPanel, closePanel],
   );
+  /* The high scores: a window over the page, opened from the tab bar. */
+  const [scoresOpen, setScoresOpen] = useState(false);
+  const openScores = useCallback(() => setScoresOpen(true), []);
+  const closeScores = useCallback(() => setScoresOpen(false), []);
   const claimSeat = (e: { preventDefault(): void }) => {
     e.preventDefault();
     openPanel('wall');
@@ -580,7 +585,7 @@ export default function App() {
             <p className="sa-lead mt-2">
               Seats are not booked. The top {MANIFEST_SIZE} holders are seated in rank order and the rest of the
               aeroplane stays empty, so the only way to move forward is to out-hold whoever is already there.
-              Pick any seat to look from it.
+              Open any seat to see who holds it, and look from it.
             </p>
             <ol className="sa-steps">
               {[
@@ -902,7 +907,7 @@ export default function App() {
           </div>
 
           <SectionPanel open={panel} onClose={closePanel} render={section} />
-          <SectionDock open={panel} onToggle={togglePanel} />
+          <SectionDock open={panel} onToggle={togglePanel} onScores={openScores} scoresOpen={scoresOpen} />
           </div>
         </section>
 
@@ -910,9 +915,10 @@ export default function App() {
 
       {/* ── The footer ─────────────────────────────────────────────────
           A strip, not a finale. The page is one screen now — the sections
-          open beside the view — so the foot of it only has to sign off: the
-          airline, the same four sections as the tabs, the docs, and the line.
-          Full width, like the gate sign it answers at the top. */}
+          open from the tab bar along the bottom of the screen — so the foot
+          of it only has to sign off: the airline, the docs, and the line.
+          The tab bar is the navigation at every size, so the footer does not
+          repeat it. Full width, like the gate sign it answers at the top. */}
       <footer className="sa-footer">
         <div className="sa-footer__inner">
           <a href="#top" className="sa-footer__brand">
@@ -920,21 +926,6 @@ export default function App() {
             <span className="sa-footer__name">Seat Airlines</span>
             <span className="sa-footer__code">SA350 · Nonstop</span>
           </a>
-          <nav className="sa-footer__nav" aria-label="Sections">
-            {PANELS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => openPanel(p.key)}
-                onMouseEnter={p.key === 'wall' ? prefetchSeatMap : undefined}
-                onFocus={p.key === 'wall' ? prefetchSeatMap : undefined}
-                aria-controls="sa-panel"
-                aria-expanded={panel === p.key}
-              >
-                {p.label}
-              </button>
-            ))}
-          </nav>
           <div className="sa-footer__docs">
             <DocsLink />
           </div>
@@ -1004,6 +995,14 @@ export default function App() {
           onClear={takeDownAdvert}
           onClose={() => setAdvertising(null)}
         />
+      )}
+
+      {/* Its own Suspense, like the logbook's below: the page's outer one
+          would blank the whole site while the chunk loaded. */}
+      {scoresOpen && (
+        <Suspense fallback={null}>
+          <ScoresDialog address={wallet.address} onClose={closeScores} />
+        </Suspense>
       )}
 
       {/* Its own Suspense, with nothing for a fallback. The page's outer one

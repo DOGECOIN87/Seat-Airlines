@@ -2435,31 +2435,38 @@ p { text-wrap-style: pretty; }
 /* ============================================================
    The cockpit
    ────────────────────────────────────────────────────────────
-   The view and its deck, a panel for whichever section is open,
-   and the tabs that open them, side by side. Closed, the panel's
-   column is nothing and the view has the whole width; open, the
-   panel takes its share and the view narrows to give it, in one
-   eased move. The panel keeps its own width while its column
-   grows, so it slides out from under the tabs rather than
-   reflowing all the way open.
+   The view and its deck, and a panel for whichever section is
+   open, side by side. Closed, the panel's column is nothing and
+   the view has the whole width; open, the panel takes its share
+   and the view narrows to give it, in one eased move. The panel
+   keeps its own width while its column grows, so it slides out
+   from the edge rather than reflowing all the way open.
 
-   A phone has no width to share: there the tabs are a bar along
-   the bottom of the screen and a section rises over the page as a
-   sheet (the media query below).
+   The tabs that open them are a bar along the bottom of the
+   screen at every size. They used to be a rail down the view's
+   right edge on a desk, which cost the view a column for four
+   buttons and put them somewhere a phone never had them.
+
+   A phone has no width to share: there a section rises over the
+   page as a sheet (the media query below).
    ============================================================ */
+.sa-app {
+  /* The tab bar's height, which the page keeps clear at its foot. */
+  --dock-h: 4.25rem;
+  padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom));
+}
 .sa-cockpit {
   --panel-w: clamp(25rem, 35vw, 42rem);
-  --dock-w: 5.75rem;
   /* Under the gate sign, which stays at the top of the screen (App
      measures it). */
   --sa-top: calc(var(--sa-topbar-h, 3.4rem) + 0.75rem);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 0 var(--dock-w);
+  grid-template-columns: minmax(0, 1fr) 0;
   align-items: start;
   scroll-margin-top: var(--sa-top);
   transition: grid-template-columns 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.sa-cockpit.is-open { grid-template-columns: minmax(0, 1fr) var(--panel-w) var(--dock-w); }
+.sa-cockpit.is-open { grid-template-columns: minmax(0, 1fr) var(--panel-w); }
 .sa-cockpit__main { min-width: 0; }
 
 .sa-panel-slot {
@@ -2468,7 +2475,8 @@ p { text-wrap-style: pretty; }
   display: flex;
   justify-content: flex-end;
   min-width: 0;
-  height: calc(100dvh - var(--sa-top) - 0.75rem);
+  /* Between the gate sign and the tab bar. */
+  height: calc(100dvh - var(--sa-top) - var(--dock-h) - env(safe-area-inset-bottom) - 0.75rem);
   overflow: hidden;
 }
 .sa-panel-scrim { display: none; }
@@ -2491,7 +2499,8 @@ p { text-wrap-style: pretty; }
     0 1px 0 rgba(255, 255, 255, 0.6) inset,
     0 18px 44px rgba(0, 0, 0, 0.5);
 }
-.sa-panel__head {
+.sa-panel__head,
+.sa-modal__head {
   display: flex;
   flex: none;
   align-items: flex-start;
@@ -2501,7 +2510,8 @@ p { text-wrap-style: pretty; }
   border-bottom: 1px solid rgba(255, 255, 255, 0.85);
   box-shadow: 0 1px 0 rgba(163, 167, 180, 0.32);
 }
-.sa-panel__title {
+.sa-panel__title,
+.sa-modal__title {
   margin-top: 0.45rem;
   font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
   font-size: var(--t-lg);
@@ -2514,7 +2524,8 @@ p { text-wrap-style: pretty; }
 }
 .sa-panel__title:focus { outline: none; }
 .sa-panel__title:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 4px; border-radius: 4px; }
-.sa-panel__close {
+.sa-panel__close,
+.sa-modal__close {
   display: grid;
   flex: none;
   place-items: center;
@@ -2528,9 +2539,12 @@ p { text-wrap-style: pretty; }
   color: var(--ui-soft);
   transition: box-shadow 0.15s ease, color 0.15s ease;
 }
-.sa-panel__close:hover { color: var(--accent-deep); box-shadow: var(--e); }
-.sa-panel__close:active { box-shadow: var(--e-press); }
-.sa-panel__close:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+.sa-panel__close:hover,
+.sa-modal__close:hover { color: var(--accent-deep); box-shadow: var(--e); }
+.sa-panel__close:active,
+.sa-modal__close:active { box-shadow: var(--e-press); }
+.sa-panel__close:focus-visible,
+.sa-modal__close:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
 .sa-panel__body {
   flex: 1 1 auto;
   min-height: 0;
@@ -2567,29 +2581,36 @@ p { text-wrap-style: pretty; }
 .sa-panel .sa-step__h { margin-top: 0.1rem; font-size: var(--t-sm); }
 .sa-panel .sa-step__b { max-width: none; margin-top: 0.15rem; font-size: var(--t-sm); line-height: 1.5; }
 
-/* The tabs: a rail down the view's right edge, the same panel
-   material as the deck under the view, with the open section
-   lit in the blue. */
+/* The tabs: a bar along the bottom of the screen, under the
+   thumb on a phone and in the same place on a desk, frosted so
+   the page shows through it as it scrolls past, with the open
+   section lit in the blue. */
 .sa-dock {
-  position: sticky;
-  top: var(--sa-top);
-  margin-left: 0.75rem;
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 55;
+  padding: 0.35rem max(0.5rem, env(safe-area-inset-right)) calc(0.35rem + env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+  background: rgba(221, 222, 227, 0.94);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 -10px 28px rgba(0, 0, 0, 0.35);
 }
 .sa-dock__track {
   display: flex;
-  flex-direction: column;
   gap: 0.35rem;
-  padding: 0.4rem;
-  border-radius: var(--r-xl);
-  background: var(--face-flat);
-  box-shadow: var(--e);
+  max-width: 38rem;
+  margin: 0 auto;
 }
 .sa-dock__btn {
   display: grid;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 3.5rem;
   justify-items: center;
-  gap: 0.4rem;
-  padding: 0.8rem 0.2rem 0.7rem;
-  border-radius: calc(var(--r-xl) - 0.4rem);
+  align-content: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.2rem 0.45rem;
+  border-radius: var(--r);
   font-size: 10.5px;
   font-weight: 700;
   line-height: 1.15;
@@ -2599,7 +2620,7 @@ p { text-wrap-style: pretty; }
   color: var(--ui-soft);
   transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
-.sa-dock__icon { width: 1.4rem; height: 1.4rem; color: var(--ui-faint); transition: color 0.15s ease; }
+.sa-dock__icon { width: 1.3rem; height: 1.3rem; color: var(--ui-faint); transition: color 0.15s ease; }
 .sa-dock__btn:hover { color: var(--ui-ink); background-color: rgba(255, 255, 255, 0.55); }
 .sa-dock__btn:hover .sa-dock__icon { color: var(--accent-deep); }
 .sa-dock__btn:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: -2px; }
@@ -2610,45 +2631,12 @@ p { text-wrap-style: pretty; }
 }
 .sa-dock__btn.is-on .sa-dock__icon { color: #fff; }
 
-/* ── A phone: a tab bar and a sheet ───────────────────────────
-   The view keeps the whole width. The tabs sit in a bar along the
-   bottom of the screen, under the thumb, and a section rises over
-   the page as a sheet between the gate sign and the bar — which
+/* ── A phone: a sheet ─────────────────────────────────────────
+   The view keeps the whole width, and a section rises over the
+   page as a sheet between the gate sign and the tab bar — which
    stays in reach to change section or put it away. */
 @media (max-width: 1023.98px) {
-  .sa-app {
-    --dock-h: 4.25rem;
-    padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom));
-  }
   .sa-cockpit { display: block; }
-  .sa-dock {
-    position: fixed;
-    inset: auto 0 0;
-    z-index: 55;
-    margin: 0;
-    padding: 0.35rem max(0.5rem, env(safe-area-inset-right)) calc(0.35rem + env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
-    background: rgba(221, 222, 227, 0.94);
-    -webkit-backdrop-filter: blur(14px) saturate(1.2);
-    backdrop-filter: blur(14px) saturate(1.2);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 -10px 28px rgba(0, 0, 0, 0.35);
-  }
-  .sa-dock__track {
-    flex-direction: row;
-    max-width: 34rem;
-    margin: 0 auto;
-    padding: 0;
-    background: none;
-    box-shadow: none;
-  }
-  .sa-dock__btn {
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 3.5rem;
-    padding: 0.5rem 0.2rem 0.45rem;
-    gap: 0.3rem;
-    border-radius: var(--r);
-  }
-  .sa-dock__icon { width: 1.3rem; height: 1.3rem; }
 
   .sa-panel-slot {
     position: fixed;
@@ -2674,17 +2662,24 @@ p { text-wrap-style: pretty; }
   .sa-panel__head { padding: 1rem 0.9rem 0.85rem 1.15rem; }
   .sa-panel__title { font-size: var(--t-md); }
   .sa-panel__body { padding: 1rem 0.9rem 1.5rem 1.15rem; scrollbar-gutter: auto; }
+  /* Frosted (see "A window over the page"), and hidden outright once
+     faded so an idle blur is not left running under the page. */
   .sa-panel-scrim {
     display: block;
     position: fixed;
     inset: 0;
     z-index: 53;
-    background: rgba(3, 8, 20, 0.55);
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0s linear 0.3s;
   }
-  .sa-cockpit.is-open .sa-panel-scrim { opacity: 1; pointer-events: auto; }
+  .sa-cockpit.is-open .sa-panel-scrim {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.3s ease, visibility 0s;
+  }
 }
 
 /* ── The footer ───────────────────────────────────────────────
@@ -2740,26 +2735,9 @@ p { text-wrap-style: pretty; }
   white-space: nowrap;
   color: var(--ui-faint);
 }
-.sa-footer__nav { display: flex; flex-wrap: wrap; gap: 0 0.25rem; }
-.sa-footer__nav button {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  padding: 0 0.7rem;
-  border-radius: var(--r-sm);
-  font-size: var(--t-sm);
-  font-weight: 600;
-  color: var(--ui-soft);
-  transition: color 0.15s ease;
-}
-.sa-footer__nav button:hover,
-.sa-footer__nav button[aria-expanded='true'] { color: var(--accent-deep); }
-.sa-footer__nav button:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: -2px; }
 .sa-footer__docs { margin-left: auto; }
 .sa-footer .sa-docs { min-height: 2.5rem; padding-block: 0.45rem; font-size: var(--t-sm); }
 @media (max-width: 1023.98px) {
-  /* The tab bar is the navigation here, so the footer does not repeat it. */
-  .sa-footer__nav { display: none; }
   .sa-footer__line { flex-basis: 100%; }
 }
 @media (max-width: 639px) {
@@ -2770,6 +2748,370 @@ p { text-wrap-style: pretty; }
 
 @media (prefers-reduced-motion: reduce) {
   .sa-cockpit, .sa-panel-slot, .sa-cockpit.is-open .sa-panel-slot, .sa-panel-scrim { transition: none; }
+}
+
+/* ============================================================
+   A window over the page
+   ────────────────────────────────────────────────────────────
+   A seat opened off the wall, the high scores, the advert
+   editor, a phone's section sheet: whatever opens on top of the
+   page frosts it rather than dimming it. The page behind is
+   blurred, lifted a little toward white and given a fine grain,
+   so it reads as a pane of frosted glass between you and the
+   page — still there, and plainly not the thing to read.
+   ============================================================ */
+.sa-frost {
+  background-color: rgba(226, 233, 244, 0.2);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  -webkit-backdrop-filter: blur(14px) saturate(1.35);
+  backdrop-filter: blur(14px) saturate(1.35);
+}
+/* Where there is no glass to be had, or less see-through has been
+   asked for, a plain tint does the whole job. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sa-frost { background-color: rgba(28, 33, 42, 0.72); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .sa-frost {
+    background: rgba(28, 33, 42, 0.8);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+.sa-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  display: grid;
+  place-items: center;
+  padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  animation: sa-modal-in 0.2s ease both;
+}
+/* The card: the panel's material, with the accent along its top. */
+.sa-modal__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 30rem);
+  max-height: calc(100dvh - 1.5rem);
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background:
+    var(--g-accent) top / 100% 3px no-repeat,
+    linear-gradient(180deg, #E3E4E8 0%, #DBDCE1 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 24px 70px rgba(4, 10, 24, 0.42);
+  animation: sa-modal-rise 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sa-modal__card:focus { outline: none; }
+.sa-modal__eyebrow {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent-deep);
+}
+.sa-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.15rem 1.5rem 1.5rem;
+}
+@keyframes sa-modal-in { from { opacity: 0; } }
+@keyframes sa-modal-rise { from { opacity: 0; transform: translateY(14px) scale(0.985); } }
+@media (max-width: 639px) {
+  .sa-modal__head { padding: 1rem 0.9rem 0.85rem 1.15rem; }
+  .sa-modal__title { font-size: var(--t-md); }
+  .sa-modal__body { padding: 1rem 1.15rem 1.25rem; }
+}
+
+/* ── A seat, opened ───────────────────────────────────────────
+   The square on the left at a size worth looking at, whoever
+   holds it on the right. On a phone the two stack, the square
+   kept short of the whole screen so the holder is in view too. */
+.sa-seatwin { width: min(100%, 60rem); }
+.sa-seatwin__close { position: absolute; top: 0.9rem; right: 0.9rem; z-index: 2; }
+/* Stacked, it is plain block flow: as a one-column grid, Chrome sized
+   the square's row before its aspect ratio and the heading slid under
+   the picture. */
+.sa-seatwin__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem;
+}
+.sa-seatwin__media {
+  display: grid;
+  place-items: center;
+  width: min(100%, 50dvh);
+  margin: 2.9rem auto 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--ui-sink);
+  box-shadow: var(--e-well);
+}
+@media (min-width: 640px) {
+  .sa-seatwin__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 1.75rem;
+    padding: 1.5rem;
+  }
+  /* The square holds its place while the details scroll past it. */
+  .sa-seatwin__media { position: sticky; top: 0; width: 100%; margin: 0; }
+}
+.sa-seatwin__media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* Held with nothing up yet, and open: the tile and the socket the
+   seat map draws, at this size. */
+.sa-seatwin__tile,
+.sa-seatwin__socket {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  height: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ui-faint);
+}
+.sa-seatwin__tile {
+  background: var(--face);
+  background-image: repeating-linear-gradient(-45deg, rgba(163, 167, 180, 0.16) 0 5px, transparent 5px 12px);
+}
+.sa-seatwin__tile-rank {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ui-ink);
+}
+.sa-seatwin__tile-id { font-family: 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.12em; }
+.sa-seatwin__info { min-width: 0; margin-top: 1.15rem; }
+@media (min-width: 640px) { .sa-seatwin__info { margin-top: 0; } }
+.sa-seatwin__info > .sa-modal__eyebrow { padding-right: 3.25rem; }
+.sa-seatwin__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+  margin-top: 0.5rem;
+  padding-right: 3.25rem;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.5rem, 3.4vw, 2rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--ui-ink);
+}
+.sa-seatwin__yours {
+  display: inline-flex;
+  margin-top: 0.7rem;
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  background: var(--g-accent-text);
+  box-shadow: 1px 2px 7px rgba(0, 105, 194, 0.3);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #fff;
+}
+.sa-seatwin__holder {
+  margin-top: 1.15rem;
+  padding: 0.85rem 1rem 0.9rem;
+  border-radius: var(--r);
+  background: var(--ui-sink);
+  box-shadow: var(--e-press);
+}
+.sa-seatwin__address {
+  margin-top: 0.45rem;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  color: var(--ui-ink);
+}
+.sa-seatwin__holder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 0.7rem;
+}
+.sa-seatwin__explorer,
+.sa-seatwin__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent-deep);
+}
+.sa-seatwin__explorer:hover,
+.sa-seatwin__link:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.sa-seatwin__explorer:focus-visible,
+.sa-seatwin__link:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; border-radius: 4px; }
+.sa-seatwin .sa-map__facts { margin-top: 1rem; }
+.sa-seatwin .sa-map__facts dd { font-size: 13px; }
+.sa-seatwin__advert {
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 -1px 0 rgba(163, 167, 180, 0.24);
+}
+.sa-seatwin__advert .sa-map__alt { margin-top: 0.45rem; font-size: 13px; }
+.sa-seatwin__link { margin-top: 0.35rem; }
+.sa-seatwin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.4rem;
+}
+.sa-seatwin__actions > * {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 2.9rem;
+  padding: 0.8rem 1.25rem;
+  font-size: 12px;
+}
+@media (pointer: coarse) {
+  .sa-seatwin__explorer, .sa-seatwin__link { min-height: 2.75rem; }
+}
+
+/* ── The high scores ──────────────────────────────────────────
+   The landing's Top pilots, in the page's own material: each
+   row a tile, the podium in gold, silver and bronze, and your
+   own row lit in the blue. */
+.sa-scores { width: min(100%, 32rem); }
+.sa-scores__lead { font-size: 13px; line-height: 1.6; color: var(--ui-soft); }
+.sa-scores__state {
+  margin-top: 1rem;
+  padding: 1.1rem 1rem;
+  border-radius: var(--r);
+  background: var(--ui-sink);
+  box-shadow: var(--e-press);
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: center;
+  color: var(--ui-soft);
+}
+.sa-scores__list {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  padding: 0;
+  list-style: none;
+}
+.sa-scores__list li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.95rem 0.55rem 0.6rem;
+  border-radius: var(--r);
+  background: var(--face);
+  box-shadow: var(--e-sm);
+}
+.sa-scores__list li.is-you {
+  background: var(--g-accent-text);
+  box-shadow: 3px 5px 14px rgba(0, 105, 194, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.sa-scores__rank {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--ui-sink);
+  box-shadow: var(--e-press);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ui-soft);
+}
+.sa-scores__rank--1 {
+  background: linear-gradient(145deg, #FFE391, #EDB21B);
+  box-shadow: 0 2px 7px rgba(176, 124, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  color: #4A3300;
+}
+.sa-scores__rank--2 {
+  background: linear-gradient(145deg, #F6F7FA, #C2C8D2);
+  box-shadow: 0 2px 7px rgba(90, 99, 115, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: #343B48;
+}
+.sa-scores__rank--3 {
+  background: linear-gradient(145deg, #F5CDA6, #C8864F);
+  box-shadow: 0 2px 7px rgba(140, 82, 32, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  color: #43250B;
+}
+.sa-scores__who { display: grid; gap: 0.12rem; min-width: 0; }
+.sa-scores__wallet {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ui-ink);
+}
+.sa-scores__you {
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.sa-scores__meta { font-size: 11px; line-height: 1.3; color: var(--ui-faint); }
+.sa-scores__score {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-ink);
+}
+.sa-scores__list li.is-you :is(.sa-scores__wallet, .sa-scores__score) { color: #fff; }
+.sa-scores__list li.is-you .sa-scores__meta { color: rgba(255, 255, 255, 0.85); }
+.sa-scores__mine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.15rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 -1px 0 rgba(163, 167, 180, 0.24);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ui-faint);
+}
+.sa-scores__mine strong {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 15px;
+  letter-spacing: 0;
+  color: var(--ui-ink);
+}
+.sa-scores__fine { margin-top: 0.8rem; font-size: 11.5px; line-height: 1.6; color: var(--ui-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-modal, .sa-modal__card { animation: none; }
 }
 
 /* ============================================================

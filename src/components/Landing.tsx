@@ -9,7 +9,7 @@ import { formatCap, type BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import type { ManualControls } from '../lib/manualControls';
 import { blastAltitude, clampUnit, FEET, newGame, type Phase } from '../lib/landingGame';
-import { fetchBoard, hasBoard, postScore, shortWallet, startRun, type BoardEntry, type Posted } from '../lib/scoresApi';
+import { fetchBoard, hasBoard, keepBest, postScore, readBest, shortWallet, startRun, type BoardEntry, type Posted } from '../lib/scoresApi';
 import type { WalletState } from '../lib/useWallet';
 import type { LandingHud, LandingSounds } from './LandingScene';
 
@@ -47,23 +47,6 @@ interface LandingProps {
   /** Go through to the site. */
   onEnter: () => void;
 }
-
-/** This browser's own best, kept whether or not it is ever posted. */
-const BEST_KEY = 'sa.game.best';
-const readBest = (): number => {
-  try {
-    return Number(window.localStorage.getItem(BEST_KEY)) || 0;
-  } catch {
-    return 0;
-  }
-};
-const keepBest = (score: number) => {
-  try {
-    window.localStorage.setItem(BEST_KEY, String(score));
-  } catch {
-    /* Nowhere to keep it. */
-  }
-};
 
 type PostState =
   | { state: 'idle' }

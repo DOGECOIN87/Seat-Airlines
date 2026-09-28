@@ -84,3 +84,25 @@ export async function postScore(p: {
 
 /** A wallet as the board shows it: the ends, not the middle. */
 export const shortWallet = (address: string) => `${address.slice(0, 4)}…${address.slice(-4)}`;
+
+/**
+ * This browser's own best, kept whether or not it is ever posted.
+ *
+ * Here rather than in the landing because the landing is not the only place
+ * that reads it: the high scores open from inside the site too.
+ */
+const BEST_KEY = 'sa.game.best';
+export const readBest = (): number => {
+  try {
+    return Number(window.localStorage.getItem(BEST_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+};
+export const keepBest = (score: number) => {
+  try {
+    window.localStorage.setItem(BEST_KEY, String(score));
+  } catch {
+    /* Nowhere to keep it. */
+  }
+};

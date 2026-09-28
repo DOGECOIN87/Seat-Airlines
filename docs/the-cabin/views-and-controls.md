@@ -44,7 +44,7 @@ The run is scored as you fly:
 | … with the ground under 500 ft | × 2 |
 | … both | × 2.5 |
 
-The score and its multiplier are under the altimeter; your best is kept in this browser. On the **WASTED** screen you can put the score on the **Top pilots** board with any Solana wallet (Phantom, Solflare, Backpack): the wallet signs a short message naming the score — a message, not a transaction, so it moves nothing and approves nothing. Each wallet keeps its best.
+The score and its multiplier are under the altimeter; your best is kept in this browser. On the **WASTED** screen you can put the score on the **Top pilots** board with any Solana wallet (Phantom, Solflare, Backpack): the wallet signs a short message naming the score — a message, not a transaction, so it moves nothing and approves nothing. Each wallet keeps its best. Once you are inside, **Scores** in the tab bar along the bottom of the screen opens the **Top pilots** board again, with your best in this browser under it.
 
 The server times every run from the moment you take the controls and refuses a score that time could not have earned, and each run can be posted once. That stops a made-up number; it cannot stop somebody patient enough to wait out the time their made-up number needs, so the board is for bragging rights, not prizes. `?mayday` runs are practice and are not posted.
 
@@ -64,15 +64,17 @@ The server times every run from the moment you take the controls and refuses a s
 * **Walk the aircraft**, under the view: **Outside**, **Flight Deck**, **First**, **Business**, **Exit Row**, **Economy**, **Cargo hold**.
 * **Seat** — when you are in a seat, choose **Window**, **Middle** or **Aisle**.
 * **← Look left**, **Forward**, **Look right →** turn your head.
-* **Click any seat on the wall** to put the camera in it. Looking from any seat is free.
+* **Click any seat on the wall** to open it in a window — its advert on the left, whoever holds it on the right — and press **Look from this seat** to put the camera in it. Looking from any seat is free.
 * When you check in and are seated, the camera walks you to your own seat on its own.
 
 ## The sections
 
-The seat map, the section network, the cabin chat and check-in open **beside the view** rather than further down the page, so the aircraft stays on the screen whichever one you are in.
+The seat map, the section network, the cabin chat and check-in open from a **tab bar along the bottom of the screen** — **Seats**, **Network**, **Chat** and **Check in** — rather than further down the page, so the aircraft stays on the screen whichever one you are in. **Scores**, at the end of the bar, opens the high scores.
 
-* **On a computer** the tabs run down the right edge of the view: **Seats**, **Network**, **Chat** and **Check in**. A tab opens its section in a panel between the view and the tabs, and the view narrows to make room. Click the tab again, the **×**, or press **Esc** to close it and give the view its width back.
-* **On a phone** the same four tabs sit in a bar along the bottom of the screen, and a section rises over the page as a sheet. Tap outside it, the **×**, or its tab again to put it away. Picking a seat on the wall closes the sheet so you can see the view from it.
+* **On a computer** a tab opens its section in a panel beside the view, and the view narrows to make room. Click the tab again, the **×**, or press **Esc** to close it and give the view its width back.
+* **On a phone** a section rises over the page as a sheet. Tap outside it, the **×**, or its tab again to put it away. **Look from this seat**, in a seat's window, closes the sheet so you can see the view from it.
+
+Windows — a seat, the high scores, the advert editor — open over the page with the page frosted behind them. **Esc**, the **×** or a click on the frost closes one, and leaves the section under it open.
 
 **Seats** opens on the seat map itself; how seating works is underneath it. The old links — `#wall`, `#network`, `#chat` and `#check-in` — open the matching section.
 

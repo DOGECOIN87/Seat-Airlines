@@ -1,9 +1,11 @@
-import { memo, useState, type CSSProperties } from 'react';
-import { CABIN_ZONES, CARGO_HOLD, LAVATORY_SEATS, seatCount, type CabinRow, type ZoneKey } from '../content/cabin';
+import { memo, useCallback, useState, type CSSProperties } from 'react';
+import { CABIN_ZONES, CARGO_HOLD, LAVATORY_SEATS, findSeat, seatCount, type CabinRow, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner, type BannerSet } from '../lib/banners';
 import { shortAddress, type Manifest, type ManifestEntry } from '../lib/manifest';
 import { formatShare, formatTokens } from '../lib/seatLadder';
-import { formatActivityTime, shortSignature, transactionStatus, useWalletActivity } from '../lib/transactions';
+import { useWalletActivity } from '../lib/transactions';
+import SeatDialog from './SeatDialog';
+import WalletActivity from './WalletActivity';
 
 /**
  * The cabin, from above.
@@ -33,12 +35,11 @@ interface SeatProps {
   entry: ManifestEntry | null;
   banner: Banner | null;
   mine: boolean;
-  onVisit: (id: string, zone: ZoneKey) => void;
-  onSelect: (id: string) => void;
+  onOpen: (id: string) => void;
   onInspect: (id: string | null) => void;
 }
 
-const Seat = ({ id, zone, entry, banner, mine, onVisit, onSelect, onInspect }: SeatProps) => {
+const Seat = ({ id, zone, entry, banner, mine, onOpen, onInspect }: SeatProps) => {
   const lavatory = (LAVATORY_SEATS as readonly string[]).includes(id);
   const sold = entry !== null;
 
@@ -55,15 +56,16 @@ const Seat = ({ id, zone, entry, banner, mine, onVisit, onSelect, onInspect }: S
           : 'sa-seat--open';
 
   const label = sold
-    ? `Seat ${id}, rank ${entry.rank}, ${shortAddress(entry.address)}${banner ? `. Advert: ${banner.alt}` : ''}. Look from here.`
-    : `Seat ${id}, open${lavatory ? ', middle seat by the lavatory, does not recline' : ''}. Look from here.`;
+    ? `Seat ${id}, rank ${entry.rank}, ${shortAddress(entry.address)}${banner ? `. Advert: ${banner.alt}` : ''}`
+    : `Seat ${id}, open${lavatory ? ', middle seat by the lavatory, does not recline' : ''}`;
 
   return (
     <button
       type="button"
       aria-pressed={mine}
+      aria-haspopup="dialog"
       aria-label={label}
-      onClick={() => { onSelect(id); onVisit(id, zone); }}
+      onClick={() => onOpen(id)}
       onMouseEnter={() => onInspect(id)}
       onFocus={() => onInspect(id)}
       onMouseLeave={() => onInspect(null)}
@@ -105,6 +107,7 @@ interface SeatMapProps {
   mine: string | null;
   /** The seat this visitor may advertise on, if any. */
   canAdvertise: string | null;
+  /** Put the camera in a seat: the seat's window has the button for it. */
   onVisit: (id: string, zone: ZoneKey) => void;
   onAdvertise: (seat: string) => void;
 }
@@ -112,7 +115,18 @@ interface SeatMapProps {
 const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, onVisit, onAdvertise }: SeatMapProps) {
   const [inspecting, setInspecting] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  /** The seat open in its own window, over the page. */
+  const [open, setOpen] = useState<{ id: string; zone: ZoneKey } | null>(null);
   const [showAll, setShowAll] = useState(false);
+  /* A click opens the seat. It is also the selection, so the readout beside
+     the map is still on it once the window closes. */
+  const openSeat = useCallback((id: string) => {
+    const seat = findSeat(id);
+    if (!seat) return;
+    setSelected(id);
+    setOpen({ id, zone: seat.zone });
+  }, []);
+  const closeSeat = useCallback(() => setOpen(null), []);
 
   /* How full each zone is.
 
@@ -260,8 +274,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                                   entry={manifest.bySeat.get(id) ?? null}
                                   banner={banners[id] ?? null}
                                   mine={mine === id}
-                                  onVisit={onVisit}
-                                  onSelect={setSelected}
+                                  onOpen={openSeat}
                                   onInspect={setInspecting}
                                 />
                               );
@@ -349,45 +362,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                     <dd className="tabular-nums">{formatShare(entry.share)}</dd>
                   </div>
                 </dl>
-                <section className="sa-activity" aria-labelledby="seat-activity-title">
-                  <div className="sa-activity__head">
-                    <p id="seat-activity-title" className="sa-map__label">Recent wallet activity</p>
-                    <span className={`sa-activity__status ${activity.failed ? 'sa-activity__status--quiet' : ''}`}>
-                      {activity.loading ? 'Updating' : activity.configured ? 'Live' : 'RPC not set'}
-                    </span>
-                  </div>
-                  {!activity.configured ? (
-                    <p className="sa-activity__empty">Connect a Solana RPC endpoint to read confirmed transactions for this holder.</p>
-                  ) : activity.loading && !activity.rows.length ? (
-                    <p className="sa-activity__empty">Reading the chain…</p>
-                  ) : activity.failed ? (
-                    <p className="sa-activity__empty">Transaction history is temporarily unavailable. The wallet holder above is still live.</p>
-                  ) : activity.rows.length ? (
-                    <ul className="sa-activity__list">
-                      {activity.rows.map((transaction) => (
-                        <li key={transaction.signature} className="sa-activity__row">
-                          <span className={`sa-activity__dot ${transaction.err ? 'sa-activity__dot--failed' : ''}`} aria-hidden />
-                          <span className="sa-activity__copy">
-                            <a
-                              href={`https://solscan.io/tx/${transaction.signature}`}
-                              target="_blank"
-                              rel="noopener noreferrer nofollow"
-                              className="sa-activity__signature"
-                            >
-                              {shortSignature(transaction.signature)}
-                            </a>
-                            <span className="sa-activity__meta">{formatActivityTime(transaction.blockTime)} · {transactionStatus(transaction)}</span>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="sa-activity__empty">No recent signatures found for this wallet.</p>
-                  )}
-                  {activity.refreshedAt && !activity.loading && (
-                    <p className="sa-activity__updated">Updated {formatActivityTime(Math.floor(activity.refreshedAt / 1000))}</p>
-                  )}
-                </section>
+                <WalletActivity activity={activity} />
                 </>
               ) : (
                 <p className="sa-map__note">
@@ -410,7 +385,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
               )}
               {resting && (
                 <p className="sa-map__note">
-                  Point at any seat to see who holds it and what they are running.
+                  Point at any seat to see who holds it and what they are running, or open it for the whole story.
                 </p>
               )}
             </>
@@ -432,6 +407,24 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
 
         </div>
       </aside>
+
+      {open && (
+        <SeatDialog
+          id={open.id}
+          zone={open.zone}
+          entry={manifest.bySeat.get(open.id) ?? null}
+          banner={banners[open.id] ?? null}
+          mine={mine === open.id}
+          canAdvertise={canAdvertise === open.id}
+          seated={manifest.entries.length}
+          /* The readout's poll is on this seat too — opening it selected it
+             — so the window reads that rather than starting another. */
+          activity={activity}
+          onLook={() => { setOpen(null); onVisit(open.id, open.zone); }}
+          onAdvertise={() => { setOpen(null); onAdvertise(open.id); }}
+          onClose={closeSeat}
+        />
+      )}
     </div>
   );
 });

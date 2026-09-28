@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { DeckIcon, type DeckIconName } from './InstrumentDeck';
+import { lockScroll } from '../lib/scrollLock';
 
 /**
  * The page's sections, beside the view rather than below it.
@@ -10,10 +11,11 @@ import { DeckIcon, type DeckIconName } from './InstrumentDeck';
  * camera nobody could see. Now each opens in a panel alongside the view,
  * which narrows to make room, and closes back to the full width.
  *
- * On a desk the tabs run down the view's right edge and the panel opens
- * between them and the view. A phone has no width to share, so there the
- * tabs are a bar along the bottom of the screen and a section rises over
- * the page as a sheet, with the bar still under your thumb to change
+ * The tabs are a bar along the bottom of the screen at every size — they
+ * used to be a rail down the view's right edge on a desk, which took a
+ * column off the view for four buttons. On a desk a section opens in a
+ * panel beside the view; a phone has no width to share, so there it rises
+ * over the page as a sheet, with the bar still under your thumb to change
  * section or put it away. The same two components draw both; the layout is
  * the stylesheet's (see "The cockpit" in index.css).
  */
@@ -46,7 +48,15 @@ export function panelFromHash(hash: string): PanelKey | null {
 /** The narrow layout, where a section is a sheet over the page rather than a panel beside the view. */
 export const SHEET_QUERY = '(max-width: 1023.98px)';
 
-export function SectionDock({ open, onToggle }: { open: PanelKey | null; onToggle: (key: PanelKey) => void }) {
+interface SectionDockProps {
+  open: PanelKey | null;
+  onToggle: (key: PanelKey) => void;
+  /** Open the high scores. They are a window over the page, not a section. */
+  onScores: () => void;
+  scoresOpen: boolean;
+}
+
+export function SectionDock({ open, onToggle, onScores, scoresOpen }: SectionDockProps) {
   return (
     <nav className="sa-dock" aria-label="Sections">
       <div className="sa-dock__track">
@@ -63,6 +73,16 @@ export function SectionDock({ open, onToggle }: { open: PanelKey | null; onToggl
             <span className="sa-dock__label">{p.label}</span>
           </button>
         ))}
+        <button
+          type="button"
+          onClick={onScores}
+          aria-haspopup="dialog"
+          aria-expanded={scoresOpen}
+          className={`sa-dock__btn${scoresOpen ? ' is-on' : ''}`}
+        >
+          <DeckIcon name="trophy" className="sa-dock__icon" />
+          <span className="sa-dock__label">Scores</span>
+        </button>
       </div>
     </nav>
   );
@@ -110,19 +130,18 @@ export function SectionPanel({ open, onClose, render }: SectionPanelProps) {
     };
     window.addEventListener('keydown', onKey);
     /* As a sheet it covers the page, so the page holds still under it. */
-    const sheet = window.matchMedia(SHEET_QUERY).matches;
-    const prev = document.body.style.overflow;
-    if (sheet) document.body.style.overflow = 'hidden';
+    const release = window.matchMedia(SHEET_QUERY).matches ? lockScroll() : null;
     return () => {
       window.removeEventListener('keydown', onKey);
-      if (sheet) document.body.style.overflow = prev;
+      release?.();
     };
   }, [open, onClose]);
 
   return (
     <>
-    {/* Behind a phone's sheet, a tap anywhere off it puts it away. */}
-    <div className="sa-panel-scrim" onClick={onClose} aria-hidden />
+    {/* Behind a phone's sheet the page is frosted, and a tap anywhere off
+        the sheet puts it away. */}
+    <div className="sa-panel-scrim sa-frost" onClick={onClose} aria-hidden />
     <div className="sa-panel-slot" inert={!open} aria-hidden={!open}>
       {def && (
         <section id="sa-panel" className="sa-panel" aria-labelledby="sa-panel-title">
