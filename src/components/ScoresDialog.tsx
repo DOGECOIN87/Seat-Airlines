@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { fetchBoard, hasBoard, readBest, shortWallet, type BoardEntry } from '../lib/scoresApi';
+import { fetchBoard, hasBoard, readBest, recentBoard, shortWallet, type BoardEntry } from '../lib/scoresApi';
 import ModalWindow from './ModalWindow';
 
 interface ScoresDialogProps {
@@ -12,20 +12,22 @@ interface ScoresDialogProps {
  * The high scores, from inside the site.
  *
  * The board used to be on the landing and nowhere else, so once through the
- * door there was no seeing it again short of a reload. It is read fresh each
- * time it opens: a score posted from another tab should be on it.
+ * door there was no seeing it again short of a reload. A board read in the
+ * last minute — the landing's, or this window's last opening — is shown as
+ * it is; anything older is read again, so a score posted since turns up.
  */
 export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
   const title = useId();
+  const [cached] = useState(() => (hasBoard ? recentBoard() : null));
   /* Undefined while it is read; null when there is no board to be had. */
-  const [board, setBoard] = useState<BoardEntry[] | null | undefined>(hasBoard ? undefined : null);
+  const [board, setBoard] = useState<BoardEntry[] | null | undefined>(hasBoard ? cached ?? undefined : null);
   const [best] = useState(readBest);
   useEffect(() => {
-    if (!hasBoard) return;
+    if (!hasBoard || cached) return;
     const ctl = new AbortController();
     void fetchBoard(ctl.signal).then((rows) => { if (!ctl.signal.aborted) setBoard(rows); });
     return () => ctl.abort();
-  }, []);
+  }, [cached]);
 
   return (
     <ModalWindow labelledBy={title} onClose={onClose} className="sa-scores">

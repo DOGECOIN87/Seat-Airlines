@@ -2206,94 +2206,6 @@ p { text-wrap-style: pretty; }
   .sa-lead { font-size: 0.96rem; line-height: 1.58; }
 }
 
-/* Live wallet activity in the selected-seat inspector. */
-.sa-activity {
-  margin-top: 1.15rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 -1px 0 rgba(163, 167, 180, 0.24);
-}
-.sa-activity__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-.sa-activity__status {
-  color: var(--accent-deep);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  line-height: 1.2;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.sa-activity__status::before {
-  content: '';
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin: 0 0.35rem 1px 0;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 0 2px rgba(0, 135, 234, 0.12);
-}
-.sa-activity__status--quiet { color: var(--ui-faint); }
-.sa-activity__list {
-  display: grid;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding: 0;
-  list-style: none;
-}
-.sa-activity__row {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  min-width: 0;
-}
-.sa-activity__dot {
-  width: 0.42rem;
-  height: 0.42rem;
-  flex: none;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 135, 234, 0.12);
-}
-.sa-activity__dot--failed { background: #c74444; box-shadow: 0 0 0 3px rgba(199, 68, 68, 0.12); }
-.sa-activity__copy {
-  display: grid;
-  min-width: 0;
-  gap: 0.12rem;
-}
-.sa-activity__signature {
-  overflow: hidden;
-  color: var(--accent-deep);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sa-activity__meta,
-.sa-activity__updated {
-  color: var(--ui-faint);
-  font-size: 11px;
-  line-height: 1.35;
-}
-.sa-activity__empty {
-  margin-top: 0.7rem;
-  color: var(--ui-soft);
-  font-size: 11px;
-  line-height: 1.55;
-}
-.sa-activity__updated {
-  margin-top: 0.7rem;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  letter-spacing: 0.03em;
-}
 
 /* ============================================================
    Design pass — elevation on the dark ground
@@ -2975,21 +2887,51 @@ p { text-wrap-style: pretty; }
 }
 .sa-seatwin__advert .sa-map__alt { margin-top: 0.45rem; font-size: 13px; }
 .sa-seatwin__link { margin-top: 0.35rem; }
+/* The window's actions: one compact row under the details, the
+   size of the holder's own buttons, so the card ends about where
+   the picture does rather than under a pair of full-width bars. */
 .sa-seatwin__actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.6rem;
-  margin-top: 1.4rem;
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 -1px 0 rgba(163, 167, 180, 0.24);
 }
-.sa-seatwin__actions > * {
-  flex: 1 1 auto;
-  justify-content: center;
-  min-height: 2.9rem;
-  padding: 0.8rem 1.25rem;
-  font-size: 12px;
+.sa-seatwin__look,
+.sa-seatwin__advertise {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  transition: box-shadow 0.15s ease, filter 0.15s ease;
 }
+.sa-seatwin__look {
+  background: var(--face);
+  box-shadow: var(--e-sm);
+  color: var(--accent-deep);
+}
+.sa-seatwin__look:hover { box-shadow: var(--e); }
+.sa-seatwin__look:active { box-shadow: var(--e-press); }
+.sa-seatwin__advertise {
+  background: var(--g-accent-text);
+  box-shadow: 2px 4px 12px rgba(0, 105, 194, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+.sa-seatwin__advertise:hover { filter: brightness(1.07); }
+.sa-seatwin__advertise:active { box-shadow: inset 3px 3px 9px rgba(0, 70, 135, 0.45); }
+.sa-seatwin__look:focus-visible,
+.sa-seatwin__advertise:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
 @media (pointer: coarse) {
-  .sa-seatwin__explorer, .sa-seatwin__link { min-height: 2.75rem; }
+  .sa-seatwin__explorer, .sa-seatwin__link, .sa-seatwin__look, .sa-seatwin__advertise { min-height: 2.75rem; }
 }
 
 /* ── The high scores ──────────────────────────────────────────

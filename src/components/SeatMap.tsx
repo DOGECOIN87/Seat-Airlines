@@ -3,9 +3,7 @@ import { CABIN_ZONES, CARGO_HOLD, LAVATORY_SEATS, findSeat, seatCount, type Cabi
 import { safeHref, type Banner, type BannerSet } from '../lib/banners';
 import { shortAddress, type Manifest, type ManifestEntry } from '../lib/manifest';
 import { formatShare, formatTokens } from '../lib/seatLadder';
-import { useWalletActivity } from '../lib/transactions';
 import SeatDialog from './SeatDialog';
-import WalletActivity from './WalletActivity';
 
 /**
  * The cabin, from above.
@@ -188,7 +186,6 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
   const entry = shown ? manifest.bySeat.get(shown) ?? null : null;
   const banner = shown ? banners[shown] ?? null : null;
   const link = safeHref(banner?.href);
-  const activity = useWalletActivity(entry?.address ?? null);
 
   return (
     <div
@@ -362,7 +359,6 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                     <dd className="tabular-nums">{formatShare(entry.share)}</dd>
                   </div>
                 </dl>
-                <WalletActivity activity={activity} />
                 </>
               ) : (
                 <p className="sa-map__note">
@@ -417,9 +413,6 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
           mine={mine === open.id}
           canAdvertise={canAdvertise === open.id}
           seated={manifest.entries.length}
-          /* The readout's poll is on this seat too — opening it selected it
-             — so the window reads that rather than starting another. */
-          activity={activity}
           onLook={() => { setOpen(null); onVisit(open.id, open.zone); }}
           onAdvertise={() => { setOpen(null); onAdvertise(open.id); }}
           onClose={closeSeat}

@@ -28,9 +28,9 @@
  * The fallback written to spare somebody a second variable was defeated by
  * the variable it was meant to make optional.
  *
- * So absent and blank are one thing here. `transactions.ts`, `marketFeed.ts`
- * and `token.ts` had already each decided that for themselves; these two were
- * the ones that had not.
+ * So absent and blank are one thing here. `marketFeed.ts` and `token.ts` had
+ * already each decided that for themselves; these two were the ones that had
+ * not.
  */
 
 /**

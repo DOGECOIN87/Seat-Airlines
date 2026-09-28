@@ -164,62 +164,72 @@ export function readTick(body: Json, previous: FlightTick): FlightTick {
   };
 }
 
-/** A feed that reads the market. */
+/**
+ * A feed that reads the market.
+ *
+ * One reading, however many are listening. Each subscriber used to start a
+ * poll of its own, and the page has two at once — the readouts and the
+ * aeroplane's attitude — so every twenty seconds the same URL was fetched
+ * twice for the same answer. Now the first subscriber starts the poll, every
+ * reading goes to all of them, and the last one out stops it; one who joins
+ * late is handed the latest reading at once rather than asking again.
+ */
 export function createLiveFeed(start: FlightTick): FlightFeed {
   const url = MARKET_URL ?? (TOKEN_MINT ? defaultMarketUrl(TOKEN_MINT) : null);
   let latest: FlightTick = start;
+  const listeners = new Set<(tick: FlightTick) => void>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let controller: AbortController | undefined;
+
+  const poll = async () => {
+    if (!url || !listeners.size || document.visibilityState === 'hidden') return;
+    let wait = POLL_MS;
+    controller?.abort();
+    controller = new AbortController();
+    try {
+      const res = await fetch(url, { headers: { accept: 'application/json' }, signal: controller.signal });
+      if (res.ok) {
+        latest = readTick(await res.json(), latest);
+        for (const listener of [...listeners]) listener(latest);
+      } else if (res.status === 429) {
+        /* Being rate-limited is not a reason to ask more often. Backing
+           off is the only response that can actually clear it — retrying
+           on schedule just keeps the window full. */
+        wait = BACKOFF_MS;
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      /* Offline or blocked. Hold the last reading: the aircraft keeps
+         flying on what it knew, which is what a real instrument does
+         when its source goes quiet. */
+    }
+    if (listeners.size && document.visibilityState === 'visible') timer = setTimeout(poll, wait);
+  };
+
+  const halt = () => {
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+    controller?.abort();
+  };
+
+  const onVisibilityChange = () => {
+    halt();
+    if (document.visibilityState === 'visible') void poll();
+  };
 
   return {
     subscribe(listener) {
       if (!url) return () => {};
-      let stopped = false;
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      let controller: AbortController | undefined;
-
-      const poll = async () => {
-        if (stopped || document.visibilityState === 'hidden') return;
-        let wait = POLL_MS;
-        controller?.abort();
-        controller = new AbortController();
-        try {
-          const res = await fetch(url, { headers: { accept: 'application/json' }, signal: controller.signal });
-          if (res.ok) {
-            latest = readTick(await res.json(), latest);
-            if (!stopped) listener(latest);
-          } else if (res.status === 429) {
-            /* Being rate-limited is not a reason to ask more often. Backing
-               off is the only response that can actually clear it — retrying
-               on schedule just keeps the window full. */
-            wait = BACKOFF_MS;
-          }
-        } catch (error) {
-          if (error instanceof DOMException && error.name === 'AbortError') return;
-          /* Offline or blocked. Hold the last reading: the aircraft keeps
-             flying on what it knew, which is what a real instrument does
-             when its source goes quiet. */
-        }
-        if (!stopped && document.visibilityState === 'visible') timer = setTimeout(poll, wait);
-      };
-
-      const onVisibilityChange = () => {
-        if (document.visibilityState === 'hidden') {
-          if (timer) clearTimeout(timer);
-          timer = undefined;
-          controller?.abort();
-        } else {
-          void poll();
-        }
-      };
-      document.addEventListener('visibilitychange', onVisibilityChange);
-
-      // Report what we have immediately, then go and ask.
+      // Report what we have immediately; the first listener also goes and asks.
       listener(latest);
-      poll();
-
+      listeners.add(listener);
+      if (listeners.size === 1) {
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        void poll();
+      }
       return () => {
-        stopped = true;
-        if (timer) clearTimeout(timer);
-        controller?.abort();
+        if (!listeners.delete(listener) || listeners.size) return;
+        halt();
         document.removeEventListener('visibilitychange', onVisibilityChange);
       };
     },

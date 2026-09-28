@@ -3,9 +3,7 @@ import { CABIN_ZONES, LAVATORY_NOTE, LAVATORY_SEATS, findSeat, type ZoneKey } fr
 import { safeHref, type Banner } from '../lib/banners';
 import type { ManifestEntry } from '../lib/manifest';
 import { formatShare, formatTokens } from '../lib/seatLadder';
-import type { WalletActivity as Activity } from '../lib/transactions';
 import ModalWindow from './ModalWindow';
-import WalletActivity from './WalletActivity';
 
 interface SeatDialogProps {
   id: string;
@@ -18,8 +16,6 @@ interface SeatDialogProps {
   canAdvertise: boolean;
   /** How many holders are seated: what an open seat costs is out-holding the last of them. */
   seated: number;
-  /** The seat map's own poll of this holder's wallet. */
-  activity: Activity;
   /** Put the camera in this seat. */
   onLook: () => void;
   onAdvertise: () => void;
@@ -37,9 +33,14 @@ const WHERE: Record<string, string> = { window: 'Window seat', middle: 'Middle s
  * at all on a touch screen. Now a seat opens here: the advert at a size
  * worth looking at on the left, whoever holds the seat on the right, and
  * looking from it one button away rather than the only thing a click did.
+ *
+ * Everything in it is already on the page — the manifest, the wall — so
+ * opening a seat asks nothing of the network. It used to read the holder's
+ * recent transactions off an RPC, re-asked every half minute and on every
+ * seat the pointer crossed; that is gone.
  */
 export default function SeatDialog({
-  id, zone, entry, banner, mine, canAdvertise, seated, activity, onLook, onAdvertise, onClose,
+  id, zone, entry, banner, mine, canAdvertise, seated, onLook, onAdvertise, onClose,
 }: SeatDialogProps) {
   const title = useId();
   const [copied, setCopied] = useState(false);
@@ -146,15 +147,13 @@ export default function SeatDialog({
             </div>
           )}
 
-          {entry && <WalletActivity activity={activity} />}
-
           <div className="sa-seatwin__actions">
             {canAdvertise && (
-              <button type="button" onClick={onAdvertise} className="sa-cta">
+              <button type="button" onClick={onAdvertise} className="sa-seatwin__advertise">
                 {own ? 'Change your advert' : 'Advertise here'}
               </button>
             )}
-            <button type="button" onClick={onLook} className={canAdvertise ? 'sa-ghost' : 'sa-cta'}>
+            <button type="button" onClick={onLook} className="sa-seatwin__look">
               Look from this seat <span aria-hidden>→</span>
             </button>
           </div>

@@ -30,6 +30,12 @@ export interface Posted {
 /** True when this deployment has a Worker to keep a board on. */
 export const hasBoard = Boolean(WORKER_API);
 
+/**
+ * The board as last read, and when. The landing reads it on the way in, so
+ * the high scores opened a minute later need not ask the Worker again.
+ */
+let lastBoard: { rows: BoardEntry[]; at: number } | null = null;
+
 /** The board, best first; null when there is none to be had. */
 export async function fetchBoard(signal?: AbortSignal): Promise<BoardEntry[] | null> {
   if (!hasBoard) return null;
@@ -37,10 +43,17 @@ export async function fetchBoard(signal?: AbortSignal): Promise<BoardEntry[] | n
     const res = await fetch(`${WORKER_API}/scores`, { signal });
     if (!res.ok) return null;
     const body = (await res.json()) as { scores?: BoardEntry[] };
-    return Array.isArray(body.scores) ? body.scores : null;
+    if (!Array.isArray(body.scores)) return null;
+    lastBoard = { rows: body.scores, at: Date.now() };
+    return body.scores;
   } catch {
     return null;
   }
+}
+
+/** The board as last read, when that was recent enough to show as it stands. */
+export function recentBoard(maxAge = 60_000): BoardEntry[] | null {
+  return lastBoard && Date.now() - lastBoard.at < maxAge ? lastBoard.rows : null;
 }
 
 /** Start a run on the server, which times it; null when the board is out of reach. */
