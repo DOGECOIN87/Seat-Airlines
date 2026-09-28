@@ -1,0 +1,25 @@
+# A look at the site's domains from outside, for when they are being set up:
+# where the domain's DNS is, and whether the site and the share address answer.
+# Runs by hand, or when this file changes on a working branch.
+name: Check the share domain
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [main]
+    paths: ['.github/workflows/check-share.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Look
+        run: |
+          echo "== nameservers";         dig +short NS seat-airlines.space
+          echo "== share address";       dig +short share.seat-airlines.space
+          echo "== share /health";       curl -sS -m 20 https://share.seat-airlines.space/health || echo "(no answer)"
+          echo; echo "== site";          curl -sS -o /dev/null -m 20 -w "%{http_code} %{remote_ip}\n" https://seat-airlines.space/ || echo "(no answer)"
+          echo "== link picture";        curl -sS -o /dev/null -m 20 -w "%{http_code} %{content_type} %{size_download} bytes\n" https://seat-airlines.space/og-card.jpg || echo "(no answer)"
