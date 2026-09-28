@@ -669,7 +669,7 @@ export default function App() {
           thing that is live — you should be able to see the altitude move
           while you are reading the seat map. */}
       <header ref={topbarRef} className="sa-topbar sticky top-0 z-40">
-        <div className="mx-auto flex max-w-[94rem] flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2.5 sm:gap-x-7 sm:px-8">
+        <div className="mx-auto flex max-w-[94rem] flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-2 sm:px-8 lg:gap-x-7 lg:py-2.5">
           <a href="#top" className="sa-brand flex shrink-0 items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ui-blue">
             <Mark size={34} title="SEAT AIRLINES" />
             <span className="whitespace-nowrap font-heading text-lg leading-none text-ui-ink">Seat Airlines</span>
@@ -679,18 +679,23 @@ export default function App() {
           </a>
 
           {/* The one call to action, where it is always on the screen: beside
-              the brand on a phone, after the figures on anything wider. */}
+              the brand on a phone or a tablet, after the figures on a desk.
+              Brand, figures and button need about 1,000px to share a row;
+              narrower, the figures take a row of their own under the two,
+              across the whole width, from the brand's edge to the button's,
+              rather than wrapping beside the button and lining up with
+              neither. */}
           <a
             href="#wall"
             onClick={claimSeat}
             onMouseEnter={prefetchSeatMap}
             onFocus={prefetchSeatMap}
-            className="sa-cta sa-cta--bar sa-shine ml-auto shrink-0 sm:order-last sm:ml-0"
+            className="sa-cta sa-cta--bar sa-shine ml-auto shrink-0 lg:order-last lg:ml-0"
           >
             Claim a seat <span aria-hidden>→</span>
           </a>
 
-          <dl className="sd-chrome flex w-full min-w-0 items-center justify-between gap-x-7 overflow-x-auto sm:ml-auto sm:w-auto sm:max-w-[62%] sm:justify-start">
+          <dl className="sd-chrome flex w-full min-w-0 items-center justify-between gap-x-7 overflow-x-auto lg:ml-auto lg:w-auto lg:max-w-[62%] lg:justify-start">
             {[
               { k: 'Altitude', v: `${formatFeet(tick.marketCap)} ft`, tone: 'text-ui-deep' },
               { k: 'Market cap', v: formatCap(tick.marketCap), tone: 'text-ui-ink' },

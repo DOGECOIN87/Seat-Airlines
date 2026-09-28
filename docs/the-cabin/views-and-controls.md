@@ -44,7 +44,7 @@ The run is scored as you fly:
 | … with the ground under 500 ft | × 2 |
 | … both | × 2.5 |
 
-The score and its multiplier are under the altimeter; your best is kept in this browser. On the **WASTED** screen you can put the score on the **Top pilots** board with any Solana wallet (Phantom, Solflare, Backpack): the wallet signs a short message naming the score — a message, not a transaction, so it moves nothing and approves nothing. Each wallet keeps its best. Once you are inside, **Scores** in the tab bar along the bottom of the screen opens the **Top pilots** board again, with your best in this browser under it.
+The score and its multiplier are under the altimeter; your best is kept in this browser. On the **WASTED** screen you can put the score on the **Top pilots** board with any Solana wallet (Phantom, Solflare, Backpack): the wallet signs a short message naming the score — a message, not a transaction, so it moves nothing and approves nothing. Each wallet keeps its best. **Top pilots**, in the bottom-right corner of the landing, opens the board before you fly; once you are inside, **Scores** in the tab bar along the bottom of the screen opens the same board, with your best in this browser under it.
 
 The server times every run from the moment you take the controls and refuses a score that time could not have earned, and each run can be posted once. That stops a made-up number; it cannot stop somebody patient enough to wait out the time their made-up number needs, so the board is for bragging rights, not prizes. `?mayday` runs are practice and are not posted.
 

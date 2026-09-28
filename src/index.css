@@ -106,7 +106,18 @@
   --r-lg: 20px;
   --r-xl: 28px;
   --r-2xl: 36px;
+
+  /* ── The foot of the screen ─────────────────────────────────
+     What the bottom of the screen keeps clear: the home indicator
+     on an iPhone added to the home screen. The page does not ask to
+     draw under a phone's own bars (no `viewport-fit=cover`), so on
+     Android nothing is ever in the way — but a wallet's in-app
+     browser reports its system bar as if it were, with the wallet's
+     own toolbar already between the two, and the tab bar stood half
+     empty on top of it. Android is told to keep nothing clear. */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+:root.is-android { --safe-bottom: 0px; }
 
 body {
   margin: 0;
@@ -231,9 +242,9 @@ html {
 /* A departure board rules its figures apart. The rule is drawn in
    the middle of the gap by a pseudo-element so the flex layout keeps
    its own measure — and only once the row has stopped distributing
-   itself across a narrow screen. */
+   itself across the width of a phone or a tablet. */
 .sa-topbar__fig { position: relative; }
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
   .sa-topbar__fig + .sa-topbar__fig::before {
     content: '';
     position: absolute;
@@ -2365,7 +2376,7 @@ p { text-wrap-style: pretty; }
 .sa-app {
   /* The tab bar's height, which the page keeps clear at its foot. */
   --dock-h: 4.25rem;
-  padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--dock-h) + var(--safe-bottom));
 }
 .sa-cockpit {
   --panel-w: clamp(25rem, 35vw, 42rem);
@@ -2388,7 +2399,7 @@ p { text-wrap-style: pretty; }
   justify-content: flex-end;
   min-width: 0;
   /* Between the gate sign and the tab bar. */
-  height: calc(100dvh - var(--sa-top) - var(--dock-h) - env(safe-area-inset-bottom) - 0.75rem);
+  height: calc(100dvh - var(--sa-top) - var(--dock-h) - var(--safe-bottom) - 0.75rem);
   overflow: hidden;
 }
 .sa-panel-scrim { display: none; }
@@ -2501,7 +2512,7 @@ p { text-wrap-style: pretty; }
   position: fixed;
   inset: auto 0 0;
   z-index: 55;
-  padding: 0.35rem max(0.5rem, env(safe-area-inset-right)) calc(0.35rem + env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+  padding: 0.35rem max(0.5rem, env(safe-area-inset-right)) calc(0.35rem + var(--safe-bottom)) max(0.5rem, env(safe-area-inset-left));
   background: rgba(221, 222, 227, 0.94);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
   backdrop-filter: blur(14px) saturate(1.2);
@@ -2552,9 +2563,9 @@ p { text-wrap-style: pretty; }
 
   .sa-panel-slot {
     position: fixed;
-    inset: auto 0 calc(var(--dock-h) + env(safe-area-inset-bottom));
+    inset: auto 0 calc(var(--dock-h) + var(--safe-bottom));
     z-index: 54;
-    height: calc(100dvh - var(--dock-h) - env(safe-area-inset-bottom) - max(3rem, env(safe-area-inset-top)));
+    height: calc(100dvh - var(--dock-h) - var(--safe-bottom) - max(3rem, env(safe-area-inset-top)));
     padding: 0 0.4rem;
     overflow: visible;
     visibility: hidden;
@@ -2694,10 +2705,11 @@ p { text-wrap-style: pretty; }
 .sa-modal {
   position: fixed;
   inset: 0;
-  z-index: 65;
+  /* Over the landing too (70), which opens the high scores. */
+  z-index: 75;
   display: grid;
   place-items: center;
-  padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.75rem, var(--safe-bottom)) max(0.75rem, env(safe-area-inset-left));
   animation: sa-modal-in 0.2s ease both;
 }
 /* The card: the panel's material, with the accent along its top. */
@@ -3137,7 +3149,7 @@ p { text-wrap-style: pretty; }
   justify-items: start;
   gap: 1.1rem;
   width: min(100%, 62rem);
-  padding: 0 clamp(1.25rem, 5vw, 4.5rem) max(clamp(2rem, 7vh, 4.5rem), calc(env(safe-area-inset-bottom) + 1.25rem));
+  padding: 0 clamp(1.25rem, 5vw, 4.5rem) max(clamp(2rem, 7vh, 4.5rem), calc(var(--safe-bottom) + 1.25rem));
   animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .sa-landing__title {
@@ -3487,7 +3499,7 @@ p { text-wrap-style: pretty; }
 .sa-hud__help {
   position: absolute;
   left: 50%;
-  bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem));
+  bottom: max(1.5rem, calc(var(--safe-bottom) + 1rem));
   transform: translateX(-50%);
   max-width: calc(100% - 2rem);
   padding: 0.6rem 1.1rem;
@@ -3700,61 +3712,43 @@ p { text-wrap-style: pretty; }
 }
 
 /* ── Top pilots ─────────────────────────────────────────────────
-   The leaderboard, on the landing: a glass card in the bottom-right corner
-   at every size — never across the top, over the aeroplane. */
+   The way to the leaderboard, on the landing: a glass button in the
+   bottom-right corner at every size — never across the top, over the
+   aeroplane — that opens the same window as the site's Scores tab. */
 .sa-pilots {
   position: absolute;
   right: clamp(1rem, 3vw, 2.25rem);
-  bottom: max(clamp(2rem, 7vh, 4.5rem), calc(env(safe-area-inset-bottom) + 1.25rem));
-  width: min(19rem, 32vw);
-  padding: 0.9rem 1rem 0.8rem;
-  border-radius: 16px;
+  bottom: max(clamp(2rem, 7vh, 4.5rem), calc(var(--safe-bottom) + 1.25rem));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+  padding: 0 1.15rem 0 0.95rem;
+  border-radius: 999px;
   background: rgba(5, 7, 15, 0.58);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
-}
-.sa-pilots__title,
-.sa-pilots__mine,
-.sa-pilots__empty {
+  color: #EAF2FB;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
 }
-.sa-pilots__title { color: #7FE3F7; font-weight: 600; }
-.sa-pilots__empty { margin-top: 0.5rem; letter-spacing: 0.08em; text-transform: none; line-height: 1.5; }
-.sa-pilots__mine { margin-top: 0.6rem; }
-.sa-pilots__list { display: grid; gap: 0.25rem; margin-top: 0.55rem; }
-.sa-pilots__list li {
-  display: grid;
-  grid-template-columns: 1.4rem minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 0.5rem;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.88);
-}
-.sa-pilots__list li.is-you { color: #7FE3F7; }
-.sa-pilots__rank { color: rgba(255, 255, 255, 0.45); font-size: 11px; }
-.sa-pilots__list li:first-child .sa-pilots__rank { color: #FFC940; }
-.sa-pilots__who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sa-pilots__score { font-variant-numeric: tabular-nums; font-weight: 600; }
-/* Narrower, the corner has less room: the card is cut down to the leader,
-   and the way in stands on top of it rather than running into it. */
+.sa-pilots:hover { background: rgba(5, 7, 15, 0.72); box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.55); }
+.sa-pilots:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+.sa-pilots__icon { width: 1.15rem; height: 1.15rem; flex: none; color: #FFC940; }
+/* Narrower, the corner is under the way in: the button keeps to the
+   foot of the screen, and the words stand on top of it rather than
+   running into it. */
 @media (max-width: 999px) {
-  .sa-pilots {
-    bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.75rem));
-    width: min(17rem, calc(100% - 2rem));
-    padding: 0.55rem 0.8rem;
-  }
-  .sa-pilots__list { margin-top: 0.3rem; }
-  .sa-pilots__list li:nth-child(n + 2),
-  .sa-pilots__mine { display: none; }
+  .sa-pilots { bottom: max(1rem, calc(var(--safe-bottom) + 0.75rem)); }
   .sa-landing:has(.sa-pilots) .sa-landing__hero {
-    padding-bottom: calc(max(1rem, calc(env(safe-area-inset-bottom) + 0.75rem)) + 5.5rem);
+    padding-bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.75rem)) + 3.5rem);
   }
 }
 

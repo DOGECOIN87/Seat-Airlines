@@ -1,5 +1,6 @@
 import { createRef, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import DocsLink from './DocsLink';
+import { DeckIcon } from './InstrumentDeck';
 import Mark from './Mark';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
@@ -16,6 +17,11 @@ import type { LandingHud, LandingSounds } from './LandingScene';
 /* The scene is the chunk with three.js in it. Everything here — the way in
    above all — is up and working before it arrives. */
 const LandingScene = lazy(() => import('./LandingScene'));
+/* The same high scores window the site opens from its tab bar, fetched as a
+   finger or a pointer reaches the button so it is there by the click. */
+const loadScores = () => import('./ScoresDialog');
+const ScoresDialog = lazy(loadScores);
+const prefetchScores = () => { void loadScores(); };
 
 /**
  * The way in.
@@ -26,8 +32,9 @@ const LandingScene = lazy(() => import('./LandingScene'));
  * connected — the arrow keys, or a drag on a touch screen, put the nose up
  * and down and bank it round, low over the country the cabin windows look
  * out on — with a brief to climb to 10,000 ft, where an engine blows. It is scored (see `scoring.ts`), the best scores go
- * on a board any Solana wallet can sign its way onto, and when the aeroplane
- * meets the ground it goes in on its own.
+ * on a board any Solana wallet can sign its way onto — Top pilots, in the
+ * corner, opens it in the same window as the site's Scores tab — and when the
+ * aeroplane meets the ground it goes in on its own.
  *
  * Before any of it, for a few seconds, the splash: the departure board in the
  * middle of the screen, boarding the airline's line and a few more, then
@@ -113,9 +120,17 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   } | null>(null);
   /** The bonus for reaching the blast altitude, shown as it is paid. */
   const [bonusPop, setBonusPop] = useState<number | null>(null);
-  const [best, setBest] = useState(() => (typeof window === 'undefined' ? 0 : readBest()));
   /** The leaderboard, or null when there is none to show. */
   const [board, setBoard] = useState<BoardEntry[] | null>(null);
+  /* The high scores window. While it is up the keys are its own: an arrow
+     does not take the controls behind it, nor Enter go in. */
+  const [scoresOpen, setScoresOpen] = useState(false);
+  const scoresUp = useRef(false);
+  useEffect(() => {
+    scoresUp.current = scoresOpen;
+  }, [scoresOpen]);
+  const openScores = useCallback(() => setScoresOpen(true), []);
+  const closeScores = useCallback(() => setScoresOpen(false), []);
   const [post, setPost] = useState<PostState>({ state: 'idle' });
   /** The server's id for this flight: it times the flight, which is what lets it believe the score. */
   const runId = useRef<string | null>(null);
@@ -288,10 +303,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     const after = g.failed ? (performance.now() - g.failedAt) / 1000 : null;
     const score = Math.round(g.score);
     const beaten = score > readBest();
-    if (beaten) {
-      keepBest(score);
-      setBest(score);
-    }
+    if (beaten) keepBest(score);
     setResult({ metres, after, score, climb: g.failed ? g.climbTime : 0, survived: after ?? 0, best: beaten });
     setPhase('crashed');
     const s = sounds.current;
@@ -372,6 +384,8 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
         if (e.key === 'Escape') setPreflight('off');
         return;
       }
+      // The high scores window closes itself on Escape; everything else is its own.
+      if (scoresUp.current) return;
       if (KEYS[e.code]) {
         e.preventDefault();
         held.add(e.code);
@@ -583,24 +597,25 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
           </div>
         </div>
       )}
-      {!inGame && board && (
-        <aside className="sa-pilots" aria-label="Top pilots">
-          <p className="sa-pilots__title">Top pilots</p>
-          {board.length ? (
-            <ol className="sa-pilots__list">
-              {board.slice(0, 5).map((row, i) => (
-                <li key={row.address} className={row.address === wallet.address ? 'is-you' : undefined}>
-                  <span className="sa-pilots__rank">{i + 1}</span>
-                  <span className="sa-pilots__who">{shortWallet(row.address)}</span>
-                  <span className="sa-pilots__score">{row.score.toLocaleString('en-US')}</span>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="sa-pilots__empty">Nobody on the board yet. Climb to {goalFeet.toLocaleString('en-US')} ft and be first.</p>
-          )}
-          {best > 0 && <p className="sa-pilots__mine">Your best · {best.toLocaleString('en-US')}</p>}
-        </aside>
+      {!inGame && preflight === 'off' && hasBoard && (
+        <button
+          type="button"
+          onClick={openScores}
+          onPointerEnter={prefetchScores}
+          onFocus={prefetchScores}
+          aria-haspopup="dialog"
+          aria-expanded={scoresOpen}
+          className="sa-pilots"
+        >
+          <DeckIcon name="trophy" className="sa-pilots__icon" />
+          Top pilots
+        </button>
+      )}
+      {/* Its own Suspense, as in the site: nothing shows while the chunk loads. */}
+      {scoresOpen && (
+        <Suspense fallback={null}>
+          <ScoresDialog address={wallet.address} onClose={closeScores} />
+        </Suspense>
       )}
 
       {inGame && (
