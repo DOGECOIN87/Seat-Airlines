@@ -245,14 +245,27 @@ export const CALLOUTS = {
 
 /* ── The departure board ──────────────────────────────────────────────────
    The splash. When the site first loads, a split-flap board in the middle of
-   the screen boards the airline's line, holds it a moment, and fades away
-   onto the aeroplane. These are its rows, top to bottom: one line or two.
+   the screen boards the airline's line, turns through a few more, and fades
+   away onto the aeroplane on the call to board. The line is always first and
+   the call always last; between them go two of the rest, picked fresh each
+   visit, so anybody who comes back sees the others in time.
 
-   The board is as wide as the longer row, so a long row shrinks every flap on
-   it — ten characters keeps them big enough to read on a phone. The drums
-   carry A–Z, 0–9 and  + - / : ( ) % . , ! ? & $ '  and anything else comes up
-   blank. */
-export const SPLASH_LINE: readonly string[] = ['HOLD MORE', 'FLY HIGHER'];
+   Each entry is the board's rows, top to bottom: one line or two. The board
+   is as wide as the longest line here, so one long line shrinks every flap
+   on it — ten characters keeps them big enough to read on a phone. The drums
+   carry A–Z, 0–9 and  + - / : ( ) % . , ! ? & $ '  and anything else comes
+   up blank. */
+export const SPLASH_FIRST: readonly string[] = ['HOLD MORE', 'FLY HIGHER'];
+export const SPLASH_BETWEEN: readonly (readonly string[])[] = [
+  ['TAKE A', 'SEAT'],
+  ['NETWORK'],
+  ['BUILD'],
+  ['RELAX'],
+  ['ADVERTISE'],
+  ['MOVE UP'],
+  ['TO THE', 'MOON'],
+];
+export const SPLASH_LAST: readonly string[] = ['NOW', 'BOARDING'];
 
 /* ── Turning your head ────────────────────────────────────────────────────
    What is beside you is not the same for every seat. From 8A the window is

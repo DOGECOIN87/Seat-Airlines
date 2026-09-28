@@ -31,9 +31,10 @@ const BLANK = 0;
 
 /**
  * One flap falling, top to bottom. Slow enough to see it fold, which at the
- * rate a real board turns — fifteen a second — nobody could.
+ * rate a real board turns — fifteen a second — nobody could, and quick enough
+ * that a splash can turn through four phrases.
  */
-const FLIP_MS = 120;
+const FLIP_MS = 95;
 /**
  * How many flaps a letter turns through to reach the next one.
  *
@@ -42,15 +43,13 @@ const FLIP_MS = 120;
  * few flaps of that journey — the letters counting up to the one wanted — and
  * each a different number of them, so the columns land at different moments.
  */
-const FLIPS_MIN = 4;
-const FLIPS_MAX = 9;
-/** How long a phrase stays up once its last flap has landed. */
+const FLIPS_MIN = 3;
+const FLIPS_MAX = 7;
+/** How long a phrase stays up once its last flap has landed, unless the caller says. */
 const HOLD_MS = 4000;
-/** The home phrase is the airline's own line, and stays up twice as long. */
-const HOME_HOLD_MS = HOLD_MS * 2;
 /** Drums start a little after the one to their left, and not quite on time. */
-const STAGGER_MS = 45;
-const JITTER_MS = 90;
+const STAGGER_MS = 35;
+const JITTER_MS = 70;
 /** The last flap on a drum bounces once when it lands. */
 const SETTLE_MS = 200;
 /** A beat before the first phrase boards, so it does not turn while the page is still arriving. */
@@ -207,11 +206,19 @@ const Flap = ({ at }: { at: number }) => (
 interface SplitFlapBoardProps {
   /** What the board turns through, in order. Each is one line per row. */
   phrases: readonly (readonly string[])[];
+  /** Ms each phrase stays up once its last flap has landed. */
+  hold?: number;
+  /** Ms the first phrase stays up — the home phrase, the airline's own line. Twice `hold` unless said. */
+  firstHold?: number;
+  /** Start again after the last phrase (the default), or stop on it. */
+  loop?: boolean;
   /** Called each time a phrase is up and its last flap has landed, with the phrase's index. */
   onLanded?: (index: number) => void;
 }
 
-const SplitFlapBoard = memo(function SplitFlapBoard({ phrases, onLanded }: SplitFlapBoardProps) {
+const SplitFlapBoard = memo(function SplitFlapBoard({
+  phrases, hold = HOLD_MS, firstHold = hold * 2, loop = true, onLanded,
+}: SplitFlapBoardProps) {
   const board = useRef<HTMLSpanElement>(null);
   /* Held in a ref, so a new callback on every render of the parent does not
      restart the board. */
@@ -260,7 +267,7 @@ const SplitFlapBoard = memo(function SplitFlapBoard({ phrases, onLanded }: Split
     let timer = 0;
     let onScreen = !('IntersectionObserver' in window);
 
-    const holdFor = (index: number) => (index === 0 ? HOME_HOLD_MS : HOLD_MS);
+    const holdFor = (index: number) => (index === 0 ? firstHold : hold);
 
     /* The next phrase is only ever queued while somebody could see it
        arrive. Off screen or in a background tab the board finishes whatever
@@ -268,8 +275,9 @@ const SplitFlapBoard = memo(function SplitFlapBoard({ phrases, onLanded }: Split
     const queue = (wait: number) => {
       window.clearTimeout(timer);
       timer = 0;
-      // One phrase has nowhere to turn to once it is up.
+      // One phrase has nowhere to turn to once it is up, and a board that does not loop stops on its last.
       if (!onScreen || document.hidden || (phrases.length < 2 && shown.current >= 0)) return;
+      if (!loop && shown.current >= phrases.length - 1) return;
       timer = window.setTimeout(() => {
         timer = 0;
         show((shown.current + 1) % phrases.length);
@@ -384,7 +392,7 @@ const SplitFlapBoard = memo(function SplitFlapBoard({ phrases, onLanded }: Split
          the next mount will read it from. */
       for (const d of drums) rest(d);
     };
-  }, [still, phrases, rows, cols]);
+  }, [still, phrases, rows, cols, hold, firstHold, loop]);
 
   return (
     <span

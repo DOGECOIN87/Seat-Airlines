@@ -4,7 +4,7 @@ description: Outside, in a seat, on the flight deck, in the hold — and how to 
 
 # Views and controls
 
-The site opens on a departure board in the middle of the screen, boarding the airline's line — _Hold more. Fly higher._ — then fading onto the aircraft **full screen**. A tap or any key skips it. **Enter** goes in. Every other view is a step inward from the one the page then opens on: **outside, on the whole aircraft**, right under the gate sign, whose **Claim a seat** button opens the seat map from anywhere on the page.
+The site opens on a departure board in the middle of the screen, turning through a few of the airline's lines — _Hold more. Fly higher._ first, _Now boarding_ last — then fading onto the aircraft **full screen**. A tap or any key skips it. **Docs on GitBook** is under the board, and at the top right of the screen after it. **Enter** goes in. Every other view is a step inward from the one the page then opens on: **outside, on the whole aircraft**, right under the gate sign, whose **Claim a seat** button opens the seat map from anywhere on the page.
 
 ## Fly the plane
 

@@ -1,8 +1,9 @@
 import { createRef, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import DocsLink from './DocsLink';
 import Mark from './Mark';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
-import { SPLASH_LINE } from '../content/cabin';
+import { SPLASH_BETWEEN, SPLASH_FIRST, SPLASH_LAST } from '../content/cabin';
 import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
@@ -29,8 +30,9 @@ const LandingScene = lazy(() => import('./LandingScene'));
  * meets the ground it goes in on its own.
  *
  * Before any of it, for a few seconds, the splash: the departure board in the
- * middle of the screen, boarding the airline's line, then fading onto the
- * aeroplane — which has had those seconds to get its engines going.
+ * middle of the screen, boarding the airline's line and a few more, then
+ * fading onto the aeroplane on NOW BOARDING — which has had those seconds to
+ * get its engines going.
  */
 
 interface LandingProps {
@@ -97,14 +99,24 @@ const WASTED_FROM = 1.2;
 
 const deadZone = (v: number) => (Math.abs(v) < DEAD_ZONE ? 0 : v);
 
-/** The splash's one phrase, the way the board takes its phrases. */
-const SPLASH = [SPLASH_LINE];
-/** How long the line stays up once its last flap has landed, ms. */
-const SPLASH_HOLD = 1100;
+/** How many of the airline's other lines the splash turns through between its first and its last. */
+const SPLASH_BETWEEN_COUNT = 2;
+/** The splash's phrases: the line, two of the rest picked fresh each visit, and the call to board. */
+const splashPhrases = (): (readonly string[])[] => {
+  const pool = [...SPLASH_BETWEEN];
+  const picked: (readonly string[])[] = [];
+  while (picked.length < SPLASH_BETWEEN_COUNT && pool.length) picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  return [SPLASH_FIRST, ...picked, SPLASH_LAST];
+};
+/** Ms each phrase stays up once it has landed: the line a little longer. */
+const SPLASH_PHRASE_HOLD = 550;
+const SPLASH_FIRST_HOLD = 800;
+/** How long the call to board stays up before the fade, ms. */
+const SPLASH_HOLD = 900;
 /** How long, from the start, the splash will wait for the aeroplane behind it to be ready. */
 const SPLASH_WAIT = 6000;
 /** Past this it goes whatever the board is doing: a background tab, a board that never started. */
-const SPLASH_GIVE_UP = 9000;
+const SPLASH_GIVE_UP = 15000;
 /** The fade onto the landing; `.sa-splash` times its transition to it. */
 const SPLASH_FADE = 800;
 
@@ -144,6 +156,8 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
      and once the aeroplane behind it is ready, within reason — or at the
      first tap or key, which does nothing else. */
   const [splash, setSplash] = useState<'on' | 'fading' | 'off'>('on');
+  const [phrases] = useState(splashPhrases);
+  /** When the call to board — the last phrase — landed. */
   const [landedAt, setLandedAt] = useState<number | null>(null);
   const splashFrom = useRef(0);
   const splashUp = useRef(true);
@@ -153,7 +167,9 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   useEffect(() => {
     splashUp.current = splash === 'on';
   }, [splash]);
-  const onSplashLanded = useCallback(() => setLandedAt((at) => at ?? performance.now()), []);
+  const onSplashLanded = useCallback((index: number) => {
+    if (index === phrases.length - 1) setLandedAt((at) => at ?? performance.now());
+  }, [phrases.length]);
   const clearSplash = useCallback(() => setSplash((s) => (s === 'on' ? 'fading' : s)), []);
   useEffect(() => {
     if (splash !== 'on') return;
@@ -485,6 +501,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
           <span className="sa-live" aria-hidden />
           Live · SA350 · {band.label} · {formatCap(marketCap)}
         </span>
+        {!inGame && <DocsLink night />}
       </header>
 
       {!inGame && preflight === 'off' && (
@@ -751,17 +768,26 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
           className={`sa-splash${splash === 'fading' ? ' is-fading' : ''}`}
           onPointerDown={(e) => {
             e.stopPropagation();
-            clearSplash();
+            // The docs link is a way out, not a way past: let it be clicked.
+            if (!(e.target as HTMLElement).closest('a')) clearSplash();
           }}
-          aria-hidden
         >
-          <div className="sa-splash__board">
-            <SplitFlapBoard phrases={SPLASH} onLanded={onSplashLanded} />
+          <div className="sa-splash__board" aria-hidden>
+            <SplitFlapBoard
+              phrases={phrases}
+              hold={SPLASH_PHRASE_HOLD}
+              firstHold={SPLASH_FIRST_HOLD}
+              loop={false}
+              onLanded={onSplashLanded}
+            />
           </div>
-          <p className="sa-splash__brand">
+          <p className="sa-splash__brand" aria-hidden>
             <Mark size={22} />
             <span>Seat Airlines · SA350</span>
           </p>
+          <div className="sa-splash__docs">
+            <DocsLink night />
+          </div>
         </div>
       )}
     </div>
