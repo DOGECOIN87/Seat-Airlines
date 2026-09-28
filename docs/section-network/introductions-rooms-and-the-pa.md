@@ -30,7 +30,7 @@ You can read what Economy is saying, and write to anybody in Economy personally,
 
 The flight deck has the PA — the promise printed on its boarding pass: _"You have the PA. One announcement a day. Use it well."_
 
-* Only the two flight-deck seats, **CPT** and **FO**, can announce: **Announce to the aircraft**.
+* Only the two flight-deck seats, **CPT** and **FO**, can announce: **Announce**.
 * **Each of them gets one announcement in any 24 hours.**
 * Everybody aboard hears it — every cabin, and the cargo hold too. The latest five are shown at the top of the hub, under **The PA**.
 

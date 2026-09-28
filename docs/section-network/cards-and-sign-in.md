@@ -9,7 +9,7 @@ description: Sign in once a day, publish your card, and control what the cabin s
 Everything in the directory is behind one sign-in, so you are not asked to sign every time you read or send something.
 
 1. Check in with your wallet — see [Connecting a wallet](../getting-started/connecting-a-wallet.md).
-2. In the **Section network** section, press **Sign in to the directory**.
+2. In the **Network** tab, press **Sign in**.
 3. Your wallet shows this message. Approve it:
 
 ```
@@ -53,4 +53,4 @@ A card is stored against your wallet, not your browser or your seat. It is there
 
 The roster lists every seated holder with their cabin and seat. Select one to open their card. Where your seat does not reach, you see their name and role, and their contact details are withheld.
 
-A holder who has not published a card is listed as _Holder_ and the first four characters of their address, with their cabin's default role — _Flight operations_, _Business development_, _Partnerships_, _Campaigns & growth_ or _Community_. Until you sign in, every card reads _Sign in to the directory to read contact details._
+A holder who has not published a card is listed as _Holder_ and the first four characters of their address, with their cabin's default role — _Flight operations_, _Business development_, _Partnerships_, _Campaigns & growth_ or _Community_. Until you sign in, every card reads _Sign in to see contact details._

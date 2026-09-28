@@ -208,9 +208,7 @@ export const LAVATORY_NOTE =
 export const CARGO_HOLD = {
   name: 'Cargo Hold',
   note: 'Everyone below the cutoff',
-  body:
-    'Unpressurized, and by far the biggest room on the aircraft — it is where most of your holders will live. ' +
-    'It has its own leaderboard. Make it somewhere people want to post from.',
+  body: 'The biggest room on the aircraft.',
 } as const;
 
 /** Radio chatter. `tone` picks the colour the line reads in. */

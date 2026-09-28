@@ -148,7 +148,7 @@ const BoardingLadder = ({ berth, holding, address, manifestSize }: BoardingLadde
             </>
           ) : (
             <p className="text-[12.5px] text-ui-soft/70">
-              You hold the biggest bag on this aircraft. There is no seat above yours.
+              Biggest bag on board. Nowhere higher.
             </p>
           )}
         </div>

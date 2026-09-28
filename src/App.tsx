@@ -327,12 +327,12 @@ export default function App() {
           await unpublishBanner({ owner: wallet.address, image: ownAdvert.image, sign: wallet.signMessage });
         } catch (e) {
           if (e instanceof ServerUnreachable) {
-            return 'The advert server could not be reached, so your advert is still up. Try again later.';
+            return 'Server unreachable. Your advert is still up.';
           }
           const message = e instanceof Error ? e.message : 'That advert could not be taken down.';
           // A refused signature is a decision, not a fault to report.
           return /reject|denied|cancel/i.test(message)
-            ? 'You did not sign it, so your advert is still up.'
+            ? 'Not signed. Your advert is still up.'
             : message;
         }
         setByOwner((prev) => {
@@ -553,16 +553,12 @@ export default function App() {
               />
             </Loaded>
             <h3 className="sa-panel__sub">How seating works</h3>
-            <p className="sa-lead mt-2">
-              Seats are not booked. The top {MANIFEST_SIZE} holders are seated in rank order and the rest of the
-              aeroplane stays empty, so the only way to move forward is to out-hold whoever is already there.
-              Open any seat to see who holds it.
-            </p>
+            <p className="sa-lead mt-2">The top {MANIFEST_SIZE} holders are seated by rank.</p>
             <ol className="sa-steps">
               {[
-                { n: '01', h: 'Hold', b: 'Connect a wallet. Your balance is your bag, and nothing else counts.' },
-                { n: '02', h: 'Get seated', b: 'The manifest ranks every holder and seats them from row 1 back. Out-hold someone and you take their seat.' },
-                { n: '03', h: 'Advertise', b: 'Put a 1:1 image on the seat you hold. It goes up on the wall at the position you earned — and row 1 is never for sale, only for holding.' },
+                { n: '01', h: 'Hold', b: 'Your balance is your bag.' },
+                { n: '02', h: 'Get seated', b: 'Out-hold someone to take their seat.' },
+                { n: '03', h: 'Advertise', b: 'Put an image on your seat. Row 1 is never for sale.' },
               ].map((step) => (
                 <li key={step.n} className="sa-step">
                   <span className="sa-step__no">{step.n}</span>
@@ -576,11 +572,7 @@ export default function App() {
       case 'network':
         return (
           <>
-            <p className="sa-lead">
-              Everybody is on the roster. What the seat buys is the view aft: the contact details of your own
-              section and every cabin behind it. Look forward and there is nothing — the rows ahead of you keep
-              their cards to themselves.
-            </p>
+            <p className="sa-lead">See contacts in your cabin and every cabin behind it.</p>
             <div className="mt-6">
               <Loaded minHeight="32rem">
                 <NetworkingHub part="directory" manifest={manifest} address={seatKey} viewerZone={claimedSeat?.zone ?? null} sign={wallet.signMessage} />
@@ -591,10 +583,7 @@ export default function App() {
       case 'chat':
         return (
           <>
-            <p className="sa-lead">
-              Every cabin has a room, and your seat is how far back you can listen: your own cabin and every one
-              behind it. The PA is the flight deck&apos;s, and goes to everybody.
-            </p>
+            <p className="sa-lead">Talk in your cabin. Listen to every cabin behind it.</p>
             <div className="mt-6">
               <Loaded minHeight="20rem">
                 <NetworkingHub part="chat" manifest={manifest} address={seatKey} viewerZone={claimedSeat?.zone ?? null} sign={wallet.signMessage} />
@@ -605,11 +594,7 @@ export default function App() {
       case 'check-in':
         return (
           <>
-            <p className="sa-lead">
-              You do not pick a seat. Connect a wallet, and where you sit is whatever your holding says it is —
-              recomputed the moment anybody else&apos;s changes.
-            </p>
-            <div className="mt-6 grid gap-5">
+            <div className="grid gap-5">
               <Loaded>
                 <CheckIn wallet={wallet} holding={holding} berth={berth} loading={loadingHolding} />
               </Loaded>
@@ -945,11 +930,11 @@ export default function App() {
                    that behind a local save would look like success. */
                 if (e instanceof ServerUnreachable) {
                   if (!localBanners.put(advertising, banner)) {
-                    return 'The advert server could not be reached, and this browser would not store it either. Try a smaller image.';
+                    return 'Could not save. Try a smaller image.';
                   }
                   setLocal(localBanners.read());
                   say(
-                    `Advert up on seat ${advertising}, in this browser only — the advert server could not be reached.`,
+                    `Advert up on seat ${advertising}, in this browser only.`,
                     'alert',
                   );
                   return null;
@@ -957,12 +942,12 @@ export default function App() {
                 const message = e instanceof Error ? e.message : 'That advert could not be published.';
                 // A refused signature is a decision, not a fault to report.
                 return /reject|denied|cancel/i.test(message)
-                  ? 'You did not sign it, so nothing went up.'
+                  ? 'Not signed. Nothing went up.'
                   : message;
               }
             }
             if (!localBanners.put(advertising, banner)) {
-              return 'This browser would not store that image. Try a smaller one.';
+              return 'Try a smaller image.';
             }
             setLocal(localBanners.read());
             say(`Advert up on seat ${advertising}.`, 'pa');

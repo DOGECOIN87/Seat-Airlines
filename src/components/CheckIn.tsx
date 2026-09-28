@@ -34,7 +34,7 @@ const CheckIn = ({ wallet, holding, berth, loading }: CheckInProps) => {
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-ui-deep">Boarding</p>
           <h3 className="font-heading mt-2 text-2xl leading-tight text-ui-ink">Where do you sit?</h3>
           <p className="mt-2 max-w-[42ch] text-[13px] leading-relaxed text-ui-soft">
-            Bigger bag, further forward. Everyone under the last cutoff rides in the hold.
+            Bigger bag, better seat.
           </p>
 
           <button
@@ -43,7 +43,7 @@ const CheckIn = ({ wallet, holding, berth, loading }: CheckInProps) => {
             disabled={connecting}
             className="sa-cta sa-shine mt-5 w-full justify-center disabled:opacity-60"
           >
-            {connecting ? 'Checking in…' : 'Check in with a wallet'}
+            {connecting ? 'Checking in…' : 'Connect wallet'}
             {!connecting && <span aria-hidden>→</span>}
           </button>
 
@@ -54,7 +54,7 @@ const CheckIn = ({ wallet, holding, berth, loading }: CheckInProps) => {
           )}
           {unavailable && !error && (
             <p className="mt-3 text-[12px] leading-relaxed text-ui-faint">
-              No wallet extension detected. Phantom, Solflare and Backpack all work.
+              No wallet found. Try Phantom, Solflare or Backpack.
             </p>
           )}
         </div>

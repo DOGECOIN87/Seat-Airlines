@@ -14,7 +14,7 @@ The contract address is on the strip across the very top of the page, marked **C
 
 ### 3. Check in with a wallet
 
-Scroll to **Check in** at the bottom of the page and press **Check in with a wallet**. Phantom, Solflare and Backpack all work. Connecting shares your public address and nothing else — see [Connecting a wallet](connecting-a-wallet.md).
+Open **Check in** in the tab bar and press **Connect wallet**. Phantom, Solflare and Backpack all work. Connecting shares your public address and nothing else — see [Connecting a wallet](connecting-a-wallet.md).
 
 ### 4. Take your seat
 

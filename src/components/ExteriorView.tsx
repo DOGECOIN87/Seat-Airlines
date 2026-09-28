@@ -165,7 +165,7 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
 
       {!webgl && (
         <p className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-blue-100/60">
-          This view needs WebGL, which this browser has turned off. Every reading it shows is in the strip below.
+          WebGL is off in this browser. Readings are below.
         </p>
       )}
 

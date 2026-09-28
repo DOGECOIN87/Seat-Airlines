@@ -128,7 +128,7 @@ If the PA said it went up _in this browser only_, the advert server could not be
 
 <summary>How do I remove or change my advert?</summary>
 
-Open your seat on the wall. **Change your advert** publishes a new one in its place; **Take it down** removes it, after you sign a short message. A published advert also comes down on its own if your wallet leaves the manifest. See [Put an advert on your seat](../the-wall/put-an-advert-on-your-seat.md#changing-or-taking-one-down).
+Open your seat on the wall. **Change your advert** publishes a new one in its place; **Remove** takes it down, after you sign a short message. A published advert also comes down on its own if your wallet leaves the manifest. See [Put an advert on your seat](../the-wall/put-an-advert-on-your-seat.md#changing-or-taking-one-down).
 
 </details>
 

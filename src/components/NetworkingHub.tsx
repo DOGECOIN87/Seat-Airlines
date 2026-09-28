@@ -154,7 +154,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   const announce = async () => {
     const body = paDraft.trim();
     if (!body) {
-      setInvalid('An announcement needs something to announce.');
+      setInvalid('Write an announcement first.');
       return;
     }
     setInvalid(null);
@@ -174,7 +174,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
     if (!address || !canMessage(viewerZone, target.seat.zone, address, target.address)) return;
     const body = draft.trim();
     if (!body) {
-      setInvalid('Write a short introduction before sending.');
+      setInvalid('Write something first.');
       return;
     }
     setInvalid(null);
@@ -184,10 +184,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   if (!manifest.entries.length) {
     return (
       <Shell>
-        <h3 className="font-heading text-2xl leading-tight text-ui-ink">The cabin network opens at boarding</h3>
-        <p className="mt-2 max-w-[58ch] text-[13px] leading-relaxed text-ui-soft">
-          Connect a wallet to see the live roster, and which cabins your seat opens to you.
-        </p>
+        <h3 className="font-heading text-2xl leading-tight text-ui-ink">Opens at boarding</h3>
+        <p className="mt-2 max-w-[58ch] text-[13px] leading-relaxed text-ui-soft">Connect a wallet to see the roster.</p>
       </Shell>
     );
   }
@@ -195,10 +193,9 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   if (!directory.available) {
     return (
       <Shell>
-        <h3 className="font-heading text-2xl leading-tight text-ui-ink">The directory is not connected</h3>
+        <h3 className="font-heading text-2xl leading-tight text-ui-ink">Directory offline</h3>
         <p className="mt-2 max-w-[58ch] text-[13px] leading-relaxed text-ui-soft">
-          This deployment has no directory service configured, so cards and introductions have nowhere to live.
-          Set <code className="font-mono text-[12px]">VITE_DIRECTORY_API</code> to a Worker with its database bound.
+          Set <code className="font-mono text-[12px]">VITE_DIRECTORY_API</code> to turn it on.
         </p>
       </Shell>
     );
@@ -213,37 +210,21 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
       <header className="ui-rule-b px-5 py-5 sm:px-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h3 className="font-heading text-2xl leading-tight text-ui-ink">The cabin, from your seat</h3>
+            <h3 className="font-heading text-2xl leading-tight text-ui-ink">From your seat</h3>
             <p className="mt-2 max-w-[62ch] text-[13px] leading-relaxed text-ui-soft">
               {sections ? (
                 <>
-                  From <strong className="text-ui-ink">{sectionLabel(viewerZone as ZoneKey)}</strong> you read your own
-                  section{sections.behindCount ? <> and everything behind it — {sections.behind}</> : <>, and nobody is seated behind you</>}.{' '}
-                  {sections.aheadCount
-                    ? <>{sections.ahead} {sections.aheadCount === 1 ? 'reads' : 'read'} you, and you cannot read them.</>
-                    : <>Nothing is ahead of you. The whole aircraft is yours to read.</>}
+                  You read <strong className="text-ui-ink">{sectionLabel(viewerZone as ZoneKey)}</strong>
+                  {sections.behindCount ? <> and {sections.behind}</> : null}.
                 </>
               ) : (
-                <>
-                  You are not seated yet. Connect a wallet and your seat decides which of these cabins open to you.
-                </>
+                'Connect a wallet to see who you can reach.'
               )}
             </p>
           </div>
           <div className="rounded-full border border-[#FFB300]/40 bg-[#FFF9E8] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A5A00]">
             {viewerZone ? `${sectionLabel(viewerZone)} access` : 'Connect to unlock'}
           </div>
-        </div>
-        <div className="mt-5 grid gap-2 text-[11px] leading-relaxed text-ui-soft @lg:grid-cols-2">
-          <p className="rounded-xl border border-ui-line bg-ui-bg px-3 py-2.5">
-            <strong className="text-ui-ink">Names</strong> are the roster and belong to everyone.{' '}
-            <strong className="text-ui-ink">Contact details</strong> go to the holder's own section and every cabin
-            behind it — an email you publish is read by the rows ahead of you, never by the ones behind.
-          </p>
-          <p className="rounded-xl border border-ui-line bg-ui-bg px-3 py-2.5">
-            <strong className="text-ui-ink">Conversations</strong> are readable by the two wallets on them and by any
-            section ahead of both — so the flight deck hears the aircraft, and your own section never hears you.
-          </p>
         </div>
       </header>
       )}
@@ -276,9 +257,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
           {canAnnounce(viewerZone) && (
             <div className="mt-4 rounded-xl border border-[#E6D08A] bg-white/70 p-3">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A6D00]">Yours to use</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-ui-soft">
-                One announcement a day, heard by every cabin and by the hold. Use it well.
-              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-ui-soft">One a day. Everyone hears it.</p>
               <textarea
                 value={paDraft}
                 onChange={(event) => setPaDraft(event.target.value)}
@@ -288,7 +267,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                 className="mt-2 w-full resize-none rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#C8A93B]"
               />
               <button type="button" onClick={() => void announce()} disabled={directory.saving} className="sa-cta mt-2 disabled:opacity-60">
-                {directory.saving ? 'Announcing…' : 'Announce to the aircraft'} <span aria-hidden>→</span>
+                {directory.saving ? 'Announcing…' : 'Announce'} <span aria-hidden>→</span>
               </button>
             </div>
           )}
@@ -328,17 +307,17 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                     {sameSection ? (
                       <div className="space-y-2 text-[12px] text-ui-soft">
                         <p className="font-semibold text-ui-ink">
-                          {entry.seat.zone === viewerZone ? 'Same-section contact card' : `${sectionLabel(entry.seat.zone)} contact card`}
+                          Contact card
                         </p>
                         {entry.address === address ? (
                           <>
-                            <p>Your card is shown to {sectionLabel(entry.seat.zone)} and to every cabin ahead of it.</p>
-                            <button type="button" onClick={() => setEditing((value) => !value)} className="sa-cta mt-2">{editing ? 'Close editor' : 'Edit your card'} <span aria-hidden>→</span></button>
+                            <p>Seen by {sectionLabel(entry.seat.zone)} and every cabin ahead.</p>
+                            <button type="button" onClick={() => setEditing((value) => !value)} className="sa-cta mt-2">{editing ? 'Close' : 'Edit card'} <span aria-hidden>→</span></button>
                           </>
                         ) : !directory.session ? (
-                          <p>Sign in to the directory to read contact details.</p>
+                          <p>Sign in to see contact details.</p>
                         ) : !card ? (
-                          <p>This holder has not published a card yet.</p>
+                          <p>No card yet.</p>
                         ) : card.readable ? (
                           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
                             <span>Email: {card.email || 'Not given'}</span>
@@ -352,22 +331,22 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                              no holder feed, or one still holding a minute-old
                              copy of it. Saying "forward of you" here would be
                              a confident wrong answer. */
-                          <p>Their links are not being shown: the directory and the page disagree about where you are sitting.</p>
+                          <p>Links hidden while your seat syncs.</p>
                         )}
                         {messageable && directory.session && (
                           <div className="mt-4 rounded-xl border border-[#FF668F]/30 bg-white/70 p-3">
                             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#B3265E]">
-                              {entry.seat.zone === viewerZone ? 'Same-section introduction' : `Introduction to ${sectionLabel(entry.seat.zone)}`}
+                              Introduction
                             </p>
                             {/* Nobody should learn this from the seat in front
                                 quoting them. It is the first thing the box says. */}
                             <p className="mt-1.5 text-[11px] leading-relaxed text-ui-soft">
                               {overheardBy
-                                ? `Readable by ${overheardBy}, as well as by the two of you.`
-                                : 'Readable by the two of you. Nobody is seated ahead of this conversation.'}
+                                ? `${overheardBy} can read this too.`
+                                : 'Only the two of you can read this.'}
                             </p>
-                            <textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Introduce your company, campaign, or partnership idea…" rows={3} maxLength={1000} className="mt-2 w-full resize-none rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#FF668F]" />
-                            <button type="button" onClick={() => void submitMessage(entry)} disabled={directory.saving} className="sa-cta mt-2 disabled:opacity-60">{directory.saving ? 'Sending…' : 'Send message'} <span aria-hidden>→</span></button>
+                            <textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Introduce yourself…" rows={3} maxLength={1000} className="mt-2 w-full resize-none rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#FF668F]" />
+                            <button type="button" onClick={() => void submitMessage(entry)} disabled={directory.saving} className="sa-cta mt-2 disabled:opacity-60">{directory.saving ? 'Sending…' : 'Send'} <span aria-hidden>→</span></button>
                           </div>
                         )}
                         {/* There is no "you cannot write to this one" line any
@@ -378,10 +357,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                             below, in the terms that actually explain it. */}
                       </div>
                     ) : (
-                      <p className="text-[12px] leading-relaxed text-ui-soft">
-                        This card is in a cabin ahead of yours. You can read your own section and everything behind
-                        it — the view forward is what the next seat up buys.
-                      </p>
+                      <p className="text-[12px] leading-relaxed text-ui-soft">Ahead of your cabin. Move up to read it.</p>
                     )}
                   </div>
                 )}
@@ -393,30 +369,27 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
         {/* First when there is only room for one column, so signing in is not
             a hundred and seventy-eight cards down. */}
         <aside className="order-first rounded-2xl border border-ui-line bg-ui-bg p-4 sm:p-5 @4xl:order-none">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep">Your networking card</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep">Your card</p>
 
           {!address ? (
-            <p className="mt-4 text-[12px] leading-relaxed text-ui-soft">Connect a wallet and claim a seat to publish a networking card.</p>
+            <p className="mt-4 text-[12px] leading-relaxed text-ui-soft">Connect a wallet to publish a card.</p>
           ) : !directory.session ? (
             <div className="mt-4 space-y-3 text-[12px] leading-relaxed text-ui-soft">
-              <p>
-                Sign a one-line message to open the directory: the roster, the cards your seat lets you read, and
-                your introductions. It proves the wallet is yours, lasts a day, and authorises no transaction.
-              </p>
+              <p>Sign a message to open the directory. No transaction.</p>
               <button type="button" onClick={() => void directory.signIn()} disabled={directory.signingIn} className="sa-cta w-full justify-center disabled:opacity-60">
-                {directory.signingIn ? 'Check your wallet…' : 'Sign in to the directory'} <span aria-hidden>→</span>
+                {directory.signingIn ? 'Check your wallet…' : 'Sign in'} <span aria-hidden>→</span>
               </button>
             </div>
           ) : !currentEntry ? (
-            <p className="mt-4 text-[12px] leading-relaxed text-ui-soft">Claim a seat to publish a networking card. You can still read introductions sent to you.</p>
+            <p className="mt-4 text-[12px] leading-relaxed text-ui-soft">Take a seat to publish a card.</p>
           ) : editing ? (
             <div className="mt-4 space-y-3">
               {([
                 ['displayName', 'Name or company'],
-                ['role', 'Role / what you are building'],
+                ['role', 'Role'],
                 ['email', 'Email'],
-                ['website', 'Website URL'],
-                ['linkedin', 'LinkedIn URL'],
+                ['website', 'Website'],
+                ['linkedin', 'LinkedIn'],
               ] as const).map(([key, label]) => (
                 <label key={key} className="block text-[11px] font-bold uppercase tracking-[0.14em] text-ui-faint">
                   {label}
@@ -425,8 +398,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
               ))}
 
               <p className="rounded-lg border border-ui-line bg-white px-3 py-2.5 text-[11px] leading-relaxed text-ui-soft">
-                Your card is read by holders, and only by holders: the directory opens to a wallet that holds the
-                token and to nobody else. The page puts your contact details in front of your own section.
+                Holders only: your cabin and every cabin ahead.
               </p>
               <button type="button" onClick={() => void saveCard()} disabled={directory.saving} className="sa-cta w-full justify-center disabled:opacity-60">
                 {directory.saving ? 'Publishing…' : 'Publish card'} <span aria-hidden>→</span>
@@ -437,9 +409,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
               <p className="font-heading text-xl text-ui-ink">{form.displayName || shortMember(address)}</p>
               <p>{form.role || defaultRole(currentEntry.seat.zone)} · {sectionLabel(currentEntry.seat.zone)}</p>
               <p className="pt-2 text-[11px] leading-relaxed">
-                {published
-                  ? `Published ${when(published.updated)}, to holders only. It is stored against your wallet, so it follows you to any browser.`
-                  : 'Nothing published yet. A card is stored against your wallet, so it follows you to any browser.'}
+                {published ? `Published ${when(published.updated)}.` : 'Not published yet.'}
               </p>
               <button type="button" onClick={() => setEditing(true)} className="sa-cta mt-2">{published ? 'Edit card' : 'Publish a card'} <span aria-hidden>→</span></button>
             </div>
@@ -449,7 +419,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
             <div className="mt-5 border-t border-ui-line pt-4">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep">Introductions</p>
               {directory.loading ? (
-                <p className="mt-3 text-[11px] text-ui-soft">Reading your inbox…</p>
+                <p className="mt-3 text-[11px] text-ui-soft">Loading…</p>
               ) : directory.inbox.length ? (
                 <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto pr-1">
                   {directory.inbox.map((message) => (
@@ -461,10 +431,10 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-[11px] text-ui-soft">No introductions yet.</p>
+                <p className="mt-3 text-[11px] text-ui-soft">None yet.</p>
               )}
               {directory.sent.length > 0 && (
-                <p className="mt-3 text-[11px] text-ui-soft">{directory.sent.length} sent from this wallet.</p>
+                <p className="mt-3 text-[11px] text-ui-soft">{directory.sent.length} sent.</p>
               )}
 
               {/* The other half of the rule: what carries forward from the
@@ -472,11 +442,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                   of it. */}
               {directory.overheard.length > 0 && (
                 <div className="mt-5 border-t border-ui-line pt-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep">From behind you</p>
-                  <p className="mt-1.5 text-[11px] leading-relaxed text-ui-soft">
-                    Conversations between wallets seated aft of {sectionLabel(viewerZone as ZoneKey)}. They cannot
-                    read yours.
-                  </p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep">Overheard</p>
                   <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto pr-1">
                     {directory.overheard.map((message) => (
                       <li key={message.id} className="rounded-xl border border-ui-line bg-white/60 px-3 py-2.5">
@@ -491,7 +457,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                 </div>
               )}
               <button type="button" onClick={() => void directory.signOut()} className="mt-4 text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep underline">
-                Sign out of the directory
+                Sign out
               </button>
             </div>
           )}
@@ -550,11 +516,6 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
             )}
           </div>
 
-          <p className="mt-2 max-w-[74ch] text-[12px] leading-relaxed text-ui-soft">
-            You speak in your own cabin. You can hear every cabin behind it and none ahead — so the rows in front
-            of you hear this one, and you hear the rows behind.
-          </p>
-
           <div className="mt-4 rounded-2xl border border-ui-line bg-white/70 p-3.5">
             <textarea
               value={roomDraft}
@@ -565,7 +526,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
               className="w-full resize-none rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#FF668F]"
             />
             <button type="button" onClick={() => void postToRoom()} disabled={directory.saving} className="sa-cta mt-2 disabled:opacity-60">
-              {directory.saving ? 'Posting…' : `Post to ${sectionLabel(viewerZone)}`} <span aria-hidden>→</span>
+              {directory.saving ? 'Posting…' : 'Post'} <span aria-hidden>→</span>
             </button>
           </div>
 
@@ -580,9 +541,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                 <div key={zone} className={`rounded-2xl border p-4 ${zoneAccent[zone]}`}>
                   <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep">
                     {sectionLabel(zone)}
-                    {zone === viewerZone
-                      ? ' · yours'
-                      : ' · you are listening, they cannot hear you'}
+                    {zone === viewerZone ? ' · yours' : ' · listening'}
                   </p>
                   {said === undefined ? (
                     <p className="mt-3 text-[11px] text-ui-soft">Listening…</p>
@@ -598,7 +557,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                     </ul>
                   ) : (
                     <p className="mt-3 text-[11px] text-ui-soft">
-                      {zone === viewerZone ? 'Nobody has said anything yet. Go first.' : 'Quiet back there.'}
+                      {zone === viewerZone ? 'No messages yet.' : 'Quiet back there.'}
                     </p>
                   )}
                 </div>
@@ -613,25 +572,16 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
       {part === 'chat' && !(directory.session && viewerZone) && (
         <div className="px-5 py-6 sm:px-7">
           {!address ? (
-            <p className="text-[12px] leading-relaxed text-ui-soft">
-              Connect a wallet and take your seat to talk in your cabin. Every cabin has a room, and it belongs to
-              the people sitting in it.
-            </p>
+            <p className="text-[12px] leading-relaxed text-ui-soft">Connect a wallet to join your cabin.</p>
           ) : !directory.session ? (
             <div className="space-y-3 text-[12px] leading-relaxed text-ui-soft">
-              <p>
-                Sign a one-line message to open the directory and your cabin&apos;s room. It proves the wallet is
-                yours, lasts a day, and authorises no transaction.
-              </p>
+              <p>Sign a message to join. No transaction.</p>
               <button type="button" onClick={() => void directory.signIn()} disabled={directory.signingIn} className="sa-cta w-full justify-center disabled:opacity-60">
-                {directory.signingIn ? 'Check your wallet…' : 'Sign in to the directory'} <span aria-hidden>→</span>
+                {directory.signingIn ? 'Check your wallet…' : 'Sign in'} <span aria-hidden>→</span>
               </button>
             </div>
           ) : (
-            <p className="text-[12px] leading-relaxed text-ui-soft">
-              The rooms are for the cabins, and you are not seated in one yet. Out-hold somebody for a seat and
-              your cabin&apos;s room opens here.
-            </p>
+            <p className="text-[12px] leading-relaxed text-ui-soft">Take a seat to join a cabin.</p>
           )}
         </div>
       )}

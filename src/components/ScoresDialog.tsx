@@ -42,17 +42,17 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
       </header>
       <div className="sa-modal__body">
         <p className="sa-scores__lead">
-          The best flights on the way in: climb to 10,000 ft, lose an engine, and keep it in the air as long as you can.
+          Climb to 10,000 ft, lose an engine, stay up.
         </p>
 
         {board === undefined ? (
-          <p className="sa-scores__state" role="status">Reading the board…</p>
+          <p className="sa-scores__state" role="status">Loading…</p>
         ) : board === null ? (
           <p className="sa-scores__state">
-            {hasBoard ? 'The board could not be reached just now. Try again in a moment.' : 'There is no board on this deployment.'}
+            {hasBoard ? 'Board unavailable. Try again soon.' : 'No board on this deployment.'}
           </p>
         ) : board.length === 0 ? (
-          <p className="sa-scores__state">Nobody on the board yet. Climb to 10,000 ft and be first.</p>
+          <p className="sa-scores__state">No scores yet. Be first.</p>
         ) : (
           <ol className="sa-scores__list">
             {board.map((row, i) => {
@@ -77,12 +77,11 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
         )}
 
         <p className="sa-scores__mine">
-          <span>Your best in this browser</span>
+          <span>Your best</span>
           <strong>{best > 0 ? best.toLocaleString('en-US') : '—'}</strong>
         </p>
         <p className="sa-scores__fine">
-          Scores are flown on the landing, before you board: take the controls there to set one. Posting a score signs a
-          short message with your wallet — never a transaction.
+          Fly from the landing to score. Posting signs a message, never a transaction.
         </p>
       </div>
     </ModalWindow>

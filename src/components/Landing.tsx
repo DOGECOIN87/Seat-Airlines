@@ -276,7 +276,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       return;
     }
     setPreflight('ask');
-    setPreflightNote('No wallet connected, so no take-off. Connect one when you are ready.');
+    setPreflightNote('No wallet connected.');
   }, [wallet, takeOff]);
   /* The Fly button: straight to the wallet when there is one to ask. */
   const onFly = useCallback(() => {
@@ -339,7 +339,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       void fetchBoard().then(setBoard);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'That score could not be posted.';
-      setPost({ state: 'error', message: /reject|denied|cancel/i.test(message) ? 'You did not sign it, so nothing was posted.' : message });
+      setPost({ state: 'error', message: /reject|denied|cancel/i.test(message) ? 'Not signed. Nothing posted.' : message });
     }
   }, [result, wallet.signMessage]);
   const onPost = useCallback(async () => {
@@ -354,7 +354,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     setPost({ state: 'connecting' });
     const address = await wallet.connect();
     if (address) void signAndPost(address);
-    else setPost({ state: 'error', message: 'No wallet connected, so nothing was posted.' });
+    else setPost({ state: 'error', message: 'No wallet. Nothing posted.' });
   }, [wallet, signAndPost]);
 
   /* The keys. An arrow on the landing takes the controls straight away —
@@ -509,7 +509,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             Fly higher.
           </h1>
           <p className="sa-landing__lead">
-            One aeroplane, flown by the market: market cap is altitude, and the biggest holders get the best seats.
+            Market cap is altitude. The biggest holders sit up front.
           </p>
           <div className="sa-landing__actions">
             <button type="button" onClick={leave} className="sa-landing__enter">
@@ -553,14 +553,12 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       {!inGame && preflight !== 'off' && (
         <div className="sa-preflight" role="dialog" aria-modal="true" aria-labelledby="sa-preflight-title">
           <div className="sa-preflight__card">
-            <p className="sa-preflight__eyebrow">Boarding pass required</p>
+            <p className="sa-preflight__eyebrow">Wallet required</p>
             {wallet.unavailable && !wallet.address ? (
               <>
-                <h2 id="sa-preflight-title" className="sa-preflight__title">You need a Solana wallet to fly</h2>
+                <h2 id="sa-preflight-title" className="sa-preflight__title">Get a Solana wallet</h2>
                 <p className="sa-preflight__text">
-                  {touch
-                    ? 'On a phone the wallet is its own app. Open this page in its browser, connect, and take off.'
-                    : 'Install Phantom, Solflare or Backpack in this browser, then come back, connect it, and take off.'}
+                  {touch ? 'Open this page in your wallet’s browser.' : 'Install Phantom, Solflare or Backpack, then come back.'}
                 </p>
                 <div className="sa-preflight__actions">
                   {touch ? (
@@ -585,10 +583,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               </>
             ) : (
               <>
-                <h2 id="sa-preflight-title" className="sa-preflight__title">Connect a wallet to fly</h2>
-                <p className="sa-preflight__text">
-                  The controls are for Solana wallets. Connect yours to take off, and your score can go on the leaderboard the moment you land.
-                </p>
+                <h2 id="sa-preflight-title" className="sa-preflight__title">Connect to fly</h2>
                 {preflightNote && <p className="sa-preflight__note" role="alert">{wallet.error ?? preflightNote}</p>}
                 <div className="sa-preflight__actions">
                   <button
@@ -607,7 +602,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               </>
             )}
             <p className="sa-preflight__fine">
-              Connecting shares your address and nothing else. Posting a score signs a short message — never a transaction.
+              Shares your address only. Signing is never a transaction.
             </p>
           </div>
         </div>
@@ -675,13 +670,13 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
           )}
           {failure && phase === 'flying' && (
             <p key="mayday" className="sa-hud__help sa-hud__help--mayday">
-              Engine {engineNo} is gone · wings level ×1.5 · under 500 ft ×2 · keep the nose down for speed
+              Wings level ×1.5 · under 500 ft ×2 · nose down for speed
             </p>
           )}
           {!failure && (phase === 'intro' || phase === 'flying') && (
             <p className="sa-hud__help">
               {touch ? (
-                'Drag anywhere · up to climb · down to dive · sideways to turn'
+                'Drag up to climb · sideways to turn'
               ) : (
                 <>
                   <kbd>↑</kbd>
@@ -710,21 +705,21 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             </p>
             <p className="sa-landing__end-note">
               {result.after !== null
-                ? `Engine ${engineNo} blew at ${goalFeet.toLocaleString('en-US')} ft, and you kept it in the air for ${Math.round(result.after)} more seconds.`
-                : `You flew ${km} km before the ground got in the way.`}
+                ? `${Math.round(result.after)} s on one engine`
+                : `${km} km flown`}
             </p>
             {post.state === 'done' && (
               <p className="sa-landing__posted" role="status">
-                {post.posted.improved ? 'On the board' : 'Posted — your best still stands'}
+                {post.posted.improved ? 'On the board' : 'Best still stands'}
                 {post.posted.rank !== null ? ` · #${post.posted.rank}` : ''} · best {post.posted.best.toLocaleString('en-US')}
               </p>
             )}
             {post.state === 'error' && <p className="sa-landing__posted is-error" role="alert">{post.message}</p>}
             <div className="sa-landing__end-actions">
-              {practice && <p className="sa-landing__posted">Practice run (?mayday) · scores are not posted</p>}
+              {practice && <p className="sa-landing__posted">Practice run · not posted</p>}
               {!practice && hasBoard && board !== null && runId.current && result.score > 0 && post.state !== 'done' && (
                 wallet.unavailable && !wallet.address ? (
-                  <p className="sa-landing__posted">Install a Solana wallet (Phantom, Solflare or Backpack) to post scores.</p>
+                  <p className="sa-landing__posted">Install a Solana wallet to post.</p>
                 ) : (
                   <button
                     type="button"
@@ -737,8 +732,8 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                       : post.state === 'signing'
                         ? 'Check your wallet…'
                         : wallet.address
-                          ? 'Sign & post score'
-                          : 'Connect wallet to post'}
+                          ? 'Sign & post'
+                          : 'Connect & post'}
                   </button>
                 )
               )}
@@ -752,7 +747,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               </button>
             </div>
             {!practice && hasBoard && board !== null && post.state === 'idle' && (
-              <p className="sa-landing__fine">Posting signs a short message with your wallet — no transaction, nothing spent.</p>
+              <p className="sa-landing__fine">Signs a message. No transaction.</p>
             )}
           </div>
         </div>

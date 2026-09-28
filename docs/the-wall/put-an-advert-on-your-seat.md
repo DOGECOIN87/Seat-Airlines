@@ -21,7 +21,7 @@ description: Step by step, what you sign, and the rules an advert has to meet.
 
    The **On-seat preview** shows it at the size it will hang on the wall.
 4. **Describe it.** **Description** is what the advert says, for anyone who cannot see it — up to 120 characters. **Link** is optional, and only `http://` and `https://` links are followed.
-5. **Press Sign and put it up**, then approve the message in your wallet. The signature proves the seat is yours and covers this exact image. **It moves no funds.**
+5. **Press Sign & publish**, then approve the message in your wallet. The signature proves the seat is yours and covers this exact image. **It moves no funds.**
 
 The PA confirms it: _"Advert up on seat 8A."_
 
@@ -54,7 +54,7 @@ Your image is cropped to a square and re-encoded as a **384 × 384** picture of 
 ## Changing or taking one down
 
 * **To change your advert**, open your seat and press **Change your advert**, then publish the new one. It replaces the old one.
-* **To take it down**, open your seat and press **Take it down**, then approve the message in your wallet. The advert comes off the wall for everybody, and the PA says so: _"Advert taken down from seat 8A."_ You can put a new one up straight away.
+* **To take it down**, open your seat and press **Remove**, then approve the message in your wallet. The advert comes off the wall for everybody, and the PA says so: _"Advert taken down from seat 8A."_ You can put a new one up straight away.
 * A published advert also comes down **on its own** if your wallet leaves the manifest.
 
 The takedown message names the advert it removes, so it can never be used to take down an advert you put up afterwards:
@@ -68,7 +68,7 @@ advert: <the stored name of that advert's image>
 issued: <the time you pressed the button>
 ```
 
-**Take it down** only appears when there is an advert of yours on the seat — the airline's house adverts are not yours to remove.
+**Remove** only appears when there is an advert of yours on the seat — the airline's house adverts are not yours to remove.
 
 ## When something goes wrong
 

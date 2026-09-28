@@ -379,14 +379,13 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
               )}
               {resting && (
                 <p className="sa-map__note">
-                  Point at any seat to see who holds it and what they are running, or open it for the whole story.
+                  Open any seat to see who holds it.
                 </p>
               )}
             </>
           ) : (
             <p className="sa-map__note">
-              Point at any seat to see who holds it and what they are running. Every held square is its
-              holder&apos;s to fill — the ones showing Seat Airlines creative are the placements still open.
+              Open any seat to see who holds it. Seat Airlines adverts mark open seats.
             </p>
           )}
         </div>

@@ -33,10 +33,10 @@ interface PanelDef {
 }
 
 export const PANELS: readonly PanelDef[] = [
-  { key: 'wall', label: 'Seats', icon: 'wall', eyebrow: 'The wall', title: 'Every seat is a billboard' },
-  { key: 'network', label: 'Network', icon: 'network', eyebrow: 'Section network', title: 'Your seat is how far you can see' },
-  { key: 'chat', label: 'Chat', icon: 'chat', eyebrow: 'Cabin chat', title: 'Your cabin, talking' },
-  { key: 'check-in', label: 'Check in', icon: 'pass', eyebrow: 'Check in', title: 'The aircraft seats you' },
+  { key: 'wall', label: 'Seats', icon: 'wall', eyebrow: 'Seats', title: 'The wall' },
+  { key: 'network', label: 'Network', icon: 'network', eyebrow: 'Network', title: 'Directory' },
+  { key: 'chat', label: 'Chat', icon: 'chat', eyebrow: 'Chat', title: 'Cabin rooms' },
+  { key: 'check-in', label: 'Check in', icon: 'pass', eyebrow: 'Check in', title: 'Your seat' },
 ];
 
 /** A section key from a location hash — the sections' old anchors still open them. */

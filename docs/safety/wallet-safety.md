@@ -25,7 +25,7 @@ image:  sha256:<fingerprint of the exact image>
 issued: <the time you pressed the button>
 ```
 
-**2. Taking your advert down** — when you press **Take it down**:
+**2. Taking your advert down** — when you press **Remove**:
 
 ```
 SEAT AIRLINES

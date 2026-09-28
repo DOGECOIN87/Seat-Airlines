@@ -58,7 +58,7 @@ const BoardingPass = ({ passenger, seat, zone, boardedAt }: BoardingPassProps) =
   const lavatory = seat !== null && (LAVATORY_SEATS as readonly string[]).includes(seat);
 
   const note = !seat
-    ? 'No seat claimed. You are on the standby list.'
+    ? 'No seat yet.'
     : lavatory
       ? LAVATORY_NOTE
       : (zone?.perk ?? '');

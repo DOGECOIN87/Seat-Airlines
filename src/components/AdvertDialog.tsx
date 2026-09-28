@@ -123,11 +123,11 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
             {grid && image && <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,transparent_32.9%,rgba(255,255,255,.6)_33%,transparent_33.4%,transparent_66.2%,rgba(255,255,255,.6)_66.5%,transparent_67%),linear-gradient(0deg,transparent_32.9%,rgba(255,255,255,.6)_33%,transparent_33.4%,transparent_66.2%,rgba(255,255,255,.6)_66.5%,transparent_67%)]" />}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2"><input ref={input} type="file" accept="image/*" hidden onChange={e => void take(e.target.files?.[0])} /><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => input.current?.click()}>Choose image</button><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => setEdit(defaultEdit())} disabled={!source}>Reset edits</button><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => setGrid(v => !v)} disabled={!image}>{grid ? 'Hide grid' : 'Show grid'}</button><span className="ml-auto text-[11px] uppercase tracking-[.12em] text-ui-faint">{busy ? 'Processing…' : bytes ? `${prettyBytes(bytes)} ready` : `${BANNER_SIZE}px square`}</span></div>
-          <p className="mt-2 text-[11px] leading-relaxed text-ui-faint">Drag the crop to reposition it. Your wallet signs the exact edited bytes shown here.</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-ui-faint">Drag to reposition.</p>
         </div>
         <div className="space-y-3">
           <div className="sa-adpreview mx-auto"><img src={image || current?.image || ''} alt="" /></div>
-          <p className="text-center text-[11px] uppercase tracking-[.14em] text-ui-faint">On-seat preview</p>
+          <p className="text-center text-[11px] uppercase tracking-[.14em] text-ui-faint">Preview</p>
           <label className="block text-[11px] uppercase tracking-[.14em] text-ui-faint">Zoom <input className="mt-1 w-full" type="range" min="1" max="4" step=".05" value={edit.zoom} onChange={e => setEdit(v => ({ ...v, zoom: Number(e.target.value) }))} /></label>
           {sliders.map(s => <label key={s.key} className="block text-[11px] uppercase tracking-[.14em] text-ui-faint">{s.label}<input className="mt-1 w-full" type="range" min={s.min} max={s.max} step={s.step} value={edit.filter[s.key]} onChange={e => setEdit(v => ({ ...v, filter: { ...v.filter, [s.key]: Number(e.target.value) } }))} /></label>)}
           <div className="flex gap-2"><button type="button" className="sa-ghost flex-1 px-2 py-1.5 text-[11px]" onClick={() => setEdit(v => ({ ...v, rotate: ((v.rotate + 90) % 360) as EditState['rotate'] }))}>Rotate</button><button type="button" className="sa-ghost flex-1 px-2 py-1.5 text-[11px]" onClick={() => setEdit(v => ({ ...v, flip: !v.flip }))}>Mirror</button></div>
@@ -135,7 +135,7 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
       </div>
       <label className="mt-4 block"><span className="mb-1 block text-[11px] uppercase tracking-[.16em] text-ui-faint">Description</span><input value={alt} onChange={e => setAlt(e.target.value)} maxLength={120} placeholder="What the advert says" className="ui-field" /></label>
       <label className="mt-3 block"><span className="mb-1 block text-[11px] uppercase tracking-[.16em] text-ui-faint">Link (optional)</span><input value={href} onChange={e => setHref(e.target.value)} inputMode="url" placeholder="https://" className="ui-field" /></label>
-      <p className="mt-4 ui-rule pt-3 text-[11px] leading-relaxed text-ui-faint">{shared ? 'Your wallet will ask you to sign this advert. The signature proves the seat is yours and covers this exact image — it moves no funds.' : 'Saved in this browser only. Everyone else sees the published wall until yours is accepted onto it.'}</p>
+      <p className="mt-4 ui-rule pt-3 text-[11px] leading-relaxed text-ui-faint">{shared ? 'Your wallet signs this image. No funds move.' : 'Saved in this browser only.'}</p>
       </div>
 
       {/* ── The action bar ──
@@ -144,18 +144,18 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
           filters, the rotate pair and two text fields, it was a long way
           past everything else even once scrolling worked. Somebody looking
           for a button called "Save" never found it at all — it is called
-          "Sign and put it up", and it is now always on screen to be read.
+          "Sign & publish", and it is now always on screen to be read.
 
           The error came with it. Feedback belongs beside the control that
           caused it, not a screenful above the button you just pressed. */}
       <div className="shrink-0 border-t border-ui-line px-5 pb-5 pt-3.5 sm:px-6 sm:pb-6">
         {error && <p role="alert" className="mb-2.5 text-[11.5px] font-semibold text-[#B3261E]">{error}</p>}
         <div className="flex gap-2">
-          <button type="button" onClick={() => void save()} disabled={busy} className="sa-cta px-5 py-2 text-[11px] disabled:opacity-40">{busy ? 'Working…' : shared ? 'Sign and put it up' : 'Put it up'}</button>
+          <button type="button" onClick={() => void save()} disabled={busy} className="sa-cta px-5 py-2 text-[11px] disabled:opacity-40">{busy ? 'Working…' : shared ? 'Sign & publish' : 'Save'}</button>
           {/* Only when there is an advert of the holder's own to take down.
               It used to show over anything on the seat, the airline's house
               adverts included, and pressing it there did nothing at all. */}
-          {onClear && <button type="button" onClick={() => void takeDown()} disabled={busy} className="sa-ghost px-5 py-2 text-[11px] disabled:opacity-40">Take it down</button>}
+          {onClear && <button type="button" onClick={() => void takeDown()} disabled={busy} className="sa-ghost px-5 py-2 text-[11px] disabled:opacity-40">Remove</button>}
         </div>
       </div>
     </div>

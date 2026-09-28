@@ -17,7 +17,7 @@ On a computer, use the wallet's browser extension. **On a phone, open seat-airli
 ## Checking in
 
 1. Scroll to **Check in** at the bottom of the page.
-2. Press **Check in with a wallet** and approve the connection in your wallet.
+2. Press **Connect wallet** and approve the connection in your wallet.
 3. The card turns into your receipt: **Passenger** (your address, shortened), **Cabin**, **Holding** and **Share of supply**.
 
 Your balance is merged into the seating the moment it is read, so you do not wait for the next refresh to see where you sit.
