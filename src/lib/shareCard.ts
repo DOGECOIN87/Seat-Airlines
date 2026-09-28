@@ -518,12 +518,14 @@ export function cardJpeg(card: CardLayers): Promise<Blob | null> {
 }
 
 /**
- * Where a card's own page is served, on the site's own domain — when the
- * domain routes `/c/*` to the Worker (see worker/src/cards.ts). A post
- * never links to the Worker's own address: nobody should see that. Unset,
- * posts link to the site, whose preview is its own picture.
+ * Where a card's own page is served, on the site's own domain: the Worker
+ * answers there as well as at its own address (a custom domain on the
+ * Worker, see worker/src/cards.ts). A post never links to the Worker's own
+ * address — nobody should see that. `VITE_SHARE_ORIGIN` points a fork at
+ * its own.
  */
-const SHARE_ORIGIN = (import.meta.env.VITE_SHARE_ORIGIN as string | undefined)?.replace(/\/+$/, '');
+const SHARE_ORIGIN = ((import.meta.env.VITE_SHARE_ORIGIN as string | undefined) || 'https://share.seat-airlines.space')
+  .replace(/\/+$/, '');
 
 /**
  * Hands the card to the Worker, which keeps it, and gives back its page on
