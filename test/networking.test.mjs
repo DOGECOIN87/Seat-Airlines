@@ -12,10 +12,10 @@
  *   npm test
  */
 import { webcrypto as crypto } from 'node:crypto';
-import { signInChallenge as clientChallenge } from '../dist-test/networkingApi.js';
+import { signInChallenge as clientChallenge, SOCIALS } from '../dist-test/networkingApi.js';
 import {
-  bearerToken, isAddress, mintToken, readMessageBody, readProfileInput,
-  signInChallenge as workerChallenge, tokenHash, MAX_BODY_CHARS,
+  bearerToken, isAddress, mintToken, parseStoredLinks, readMessageBody, readProfileInput, readSocial,
+  signInChallenge as workerChallenge, tokenHash, MAX_BODY_CHARS, SOCIAL_NETWORKS,
 } from '../dist-test/workerNetworking.js';
 
 let pass = 0, fail = 0;
@@ -91,6 +91,71 @@ await check('a javascript: contact link is refused', () => {
 await check('an email that is not one is refused', () => {
   assert('error' in readProfileInput({ email: 'not-an-email' }), 'a malformed email was accepted');
   assert(!('error' in readProfileInput({ email: 'pilot@seat-airlines.space' })), 'a real email was refused');
+});
+
+await check('every network the Worker keeps is one the page can show', () => {
+  const page = SOCIALS.map((s) => s.key).sort().join(',');
+  const worker = [...SOCIAL_NETWORKS].sort().join(',');
+  assert(page === worker, `page shows ${page}, Worker keeps ${worker}`);
+});
+
+await check('a handle, an @handle and the profile link come out the same', () => {
+  const same = (network, inputs, want) => {
+    for (const input of inputs) {
+      const got = readSocial(network, input);
+      assert(got === want, `${network} "${input}" kept as ${JSON.stringify(got)}, not "${want}"`);
+    }
+  };
+  same('x', ['seatairlines', '@seatairlines', 'https://x.com/seatairlines', 'twitter.com/seatairlines?s=21'], 'seatairlines');
+  same('telegram', ['@seat_airlines', 't.me/seat_airlines', 'https://telegram.me/seat_airlines/'], 'seat_airlines');
+  same('linktree', ['seat', 'linktr.ee/seat', 'https://linktr.ee/seat'], 'seat');
+  same('instagram', ['@seat.airlines', 'https://www.instagram.com/seat.airlines/'], 'seat.airlines');
+  same('tiktok', ['@seat.air', 'https://www.tiktok.com/@seat.air'], 'seat.air');
+  same('youtube', ['@SeatAir', 'youtube.com/@SeatAir', 'https://m.youtube.com/@SeatAir/videos'], 'SeatAir');
+  same('github', ['seat-airlines', 'https://github.com/seat-airlines'], 'seat-airlines');
+  same('discord', ['Pilot.One', '@pilot.one'], 'pilot.one');
+  same('discord', ['discord.gg/abc123', 'https://discord.com/invite/abc123'], 'https://discord.gg/abc123');
+});
+
+await check('a link to somewhere else is not taken for an account', () => {
+  for (const [network, input] of [
+    ['x', 'https://evil.example/seatairlines'],
+    ['x', 'javascript:alert(1)'],
+    ['telegram', 'abc'],
+    ['youtube', 'https://www.youtube.com/channel/UCabcdef'],
+    ['tiktok', 'https://www.tiktok.com/seat.air'],
+    ['github', '-leading-dash'],
+    ['discord', 'https://discord.example/invite/abc'],
+  ]) {
+    assert(readSocial(network, input) === null, `${network} took "${input}"`);
+  }
+});
+
+await check('a card with a bad account is refused, and says which', () => {
+  const out = readProfileInput({ links: { telegram: 'no' } });
+  assert('error' in out && /Telegram/.test(out.error), `refusal did not name the network: ${JSON.stringify(out)}`);
+  const ok = readProfileInput({ links: { x: '@seatairlines', myspace: 'tom', github: '' } });
+  assert(!('error' in ok), 'a good card was refused');
+  assert(JSON.stringify(ok.profile.links) === '{"x":"seatairlines"}', `kept ${JSON.stringify(ok.profile.links)}`);
+});
+
+await check('the page links each account only on its own network', () => {
+  const hosts = { x: 'x.com', telegram: 't.me', linktree: 'linktr.ee', instagram: 'www.instagram.com', tiktok: 'www.tiktok.com', youtube: 'www.youtube.com', github: 'github.com' };
+  for (const social of SOCIALS) {
+    if (social.key === 'discord') {
+      assert(social.href('pilot.one') === null, 'a Discord username was linked');
+      assert(social.href('https://discord.gg/abc123') === 'https://discord.gg/abc123', 'a Discord invite was not linked');
+      continue;
+    }
+    const href = new URL(social.href('name'));
+    assert(href.protocol === 'https:' && href.hostname === hosts[social.key], `${social.key} links to ${href}`);
+  }
+});
+
+await check('stored links that are not links read back as none', () => {
+  assert(JSON.stringify(parseStoredLinks('not json')) === '{}', 'garbage was read as links');
+  assert(JSON.stringify(parseStoredLinks(null)) === '{}', 'a card with no row was not empty');
+  assert(JSON.stringify(parseStoredLinks('{"x":"https://evil.example/a"}')) === '{}', 'a bad stored link came back');
 });
 
 await check('an empty introduction is refused', () => {

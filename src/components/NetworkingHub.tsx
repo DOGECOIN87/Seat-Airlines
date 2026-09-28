@@ -14,7 +14,7 @@ import {
   sectionLabel,
   shortMember,
 } from '../lib/sectionAccess';
-import { EMPTY_PROFILE, type NetworkingProfile } from '../lib/networkingApi';
+import { EMPTY_PROFILE, SOCIALS, type NetworkingProfile, type SocialLinks } from '../lib/networkingApi';
 import { useDirectory } from '../lib/useDirectory';
 
 interface NetworkingHubProps {
@@ -60,6 +60,21 @@ const Shell = ({ children }: { children: React.ReactNode }) => (
   </section>
 );
 
+/** A card's social accounts, each linked where its network has a page to link to. */
+const SocialList = ({ links }: { links: SocialLinks | undefined }) => (
+  <>
+    {SOCIALS.map((social) => {
+      const value = links?.[social.key];
+      if (!value) return null;
+      const href = social.href(value);
+      const text = `${social.label} ${social.show(value)}`;
+      return href
+        ? <a key={social.key} className="underline" href={href} target="_blank" rel="noreferrer">{text}</a>
+        : <span key={social.key}>{text}</span>;
+    })}
+  </>
+);
+
 const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: NetworkingHubProps) => {
   const directory = useDirectory(address, sign);
   const showDirectory = part !== 'chat';
@@ -90,6 +105,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
         email: published.email,
         website: published.website,
         linkedin: published.linkedin,
+        /* A Worker from before the links has none to send. */
+        links: published.links ?? {},
       }
       : EMPTY_PROFILE);
   }, [published, editing]);
@@ -323,6 +340,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                             <span>Email: {card.email || 'Not given'}</span>
                             {card.website && <a className="underline" href={card.website} target="_blank" rel="noreferrer">Website</a>}
                             {card.linkedin && <a className="underline" href={card.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>}
+                            <SocialList links={card.links} />
                           </div>
                         ) : (
                           /* The page thinks this card is level with you or
@@ -394,6 +412,22 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                 <label key={key} className="block text-[11px] font-bold uppercase tracking-[0.14em] text-ui-faint">
                   {label}
                   <input value={form[key]} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} className="mt-1 w-full rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] font-normal normal-case tracking-normal text-ui-ink outline-none focus:border-ui-blue" />
+                </label>
+              ))}
+              {/* A handle, an @handle or the profile link all do: the server
+                  keeps the handle, and says which one it could not read. */}
+              {SOCIALS.map((social) => (
+                <label key={social.key} className="block text-[11px] font-bold uppercase tracking-[0.14em] text-ui-faint">
+                  {social.label}
+                  <input
+                    value={form.links[social.key] ?? ''}
+                    placeholder={social.placeholder}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    onChange={(event) => setForm((current) => ({ ...current, links: { ...current.links, [social.key]: event.target.value } }))}
+                    className="mt-1 w-full rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] font-normal normal-case tracking-normal text-ui-ink outline-none placeholder:text-ui-faint/60 focus:border-ui-blue"
+                  />
                 </label>
               ))}
 

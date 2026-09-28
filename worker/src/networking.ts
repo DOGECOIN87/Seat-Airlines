@@ -51,12 +51,116 @@ const FIELD_LIMITS = {
   linkedin: 300,
 } as const;
 
+/* ── Social links ────────────────────────────────────────────────────────
+   Beside the email, the website and LinkedIn: the accounts people are
+   actually reached on. Each is kept as its handle, never as a link, and the
+   page builds the one link each network has from it — so what goes out on
+   a card is always `https://x.com/<handle>` and never whatever somebody
+   typed. Discord is the exception that proves it: a username has no page to
+   link to, so it is kept as text, and only an invite is kept as a link, and
+   only on discord.gg.
+
+   A holder can type a handle, an @handle, or paste the link from their
+   profile; all three come out the same. Anything that is not a handle the
+   network itself would accept is refused rather than stored. */
+
+export const SOCIAL_NETWORKS = ['x', 'telegram', 'discord', 'linktree', 'instagram', 'tiktok', 'youtube', 'github'] as const;
+export type SocialNetwork = (typeof SOCIAL_NETWORKS)[number];
+export type SocialLinks = Partial<Record<SocialNetwork, string>>;
+
+interface SocialRule {
+  label: string;
+  /** Hosts a pasted profile link may be on, `www.` aside. */
+  hosts: readonly string[];
+  /**
+   * What the handle's part of a pasted link starts with, where the network
+   * puts one there (`youtube.com/@name`): a link without it is some other
+   * page of theirs (`youtube.com/channel/…`), not a handle.
+   */
+  prefix?: string;
+  handle: RegExp;
+}
+
+const SOCIAL_RULES: Record<SocialNetwork, SocialRule> = {
+  x: { label: 'X', hosts: ['x.com', 'twitter.com'], handle: /^[A-Za-z0-9_]{1,15}$/ },
+  telegram: { label: 'Telegram', hosts: ['t.me', 'telegram.me'], handle: /^[A-Za-z0-9_]{5,32}$/ },
+  discord: { label: 'Discord', hosts: [], handle: /^[a-z0-9_.]{2,32}$/ },
+  linktree: { label: 'Linktree', hosts: ['linktr.ee'], handle: /^[A-Za-z0-9_.]{1,30}$/ },
+  instagram: { label: 'Instagram', hosts: ['instagram.com'], handle: /^[A-Za-z0-9_.]{1,30}$/ },
+  tiktok: { label: 'TikTok', hosts: ['tiktok.com'], prefix: '@', handle: /^[A-Za-z0-9_.]{2,24}$/ },
+  youtube: { label: 'YouTube', hosts: ['youtube.com'], prefix: '@', handle: /^[A-Za-z0-9_.-]{3,30}$/ },
+  github: { label: 'GitHub', hosts: ['github.com'], handle: /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/ },
+};
+
+/** A Discord invite: its code, from discord.gg/… or discord.com/invite/…. */
+const DISCORD_INVITE = /^(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)([A-Za-z0-9-]{2,32})\/?$/i;
+
+/**
+ * One network's entry as it is kept — a handle, or for Discord an invite
+ * link — or null when it is not one. Empty is fine and means none.
+ */
+export function readSocial(network: SocialNetwork, value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return '';
+  if (network === 'discord') {
+    const invite = DISCORD_INVITE.exec(raw);
+    if (invite) return `https://discord.gg/${invite[1]}`;
+    const name = raw.replace(/^@/, '').toLowerCase();
+    return SOCIAL_RULES.discord.handle.test(name) ? name : null;
+  }
+  const rule = SOCIAL_RULES[network];
+  let handle = raw;
+  if (/^(?:https?:\/\/)?(?:www\.|m\.)?[a-z0-9.-]+\.[a-z]{2,}\//i.test(raw)) {
+    let url: URL;
+    try {
+      url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    } catch {
+      return null;
+    }
+    const host = url.hostname.toLowerCase().replace(/^(?:www|m)\./, '');
+    if (!rule.hosts.includes(host)) return null;
+    handle = url.pathname.split('/').filter(Boolean)[0] ?? '';
+    if (rule.prefix && !handle.startsWith(rule.prefix)) return null;
+  }
+  handle = handle.replace(/^@/, '');
+  return rule.handle.test(handle) ? handle : null;
+}
+
+/** Every network's entry, or the first that is not one. Unknown networks are dropped. */
+export function readSocialLinks(value: unknown): { links: SocialLinks } | { error: string } {
+  const links: SocialLinks = {};
+  if (value === undefined || value === null) return { links };
+  if (typeof value !== 'object') return { error: 'Those social links were not a list.' };
+  const v = value as Record<string, unknown>;
+  for (const network of SOCIAL_NETWORKS) {
+    const entry = v[network];
+    if (entry === undefined || entry === null || entry === '') continue;
+    if (typeof entry !== 'string' || entry.length > 300) return { error: `That ${SOCIAL_RULES[network].label} account does not look right.` };
+    const kept = readSocial(network, entry);
+    if (kept === null) return { error: `That ${SOCIAL_RULES[network].label} account does not look right.` };
+    if (kept) links[network] = kept;
+  }
+  return { links };
+}
+
+/** Links as they were stored, read back defensively: a bad row is no links, not an error. */
+export function parseStoredLinks(json: string | null | undefined): SocialLinks {
+  if (!json) return {};
+  try {
+    const out = readSocialLinks(JSON.parse(json));
+    return 'links' in out ? out.links : {};
+  } catch {
+    return {};
+  }
+}
+
 export interface NetworkingProfile {
   displayName: string;
   role: string;
   email: string;
   website: string;
   linkedin: string;
+  links: SocialLinks;
 }
 
 export interface NetworkingMessage {
@@ -68,7 +172,7 @@ export interface NetworkingMessage {
 }
 
 export const EMPTY_PROFILE: NetworkingProfile = {
-  displayName: '', role: '', email: '', website: '', linkedin: '',
+  displayName: '', role: '', email: '', website: '', linkedin: '', links: {},
 };
 
 /** A Solana address is a 32-byte ed25519 key wearing base58. */
@@ -120,12 +224,15 @@ function field(value: unknown, limit: number): string {
 export function readProfileInput(value: unknown): { profile: NetworkingProfile } | { error: string } {
   if (!value || typeof value !== 'object') return { error: 'That card was not an object.' };
   const v = value as Record<string, unknown>;
+  const socials = readSocialLinks(v.links);
+  if ('error' in socials) return { error: socials.error };
   const profile: NetworkingProfile = {
     displayName: field(v.displayName, FIELD_LIMITS.displayName),
     role: field(v.role, FIELD_LIMITS.role),
     email: field(v.email, FIELD_LIMITS.email),
     website: field(v.website, FIELD_LIMITS.website),
     linkedin: field(v.linkedin, FIELD_LIMITS.linkedin),
+    links: socials.links,
   };
   if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
     return { error: 'That email address does not look like one.' };

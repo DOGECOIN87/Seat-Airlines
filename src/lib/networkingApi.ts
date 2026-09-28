@@ -51,16 +51,44 @@ export const WORKER_API = API;
 
 const SESSION_KEY = 'seat-airlines.directory.session.v1';
 
+/**
+ * The accounts a card can list, in the order the card lists them.
+ *
+ * The Worker keeps each as a handle (see `readSocial` in
+ * worker/src/networking.ts) and this builds the one link each network has
+ * from it, so a card never links anywhere a handle would not. Discord keeps
+ * a username as text — there is no page to link to — and an invite as the
+ * discord.gg link it already is.
+ */
+export const SOCIALS = [
+  { key: 'x', label: 'X', placeholder: '@handle', href: (v: string) => `https://x.com/${v}`, show: (v: string) => `@${v}` },
+  { key: 'telegram', label: 'Telegram', placeholder: '@username', href: (v: string) => `https://t.me/${v}`, show: (v: string) => `@${v}` },
+  {
+    key: 'discord', label: 'Discord', placeholder: 'username or invite link',
+    href: (v: string) => (v.startsWith('https://discord.gg/') ? v : null),
+    show: (v: string) => v.replace(/^https:\/\//, ''),
+  },
+  { key: 'linktree', label: 'Linktree', placeholder: 'linktr.ee/name', href: (v: string) => `https://linktr.ee/${v}`, show: (v: string) => `linktr.ee/${v}` },
+  { key: 'instagram', label: 'Instagram', placeholder: '@handle', href: (v: string) => `https://www.instagram.com/${v}`, show: (v: string) => `@${v}` },
+  { key: 'tiktok', label: 'TikTok', placeholder: '@handle', href: (v: string) => `https://www.tiktok.com/@${v}`, show: (v: string) => `@${v}` },
+  { key: 'youtube', label: 'YouTube', placeholder: '@handle', href: (v: string) => `https://www.youtube.com/@${v}`, show: (v: string) => `@${v}` },
+  { key: 'github', label: 'GitHub', placeholder: 'username', href: (v: string) => `https://github.com/${v}`, show: (v: string) => v },
+] as const;
+
+export type SocialNetwork = (typeof SOCIALS)[number]['key'];
+export type SocialLinks = Partial<Record<SocialNetwork, string>>;
+
 export interface NetworkingProfile {
   displayName: string;
   role: string;
   email: string;
   website: string;
   linkedin: string;
+  links: SocialLinks;
 }
 
 export const EMPTY_PROFILE: NetworkingProfile = {
-  displayName: '', role: '', email: '', website: '', linkedin: '',
+  displayName: '', role: '', email: '', website: '', linkedin: '', links: {},
 };
 
 export interface PublishedProfile extends NetworkingProfile {

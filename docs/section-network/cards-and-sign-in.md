@@ -25,7 +25,7 @@ issued: <the time you pressed the button>
 
 That opens a session for **24 hours**. The directory is a room for holders: it opens only to a wallet that **holds the token**, and the session keeps working only while it still does.
 
-**Sign out of the directory** ends the session straight away. Switching to a different wallet ends it too.
+**Sign out** ends the session straight away. Switching to a different wallet ends it too.
 
 ## Publish your card
 
@@ -34,12 +34,15 @@ You need a seat to publish a card. Press **Publish a card** (or **Edit card**), 
 | Field | Up to | Who sees it |
 | --- | --- | --- |
 | **Name or company** | 80 characters | Every signed-in holder |
-| **Role / what you are building** | 120 characters | Every signed-in holder |
+| **Role** | 120 characters | Every signed-in holder |
 | **Email** | 254 characters | Your section and every section ahead of you |
-| **Website URL** | 300 characters | Your section and every section ahead of you |
-| **LinkedIn URL** | 300 characters | Your section and every section ahead of you |
+| **Website** | 300 characters | Your section and every section ahead of you |
+| **LinkedIn** | 300 characters | Your section and every section ahead of you |
+| **X, Telegram, Discord, Linktree, Instagram, TikTok, YouTube, GitHub** | One account each | Your section and every section ahead of you |
 
-Every field is optional. Links must start with `http://` or `https://`.
+Every field is optional. Website and LinkedIn must start with `http://` or `https://`.
+
+For the social accounts, type your handle, `@handle`, or paste the link from your profile — all three are kept as the handle, and the card links to that network's page for it. Discord takes a username (shown as text, since Discord has no profile pages) or an invite link (`discord.gg/…`). An account that is not one on that network — a link to another site, a handle the network would not allow — is refused, and the card says which.
 
 {% hint style="info" %}
 **Your contact details are read by the rows ahead of you, never by the ones behind.** An email you publish from Business is readable by Business, First and the flight deck — and not by the Exit Row or Economy.

@@ -543,6 +543,7 @@ await check('a card is published and read back', async () => {
   const card = {
     displayName: 'Aisle Hopper', role: 'Partnerships',
     email: 'aisle@seat-airlines.space', website: 'https://seat-airlines.space', linkedin: '',
+    links: { x: '@aislehopper', telegram: 'https://t.me/aisle_hopper', discord: 'discord.gg/seatair' },
   };
   const put = await api('/profile', { method: 'PUT', token: aliceToken, body: card });
   assert(put.status === 200, `publishing the card failed: ${put.status}`);
@@ -552,6 +553,30 @@ await check('a card is published and read back', async () => {
   assert(mine, 'the published card is not in the directory');
   assert(mine.displayName === 'Aisle Hopper', `the wrong name came back: ${mine.displayName}`);
   assert(mine.email === card.email, 'the email did not survive the round trip');
+  assert(
+    JSON.stringify(mine.links) === '{"x":"aislehopper","telegram":"aisle_hopper","discord":"https://discord.gg/seatair"}',
+    `the social links did not come back as handles: ${JSON.stringify(mine.links)}`,
+  );
+});
+
+await check('a card with an account on the wrong site is refused', async () => {
+  const res = await api('/profile', {
+    method: 'PUT', token: aliceToken,
+    body: { displayName: 'Aisle Hopper', links: { x: 'https://evil.example/aislehopper' } },
+  });
+  assert(res.status === 400, `a link to another site was stored as an X account: ${res.status}`);
+  const roster = await (await api('/directory', { token: aliceToken })).json();
+  assert(roster[alice.address].links.x === 'aislehopper', 'the refused save still changed the card');
+});
+
+await check('a save from a page that predates the links keeps them', async () => {
+  const res = await api('/profile', {
+    method: 'PUT', token: aliceToken,
+    body: { displayName: 'Aisle Hopper', role: 'Partnerships', email: 'aisle@seat-airlines.space', website: 'https://seat-airlines.space', linkedin: '' },
+  });
+  assert(res.status === 200, `the old-style save failed: ${res.status}`);
+  const roster = await (await api('/directory', { token: aliceToken })).json();
+  assert(roster[alice.address].links.telegram === 'aisle_hopper', `an old page's save wiped the links: ${JSON.stringify(roster[alice.address].links)}`);
 });
 
 await check('a card survives a new session, which localStorage never did', async () => {
@@ -620,17 +645,19 @@ await check('a card in a cabin ahead is name and role only', async () => {
   assert(card.readable === false, 'business was told it could read a First Class card');
   assert(card.email === '', `business read an email from the cabin in front: ${card.email}`);
   assert(card.website === '', 'business read a link from the cabin in front');
+  assert(JSON.stringify(card.links) === '{}', `business read social accounts from the cabin in front: ${JSON.stringify(card.links)}`);
 });
 
 await check('a card from behind is readable in full', async () => {
   await api('/profile', {
     method: 'PUT', token: bobToken,
-    body: { displayName: 'Middle Seat Ventures', role: 'Growth', email: 'bob@seat-airlines.space' },
+    body: { displayName: 'Middle Seat Ventures', role: 'Growth', email: 'bob@seat-airlines.space', links: { github: 'github.com/middle-seat' } },
   });
   const captainToken = (await (await api('/session', { method: 'POST', body: await signInBody(captain) })).json()).token;
   const card = (await (await api('/directory', { token: captainToken })).json())[bob.address];
   assert(card.readable === true, 'the flight deck could not read a First Class card');
   assert(card.email === 'bob@seat-airlines.space', 'the contact details did not carry forward');
+  assert(card.links.github === 'middle-seat', 'the social accounts did not carry forward');
 });
 
 await check('a conversation carries forward to the section ahead', async () => {

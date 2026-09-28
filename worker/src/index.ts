@@ -47,7 +47,7 @@ import {
   MAX_AGE_MS, MAX_IMAGE_BYTES, COOLDOWN_SECONDS, type StoredBanner,
 } from './verify';
 import {
-  bearerToken, isAddress, messageId, mintToken, readMessageBody, readProfileInput,
+  bearerToken, isAddress, messageId, mintToken, parseStoredLinks, readMessageBody, readProfileInput,
   signInChallenge, tokenHash,
   ANNOUNCEMENTS_PER_DAY, ANNOUNCEMENT_PAGE,
   MESSAGES_PER_HOUR, MESSAGE_PAGE, SESSION_TTL_MS, SIGNIN_MAX_AGE_MS,
@@ -467,6 +467,28 @@ function ensureLeaderboard(db: D1Database): Promise<unknown> {
   return leaderboardTables;
 }
 
+/* ── A card's social links ───────────────────────────────────────────────
+   A table of their own rather than a column on `profiles`, because a column
+   is a migration and a migration is a step this deploy cannot run (see the
+   workflow: the token has no D1). A new table is one `IF NOT EXISTS`, made
+   on first use like the leaderboard's, and a card saved before it existed
+   simply has no row here — which reads as no links. Both routes that touch
+   it sit behind a signed-in session, so no stranger's request writes DDL.
+   (`migrations/0004_profile_links.sql` is the same, for a database set up
+   by hand.) */
+let profileLinksTable: Promise<unknown> | null = null;
+
+function ensureProfileLinks(db: D1Database): Promise<unknown> {
+  profileLinksTable ??= db.prepare(`CREATE TABLE IF NOT EXISTS profile_links (
+      address TEXT PRIMARY KEY,
+      links   TEXT NOT NULL DEFAULT '{}'
+    )`).run().catch((e) => {
+    profileLinksTable = null;
+    throw e;
+  });
+  return profileLinksTable;
+}
+
 /* ── The flight controls ─────────────────────────────────────────────────
    One small record, read by every visitor and written by one wallet.
 
@@ -534,6 +556,8 @@ interface ProfileRow {
   website: string;
   linkedin: string;
   updated_at: string;
+  /** From `profile_links`, and null for a card saved before it existed. */
+  links: string | null;
 }
 
 interface MessageRow {
@@ -578,6 +602,7 @@ const asProfile = (row: ProfileRow, readable: boolean) => ({
   email: readable ? row.email : '',
   website: readable ? row.website : '',
   linkedin: readable ? row.linkedin : '',
+  links: readable ? parseStoredLinks(row.links) : {},
   readable,
   updated: row.updated_at,
 });
@@ -1180,10 +1205,12 @@ async function handle(request: Request, env: Env): Promise<Response> {
            being out-held. */
         const wanted = [...new Set([...ladder.seated(), me])];
         const holes = wanted.map(() => '?').join(',');
+        await ensureProfileLinks(db);
         const { results } = await db
           .prepare(
-            'SELECT address, display_name, role, email, website, linkedin, updated_at' +
-            ` FROM profiles WHERE address IN (${holes}) ORDER BY updated_at DESC`,
+            'SELECT p.address, p.display_name, p.role, p.email, p.website, p.linkedin, p.updated_at, l.links' +
+            ' FROM profiles p LEFT JOIN profile_links l ON l.address = p.address' +
+            ` WHERE p.address IN (${holes}) ORDER BY p.updated_at DESC`,
           )
           .bind(...wanted)
           .all<ProfileRow>();
@@ -1209,16 +1236,27 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
         const updated = new Date().toISOString();
         const { profile } = parsed;
-        await db
-          .prepare(
-            'INSERT INTO profiles (address, display_name, role, email, website, linkedin, updated_at)' +
-            ' VALUES (?, ?, ?, ?, ?, ?, ?)' +
-            ' ON CONFLICT(address) DO UPDATE SET display_name = excluded.display_name,' +
-            ' role = excluded.role, email = excluded.email, website = excluded.website,' +
-            ' linkedin = excluded.linkedin, updated_at = excluded.updated_at',
-          )
-          .bind(me, profile.displayName, profile.role, profile.email, profile.website, profile.linkedin, updated)
-          .run();
+        /* Only a save that sends links writes them. A page from before the
+           links sends none, and saving its card must not wipe the ones a
+           newer page put there. */
+        const sentLinks = typeof body === 'object' && body !== null && 'links' in body;
+        await ensureProfileLinks(db);
+        await db.batch([
+          db
+            .prepare(
+              'INSERT INTO profiles (address, display_name, role, email, website, linkedin, updated_at)' +
+              ' VALUES (?, ?, ?, ?, ?, ?, ?)' +
+              ' ON CONFLICT(address) DO UPDATE SET display_name = excluded.display_name,' +
+              ' role = excluded.role, email = excluded.email, website = excluded.website,' +
+              ' linkedin = excluded.linkedin, updated_at = excluded.updated_at',
+            )
+            .bind(me, profile.displayName, profile.role, profile.email, profile.website, profile.linkedin, updated),
+          ...(sentLinks
+            ? [db
+              .prepare('INSERT INTO profile_links (address, links) VALUES (?, ?) ON CONFLICT(address) DO UPDATE SET links = excluded.links')
+              .bind(me, JSON.stringify(profile.links))]
+            : []),
+        ]);
 
         return json({ ...profile, address: me, updated }, 200, priv);
       }

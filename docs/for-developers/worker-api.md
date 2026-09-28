@@ -101,7 +101,7 @@ Every directory route needs a session: send `Authorization: Bearer <token>`.
 | `POST /session` | Sign in with `{ address, issued, signature }`, signed over the sign-in message in [Wallet safety](../safety/wallet-safety.md). Answers `{ token, address, expires }`, good for 24 hours. |
 | `DELETE /session` | Sign out, revoking the token |
 | `GET /directory` | The cards of every seated holder, plus your own. Contact fields are included only where your seat can read them. |
-| `PUT /profile` | Publish or amend your card: `{ displayName, role, email, website, linkedin }` |
+| `PUT /profile` | Publish or amend your card: `{ displayName, role, email, website, linkedin, links }`, where `links` maps `x`, `telegram`, `discord`, `linktree`, `instagram`, `tiktok`, `youtube` and `github` to a handle (a profile link is read down to one). Stored in `profile_links`, which the Worker makes on first use |
 | `GET /messages` | `{ inbox, sent, overheard, channels, announcements }` — your own cabin's room only |
 | `GET /messages?rooms=all` | The same, plus the room of every cabin behind yours |
 | `POST /messages` | `{ to, body }`, where `to` is a wallet, `section:<cabin>`, or `announcement` |
