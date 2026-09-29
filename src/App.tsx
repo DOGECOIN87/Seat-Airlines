@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { CAPTURE, captureState, useCaptureVersion } from './capture/flag';
 import { logoMarkup } from './components/Mark';
 import ContractBar from './components/ContractBar';
 import ViewFrame from './components/ViewFrame';
@@ -211,7 +212,9 @@ export default function App() {
   /* One feed, reading the market. There is no simulator behind it and no
      flight-sim input in front of it: an aircraft that can be flown by hand is
      not reporting anything. */
-  const feed = useMemo(() => createLiveFeed(INITIAL_TICK), []);
+  const feed = useMemo(() => (CAPTURE && captureState.feed) || createLiveFeed(INITIAL_TICK), []);
+  /* Capture mode only: re-render when the film's adverts or seat change. */
+  const captureVersion = CAPTURE ? useCaptureVersion() : 0;
   const { tick, lamps } = useFlightState(feed);
   /* What the aeroplane is doing.
   
@@ -310,8 +313,15 @@ export default function App() {
     [manifest.entries, logo],
   );
   const banners = useMemo(
-    () => ({ ...house, ...local, ...ownerSeats, ...published }),
-    [house, local, ownerSeats, published],
+    () => {
+      const all: BannerSet = { ...house, ...local, ...ownerSeats, ...published };
+      if (!CAPTURE) return all;
+      const film: Record<string, Banner> = {};
+      for (const [seat, image] of Object.entries(captureState.adverts)) film[seat] = { image, alt: 'Advert' };
+      return { ...all, ...film };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [house, local, ownerSeats, published, captureVersion],
   );
   /* Just the images, keyed by seat, for the screens in the cabin: the 3D view
      has no business knowing what a Banner is. */
@@ -504,6 +514,7 @@ export default function App() {
     setCamera(zone === 'deck' ? 'deck' : 'seat');
     if (zone === 'deck') setFacing('forward');
   };
+  if (CAPTURE) Object.assign(captureState.app, { setCamera, setFacing, walkTo, setViewPosition });
 
   /* ── The way in ────────────────────────────────────────────────────
      Every visit opens on the landing: the aeroplane full screen, a button
@@ -576,6 +587,7 @@ export default function App() {
   const [scoresOpen, setScoresOpen] = useState(false);
   const openScores = useCallback(() => setScoresOpen(true), []);
   const closeScores = useCallback(() => setScoresOpen(false), []);
+  if (CAPTURE) Object.assign(captureState.app, { enter, openPanel, closePanel, openScores, closeScores });
   const claimSeat = (e: { preventDefault(): void }) => {
     e.preventDefault();
     openPanel('wall');
@@ -595,7 +607,7 @@ export default function App() {
               <SeatMap
                 manifest={manifest}
                 banners={banners}
-                mine={claimed}
+                mine={CAPTURE && captureState.seat !== undefined ? captureState.seat : claimed}
                 canAdvertise={claimed}
                 onAdvertise={setAdvertising}
               />

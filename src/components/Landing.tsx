@@ -1,4 +1,5 @@
 import { createRef, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { CAPTURE, captureState } from '../capture/flag';
 import DocsLink from './DocsLink';
 import { DeckIcon } from './InstrumentDeck';
 import Wordmark from './Wordmark';
@@ -468,6 +469,8 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   const onCrash = useCallback((metres: number) => {
     const g = game.current;
     const after = g.failed ? (performance.now() - g.failedAt) / 1000 : null;
+    // Capture mode can name the score, for the high-score shot; never otherwise.
+    if (CAPTURE && captureState.highScore !== null) g.score = captureState.highScore;
     const score = Math.round(g.score);
     const beaten = score > readBest();
     if (beaten) keepBest(score);
@@ -634,6 +637,11 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     game.current.stick = { x: 0, y: 0 };
     stickEl.current?.classList.remove('is-on');
   };
+
+  useEffect(() => {
+    if (!CAPTURE) return;
+    Object.assign(captureState.app, { fly: onFly, leave });
+  }, [onFly, leave]);
 
   const inGame = phase !== 'idle';
   const km = result ? (result.metres / 1000).toFixed(1) : '0';

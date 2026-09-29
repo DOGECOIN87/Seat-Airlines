@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { CAPTURE, captureState } from '../capture/flag';
 import { createWorld, type ViewPose, type WorldHandles } from '../three/WorldScene';
 import type { FlightFeed } from '../lib/flightFeed';
 import type { BandState } from '../lib/flightModel';
@@ -102,7 +103,7 @@ const CabinView3D = ({ feed, sky, band, seat, zone, facing, taken, adverts, cont
   }, [facing]);
 
   useAttitude(feed, (a) => {
-    pose.current.yaw = YAW_FOR[facing] + drag.current.yaw;
+    pose.current.yaw = CAPTURE && captureState.yaw !== null ? captureState.yaw : YAW_FOR[facing] + drag.current.yaw;
     world.current?.render(a, latest.current.sky, latest.current.band, pose.current);
   }, controls);
 

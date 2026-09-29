@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, type MutableRefObject, type RefObject } from 'react';
+import { CAPTURE, captureState } from '../capture/flag';
 import { bandHeight, createWorld, type ViewPose, type WorldHandles } from '../three/WorldScene';
 import type { FlightFeed } from '../lib/flightFeed';
 import type { BandState } from '../lib/flightModel';
@@ -495,6 +496,7 @@ const LandingScene = ({
         }
       }
 
+      if (CAPTURE) captureState.onGameFrame?.(g, realDt);
       const ix = live ? clampUnit(g.keys.x + g.stick.x) : 0;
       const iy = live ? clampUnit(g.keys.y + g.stick.y) : 0;
       const step = fly(g, ix, iy, flyDt);
