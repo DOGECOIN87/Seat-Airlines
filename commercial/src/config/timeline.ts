@@ -31,6 +31,8 @@ export interface Scene {
   clip?: { src: string; from: number };
   /** Slow push-in for UI screen captures (3D and game footage are left alone). */
   push?: boolean;
+  /** Frame the clip on part of the screen: centre as fractions of it, and the zoom. */
+  focus?: { x: number; y: number; scale: number };
   vo?: VoCue[];
 }
 
@@ -56,7 +58,7 @@ const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   intro: { id: 'intro', clip: { src: 'clips/intro.mp4', from: 0 }, vo: [VO.welcome] },
   splash: { id: 'splash', clip: { src: 'clips/splash.mp4', from: 0 }, push: true },
   hero: { id: 'hero', clip: { src: 'clips/hero.mp4', from: 0.5 }, push: true, vo: [VO.onePlane] },
-  seats: { id: 'seats', clip: { src: 'clips/seats.mp4', from: 0.2 }, push: true },
+  seats: { id: 'seats', clip: { src: 'clips/seats.mp4', from: 0.2 }, push: true, focus: { x: 0.705, y: 0.5, scale: 1.75 } },
   advert: { id: 'advert', clip: { src: 'clips/advert.mp4', from: 0.5 } },
   game: { id: 'game', clip: { src: 'clips/game.mp4', from: 0.5 } },
   highscore: { id: 'highscore', clip: { src: 'clips/highscore.mp4', from: 3.0 } },

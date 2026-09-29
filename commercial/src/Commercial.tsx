@@ -20,12 +20,12 @@ const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 
 /* ── Pieces ─────────────────────────────────────────────────────────── */
 
-const Clip: React.FC<{ src: string; from: number; push?: boolean; frames: number }> = ({ src, from, push, frames }) => {
+const Clip: React.FC<{ src: string; from: number; push?: boolean; frames: number; focus?: Scene['focus'] }> = ({ src, from, push, frames, focus }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const scale = push ? interpolate(f, [0, frames], [1, 1.04], clamp) : 1;
+  const scale = (focus?.scale ?? 1) * (push ? interpolate(f, [0, frames], [1, 1.04], clamp) : 1);
   return (
-    <AbsoluteFill style={{ transform: `scale(${scale})` }}>
+    <AbsoluteFill style={{ transform: `scale(${scale})`, transformOrigin: focus ? `${focus.x * 100}% ${focus.y * 100}%` : '50% 50%' }}>
       <OffthreadVideo src={staticFile(src)} startFrom={Math.round(from * fps)} muted />
     </AbsoluteFill>
   );
@@ -223,7 +223,7 @@ const Enter: React.FC<{ kind: Scene['transitionIn']['kind']; frames: number; chi
 
 const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }) => (
   <AbsoluteFill style={{ background: NAVY }}>
-    {scene.clip && <Clip src={scene.clip.src} from={scene.clip.from} push={scene.push} frames={frames} />}
+    {scene.clip && <Clip src={scene.clip.src} from={scene.clip.from} push={scene.push} frames={frames} focus={scene.focus} />}
     {scene.id === 'intro' && (
       <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'center', paddingTop: 84 }}>
         <Sequence from={20} layout="none"><SplitFlap text="FLIGHT SA350" size={52} /></Sequence>
