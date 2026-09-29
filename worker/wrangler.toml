@@ -38,7 +38,7 @@ database_id = "a8e4747a-ef46-4689-ac75-c50f7f428b83"
 #   Cloudflare dashboard → R2 → seat-airlines-banners → Settings →
 #   Public access → Allow Access → copy the pub-*.r2.dev URL, then:
 #
-# PUBLIC_IMAGE_BASE = "https://pub-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.r2.dev"
+PUBLIC_IMAGE_BASE = "https://pub-7bcf6d5d613c464da99814dd49b0f3ff.r2.dev"
 #
 # Until this is set, images are served through the Worker from KV — correct,
 # but it keeps the Worker on the read path for every image request.
