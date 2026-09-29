@@ -36,17 +36,18 @@ export interface Scene {
 
 const VO = {
   welcome: {
-    file: 'vo/01.wav', at: 0.3, seconds: 3.2,
-    captions: [{ text: 'Ladies and gentlemen, welcome aboard flight SA350.', from: 0, to: 3.2 }],
+    file: 'vo/01.wav', at: 0.3, seconds: 3.22,
+    captions: [{ text: 'Ladies and gentlemen, welcome aboard flight SA350.', from: 0, to: 3.22 }],
   },
-  onePlane: { file: 'vo/02.wav', at: -0.2, seconds: 3.53, captions: [] },
+  onePlane: { file: 'vo/02.wav', at: -0.2, seconds: 3.47, captions: [] },
   altitude: {
-    file: 'vo/03.wav', at: -0.4, seconds: 1.6,
-    captions: [{ text: 'Market cap is altitude.', from: 0, to: 1.6 }],
+    file: 'vo/03.wav', at: -0.45, seconds: 1.62,
+    captions: [{ text: 'Market cap is altitude.', from: 0, to: 1.62 }],
   },
   boarding: {
-    file: 'vo/04.wav', at: -0.6, seconds: 1.98,
-    captions: [{ text: 'Seat Airlines. Now boarding.', from: 0, to: 1.98 }],
+    file: 'vo/04.wav', at: -0.6, seconds: 1.83,
+    // Said on the end card, which carries the words itself (SEAT AIRLINES, NOW BOARDING): no caption card over the fine print.
+    captions: [],
   },
 } satisfies Record<string, VoCue>;
 

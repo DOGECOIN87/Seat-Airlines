@@ -35,6 +35,16 @@
   window.requestIdleCallback = (fn) => window.setTimeout(() => fn({ didTimeout: false, timeRemaining: () => 10 }), 1);
   window.cancelIdleCallback = (id) => window.clearTimeout(id);
 
+  // Everything is on screen in a capture; the real observer only reports on
+  // real rendering frames, which frozen time never produces.
+  window.IntersectionObserver = class {
+    constructor(cb) { this.cb = cb; }
+    observe(el) { window.setTimeout(() => this.cb([{ target: el, isIntersecting: true, intersectionRatio: 1 }], this), 0); }
+    unobserve() {}
+    disconnect() {}
+    takeRecords() { return []; }
+  };
+
   const anims = new WeakMap();
   const syncAnimations = () => {
     let list = [];

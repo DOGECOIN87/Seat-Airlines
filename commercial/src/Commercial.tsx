@@ -75,8 +75,8 @@ const SplitFlap: React.FC<{ text: string; size: number; delay?: number }> = ({ t
   return (
     <div style={{ display: 'flex', gap: size * 0.08, fontFamily: MONO, fontWeight: 600, fontSize: size }}>
       {text.split('').map((ch, i) => {
-        const land = 6 + i * 1.5;
-        const shown = f >= land || ch === ' ' ? ch : f < 0 ? ' ' : glyphs[Math.floor(random(`${text}${i}${f}`) * glyphs.length)];
+        const land = 3 + i * 0.8;
+        const shown = f >= land || ch === ' ' ? ch : f < 0 ? ' ' : glyphs[Math.floor(random(`${text}${i}${Math.floor(f / 2)}`) * glyphs.length)];
         return (
           <span key={i} style={{
             width: size * 0.72, textAlign: 'center', color: INK, background: ch === ' ' ? 'transparent' : '#141F33',
@@ -176,7 +176,7 @@ const EndCard: React.FC = () => {
         </div>
         <SplitFlap text="SEAT-AIRLINES.SPACE" size={52} delay={4} />
         <div style={{ fontSize: 34, fontWeight: 600, color: 'rgba(244,248,252,0.8)' }}>One plane. Everyone&apos;s in it. Your bag is your seat.</div>
-        <div style={{ fontFamily: MONO, fontSize: 30, letterSpacing: '0.2em', color: CYAN }}>BUILT ON SOLANA</div>
+        <div style={{ fontFamily: MONO, fontSize: 30, letterSpacing: '0.2em', color: CYAN }}>NOW BOARDING · BUILT ON SOLANA</div>
       </div>
       <div style={{ position: 'absolute', bottom: 54, fontFamily: MONO, fontSize: 28, color: 'rgba(244,248,252,0.7)' }}>
         Not affiliated with or endorsed by Solana Labs or the Solana Foundation.
@@ -225,8 +225,8 @@ const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }
   <AbsoluteFill style={{ background: NAVY }}>
     {scene.clip && <Clip src={scene.clip.src} from={scene.clip.from} push={scene.push} frames={frames} />}
     {scene.id === 'intro' && (
-      <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 250 }}>
-        <Sequence from={45} layout="none"><SplitFlap text="FLIGHT SA350" size={56} /></Sequence>
+      <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'center', paddingTop: 84 }}>
+        <Sequence from={20} layout="none"><SplitFlap text="FLIGHT SA350" size={52} /></Sequence>
       </AbsoluteFill>
     )}
     {scene.id === 'splash' && (
