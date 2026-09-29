@@ -137,10 +137,10 @@ const POSITIONS: { key: SeatPosition; label: string }[] = [
 ];
 
 /** Which way you are looking from a seat. */
-const FACINGS: { key: Facing; label: string }[] = [
-  { key: 'left', label: '← Look left' },
-  { key: 'forward', label: 'Forward' },
-  { key: 'right', label: 'Look right →' },
+const FACINGS: { key: Facing; label: string; long: string; short: string }[] = [
+  { key: 'left', label: 'Look left', long: '← Look left', short: '← Left' },
+  { key: 'forward', label: 'Forward', long: 'Forward', short: 'Forward' },
+  { key: 'right', label: 'Look right', long: 'Look right →', short: 'Right →' },
 ];
 
 /**
@@ -787,32 +787,39 @@ export default function App() {
                    and pushed the headline down away from its eyebrow. */
                 <>
                 {camera === 'seat' ? (
-                  <div className="sd-chrome flex shrink-0 items-center gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible" role="group" aria-label="Turn your head">
+                  <div className="sd-controls__look" role="group" aria-label="Turn your head">
                     {FACINGS.map((f) => (
                       <button
                         key={f.key}
                         type="button"
                         onClick={() => setFacing(f.key)}
                         aria-pressed={facing === f.key}
+                        aria-label={f.label}
                         className={chip(facing === f.key)}
                       >
-                        {f.label}
+                        {/* The arrows are said by the words; a narrow rail has room for the short ones. */}
+                        <span className="sd-long" aria-hidden>{f.long}</span>
+                        <span className="sd-short" aria-hidden>{f.short}</span>
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <button type="button" onClick={() => setCamera('seat')} className={chip(false)}>
-                    {camera === 'exterior' ? 'Step inside' : 'Back to your seat'}
-                  </button>
+                  <div className="sd-controls__look">
+                    <button type="button" onClick={() => setCamera('seat')} className={chip(false)}>
+                      {camera === 'exterior' ? 'Step inside' : 'Back to your seat'}
+                    </button>
+                  </div>
                 )}
                 <button
                   type="button"
                   onClick={aircraftAudio.toggle}
                   aria-pressed={aircraftAudio.enabled}
-                  className="ui-pill sm:ml-auto"
+                  className="ui-pill sd-controls__sound"
                   title="Enable engine, airflow, cabin, and warning sounds"
                 >
-                  {aircraftAudio.enabled ? 'Sound on' : 'Sound off'}
+                  <DeckIcon name={aircraftAudio.enabled ? 'sound' : 'mute'} className="sd-controls__icon" />
+                  {/* Out of sight but still the button's name when the rail is too narrow for it. */}
+                  <span className="sd-controls__label">{aircraftAudio.enabled ? 'Sound on' : 'Sound off'}</span>
                 </button>
                 </>
               }

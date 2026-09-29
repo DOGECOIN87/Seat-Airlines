@@ -884,7 +884,8 @@ html {
   animation: sa-view-spin 1.1s linear infinite;
 }
 @keyframes sa-view-spin { to { transform: rotate(360deg); } }
-/* The control rail under the glass, moulded into the same bezel. */
+/* The control rail under the glass, moulded into the same bezel (laid
+   out in "Fitting every screen" at the foot of this file). */
 .sd-controls {
   min-height: 48px;
   margin-top: 12px;
@@ -1053,29 +1054,6 @@ html {
 .sa-window__glare { fill: #fff; opacity: 0.14; }
 .sa-window__rain line { stroke: rgba(220, 235, 255, 0.6); stroke-width: 0.9; stroke-linecap: round; }
 
-@media (max-width: 767px) {
-  .sa-readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; padding: 0.85rem; }
-  /* The instrument takes the top corner, and the figure the whole width
-     under it: a half-width display is too narrow for both side by side. */
-  .sa-readout {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      'label viz'
-      'tag viz'
-      'value value'
-      'sub sub';
-    column-gap: 0.4rem;
-    padding: 0.75rem 0.7rem 0.75rem 0.85rem;
-  }
-  .sa-readout__value--long { font-size: 1.1rem; }
-  .sa-readout__unit-long { display: none; }
-  .sa-readout__unit-short { display: inline; }
-  .sa-readout__tag { margin-top: 0.35rem; }
-  .sa-readout--wide { grid-column: span 2; }
-  .sa-tape { width: 26px; height: 62px; }
-  .sa-ball { width: 42px; height: 42px; }
-  .sa-window { width: 38px; height: 50px; }
-}
 
 /* ── The route ────────────────────────────────────────────────
    The climb meter as the moving map on a seatback screen: every
@@ -1225,15 +1203,6 @@ html {
 .sa-route__stops .is-next .sa-route__price { font-weight: 700; color: var(--accent-deep); }
 .sa-route__stops .is-unknown .sa-route__name { font-style: italic; }
 .sa-route__price-short { display: none; }
-@media (max-width: 520px) {
-  .sa-route { padding: 0.9rem 0.85rem 1rem; }
-  .sa-route__next { letter-spacing: 0.05em; }
-  /* Six names across a phone do not fit in capitals: "Weather" ran into "Clouds". */
-  .sa-route__name { text-transform: none; letter-spacing: 0; }
-  .sa-route__price { letter-spacing: 0; }
-  .sa-route__price-full { display: none; }
-  .sa-route__price-short { display: inline; }
-}
 
 /* The fill the boarding ladder's meter still uses. */
 .sa-climb-fill {
@@ -1974,13 +1943,6 @@ html {
   box-shadow: 0 0 16px rgba(255, 210, 212, 0.9);
 }
 
-@media (max-width: 720px) {
-  .sa-lamps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; padding: 0.85rem; }
-  .sa-lamp { padding: 0.6rem; gap: 0.55rem; }
-  .sa-lamp__lens { width: 2.05rem; height: 2.05rem; border-radius: 9px; font-size: 1rem; }
-  .sa-lamp__label { letter-spacing: 0.1em; }
-  .sa-lamp__detail { letter-spacing: 0.06em; }
-}
 
 /* ============================================================
    Cards
@@ -4327,4 +4289,364 @@ p { text-wrap-style: pretty; }
   .sa-hud__warn.is-on { animation: none; opacity: 1; }
   .sa-landing__strike { animation: sa-landing-flash 0.5s ease-out forwards; }
   .sa-engine__lamp { animation: none !important; }
+}
+
+
+/* ============================================================
+   Fitting every screen
+   ────────────────────────────────────────────────────────────
+   From a 320px phone and a folding phone's cover screen, through
+   the square inner screen of a fold and a tablet either way up, to
+   a desk and an ultrawide. The panels under the view lay themselves
+   out by their own width rather than the window's (container
+   queries), because on a desk the view and its deck narrow to make
+   room for a section beside them. Nothing scrolls sideways out of
+   sight, and things that sit side by side share their lines.
+   ============================================================ */
+
+/* ── The page's column ────────────────────────────────────────
+   The view and its deck keep to the same 94rem column as the gate
+   sign, the address and the footer, so on a wide or ultrawide screen
+   their edges line up instead of the page running edge to edge under
+   a centred sign (the shell's general `max-width: 100%` was beating
+   its own column). */
+.sa-shell { max-width: 94rem; }
+
+/* ── The contract address ─────────────────────────────────────
+   On a phone it wraps, whole, over two or three short lines beside
+   the buttons — inside the height the buttons already give the
+   strip — rather than scrolling its last characters out of sight.
+   Never cut, and never shortened in the middle. */
+@media (max-width: 639.98px) {
+  .sa-ca__value {
+    overflow: visible;
+    white-space: normal;
+    word-break: break-all;
+    text-wrap: balance;
+    font-size: 0.7rem;
+    line-height: 1.35;
+    letter-spacing: 0;
+  }
+}
+
+/* ── The gate sign's figures ──────────────────────────────────
+   Four across a phone: a size down and tracked a little less under
+   420px, so SEATED is still on the screen at 320px. */
+@media (max-width: 419.98px) {
+  .sa-topbar dl { column-gap: 0.5rem; }
+  .sa-topbar__fig dt { font-size: 10px; letter-spacing: 0.12em; }
+  .sa-topbar__fig dd { font-size: 13px; }
+}
+
+/* ── The labels on the glass ──────────────────────────────────
+   The exterior's plate at the top left and the badge saying where
+   you are looking at the top right stand the same distance in from
+   their corners and are the same height, so they sit on one line. */
+.sd-glass { --inset: 0.75rem; }
+@media (min-width: 640px) { .sd-glass { --inset: 1rem; } }
+.sd-plate {
+  position: absolute;
+  left: var(--inset);
+  top: var(--inset);
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 1.75rem;
+  max-width: 52%;
+}
+.sd-badge {
+  position: absolute;
+  right: var(--inset);
+  top: var(--inset);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 1.75rem;
+  max-width: calc(100% - 6.75rem);
+  margin: 0;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.9rem;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.16em;
+  text-align: right;
+  text-transform: uppercase;
+  color: #7FE3F7;
+}
+@media (max-width: 479.98px) {
+  .sd-badge { font-size: 10px; letter-spacing: 0.1em; }
+}
+/* From 768px the plate also counts the souls on board, so the badge
+   leaves it more room. */
+@media (min-width: 768px) {
+  .sd-badge { max-width: calc(100% - 18rem); }
+}
+
+/* ── The rail under the view ──────────────────────────────────
+   Three groups: the view's tools (zoom, back to the whole picture,
+   full screen), where to look, and sound. On one line where they
+   fit — tools, then the ways to look, then sound at the far end.
+   Where they do not, the tools and sound share the top line and
+   the ways to look take the whole line under it, each as wide as
+   the next. The frame decides, by the width inside its bezel: one
+   way to look (Step inside) fits one line from 34rem, three from
+   49rem. */
+.sd-viewframe,
+.sd-full { container: frame / inline-size; }
+.sd-controls {
+  --round: 2.4rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'tools look sound';
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+@media (pointer: coarse) { .sd-controls { --round: 2.75rem; } }
+.sd-controls__tools {
+  grid-area: tools;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.sd-controls__zoom {
+  flex: none;
+  width: 2.6rem;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--ui-faint);
+}
+.sd-controls .ui-round svg { font-size: 1.05rem; }
+.sd-controls__look {
+  grid-area: look;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.sd-controls__sound { grid-area: sound; gap: 0.45rem; }
+.sd-controls__icon { flex: none; font-size: 15px; }
+.sd-short { display: none; }
+
+@container frame (max-width: 48.99rem) {
+  .sd-controls:has(.sd-controls__look > :nth-child(2)) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'tools sound' 'look look';
+    border-radius: 1.6rem;
+    padding: 0.5rem 0.6rem;
+  }
+  .sd-controls:has(.sd-controls__look > :nth-child(2)) .sd-controls__look {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+  .sd-controls:has(.sd-controls__look > :nth-child(2)) .sd-controls__look > * {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 0.5rem;
+  }
+}
+@container frame (max-width: 33.99rem) {
+  .sd-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'tools sound' 'look look';
+    border-radius: 1.6rem;
+    padding: 0.5rem 0.6rem;
+  }
+  .sd-controls__look {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+  .sd-controls__look > * {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 0.5rem;
+  }
+}
+/* Narrower: the short names for the ways to look, then sound as its
+   symbol alone (its words stay its name), then the zoom figure goes,
+   and at the very narrowest the buttons come down a size. */
+@container frame (max-width: 26.49rem) {
+  .sd-long { display: none; }
+  .sd-short { display: inline; }
+}
+@container frame (max-width: 24.99rem) {
+  .sd-controls__sound { width: var(--round); height: var(--round); min-height: 0; padding: 0; }
+  .sd-controls__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+@container frame (max-width: 19.74rem) {
+  .sd-controls__zoom { display: none; }
+}
+@container frame (max-width: 16.74rem) {
+  .sd-controls { --round: 2.5rem; column-gap: 0.4rem; }
+  .sd-controls .ui-round { width: var(--round); height: var(--round); min-height: 0; }
+  .sd-controls__tools { gap: 0.2rem; }
+  .sd-controls__look .sa-chip { padding-inline: 0.35rem; font-size: 10px; letter-spacing: 0.06em; }
+}
+
+/* ── The walk ─────────────────────────────────────────────────
+   The strip's accent marks its label, so it stays beside the words
+   when the track drops to a line of its own under them. */
+.sa-deck__strip::before { display: none; }
+.sa-deck__strip > .sa-walk:first-child > .sa-strip-label { position: relative; }
+.sa-deck__strip > .sa-walk:first-child > .sa-strip-label::before {
+  content: '';
+  position: absolute;
+  left: -0.95rem;
+  top: 50%;
+  width: 3px;
+  height: 1.6rem;
+  border-radius: 3px;
+  transform: translateY(-50%);
+  background: var(--g-accent);
+  opacity: 0.85;
+}
+
+/* ── The three displays ───────────────────────────────────────
+   Every display gives its instrument the same box, so its label,
+   tag, figure and caption stand at the same heights as its
+   neighbours' whichever instrument it has; and its words start at
+   the top rather than floating to the middle when a neighbour is
+   taller. Three across from 58rem of deck, two under that (the sky
+   across both), and under 38rem each display stacks its label and
+   tag beside the instrument with the figure the width under them. */
+.sa-deck { container: deck / inline-size; }
+.sa-readout { align-content: start; }
+.sa-readout__viz { width: 4rem; height: 5.25rem; }
+.sa-readout__value { white-space: nowrap; }
+.sa-readout__value--long {
+  font-size: clamp(0.9rem, 4.6cqi, 1.3rem);
+  white-space: normal;
+  text-wrap: balance;
+}
+.sa-readout--wide .sa-readout__value--long { font-size: clamp(1rem, 5.5cqi, 1.3rem); }
+@container deck (max-width: 65.99rem) {
+  .sa-readout__unit-long { display: none; }
+  .sa-readout__unit-short { display: inline; }
+}
+@container deck (max-width: 57.99rem) {
+  .sa-readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; padding: 0.85rem; }
+  .sa-readout--wide { grid-column: span 2; }
+}
+@container deck (max-width: 37.99rem) {
+  .sa-readout {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'label viz'
+      'tag viz'
+      'value value'
+      'sub sub';
+    column-gap: 0.4rem;
+    padding: 0.75rem 0.7rem 0.75rem 0.85rem;
+  }
+  .sa-readout__tag { margin-top: 0.35rem; }
+  .sa-readout__viz { width: 2.75rem; height: 3.9rem; }
+  .sa-readout__value:not(.sa-readout__value--long) { font-size: clamp(1rem, 9cqi - 0.5rem, 1.85rem); }
+  .sa-tape { width: 26px; height: 62px; }
+  .sa-ball { width: 42px; height: 42px; }
+  .sa-window { width: 38px; height: 50px; }
+}
+/* Two displays across a deck this narrow leave no room for an
+   instrument beside the tag, and the instruments only draw what the
+   words already say: they go, and label, tag, figure and caption take
+   the display's whole width. */
+@container deck (max-width: 21.49rem) {
+  .sa-readout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'label' 'tag' 'value' 'sub';
+  }
+  .sa-readout__viz { display: none; }
+}
+
+/* ── The route ────────────────────────────────────────────────
+   Six names across a narrow deck do not fit in capitals ("Weather"
+   ran into "Clouds"), and at the very narrowest they come down a
+   size, and "Next stop" leaves the stop's name to say it. */
+@container deck (max-width: 29.99rem) {
+  .sa-route { padding: 0.9rem 0.85rem 1rem; }
+  .sa-route__next { letter-spacing: 0.05em; }
+  .sa-route__name { text-transform: none; letter-spacing: 0; }
+  .sa-route__price { letter-spacing: 0; }
+  .sa-route__price-full { display: none; }
+  .sa-route__price-short { display: inline; }
+}
+@container deck (max-width: 21.99rem) {
+  .sa-route__next-word { display: none; }
+}
+@container deck (max-width: 19.49rem) {
+  .sa-route { padding-inline: 0.6rem; }
+  .sa-route__name { font-size: 10px; letter-spacing: -0.01em; }
+  .sa-route__price { font-size: 10px; }
+}
+
+/* ── The lamps ────────────────────────────────────────────────
+   Four across a wide deck, two under 64rem, and one under 30rem,
+   where two would break every legend over two lines. */
+@container deck (max-width: 63.99rem) {
+  .sa-lamps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; padding: 0.85rem; }
+}
+@container deck (max-width: 37.99rem) {
+  .sa-lamp { padding: 0.6rem; gap: 0.55rem; }
+  .sa-lamp__lens { width: 2.05rem; height: 2.05rem; border-radius: 9px; font-size: 1rem; }
+  .sa-lamp__label { letter-spacing: 0.1em; }
+  .sa-lamp__detail { letter-spacing: 0.06em; }
+}
+@container deck (max-width: 29.99rem) {
+  .sa-lamps { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── The tabs ─────────────────────────────────────────────────
+   Every label on one line: under 400px they come down with the
+   width, so CHECK IN does not break in two beside four one-line
+   neighbours. */
+.sa-dock__label { white-space: nowrap; }
+@media (max-width: 399.98px) {
+  .sa-dock__track { gap: 0.2rem; }
+  .sa-dock__btn { padding-inline: 0.1rem; font-size: clamp(9px, 2.85vw, 10.5px); letter-spacing: 0.02em; }
+}
+
+/* ── A phone on its side ─────────────────────────────────────
+   Under 500px of height a two-row gate sign and a tall tab bar
+   left the page a strip 140px high between them. There the sign
+   is one row — the mark, the figures, the button — the tabs put
+   their symbols beside their names, and the view is sized to fit
+   between the two rather than running under either. */
+@media (max-height: 499.98px) and (min-width: 560px) and (max-width: 1023.98px) {
+  .sa-topbar > div { flex-wrap: nowrap; padding-block: 0.4rem; }
+  .sa-topbar .sa-wordmark { --mark: 30px; }
+  .sa-topbar .sa-wordmark__name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .sa-topbar .sa-cta--bar { order: 9; margin-left: 0; }
+  .sa-topbar dl { flex: 1 1 auto; width: auto; margin-left: auto; padding-inline: 0.25rem; }
+}
+@media (max-height: 499.98px) {
+  .sa-app { --dock-h: 3.25rem; }
+  .sa-dock { padding-block: 0.25rem calc(0.25rem + var(--safe-bottom)); }
+  .sa-dock__btn {
+    grid-auto-flow: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.6rem;
+    gap: 0.45rem;
+    padding-block: 0.3rem;
+  }
+}
+@media (max-height: 499.98px) and (min-width: 641px) {
+  .sd-frame,
+  .sd-frame--wide {
+    min-height: 11rem;
+    max-height: calc(100dvh - var(--sa-topbar-h, 3.4rem) - var(--dock-h) - 2.75rem);
+  }
 }

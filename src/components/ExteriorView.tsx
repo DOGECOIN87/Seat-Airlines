@@ -174,11 +174,11 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
           this frame, and repeating it inside the frame said the same thing
           twice in two type sizes. What belongs here is what an aviation
           photograph is captioned with: which aeroplane, and who is on it. */}
-      <div className="pointer-events-none absolute left-3 top-3 flex max-w-[52%] items-center gap-2 sm:left-5 sm:top-4 sm:max-w-none sm:gap-2.5">
+      <div className="sd-plate pointer-events-none">
         <Mark size={22} />
         <span className="font-heading text-[15px] leading-none tracking-normal text-white/90">SA350</span>
-        <span aria-hidden className="hidden h-3.5 w-px bg-white/25 sm:block" />
-        <span className="hidden font-mono text-[11px] uppercase tracking-[0.2em] text-white/50 sm:inline">
+        <span aria-hidden className="hidden h-3.5 w-px bg-white/25 md:block" />
+        <span className="hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.2em] text-white/50 md:inline">
           Souls on board <span className="tabular-nums text-white/80">{taken.size}</span>
         </span>
       </div>
@@ -188,22 +188,26 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
           opposite corners. Anchored, they overlapped on a phone — the frame
           is simply not wide enough to hold the telemetry and the camera note
           side by side, and two absolutely positioned blocks have no way to
-          find that out. In one wrapping row they stack instead. */}
-      <div className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap items-end justify-between gap-2 sm:inset-x-5 sm:bottom-4">
-        <div className="flex items-end gap-4 rounded-xl border border-white/12 bg-[#05070F]/75 px-3 py-2 backdrop-blur-sm sm:gap-6 sm:px-4 sm:py-2.5">
+          find that out. In one wrapping row they stack instead.
+
+          The two figures are a pair: labels on one line, figures the same
+          size on the next. The level is not repeated here — the badge at the
+          top says it — and under 480px the figures give the picture back
+          altogether, since the gate sign just above says both. */}
+      <div className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap items-end justify-between gap-2 sm:inset-x-4 sm:bottom-4">
+        <div className="hidden items-start gap-5 rounded-xl border border-white/12 bg-[#05070F]/75 px-3 py-2 backdrop-blur-sm min-[480px]:flex sm:gap-6 sm:px-4 sm:py-2.5">
           <div>
-            <p className="whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.16em] text-white/45">Market cap</p>
-            <p className="mt-0.5 font-mono text-lg leading-none text-white sm:text-xl">
+            <p className="whitespace-nowrap font-mono text-[11px] uppercase leading-none tracking-[0.16em] text-white/45">Market cap</p>
+            <p className="mt-1.5 font-mono text-lg leading-none text-white sm:text-xl">
               <span ref={capRead} />
             </p>
           </div>
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-white/45">5m</p>
-            <p className="mt-0.5 font-mono text-sm leading-none sm:text-base">
+            <p className="whitespace-nowrap font-mono text-[11px] uppercase leading-none tracking-[0.16em] text-white/45">5m</p>
+            <p className="mt-1.5 font-mono text-lg leading-none sm:text-xl">
               <span ref={chgRead} />
             </p>
           </div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#7FE3F7]">{band.label}</p>
         </div>
 
         {/* Where your seat is, in words — the drawn view is aria-hidden. */}

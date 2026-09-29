@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react';
+import { DeckIcon } from './InstrumentDeck';
 
 /**
  * The window you look through.
@@ -19,7 +20,11 @@ interface ViewFrameProps {
   children: ReactNode;
   /** Announced to screen readers, and shown in the corner badge. */
   label: string;
-  /** Right-hand chrome, e.g. the walk-through controls. */
+  /**
+   * The page's own chrome after the view's tools: a `.sd-controls__look`
+   * group (where to look) and a `.sd-controls__sound` button, which the
+   * rail lays out (see `.sd-controls`).
+   */
   actions?: ReactNode;
   /**
    * Called when the viewer keeps zooming out at the minimum — the gesture for
@@ -197,19 +202,21 @@ const ViewFrame = ({ children, label, actions, onZoomOutBeyond, zoomOutHint }: V
           {children}
         </div>
 
-        {/* Keep frame context away from the view's own bottom telemetry. */}
-        {/* The view draws its own callsign at the top left, so this badge is
-            capped at a share of the width and allowed to wrap rather than
-            run into it — on a phone the two were colliding. */}
-        <p className="pointer-events-none absolute right-3 top-3 max-w-[46%] rounded-2xl border border-white/12 bg-black/55 px-2.5 py-1 text-right text-[11px] font-bold uppercase leading-tight tracking-[0.16em] text-[#7FE3F7] backdrop-blur-sm sm:max-w-[60%] sm:px-3 sm:text-[11px] sm:tracking-[0.18em]">
-          {label}
-        </p>
+        {/* Where you are looking, at the top right. The exterior draws its
+            plate at the top left, the same distance in and the same height,
+            so the two sit on one line (see `.sd-badge`). */}
+        <p className="sd-badge pointer-events-none">{label}</p>
       </div>
 
-      {/* Chrome. On a narrow screen this scrolls sideways rather than
-          stacking four rows deep and pushing the view off the top. */}
-      <div className="sd-chrome sd-controls mt-3 flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
-        <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Zoom">
+      {/* The rail under the glass: the view's own tools — zoom, back to the
+          whole picture, full screen — then the page's, where to look and
+          sound. One line where it all fits; where it does not, the tools and
+          sound share the top line and the ways to look take the whole line
+          under them, each as wide as the next. Nothing scrolls out of sight
+          sideways, and nothing wraps wherever the width ran out (see
+          `.sd-controls`). */}
+      <div className="sd-chrome sd-controls">
+        <div className="sd-controls__tools" role="group" aria-label="Zoom">
           <button
             type="button"
             onClick={() => zoomAbout(scale / 1.25)}
@@ -220,7 +227,7 @@ const ViewFrame = ({ children, label, actions, onZoomOutBeyond, zoomOutHint }: V
           >
             −
           </button>
-          <span className="w-14 shrink-0 text-center text-[11px] tabular-nums text-ui-faint">{scale.toFixed(1)}×</span>
+          <span className="sd-controls__zoom">{scale.toFixed(1)}×</span>
           <button
             type="button"
             onClick={() => zoomAbout(scale * 1.25)}
@@ -234,17 +241,21 @@ const ViewFrame = ({ children, label, actions, onZoomOutBeyond, zoomOutHint }: V
             type="button"
             onClick={reset}
             disabled={!zoomed && pan.x === 0 && pan.y === 0}
-            className="ui-pill ml-1"
+            aria-label="Reset zoom"
+            title="Reset zoom"
+            className="ui-round"
           >
-            Reset
+            <DeckIcon name="reset" />
           </button>
           <button
             type="button"
             onClick={() => setFull((v) => !v)}
             aria-pressed={full}
-            className="ui-pill ml-1"
+            aria-label="Full screen"
+            title={full ? 'Exit full screen' : 'Full screen'}
+            className="ui-round"
           >
-            {full ? 'Exit full screen' : 'Full screen'}
+            <DeckIcon name={full ? 'shrink' : 'expand'} />
           </button>
         </div>
         {actions}

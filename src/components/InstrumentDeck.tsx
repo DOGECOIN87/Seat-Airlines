@@ -29,7 +29,8 @@ import {
 export type DeckIconName =
   | 'plane' | 'deck' | 'first' | 'business' | 'exit' | 'economy' | 'hold'
   | 'belt' | 'cup' | 'mask' | 'brace'
-  | 'wall' | 'network' | 'chat' | 'pass' | 'trophy';
+  | 'wall' | 'network' | 'chat' | 'pass' | 'trophy'
+  | 'reset' | 'expand' | 'shrink' | 'sound' | 'mute';
 
 const ICON_PATHS: Record<DeckIconName, string[]> = {
   plane: ['M12 2.6c.9 0 1.5.9 1.5 2.2V10l7.3 4.1v2.1l-7.3-2.2v4.5l2.1 1.6v1.6L12 21l-3.6.7v-1.6l2.1-1.6V14l-7.3 2.2v-2.1L10.5 10V4.8c0-1.3.6-2.2 1.5-2.2z'],
@@ -49,6 +50,12 @@ const ICON_PATHS: Record<DeckIconName, string[]> = {
   chat: ['M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-7.5L7 20v-3.5H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.5z', 'M7.5 10h9M7.5 13h6'],
   pass: ['M5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4V7.5A1.5 1.5 0 0 1 5.5 6z', 'M14.5 7.8v1.4M14.5 11.3v1.4M14.5 14.8v1.4'],
   trophy: ['M7.5 4h9v4.5a4.5 4.5 0 0 1-9 0z', 'M7.5 6h-3c0 2.6 1.4 4.3 3.6 4.6', 'M16.5 6h3c0 2.6-1.4 4.3-3.6 4.6', 'M12 13v3.5', 'M9.3 20.5l.7-4h4l.7 4', 'M7.5 20.5h9'],
+  // The view's own tools, under the glass: back to the whole picture, full screen and out of it, and sound.
+  reset: ['M4 12a8 8 0 1 0 8-8 8.7 8.7 0 0 0-6 2.44L4 8.5', 'M4 4v4.5h4.5'],
+  expand: ['M8.5 4H5.5A1.5 1.5 0 0 0 4 5.5v3', 'M20 8.5v-3A1.5 1.5 0 0 0 18.5 4h-3', 'M4 15.5v3A1.5 1.5 0 0 0 5.5 20h3', 'M15.5 20h3a1.5 1.5 0 0 0 1.5-1.5v-3'],
+  shrink: ['M8.5 4v3A1.5 1.5 0 0 1 7 8.5H4', 'M20 8.5h-3a1.5 1.5 0 0 1-1.5-1.5V4', 'M4 15.5h3a1.5 1.5 0 0 1 1.5 1.5v3', 'M15.5 20v-3a1.5 1.5 0 0 1 1.5-1.5h3'],
+  sound: ['M11 5.5 6.8 9H4v6h2.8l4.2 3.5z', 'M15.2 9.4a4 4 0 0 1 0 5.2', 'M17.9 6.8a7.7 7.7 0 0 1 0 10.4'],
+  mute: ['M11 5.5 6.8 9H4v6h2.8l4.2 3.5z', 'M15.5 9.5l5 5', 'M20.5 9.5l-5 5'],
 };
 
 export const DeckIcon = ({ name, className }: { name: DeckIconName; className?: string }) => (
@@ -297,12 +304,12 @@ export function ClimbRoute({ band }: { band: BandState }) {
         <span className="sa-route__next">
           {band.next ? (
             <>
-              Next stop <b>{band.next}</b>
+              <span className="sa-route__next-word">Next stop</span> <b>{band.next}</b>
               <span className="sa-route__pct">{toGo}%</span>
             </>
           ) : (
             <>
-              Next stop <b>Beyond Mars</b>
+              <span className="sa-route__next-word">Next stop</span> <b>Beyond Mars</b>
               <span className="sa-route__pct" aria-hidden>???</span>
             </>
           )}
