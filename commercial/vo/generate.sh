@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 M=${PIPER_MODEL:-/tmp/claude-0/tts/en-us-ryan-high.onnx}
 say() { echo "$2" | piper -m "$M" --length-scale "$3" --noise-scale 0.333 --sentence-silence "$4" -f "vo/raw_$1.wav" 2>/dev/null; }
 say 01 "Welcome aboard Seat Airlines." 0.92 0.12
-say 02 "One plane. Everyone's in it. Your bag is your seat." 1.0 0.3
+say 02 "Network build to the moon." 1.0 0.3
 say 03 "Market cap is altitude." 0.95 0.2
 say 04 "Seat, Airlines. Now boarding." 0.88 0.18
 # Line 1: cabin PA — band-limited, a little saturation, a small room.

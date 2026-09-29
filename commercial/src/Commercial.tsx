@@ -275,7 +275,7 @@ const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }
         <SplitFlap text="SA350" size={40} delay={10} />
       </AbsoluteFill>
     )}
-    {scene.id === 'hero' && <Headline lines={['ONE PLANE.', "EVERYONE'S IN IT."]} />}
+    {scene.id === 'hero' && <Headline lines={['NETWORK BUILD', 'TO THE MOON.']} />}
     {scene.id === 'seats' && <Headline lines={['YOUR BAG', 'IS YOUR SEAT.']} />}
     {scene.id === 'altitudes' && <AltBandHud />}
     {scene.id === 'advert' && <Caption text="Your ad, on board." frames={frames} />}
