@@ -234,8 +234,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
 
   const cabin = createCabin();
   aircraft.add(cabin.group);
-  aircraft.add(camera);
-  const cabinLamps: Array<{ light: THREE.PointLight; intensity: number; colour: THREE.Color }> = [];
+  aircraft.add(camera);  const cabinLamps: Array<{ light: THREE.PointLight; intensity: number; colour: THREE.Color }> = [];
   cabin.group.traverse(object => {
     if (object instanceof THREE.PointLight) {
       cabinLamps.push({ light: object, intensity: object.intensity, colour: object.color.clone() });

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1280" height="1160" viewBox="0 0 1280 1160" role="img" aria-labelledby="title description">
+  <title id="title">Boeing 737 — top view, nose pointing right</title>
+  <desc id="description">Original editable vector illustration inspired by the Boeing 737-800. Orthographic overhead view with symmetrical swept wings, two underwing engines, horizontal stabilizers and narrow dorsal tail fin. White and silver finish with navy accents. Transparent background. All artwork consists of SVG geometry and gradients; no embedded raster images, fonts, filters or external assets. Illustration, not an engineering drawing.</desc>
+  <!-- Reference proportions: 737-800 length 39.5 m, wing span 35.8 m.
+       https://www.boeing.com/commercial/737ng
+       The airplane points toward positive X. Reflection axis: y = 580.
+       Named groups isolate engines, wings, stabilizers, fuselage and details. -->
+  <defs>
+    <linearGradient id="bodyPaint" x1="0" y1="526" x2="0" y2="634" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a5b5c3"/>
+      <stop offset=".10" stop-color="#dfe7ed"/>
+      <stop offset=".29" stop-color="#f7fafc"/>
+      <stop offset=".48" stop-color="#ffffff"/>
+      <stop offset=".68" stop-color="#f4f7f9"/>
+      <stop offset=".91" stop-color="#d4dfe7"/>
+      <stop offset="1" stop-color="#8e9fac"/>
+    </linearGradient>
+    <linearGradient id="wingPaint" x1="715" y1="245" x2="505" y2="490" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f7fafc"/>
+      <stop offset=".60" stop-color="#e2e9ee"/>
+      <stop offset="1" stop-color="#b8c7d2"/>
+    </linearGradient>
+    <linearGradient id="tailPaint" x1="305" y1="398" x2="177" y2="552" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f3f7fa"/>
+      <stop offset="1" stop-color="#c3d0db"/>
+    </linearGradient>
+    <linearGradient id="enginePaint" x1="0" y1="399" x2="0" y2="461" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8397a7"/>
+      <stop offset=".20" stop-color="#e6edf2"/>
+      <stop offset=".45" stop-color="#ffffff"/>
+      <stop offset=".67" stop-color="#edf2f6"/>
+      <stop offset="1" stop-color="#91a5b5"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#8293a2"/>
+      <stop offset=".43" stop-color="#fafcfd"/>
+      <stop offset="1" stop-color="#607686"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="1110" y1="554" x2="1157" y2="606" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#476c87"/>
+      <stop offset=".5" stop-color="#213b51"/>
+      <stop offset="1" stop-color="#101f30"/>
+    </linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#416185"/>
+      <stop offset=".5" stop-color="#173857"/>
+      <stop offset="1" stop-color="#0b2139"/>
+    </linearGradient>
+    <path id="bodyOutline" d="M 80,580 C 111,576 149,562 195,549 C 244,535 289,528 341,526.5 L 1062,526.5 C 1103,526.5 1135,536 1163,551 C 1186,563 1198,574 1200,580 C 1198,586 1186,597 1163,609 C 1135,624 1103,633.5 1062,633.5 L 341,633.5 C 289,632 244,625 195,611 C 149,598 111,584 80,580 Z"/>
+    <clipPath id="bodyClip"><use xlink:href="#bodyOutline"/></clipPath>
+    <g id="upperEngine">
+      <!-- Engine is drawn first: the wing occludes its rear portion. -->
+      <path d="M 668,415 L 710,410 L 710,450 L 668,445 Q 662,430 668,415 Z" fill="#667c8d" stroke="#566a78" stroke-width="1.3"/>
+      <path d="M 690,410 C 721,401 764,398 790,400 Q 803,401 806,411 L 806,449 Q 803,459 790,460 C 764,462 721,459 690,450 Q 682,430 690,410 Z" fill="url(#enginePaint)" stroke="#687f90" stroke-width="1.7"/>
+      <path d="M 792,401 Q 800,430 792,459 L 801,456 Q 809,430 801,404 Z" fill="url(#metal)"/>
+      <path d="M 801,407 Q 806,430 801,453" fill="none" stroke="#273c4c" stroke-width="2.2"/>
+      <path d="M 784,402 Q 790,430 784,458" fill="none" stroke="#899ca9" stroke-width="1.2"/>
+      <path d="M 712,407 C 739,403 765,404 777,405" fill="none" stroke="#ffffff" stroke-width="2"/>
+      <path d="M 734,423 L 791,426 L 791,434 L 734,437 Z" fill="#d1dce5" stroke="#8ca0ae" stroke-width="1"/>
+      <path d="M 772,426 L 789,428" stroke="#f8fafc" stroke-width="1.6"/>
+    </g>
+    <g id="upperStabilizer">
+      <path d="M 330,553 L 185,377 L 148,377 Q 143,377 145,382 L 191,558 Z" fill="url(#tailPaint)" stroke="#6d8292" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M 324,551 L 182,380" fill="none" stroke="#ffffff" stroke-width="3"/>
+      <path d="M 275,548 L 163,380 L 149,380 L 194,554 Z" fill="#ccd7df"/>
+      <path d="M 275,548 L 163,380" fill="none" stroke="#8297a7" stroke-width="1.1"/>
+      <path d="M 251,512 L 184,512 M 212,456 L 169,456" fill="none" stroke="#a1b1bf" stroke-width=".8"/>
+      <path d="M 184,377 L 148,377 L 149,385 L 191,385 Z" fill="#193952"/>
+    </g>
+    <g id="upperWing">
+      <!-- Flap-track fairings project aft of the trailing edge. -->
+      <g fill="#becbd5" stroke="#7d93a3" stroke-width="1.2">
+        <path d="M 621,452 L 573,452 Q 560,454 554,460 Q 564,466 577,466 L 621,466 Z"/>
+        <path d="M 624,338 L 581,338 Q 567,340 560,345 Q 569,351 583,351 L 624,351 Z"/>
+        <path d="M 590,230 L 558,230 Q 549,232 543,237 Q 550,242 561,242 L 590,242 Z"/>
+      </g>
+      <path d="M 780,535 L 546,73 Q 542,70 537,72 L 520,77 L 619,413 L 568,535 Z" fill="url(#wingPaint)" stroke="#718797" stroke-width="1.8" stroke-linejoin="round"/>
+      <!-- Leading edge / slats. -->
+      <path d="M 773,527 L 542,77 L 533,80 L 754,531 Z" fill="#f4f7f9"/>
+      <path d="M 754,531 L 533,80" fill="none" stroke="#a4b4c1" stroke-width="1.1"/>
+      <path d="M 732,440 L 717,449 M 687,352 L 674,360 M 644,269 L 632,276 M 601,185 L 591,191" fill="none" stroke="#94a7b6" stroke-width="1"/>
+      <!-- Wing box and control surfaces. -->
+      <path d="M 715,522 L 541,115 L 602,406 L 600,475 L 581,522 Z" fill="#c6d3dd" opacity=".64"/>
+      <path d="M 727,529 L 541,115" fill="none" stroke="#afbeca" stroke-width="1"/>
+      <path d="M 624,527 L 654,415 L 544,117 L 619,413 L 572,530 Z" fill="#c0ced9" stroke="#92a6b6" stroke-width="1"/>
+      <path d="M 619,413 L 654,415 M 605,460 L 641,460 M 588,500 L 630,500" fill="none" stroke="#839aaa" stroke-width="1.1"/>
+      <path d="M 581,286 L 606,288 M 561,218 L 580,219 M 541,150 L 554,151" fill="none" stroke="#8da2b2" stroke-width="1"/>
+      <path d="M 641,427 L 684,442 L 704,482 L 630,470 Z" fill="#dce5ec" stroke="#a3b4c1" stroke-width=".9"/>
+      <path d="M 669,397 L 646,344 L 621,337 L 640,389 Z" fill="#e3ebf0" stroke="#a5b6c2" stroke-width=".9"/>
+      <path d="M 637,324 L 616,274 L 593,267 L 611,317 Z" fill="#e3ebf0" stroke="#a5b6c2" stroke-width=".9"/>
+      <!-- Blended winglet seen from above: a slim swept tip. -->
+      <path d="M 546,73 Q 535,66 530,75 L 511,123 Q 508,131 514,132 L 528,106 Z" fill="url(#navy)" stroke="#203a52" stroke-width="1.5"/>
+      <path d="M 540,73 L 520,118" fill="none" stroke="#7796ad" stroke-width="1.5"/>
+    </g>
+    <g id="upperDetails" fill="none" stroke="#8fa3b3" stroke-width="1">
+      <!-- Shallow door outlines on the upper edge of the curved fuselage. -->
+      <path d="M 1027,529 L 1027,539 Q 1027,542 1030,542 L 1047,542 Q 1050,542 1050,539 L 1050,529"/>
+      <path d="M 292,530 L 292,541 Q 292,544 295,544 L 313,544 Q 316,544 316,541 L 316,528"/>
+      <path d="M 662,528 L 662,537 L 677,537 L 677,528 M 688,528 L 688,537 L 703,537 L 703,528"/>
+      <path d="M 1034,539 L 1041,539 M 299,541 L 306,541" stroke="#607d92"/>
+    </g>
+  </defs>
+
+  <g id="boeing-737-top-right" stroke-linecap="round" stroke-linejoin="round">
+    <g id="engines">
+      <use xlink:href="#upperEngine"/>
+      <use xlink:href="#upperEngine" transform="translate(0 1160) scale(1 -1)"/>
+    </g>
+    <g id="horizontal-stabilizers">
+      <use xlink:href="#upperStabilizer"/>
+      <use xlink:href="#upperStabilizer" transform="translate(0 1160) scale(1 -1)"/>
+    </g>
+    <g id="main-wings">
+      <use xlink:href="#upperWing"/>
+      <use xlink:href="#upperWing" transform="translate(0 1160) scale(1 -1)"/>
+      <circle cx="534" cy="77" r="2.5" fill="#27a482"/>
+      <circle cx="534" cy="1083" r="2.5" fill="#e25358"/>
+    </g>
+    <g id="wing-body-fairing">
+      <path d="M 807,533 Q 739,512 671,516 Q 616,512 554,530 L 454,562 L 454,598 L 554,630 Q 616,648 671,644 Q 739,648 807,627 Z" fill="#c9d6e0" stroke="#8da3b4" stroke-width="1.4"/>
+    </g>
+    <g id="fuselage">
+      <use xlink:href="#bodyOutline" fill="url(#bodyPaint)" stroke="#627e92" stroke-width="1.9"/>
+      <g clip-path="url(#bodyClip)">
+        <path d="M 188,550 C 263,532 313,530 362,530 L 1053,530 C 1101,530 1133,539 1165,557" fill="none" stroke="#1d4265" stroke-width="3.4"/>
+        <path d="M 188,610 C 263,628 313,630 362,630 L 1053,630 C 1101,630 1133,621 1165,603" fill="none" stroke="#1d4265" stroke-width="3.4"/>
+        <!-- Small window marks remain near the silhouette in a true overhead view. -->
+        <path d="M 343,532 L 638,532 M 726,532 L 1006,532 M 343,628 L 638,628 M 726,628 L 1006,628" fill="none" stroke="#294963" stroke-width="3.2" stroke-dasharray="3.2 10.2"/>
+        <path d="M 339,543 L 1062,543 C 1101,543 1129,550 1146,560" fill="none" stroke="#ffffff" stroke-width="2.5" opacity=".9"/>
+        <path d="M 1127,536 C 1165,563 1165,597 1127,624" fill="none" stroke="#afbeca" stroke-width="1"/>
+        <path d="M 1074,529 C 1085,558 1085,602 1074,631" fill="none" stroke="#d0dbe4" stroke-width=".8"/>
+        <path d="M 341,529 C 335,555 335,605 341,631" fill="none" stroke="#bfccd6" stroke-width=".8"/>
+        <use xlink:href="#upperDetails"/>
+        <use xlink:href="#upperDetails" transform="translate(0 1160) scale(1 -1)"/>
+      </g>
+    </g>
+    <g id="cockpit" fill="url(#glass)" stroke="#e9f0f5" stroke-width="1.7">
+      <path d="M 1128,551 L 1143,558 L 1155,577 L 1139,577 Z"/>
+      <path d="M 1128,609 L 1143,602 L 1155,583 L 1139,583 Z"/>
+      <path d="M 1111,548 L 1125,550 L 1134,572 L 1120,566 Z"/>
+      <path d="M 1111,612 L 1125,610 L 1134,588 L 1120,594 Z"/>
+      <path d="M 1098,546 L 1108,547 L 1116,562 L 1105,558 Z"/>
+      <path d="M 1098,614 L 1108,613 L 1116,598 L 1105,602 Z"/>
+      <path d="M 1133,555 L 1142,560 L 1148,569" fill="none" stroke="#98b7cc" stroke-width="1.1"/>
+    </g>
+    <g id="dorsal-details">
+      <ellipse cx="906" cy="580" rx="23" ry="10" fill="#dfe7ed" stroke="#a7bac8" stroke-width="1.1"/>
+      <ellipse cx="909" cy="578" rx="18" ry="6" fill="#f9fbfc"/>
+      <path d="M 981,580 L 995,577 Q 1002,580 995,583 Z" fill="#d3dfe7" stroke="#8fa6b7" stroke-width=".9"/>
+      <path d="M 460,580 L 475,577 Q 481,580 475,583 Z" fill="#d3dfe7" stroke="#8fa6b7" stroke-width=".9"/>
+      <ellipse cx="635" cy="580" rx="5" ry="3.6" fill="#b33543" stroke="#f1c0c6" stroke-width="1"/>
+      <ellipse cx="636" cy="579" rx="2" ry="1.2" fill="#f58183"/>
+    </g>
+    <g id="vertical-tail-top-projection">
+      <!-- Strict overhead projection: the upright tail remains a narrow spine. -->
+      <path d="M 120,580 L 166,574 C 208,568 251,569 291,574 L 395,580 L 291,586 C 251,591 208,592 166,586 Z" fill="url(#navy)" stroke="#27455f" stroke-width="1.4"/>
+      <path d="M 134,580 L 367,580" fill="none" stroke="#7793ab" stroke-width="1.6"/>
+      <path d="M 174,574 L 177,586" fill="none" stroke="#a8bfd0" stroke-width="1"/>
+      <path d="M 105,580 L 86,580" stroke="#ccd9e2" stroke-width="2"/>
+    </g>
+  </g>
+</svg>

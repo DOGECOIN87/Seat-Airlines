@@ -1,0 +1,11 @@
+{
+  "comment": "Simulated market-cap ramp for the hero climb (15 s cut: scene 11.5-13.5 s). easeInQuad from `from` to `to` over rampSeconds from scene time 0; crosses cloudsThreshold at crossAtSeconds (1.0 s in = 12.5 s on the timeline). Shared by capture/scenes/climb.mjs and the Remotion HUD.",
+  "cloudsThreshold": 1000000,
+  "from": 250000,
+  "to": 1600000,
+  "easing": "easeInQuad",
+  "rampSeconds": 1.342,
+  "crossAtSeconds": 1.0,
+  "sceneSeconds": 2.0,
+  "headSeconds": 0.5
+}

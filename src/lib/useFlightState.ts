@@ -11,9 +11,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { FlightFeed, FlightTick } from './flightFeed';
 import { INITIAL_TICK } from './flightFeed';
 import { annunciatorsFor, type Annunciators } from './flightModel';
+import { CAPTURE } from '../capture/flag';
 
-/** How often the stateful layer is allowed to re-render, in ms. */
-const RENDER_INTERVAL = 500;
+/** How often the stateful layer is allowed to re-render, in ms. Every frame while filming, so a ramped altitude climbs smoothly. */
+const RENDER_INTERVAL = CAPTURE ? 0 : 500;
 
 export interface FlightState {
   tick: FlightTick;
