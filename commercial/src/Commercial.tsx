@@ -93,6 +93,43 @@ const SplitFlap: React.FC<{ text: string; size: number; delay?: number }> = ({ t
   );
 };
 
+/**
+ * The altitude-band showcase overlay: 5 bands × 0.8 s each (24 frames at 30 fps).
+ * Matches the capture schedule in capture/scenes/altitudes.mjs.
+ */
+const ALT_BANDS = [
+  { name: 'WEATHER',  cap: '< $1M',   color: '#7EC8E3' }, // clear blue
+  { name: 'CLOUDS',   cap: '$1M+',    color: '#E0ECF8' }, // bright white-blue
+  { name: 'SPACE',    cap: '$10M+',   color: '#4B6FA5' }, // deep indigo
+  { name: 'MOON',     cap: '$50M+',   color: '#C8C8C8' }, // lunar grey
+  { name: 'MARS',     cap: '$100M+',  color: '#E06030' }, // rust
+] as const;
+const BAND_FRAMES = 24; // 0.8 s at 30 fps per band
+
+const AltBandHud: React.FC = () => {
+  const f = useCurrentFrame();
+  const band = Math.min(ALT_BANDS.length - 1, Math.floor(f / BAND_FRAMES));
+  const within = f - band * BAND_FRAMES;
+  const o = interpolate(within, [0, 6, BAND_FRAMES - 6, BAND_FRAMES], [0, 1, 1, 0], clamp);
+  const { name, cap, color } = ALT_BANDS[band];
+  return (
+    <AbsoluteFill style={{ pointerEvents: 'none' }}>
+      <div style={{
+        position: 'absolute', left: 80, top: 72,
+        opacity: o, transform: `translateY(${(1 - o) * -14}px)`,
+        fontFamily: MONO, color: INK,
+        background: 'rgba(5,7,15,0.72)', border: '1px solid rgba(255,255,255,0.12)',
+        borderLeft: `4px solid ${color}`,
+        borderRadius: 10, padding: '18px 28px', minWidth: 260,
+      }}>
+        <div style={{ fontSize: 18, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.55)', marginBottom: 4 }}>ALTITUDE BAND</div>
+        <div style={{ fontSize: 64, fontWeight: 600, lineHeight: 1, letterSpacing: '0.02em', color }}>{name}</div>
+        <div style={{ fontSize: 38, marginTop: 6, letterSpacing: '0.06em' }}>{cap}</div>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
 /** The market-cap readout for the climb, from the same ramp the capture used. Formatted as the app's formatCap. */
 const formatCap = (n: number) => (n >= 999_500 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${(n / 1_000).toFixed(0)}K`);
 const capAt = (t: number) => {
@@ -240,10 +277,11 @@ const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }
     )}
     {scene.id === 'hero' && <Headline lines={['ONE PLANE.', "EVERYONE'S IN IT."]} />}
     {scene.id === 'seats' && <Headline lines={['YOUR BAG', 'IS YOUR SEAT.']} />}
+    {scene.id === 'altitudes' && <AltBandHud />}
     {scene.id === 'advert' && <Caption text="Your ad, on board." frames={frames} />}
     {scene.id === 'climb' && <ClimbHud />}
     {scene.id === 'endcard' && <EndCard />}
-    {scene.id !== 'intro' && scene.id !== 'endcard' && scene.id !== 'hero' && scene.id !== 'seats' && <LogoBug frames={frames} />}
+    {scene.id !== 'intro' && scene.id !== 'endcard' && scene.id !== 'hero' && scene.id !== 'seats' && scene.id !== 'altitudes' && <LogoBug frames={frames} />}
   </AbsoluteFill>
 );
 
