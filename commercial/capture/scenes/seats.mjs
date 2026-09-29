@@ -8,6 +8,6 @@ if (preview) {
   await s.shot(stillPath('seats'));
   await s.api((api) => api.selectSeat('16A')); await s.step(10); await s.shot(stillPath('seats_selected'));
 } else {
-  await s.record('seats_take1', 120, async (i) => { if (i === 40) await s.api((api) => api.selectSeat('16A')); });
+  await s.record('seats_take1', 30, async (i) => { if (i === 8) await s.api((api) => api.selectSeat('16A')); });
 }
 await s.close();

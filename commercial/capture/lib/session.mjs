@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(here, '../..');
 export const APP = process.env.SA_APP_URL || 'http://127.0.0.1:3000/';
-export const FPS = 30;
+export const FPS = 15; // captured at 15 fps, blended up to 30 in the edit (no GPU here)
 const FONTS = path.join(ROOT, 'node_modules/@fontsource');
 const fontCss = [
   ['Montserrat', 'montserrat', [400, 500, 600, 700, 800]],
@@ -73,7 +73,7 @@ export async function open({ query = '', width = 1920, height = 1080, epoch } = 
       }
       const out = path.join(ROOT, 'capture/raw', `${name}.mp4`);
       execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(dir, '%05d.jpg'),
-        '-c:v', 'libx264', '-crf', '13', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-g', '15', '-r', String(FPS), out]);
+        '-c:v', 'libx264', '-crf', '13', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-g', '15', out]);
       console.log('wrote', out);
       return out;
     },
@@ -90,12 +90,15 @@ export async function open({ query = '', width = 1920, height = 1080, epoch } = 
 }
 
 /** Into the site proper, seated (the fake wallet is ranked into 16A), with the view as a clean plate. */
-export async function board(s) {
+export async function board(s, { size = [1920, 1080] } = {}) {
+  await s.page.setViewportSize({ width: 480, height: 270 }); // warm up cheaply
   await s.goto();
   await s.untilReady();
   await s.step(35, 200); // past the splash, in big steps (virtual time)
   await s.api((api) => api.app.leave());
   await s.step(12, 100);
+  await s.page.setViewportSize({ width: size[0], height: size[1] });
+  await s.step(3, 100);
 }
 
 export const preview = process.argv.includes('--preview');

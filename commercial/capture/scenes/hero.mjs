@@ -5,5 +5,5 @@ await board(s);
 await s.api((api) => api.app.setCamera('exterior'));
 await s.step(20, 100);
 if (preview) await s.shot(stillPath('hero'));
-else await s.record('hero_take1', 120);
+else await s.record('hero_take1', 30);
 await s.close();

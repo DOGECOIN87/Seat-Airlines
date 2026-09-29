@@ -1,3 +1,6 @@
 node_modules/
 capture/raw/
 out/
+assets/source/
+public/clips/
+vo/raw_*.wav

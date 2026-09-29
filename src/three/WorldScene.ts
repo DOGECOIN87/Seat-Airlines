@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { CAPTURE, captureState } from '../capture/flag';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { cloudTexture, farmlandTextures, HILL_HEIGHT, oceanTextures, radialTexture } from './terrain';
 import { createSurfaceBank, potatoGeometry, type SurfaceTextures } from './surfaces';
@@ -235,9 +234,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
 
   const cabin = createCabin();
   aircraft.add(cabin.group);
-  aircraft.add(camera);
-  if (CAPTURE) captureState.onWorld?.(scene);
-  const cabinLamps: Array<{ light: THREE.PointLight; intensity: number; colour: THREE.Color }> = [];
+  aircraft.add(camera);  const cabinLamps: Array<{ light: THREE.PointLight; intensity: number; colour: THREE.Color }> = [];
   cabin.group.traverse(object => {
     if (object instanceof THREE.PointLight) {
       cabinLamps.push({ light: object, intensity: object.intensity, colour: object.color.clone() });
@@ -1806,7 +1803,6 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       earthSun.copy(sunPos).transformDirection(camera.matrixWorldInverse);
     }
 
-    if (CAPTURE) captureState.onRender?.(scene, camera, Boolean(pose.exterior));
     const frameStart = performance.now();
     renderer.render(scene, camera);
     frameTimeTotal += performance.now() - frameStart;

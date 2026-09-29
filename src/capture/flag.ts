@@ -47,13 +47,8 @@ export interface CaptureState {
   highScore: number | null;
   /** Extra adverts by seat id, over everything else. */
   adverts: Record<string, string>;
-  /** The invented house outside the left windows. */
-  house: boolean;
   /** Called by the landing's scene every frame of the game, before it flies. */
   onGameFrame: ((g: FlightGame, dt: number) => void) | null;
-  /** Called with each 3D world as it is built, and before each frame it draws. */
-  onWorld: ((scene: import('three').Scene) => void) | null;
-  onRender: ((scene: import('three').Scene, camera: import('three').PerspectiveCamera, exterior: boolean) => void) | null;
   app: CaptureAppControls;
 }
 
@@ -63,10 +58,7 @@ export const captureState: CaptureState = {
   seat: undefined,
   highScore: null,
   adverts: {},
-  house: false,
   onGameFrame: null,
-  onWorld: null,
-  onRender: null,
   app: {},
 };
 

@@ -11,11 +11,11 @@
  *     screen.
  *  2. Installs a pretend wallet that is "connected" to an obviously fake
  *     address. It cannot sign anything: every signature request is refused.
- *  3. Hides the cursor and anything a film should not show.
+ *  3. Hides the cursor and anything a film should not show, and can pose the
+ *     page as a clean plate.
  *  4. Exposes `window.__SA_CAPTURE__`, the handful of controls the capture
  *     scripts drive the app with (see commercial/capture/).
  */
-import * as THREE from 'three';
 import { INITIAL_TICK, type FlightFeed, type FlightTick } from '../lib/flightFeed';
 import { DEFAULT_WORKER_API } from '../lib/workerBase';
 import { captureChanged, captureState } from './flag';
@@ -123,6 +123,13 @@ style.textContent = `
   }
   html.sa-capture[data-plate="view"] .sa-viewport > * > :not(.sd-view):not(:has(.sd-view)) { display: none !important; }
   html.sa-capture[data-plate="view"] .sa-viewport .sd-view > :not(canvas) { display: none !important; }
+  /* The brand plate: the landing's wordmark, with the airliner crossing it, alone and large. */
+  html.sa-capture[data-plate="brand"] .sa-landing { background: #0F1725 !important; }
+  html.sa-capture[data-plate="brand"] .sa-landing > :not(.sa-landing__top) { display: none !important; }
+  html.sa-capture[data-plate="brand"] .sa-landing__top > :not(.sa-landing__brandbox) { visibility: hidden !important; }
+  html.sa-capture[data-plate="brand"] .sa-landing__brandbox {
+    position: fixed !important; left: 50% !important; top: 50% !important; zoom: 3; translate: -50% -50%;
+  }
 `;
 document.head.appendChild(style);
 
@@ -171,7 +178,6 @@ const EASINGS: Record<string, (t: number) => number> = {
   easeInCubic: (t) => t * t * t,
   easeOutCubic: (t) => 1 - (1 - t) ** 3,
   easeInOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2),
-  easeInOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
 };
 function tween(ms: number, easing: string, step: (k: number) => void): Promise<void> {
   const ease = EASINGS[easing] ?? EASINGS.easeInOutCubic;
@@ -186,113 +192,6 @@ function tween(ms: number, easing: string, step: (k: number) => void): Promise<v
     frame();
   });
 }
-
-/* ── The easter egg: an invented house outside the left windows ─────────
-   Built from primitives here and nowhere else. It is not anybody's house;
-   the film labels it so. A little low-poly cabin with warm windows and a
-   purple-to-green roof, perched on a puff of cloud of its own. */
-
-function gradientRoofTexture(): THREE.Texture {
-  const c = document.createElement('canvas');
-  c.width = 4;
-  c.height = 64;
-  const g = c.getContext('2d')!;
-  const grad = g.createLinearGradient(0, 0, 0, 64);
-  grad.addColorStop(0, '#9945FF');
-  grad.addColorStop(1, '#14F195');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 4, 64);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-function buildHouse(): THREE.Group {
-  const house = new THREE.Group();
-  house.name = 'capture-house';
-  const wall = new THREE.MeshStandardMaterial({ color: '#F3E6CF', roughness: 0.9, flatShading: true });
-  const trim = new THREE.MeshStandardMaterial({ color: '#6B4A34', roughness: 0.8, flatShading: true });
-  const roof = new THREE.MeshStandardMaterial({ map: gradientRoofTexture(), roughness: 0.6, flatShading: true });
-  const glow = new THREE.MeshBasicMaterial({ color: '#FFC56B' });
-  const cloud = new THREE.MeshStandardMaterial({ color: '#FFFFFF', roughness: 1, flatShading: true });
-
-  // The house: a box, a pitched roof, a chimney, a door and lit windows. Metres.
-  const body = new THREE.Mesh(new THREE.BoxGeometry(12, 7, 9), wall);
-  body.position.y = 3.5;
-  house.add(body);
-  const roofGeo = new THREE.CylinderGeometry(0, 1, 1, 4, 1);
-  roofGeo.rotateY(Math.PI / 4);
-  const roofMesh = new THREE.Mesh(roofGeo, roof);
-  roofMesh.scale.set(10.6, 5.5, 8.2);
-  roofMesh.position.y = 7 + 2.75;
-  house.add(roofMesh);
-  const chimney = new THREE.Mesh(new THREE.BoxGeometry(1.4, 3.4, 1.4), trim);
-  chimney.position.set(3.2, 10.2, 1.2);
-  house.add(chimney);
-  const door = new THREE.Mesh(new THREE.BoxGeometry(1.8, 3.2, 0.2), trim);
-  door.position.set(0, 1.6, 4.55);
-  house.add(door);
-  for (const [x, y, z, ry] of [
-    [-3.6, 4.2, 4.56, 0], [3.6, 4.2, 4.56, 0], [-3.6, 4.2, -4.56, 0], [3.6, 4.2, -4.56, 0],
-    [6.06, 4.2, -1.8, Math.PI / 2], [6.06, 4.2, 1.8, Math.PI / 2], [-6.06, 4.2, 0, Math.PI / 2],
-  ] as const) {
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.8), glow);
-    w.position.set(x, y, z);
-    w.rotation.y = ry;
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.2, 0.1), trim);
-    frame.position.set(x - Math.sign(x) * 0.02 * (ry ? 1 : 0), y, z - Math.sign(z) * 0.03 * (ry ? 0 : 1));
-    frame.rotation.y = ry;
-    house.add(frame, w);
-    w.position.addScaledVector(new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry)).multiplyScalar(Math.sign(ry ? x : z)), 0.06);
-  }
-  const light = new THREE.PointLight('#FFB35C', 60, 40, 2);
-  light.position.set(0, 4, 6);
-  house.add(light);
-
-  // Its own cloud to sit on.
-  const puffs: [number, number, number, number][] = [
-    [0, -2.5, 0, 11], [-9, -3.5, 2, 8], [9, -3.2, -1, 8.5], [-4, -5, -6, 8], [5, -5, 6, 7.5],
-    [-14, -6, -2, 6], [14, -6, 3, 6], [0, -6.5, 8, 7], [0, -6, -8, 7],
-  ];
-  for (const [x, y, z, r] of puffs) {
-    const p = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), cloud);
-    p.position.set(x, y, z);
-    p.scale.y = 0.62;
-    house.add(p);
-  }
-  house.traverse((o) => {
-    // Never cut by the cabin's near plane or the scene's own sorting.
-    o.frustumCulled = false;
-  });
-  return house;
-}
-
-const houses = new WeakMap<THREE.Scene, THREE.Group>();
-const houseClock = { start: 0 };
-captureState.onWorld = (scene) => {
-  const house = buildHouse();
-  house.visible = false;
-  scene.add(house);
-  houses.set(scene, house);
-};
-captureState.onRender = (scene, camera, exterior) => {
-  const house = houses.get(scene);
-  if (!house) return;
-  house.visible = captureState.house && !exterior;
-  if (!house.visible) return;
-  /* Off the left side, a little forward of abeam and below the wing: where
-     the exit row's window looks once the head is turned. It drifts slowly
-     aft, the way anything outside does. Placed in the aircraft's own frame,
-     from the camera, so it reads the same whatever the market is doing. */
-  const t = (performance.now() - houseClock.start) / 1000;
-  const back = Math.min(40, t * 4.5);
-  const frame = camera.parent ?? scene;
-  if (house.parent !== frame) frame.add(house);
-  const eye = camera.position;
-  house.position.set(eye.x - 150, eye.y - 36, eye.z - 88 + back);
-  house.rotation.set(0, 0.95, 0);
-  house.scale.setScalar(1.35);
-};
 
 /* ── The autopilot, for the game ───────────────────────────────────────── */
 
@@ -323,7 +222,6 @@ captureState.onGameFrame = (g: FlightGame) => {
 const PRESETS = {
   exitRowForward: { yaw: 0 },
   exitRowLeft: { yaw: -64 },
-  exitRowRight: { yaw: 64 },
 } as const;
 type Preset = keyof typeof PRESETS;
 
@@ -345,7 +243,7 @@ const api = {
     sky.hour = hour;
     sky.weather = weather;
   },
-  /** Walks to the exit row's window seat, facing forward, with the head free to be turned. */
+  /** Sits in the exit row's window seat, head turned to the preset. */
   setCamera(preset: Preset) {
     const a = captureState.app;
     a.walkTo?.('exit');
@@ -358,8 +256,8 @@ const api = {
     const b = PRESETS[to].yaw;
     return tween(ms, easing, (k) => { captureState.yaw = a + (b - a) * k; });
   },
-  /** The plate: 'view' fills the screen with the 3D view alone; null is the page. */
-  setPlate(plate: 'view' | null) {
+  /** The plate: 'view' is the 3D view alone, full screen; 'brand' the wordmark and its flyover on navy; null the page. */
+  setPlate(plate: 'view' | 'brand' | null) {
     if (plate) document.documentElement.dataset.plate = plate;
     else delete document.documentElement.dataset.plate;
     window.dispatchEvent(new Event('resize'));
@@ -385,10 +283,6 @@ const api = {
     else delete next[seat];
     captureState.adverts = next;
     captureChanged();
-  },
-  showEasterEggHouse(on: boolean) {
-    captureState.house = on;
-    houseClock.start = performance.now();
   },
   get app() {
     return captureState.app;
