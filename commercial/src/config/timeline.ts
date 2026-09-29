@@ -38,16 +38,16 @@ export interface Scene {
 
 const VO = {
   welcome: {
-    file: 'vo/01.wav', at: 0.3, seconds: 3.22,
+    file: 'vo/01.wav', at: 0.3, seconds: 2.32,
     captions: [{ text: 'Welcome aboard Seat Airlines.', from: 0, to: 2.0 }],
   },
-  onePlane: { file: 'vo/02.wav', at: -0.2, seconds: 3.47, captions: [] },
+  onePlane: { file: 'vo/02.wav', at: -0.2, seconds: 2.69, captions: [] },
   altitude: {
-    file: 'vo/03.wav', at: -0.45, seconds: 1.62,
-    captions: [{ text: 'Market cap is altitude.', from: 0.45, to: 1.62 }],
+    file: 'vo/03.wav', at: -0.45, seconds: 6.13,
+    captions: [{ text: 'Market cap is altitude.', from: 0.45, to: 2.0 }],
   },
   boarding: {
-    file: 'vo/04.wav', at: -0.6, seconds: 1.83,
+    file: 'vo/04.wav', at: -0.6, seconds: 1.65,
     // Said on the end card, which carries the words itself (SEAT AIRLINES, NOW BOARDING): no caption card over the fine print.
     captions: [],
   },
