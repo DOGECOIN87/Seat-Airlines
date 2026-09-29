@@ -4650,3 +4650,98 @@ p { text-wrap-style: pretty; }
     max-height: calc(100dvh - var(--sa-topbar-h, 3.4rem) - var(--dock-h) - 2.75rem);
   }
 }
+
+/* ── The seat's positions ─────────────────────────────────────
+   Window, middle and aisle always fit, so they are not faded at the
+   end as if there were more; on a phone they share the strip's
+   width, each as wide as the next. */
+.sa-deck__strip > .sa-walk + .sa-walk .sa-seg { -webkit-mask-image: none; mask-image: none; }
+@media (max-width: 767px) {
+  .sa-deck__strip > .sa-walk + .sa-walk { width: 100%; }
+  .sa-deck__strip > .sa-walk + .sa-walk .sa-seg { flex: 1 1 auto; }
+  .sa-deck__strip > .sa-walk + .sa-walk .sa-seg__btn { flex: 1 1 0; justify-content: center; padding-inline: 0.5rem; }
+}
+
+/* ============================================================
+   The flyover
+   ────────────────────────────────────────────────────────────
+   An airliner crossing the gate sign over the airline's name, seen
+   from straight above with its nose to the right: in from the left
+   of the mark, out past the end of the name, climbing a little and
+   easing its heading round as it goes. Its shadow falls on the sign
+   beneath it, down and to the right the way the page's light falls,
+   and two contrails draw out behind the engines and go with it.
+   Four seconds of every eighteen, the first a moment after the page
+   opens. The track is the brand's own box — `100cqw` is its width —
+   so the path spans the whole wordmark at every size, and just the
+   mark where the name is out of sight.
+   ============================================================ */
+.sa-topbar .sa-brand { position: relative; }
+.sa-flyover {
+  --fly: 3.5rem;
+  --fly-cycle: 18s;
+  --fly-wait: 2.5s;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  container-type: inline-size;
+}
+@media (max-width: 639.98px) { .sa-flyover { --fly: 2.4rem; } }
+.sa-flyover__craft {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  /* The drawing's own proportions: 1280 by 1160. */
+  width: calc(var(--fly) * 1.1034);
+  height: var(--fly);
+  isolation: isolate;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: sa-flyover var(--fly-cycle) linear var(--fly-wait) infinite both;
+}
+.sa-flyover__plane {
+  display: block;
+  width: 100%;
+  height: 100%;
+  -webkit-user-drag: none;
+  user-select: none;
+  filter: drop-shadow(calc(var(--fly) * 0.1) calc(var(--fly) * 0.16) calc(var(--fly) * 0.05) rgba(10, 26, 50, 0.3));
+}
+/* The contrails: from just behind each engine (the drawing's engines sit
+   37% and 63% of the way across it, their exhausts 52% along), strongest
+   where they form and thinning out behind. */
+.sa-flyover__craft::before,
+.sa-flyover__craft::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: 49%;
+  width: 190%;
+  height: max(1.5px, calc(var(--fly) * 0.045));
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.5) 55%, rgba(255, 255, 255, 0.95) 90%, rgba(255, 255, 255, 0) 100%);
+  filter: drop-shadow(0 1px 1px rgba(16, 36, 64, 0.22));
+  transform-origin: right center;
+  animation: sa-flyover-trail var(--fly-cycle) linear var(--fly-wait) infinite both;
+}
+.sa-flyover__craft::before { top: 37.1%; }
+.sa-flyover__craft::after { top: 62.9%; }
+@keyframes sa-flyover {
+  0% { opacity: 0; transform: translate3d(calc(-100% - 0.75rem), calc(-50% + 3px), 0) rotate(1.5deg); }
+  3.5% { opacity: 1; }
+  18.5% { opacity: 1; }
+  22.2%,
+  100% { opacity: 0; transform: translate3d(calc(100cqw + 0.75rem), calc(-50% - 3px), 0) rotate(-1.5deg); }
+}
+@keyframes sa-flyover-trail {
+  0% { transform: translateY(-50%) scaleX(0.04); }
+  14%,
+  100% { transform: translateY(-50%) scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sa-flyover { display: none; }
+}
+@media print {
+  .sa-flyover { display: none; }
+}

@@ -4,6 +4,7 @@ import ContractBar from './components/ContractBar';
 import ViewFrame from './components/ViewFrame';
 import Annunciators from './components/Annunciators';
 import { ClimbRoute, DeckIcon, FlightReadouts, type DeckIconName } from './components/InstrumentDeck';
+import Flyover from './components/Flyover';
 import AdvertDialog from './components/AdvertDialog';
 import DocsLink from './components/DocsLink';
 import Wordmark from './components/Wordmark';
@@ -707,6 +708,7 @@ export default function App() {
         <div className="mx-auto flex max-w-[94rem] flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-2 sm:px-8 lg:gap-x-7 lg:py-2.5">
           <a href="#top" className="sa-brand flex shrink-0 items-center text-ui-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ui-blue">
             <Wordmark />
+            <Flyover />
           </a>
 
           {/* The one call to action, where it is always on the screen: beside
