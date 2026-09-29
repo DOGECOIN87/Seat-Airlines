@@ -5,7 +5,7 @@ One file per line in `public/vo/`, so a voice actor can replace them 1:1. Regene
 
 | File | Timeline (A) | Line | Treatment | Length |
 |---|---|---|---|---|
-| 01.wav | 0.30 s | "Ladies and gentlemen, welcome aboard flight S A three-fifty." | Cabin PA: HP 300 Hz, LP 3.4 kHz, soft clip, small room | 3.22 s |
+| 01.wav | 0.30 s | "Welcome aboard Seat Airlines." | Cabin PA: HP 300 Hz, LP 3.4 kHz, soft clip, small room | ~1.8 s |
 | 02.wav | 5.80 s | "One plane. Everyone's in it. Your bag is your seat." | Clean, close | 3.47 s |
 | 03.wav | 11.05 s | "Market cap is altitude." | Clean | 1.62 s |
 | 04.wav | 12.90 s | "Seat Airlines. Now boarding." (TTS text "Seat, Airlines." so "Seat" is not swallowed) | Clean, 1.06× | 1.83 s |

@@ -39,7 +39,7 @@ export interface Scene {
 const VO = {
   welcome: {
     file: 'vo/01.wav', at: 0.3, seconds: 3.22,
-    captions: [{ text: 'Ladies and gentlemen, welcome aboard flight SA350.', from: 0, to: 3.22 }],
+    captions: [{ text: 'Welcome aboard Seat Airlines.', from: 0, to: 2.0 }],
   },
   onePlane: { file: 'vo/02.wav', at: -0.2, seconds: 3.47, captions: [] },
   altitude: {
