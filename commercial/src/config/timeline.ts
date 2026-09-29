@@ -68,17 +68,17 @@ const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   endcard: { id: 'endcard', vo: [VO.boarding] },
 };
 
-/** Order A (primary): intro → board → altitudes → sit → play → climb. 19.0 s. */
+/** Order A (primary): intro → board → sit → play → climb → altitudes → end. 19.0 s. */
 export const ORDER_A: Scene[] = [
   { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 6 } },
   { ...S.splash, seconds: 1.5, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.hero, seconds: 1.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
-  { ...S.altitudes, seconds: 4.0, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.seats, seconds: 1.0, transitionIn: { kind: 'slideUp', frames: 8 } },
   { ...S.advert, seconds: 1.0, transitionIn: { kind: 'fade', frames: 6 } },
   { ...S.game, seconds: 1.5, transitionIn: { kind: 'flash', frames: 4 } },
   { ...S.highscore, seconds: 1.0, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.climb, seconds: 2.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
+  { ...S.altitudes, seconds: 4.0, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.endcard, seconds: 1.5, transitionIn: { kind: 'fade', frames: 8 } },
 ];
 
@@ -89,10 +89,10 @@ export const ORDER_B: Scene[] = [
   { ...S.game, seconds: 1.5, transitionIn: { kind: 'flash', frames: 4 } },
   { ...S.highscore, seconds: 1.0, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.hero, seconds: 1.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
-  { ...S.altitudes, seconds: 4.0, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.seats, seconds: 1.0, transitionIn: { kind: 'slideUp', frames: 8 } },
   { ...S.advert, seconds: 1.0, transitionIn: { kind: 'fade', frames: 6 } },
   { ...S.climb, seconds: 2.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
+  { ...S.altitudes, seconds: 4.0, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.endcard, seconds: 1.5, transitionIn: { kind: 'fade', frames: 8 } },
 ];
 
