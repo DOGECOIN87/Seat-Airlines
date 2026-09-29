@@ -24,8 +24,12 @@ const Clip: React.FC<{ src: string; from: number; push?: boolean; frames: number
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const scale = (focus?.scale ?? 1) * (push ? interpolate(f, [0, frames], [1, 1.04], clamp) : 1);
+  // Bring the focus point to the centre, never so far that an edge shows.
+  const room = 0.5 - 0.5 / scale;
+  const dx = focus ? Math.max(-room, Math.min(room, 0.5 - focus.x)) : 0;
+  const dy = focus ? Math.max(-room, Math.min(room, 0.5 - focus.y)) : 0;
   return (
-    <AbsoluteFill style={{ transform: `scale(${scale})`, transformOrigin: focus ? `${focus.x * 100}% ${focus.y * 100}%` : '50% 50%' }}>
+    <AbsoluteFill style={{ transform: `scale(${scale}) translate(${dx * 100}%, ${dy * 100}%)` }}>
       <OffthreadVideo src={staticFile(src)} startFrom={Math.round(from * fps)} muted />
     </AbsoluteFill>
   );
@@ -90,7 +94,7 @@ const SplitFlap: React.FC<{ text: string; size: number; delay?: number }> = ({ t
 };
 
 /** The market-cap readout for the climb, from the same ramp the capture used. Formatted as the app's formatCap. */
-const formatCap = (n: number) => (n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${(n / 1_000).toFixed(0)}K`);
+const formatCap = (n: number) => (n >= 999_500 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${(n / 1_000).toFixed(0)}K`);
 const capAt = (t: number) => {
   const u = Math.min(1, Math.max(0, t / climb.rampSeconds));
   return climb.from + (climb.to - climb.from) * u * u;
@@ -237,7 +241,6 @@ const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }
     {scene.id === 'hero' && <Headline lines={['ONE PLANE.', "EVERYONE'S IN IT."]} />}
     {scene.id === 'seats' && <Headline lines={['YOUR BAG', 'IS YOUR SEAT.']} />}
     {scene.id === 'advert' && <Caption text="Your ad, on board." frames={frames} />}
-    {scene.id === 'highscore' && <Caption text="Beat the high score." frames={frames} />}
     {scene.id === 'climb' && <ClimbHud />}
     {scene.id === 'endcard' && <EndCard />}
     {scene.id !== 'intro' && scene.id !== 'endcard' && scene.id !== 'hero' && scene.id !== 'seats' && <LogoBug frames={frames} />}

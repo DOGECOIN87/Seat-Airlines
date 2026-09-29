@@ -44,7 +44,7 @@ const VO = {
   onePlane: { file: 'vo/02.wav', at: -0.2, seconds: 3.47, captions: [] },
   altitude: {
     file: 'vo/03.wav', at: -0.45, seconds: 1.62,
-    captions: [{ text: 'Market cap is altitude.', from: 0, to: 1.62 }],
+    captions: [{ text: 'Market cap is altitude.', from: 0.45, to: 1.62 }],
   },
   boarding: {
     file: 'vo/04.wav', at: -0.6, seconds: 1.83,
@@ -56,13 +56,13 @@ const VO = {
 const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   /* The intro is the supplied animation (assets/source/user-plane.mp4, 21.0–25.5 s): no text in it, audio muted. */
   intro: { id: 'intro', clip: { src: 'clips/intro.mp4', from: 0 }, vo: [VO.welcome] },
-  splash: { id: 'splash', clip: { src: 'clips/splash.mp4', from: 0 }, push: true },
+  splash: { id: 'splash', clip: { src: 'clips/splash.mp4', from: 3.0 }, push: true },
   hero: { id: 'hero', clip: { src: 'clips/hero.mp4', from: 0.5 }, push: true, vo: [VO.onePlane] },
   seats: { id: 'seats', clip: { src: 'clips/seats.mp4', from: 0.2 }, push: true, focus: { x: 0.705, y: 0.5, scale: 1.75 } },
-  advert: { id: 'advert', clip: { src: 'clips/advert.mp4', from: 0.5 } },
-  game: { id: 'game', clip: { src: 'clips/game.mp4', from: 0.5 } },
-  highscore: { id: 'highscore', clip: { src: 'clips/highscore.mp4', from: 3.0 } },
-  climb: { id: 'climb', clip: { src: 'clips/climb.mp4', from: 0.5 }, vo: [VO.altitude] },
+  advert: { id: 'advert', clip: { src: 'clips/advert.mp4', from: 0.5 }, focus: { x: 0.5, y: 0.8, scale: 2.2 } },
+  game: { id: 'game', clip: { src: 'clips/game.mp4', from: 0.6 } },
+  highscore: { id: 'highscore', clip: { src: 'clips/highscore.mp4', from: 3.0 }, focus: { x: 0.5, y: 0.5, scale: 2.6 } },
+  climb: { id: 'climb', clip: { src: 'clips/climb.mp4', from: 0.5 }, focus: { x: 0.5, y: 0.47, scale: 1.12 }, vo: [VO.altitude] },
   endcard: { id: 'endcard', vo: [VO.boarding] },
 };
 
