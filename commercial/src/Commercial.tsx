@@ -20,14 +20,18 @@ const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 
 /* ── Pieces ─────────────────────────────────────────────────────────── */
 
-const Clip: React.FC<{ src: string; from: number; push?: boolean; frames: number; focus?: Scene['focus'] }> = ({ src, from, push, frames, focus }) => {
+const Clip: React.FC<{ src: string; from: number; push?: boolean; frames: number; focus?: Scene['focus']; focusEnd?: Scene['focus'] }> = ({ src, from, push, frames, focus, focusEnd }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const scale = (focus?.scale ?? 1) * (push ? interpolate(f, [0, frames], [1, 1.04], clamp) : 1);
+  // Animated focus: interpolate between focus and focusEnd for a camera pan.
+  const prog = focusEnd ? interpolate(f, [0, frames], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) }) : 0;
+  const fx = focusEnd ? (focus?.x ?? 0.5) + prog * ((focusEnd.x ?? 0.5) - (focus?.x ?? 0.5)) : (focus?.x ?? 0.5);
+  const fy = focusEnd ? (focus?.y ?? 0.5) + prog * ((focusEnd.y ?? 0.5) - (focus?.y ?? 0.5)) : (focus?.y ?? 0.5);
   // Bring the focus point to the centre, never so far that an edge shows.
   const room = 0.5 - 0.5 / scale;
-  const dx = focus ? Math.max(-room, Math.min(room, 0.5 - focus.x)) : 0;
-  const dy = focus ? Math.max(-room, Math.min(room, 0.5 - focus.y)) : 0;
+  const dx = focus ? Math.max(-room, Math.min(room, 0.5 - fx)) : 0;
+  const dy = focus ? Math.max(-room, Math.min(room, 0.5 - fy)) : 0;
   return (
     <AbsoluteFill style={{ transform: `scale(${scale}) translate(${dx * 100}%, ${dy * 100}%)` }}>
       <OffthreadVideo src={staticFile(src)} startFrom={Math.round(from * fps)} muted />
@@ -264,7 +268,7 @@ const Enter: React.FC<{ kind: Scene['transitionIn']['kind']; frames: number; chi
 
 const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }) => (
   <AbsoluteFill style={{ background: NAVY }}>
-    {scene.clip && <Clip src={scene.clip.src} from={scene.clip.from} push={scene.push} frames={frames} focus={scene.focus} />}
+    {scene.clip && <Clip src={scene.clip.src} from={scene.clip.from} push={scene.push} frames={frames} focus={scene.focus} focusEnd={scene.focusEnd} />}
     {scene.id === 'intro' && (
       <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'center', paddingTop: 84 }}>
         <Sequence from={20} layout="none"><SplitFlap text="FLIGHT SA350" size={52} /></Sequence>
@@ -277,11 +281,12 @@ const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }
     )}
     {scene.id === 'hero' && <Headline lines={['NETWORK BUILD', 'TO THE MOON.']} />}
     {scene.id === 'seats' && <Headline lines={['YOUR BAG', 'IS YOUR SEAT.']} />}
+    {scene.id === 'seats_scroll' && <Caption text="178 seats. One flight." frames={frames} />}
     {scene.id === 'altitudes' && <AltBandHud />}
     {scene.id === 'advert' && <Caption text="Your ad, on board." frames={frames} />}
     {scene.id === 'climb' && <ClimbHud />}
     {scene.id === 'endcard' && <EndCard />}
-    {scene.id !== 'intro' && scene.id !== 'endcard' && scene.id !== 'hero' && scene.id !== 'seats' && scene.id !== 'altitudes' && <LogoBug frames={frames} />}
+    {scene.id !== 'intro' && scene.id !== 'endcard' && scene.id !== 'hero' && scene.id !== 'seats' && scene.id !== 'seats_scroll' && scene.id !== 'altitudes' && <LogoBug frames={frames} />}
   </AbsoluteFill>
 );
 

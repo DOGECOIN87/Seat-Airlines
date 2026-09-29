@@ -23,7 +23,7 @@ export interface VoCue {
 }
 
 export interface Scene {
-  id: 'intro' | 'splash' | 'hero' | 'altitudes' | 'seats' | 'advert' | 'game' | 'highscore' | 'climb' | 'endcard';
+  id: 'intro' | 'splash' | 'hero' | 'altitudes' | 'seats' | 'seats_scroll' | 'advert' | 'game' | 'highscore' | 'climb' | 'endcard';
   seconds: number;
   /** How this scene comes in, and over how many frames. */
   transitionIn: { kind: TransitionKind; frames: number };
@@ -33,6 +33,8 @@ export interface Scene {
   push?: boolean;
   /** Frame the clip on part of the screen: centre as fractions of it, and the zoom. */
   focus?: { x: number; y: number; scale: number };
+  /** End focus for an animated camera pan. Interpolates from focus → focusEnd over the scene. */
+  focusEnd?: { x: number; y: number; scale: number };
   vo?: VoCue[];
 }
 
@@ -59,6 +61,8 @@ const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   splash: { id: 'splash', clip: { src: 'clips/splash.mp4', from: 3.0 }, push: true },
   hero: { id: 'hero', clip: { src: 'clips/hero.mp4', from: 0.5 }, push: true, vo: [VO.onePlane] },
   seats: { id: 'seats', clip: { src: 'clips/seats.mp4', from: 0.2 }, push: true, focus: { x: 0.705, y: 0.5, scale: 1.75 } },
+  /* Slow pan top→bottom through the full 178-seat grid, same clip zoomed in tighter. */
+  seats_scroll: { id: 'seats_scroll', clip: { src: 'clips/seats.mp4', from: 0.2 }, focus: { x: 0.705, y: 0.15, scale: 2.2 }, focusEnd: { x: 0.705, y: 0.82, scale: 2.2 } },
   advert: { id: 'advert', clip: { src: 'clips/advert.mp4', from: 0.5 }, focus: { x: 0.5, y: 0.8, scale: 2.2 } },
   /* Altitude band showcase: exterior at each of the five altitude bands (0.8 s each). */
   altitudes: { id: 'altitudes', clip: { src: 'clips/altitudes.mp4', from: 0 } },
@@ -68,29 +72,29 @@ const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   endcard: { id: 'endcard', vo: [VO.boarding] },
 };
 
-/** Order A (primary): intro → board → sit → play → climb → altitudes → end. 19.0 s. */
+/** Order A (primary): brand open → intro → hero → seats → scroll → ad → climb → altitudes → end. 19.5 s. */
 export const ORDER_A: Scene[] = [
-  { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 6 } },
+  { ...S.endcard, vo: [], seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
+  { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.splash, seconds: 1.5, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.hero, seconds: 1.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
   { ...S.seats, seconds: 1.0, transitionIn: { kind: 'slideUp', frames: 8 } },
+  { ...S.seats_scroll, seconds: 3.0, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.advert, seconds: 1.0, transitionIn: { kind: 'fade', frames: 6 } },
-  { ...S.game, seconds: 1.5, transitionIn: { kind: 'flash', frames: 4 } },
-  { ...S.highscore, seconds: 1.0, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.climb, seconds: 2.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
   { ...S.altitudes, seconds: 4.0, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.endcard, seconds: 1.5, transitionIn: { kind: 'fade', frames: 8 } },
 ];
 
-/** Order B (comparison): the game before the cabin. Same clips, same VO per scene. 19.0 s. */
+/** Order B (comparison): brand open → hero → seats → scroll → climb → altitudes → end. 19.5 s. */
 export const ORDER_B: Scene[] = [
-  { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 6 } },
+  { ...S.endcard, vo: [], seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
+  { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.splash, seconds: 1.5, transitionIn: { kind: 'none', frames: 0 } },
-  { ...S.game, seconds: 1.5, transitionIn: { kind: 'flash', frames: 4 } },
-  { ...S.highscore, seconds: 1.0, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.hero, seconds: 1.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
-  { ...S.seats, seconds: 1.0, transitionIn: { kind: 'slideUp', frames: 8 } },
   { ...S.advert, seconds: 1.0, transitionIn: { kind: 'fade', frames: 6 } },
+  { ...S.seats, seconds: 1.0, transitionIn: { kind: 'slideUp', frames: 8 } },
+  { ...S.seats_scroll, seconds: 3.0, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.climb, seconds: 2.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
   { ...S.altitudes, seconds: 4.0, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.endcard, seconds: 1.5, transitionIn: { kind: 'fade', frames: 8 } },
