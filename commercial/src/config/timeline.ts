@@ -23,7 +23,7 @@ export interface VoCue {
 }
 
 export interface Scene {
-  id: 'intro' | 'splash' | 'hero' | 'altitudes' | 'seats' | 'seats_scroll' | 'advert' | 'game' | 'highscore' | 'climb' | 'endcard';
+  id: 'brandopen' | 'intro' | 'splash' | 'hero' | 'altitudes' | 'seats' | 'seats_scroll' | 'advert' | 'game' | 'highscore' | 'climb' | 'endcard';
   seconds: number;
   /** How this scene comes in, and over how many frames. */
   transitionIn: { kind: TransitionKind; frames: number };
@@ -56,6 +56,8 @@ const VO = {
 } satisfies Record<string, VoCue>;
 
 const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
+  /* Brand-open card: same EndCard component, no VO — used as the opening beat. */
+  brandopen: { id: 'brandopen' },
   /* The intro is the supplied animation (assets/source/user-plane.mp4, 21.0–25.5 s): no text in it, audio muted. */
   intro: { id: 'intro', clip: { src: 'clips/intro.mp4', from: 0 }, vo: [VO.welcome] },
   splash: { id: 'splash', clip: { src: 'clips/splash.mp4', from: 3.0 }, push: true },
@@ -74,7 +76,7 @@ const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
 
 /** Order A (primary): brand open → intro → hero → seats → scroll → ad → climb → altitudes → end. 19.5 s. */
 export const ORDER_A: Scene[] = [
-  { ...S.endcard, vo: [], seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
+  { ...S.brandopen, seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
   { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.splash, seconds: 1.5, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.hero, seconds: 1.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
@@ -88,7 +90,7 @@ export const ORDER_A: Scene[] = [
 
 /** Order B (comparison): brand open → hero → seats → scroll → climb → altitudes → end. 19.5 s. */
 export const ORDER_B: Scene[] = [
-  { ...S.endcard, vo: [], seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
+  { ...S.brandopen, seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
   { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.splash, seconds: 1.5, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.hero, seconds: 1.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
