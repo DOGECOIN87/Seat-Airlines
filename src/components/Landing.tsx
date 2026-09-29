@@ -62,6 +62,8 @@ interface LandingProps {
   wallet: WalletState;
   /** Go through to the site. */
   onEnter: () => void;
+  soundEnabled: boolean;
+  onSoundToggle: () => void;
 }
 
 type PostState =
@@ -137,7 +139,7 @@ const SPLASH_GIVE_UP = 15000;
 /** The fade onto the landing; `.sa-splash` times its transition to it. */
 const SPLASH_FADE = 800;
 
-export default function Landing({ feed, sky, band, marketCap, controls, taken, wallet, onEnter }: LandingProps) {
+export default function Landing({ feed, sky, band, marketCap, controls, taken, wallet, onEnter, soundEnabled, onSoundToggle }: LandingProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -745,6 +747,16 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 Scores
               </button>
             )}
+            <button
+              type="button"
+              onClick={onSoundToggle}
+              aria-pressed={soundEnabled}
+              className="sa-pilots"
+              title={soundEnabled ? 'Sound on' : 'Sound off'}
+            >
+              <DeckIcon name={soundEnabled ? 'sound' : 'mute'} className="sa-pilots__icon" />
+              {soundEnabled ? 'Sound' : 'Muted'}
+            </button>
           </div>
           {!failed && (
             <p className="sa-landing__hint">

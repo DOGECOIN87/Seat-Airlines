@@ -692,6 +692,8 @@ export default function App() {
           taken={taken}
           wallet={wallet}
           onEnter={enter}
+          soundEnabled={aircraftAudio.enabled}
+          onSoundToggle={aircraftAudio.toggle}
         />
         <WalletPicker wallet={wallet} />
       </>
