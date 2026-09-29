@@ -3217,6 +3217,13 @@ p { text-wrap-style: pretty; }
   padding: max(1rem, var(--safe-top)) clamp(1rem, 3vw, 2.25rem) 0;
   pointer-events: none;
 }
+.sa-landing__brandbox {
+  position: relative;
+  grid-area: brand;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
 .sa-landing__brand {
   --mark: 40px;
   grid-area: brand;
@@ -4671,7 +4678,7 @@ p { text-wrap-style: pretty; }
    easing its heading round as it goes. Its shadow falls on the sign
    beneath it, down and to the right the way the page's light falls,
    and two contrails draw out behind the engines and go with it.
-   Four seconds of every eighteen, the first a moment after the page
+   Four seconds of every fourteen, the first a second after the page
    opens. The track is the brand's own box — `100cqw` is its width —
    so the path spans the whole wordmark at every size, and just the
    mark where the name is out of sight.
@@ -4679,8 +4686,8 @@ p { text-wrap-style: pretty; }
 .sa-topbar .sa-brand { position: relative; }
 .sa-flyover {
   --fly: 3.5rem;
-  --fly-cycle: 18s;
-  --fly-wait: 2.5s;
+  --fly-cycle: 14s;
+  --fly-wait: 1.2s;
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -4688,6 +4695,9 @@ p { text-wrap-style: pretty; }
   container-type: inline-size;
 }
 @media (max-width: 639.98px) { .sa-flyover { --fly: 2.4rem; } }
+/* Over the landing's larger wordmark, a larger aeroplane. */
+.sa-landing__brandbox .sa-flyover { --fly: 4rem; }
+@media (max-width: 640px) { .sa-landing__brandbox .sa-flyover { --fly: 2.9rem; } }
 .sa-flyover__craft {
   position: absolute;
   left: 0;
@@ -4727,16 +4737,18 @@ p { text-wrap-style: pretty; }
 }
 .sa-flyover__craft::before { top: 37.1%; }
 .sa-flyover__craft::after { top: 62.9%; }
+/* Keyed to the 14s cycle: four seconds of flight (to 28.6%), in over the
+   first 0.6s and out over the last. */
 @keyframes sa-flyover {
   0% { opacity: 0; transform: translate3d(calc(-100% - 0.75rem), calc(-50% + 3px), 0) rotate(1.5deg); }
-  3.5% { opacity: 1; }
-  18.5% { opacity: 1; }
-  22.2%,
+  4.3% { opacity: 1; }
+  24.3% { opacity: 1; }
+  28.6%,
   100% { opacity: 0; transform: translate3d(calc(100cqw + 0.75rem), calc(-50% - 3px), 0) rotate(-1.5deg); }
 }
 @keyframes sa-flyover-trail {
   0% { transform: translateY(-50%) scaleX(0.04); }
-  14%,
+  14.3%,
   100% { transform: translateY(-50%) scaleX(1); }
 }
 @media (prefers-reduced-motion: reduce) {

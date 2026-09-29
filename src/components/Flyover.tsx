@@ -6,7 +6,7 @@
  * on the sign under it and two contrails drawing out behind its engines. The
  * picture is an `<img>` rather than inline SVG so its gradients' ids stay its
  * own. The flight is all CSS (see `.sa-flyover`): four seconds of every
- * eighteen, and none at all for anybody who has asked for less motion.
+ * fourteen, and none at all for anybody who has asked for less motion.
  */
 const Flyover = () => (
   <span className="sa-flyover" aria-hidden>

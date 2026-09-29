@@ -1,4 +1,4 @@
-const CACHE = 'seat-airways-assets-v4';
+const CACHE = 'seat-airways-assets-v5';
 const STATIC_DESTINATIONS = new Set(['script', 'style', 'font', 'image', 'audio', 'worker']);
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -16,8 +16,11 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
 
   if (request.destination === 'document') {
+    // Revalidated with the server on every visit (a 304 when nothing has
+    // changed), so a new deploy is what the next visit gets rather than a
+    // page the HTTP cache kept for its ten minutes.
     event.respondWith(
-      fetch(request).then((response) => {
+      fetch(new Request(request, { cache: 'no-cache' })).then((response) => {
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(request, copy));
         return response;
