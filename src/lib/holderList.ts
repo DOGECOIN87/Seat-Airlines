@@ -164,6 +164,80 @@ function rpcCall(rpcUrl: string) {
 }
 
 /**
+ * Helius enhanced-API calls pass params as an object, not an array.
+ *
+ * Their `getTokenAccounts` uses this shape — distinct from every standard
+ * JSON-RPC method, so a separate caller keeps the two from mixing.
+ */
+function rpcCallObjectParams(rpcUrl: string) {
+  return async function<T>(method: string, params: Record<string, unknown>): Promise<T | null> {
+    try {
+      const res = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { result?: T; error?: unknown };
+      if (body.error || body.result === undefined) return null;
+      return body.result;
+    } catch {
+      return null;
+    }
+  };
+}
+
+const HELIUS_PAGE = 1000;
+const HELIUS_MAX_PAGES = 50;
+
+/**
+ * Helius `getTokenAccounts` — their DAS index returns all token holders in a
+ * paginated sweep, pre-filtered to system-program wallets.
+ *
+ * Two wins over `getProgramAccounts`:
+ * · Uses the DAS index, so each page costs far fewer RPC credits than a raw
+ *   token-program scan.
+ * · Each record already carries the owner and amount, so there is no separate
+ *   `getMultipleAccounts` pass needed to strip out bonding curves and pools.
+ *
+ * Returns null when the endpoint does not recognise the method (any non-Helius
+ * RPC), so the caller falls through to `getProgramAccounts` seamlessly.
+ */
+async function fromHeliusTokenAccounts(
+  rpcUrl: string,
+  mint: string,
+  decimals: number,
+): Promise<Holder[] | null> {
+  const rpc = rpcCallObjectParams(rpcUrl);
+  const byOwner = new Map<string, number>();
+  let cursor: string | undefined;
+
+  for (let page = 0; page < HELIUS_MAX_PAGES; page++) {
+    const params: Record<string, unknown> = { mint, limit: HELIUS_PAGE };
+    if (cursor) params.cursor = cursor;
+
+    const result = await rpc<{
+      token_accounts?: { owner: string; amount: number }[];
+      cursor?: string;
+    }>('getTokenAccounts', params);
+
+    // null here means either a network error or an unsupported method — fall
+    // through to getProgramAccounts rather than giving up entirely.
+    if (!result || !Array.isArray(result.token_accounts)) return null;
+
+    for (const acct of result.token_accounts) {
+      if (!acct.owner || !(acct.amount > 0)) continue;
+      byOwner.set(acct.owner, (byOwner.get(acct.owner) ?? 0) + acct.amount / 10 ** decimals);
+    }
+
+    if (!result.cursor || result.token_accounts.length < HELIUS_PAGE) break;
+    cursor = result.cursor;
+  }
+
+  return byOwner.size > 0 ? [...byOwner].map(([address, balance]) => ({ address, balance })) : null;
+}
+
+/**
  * `getMultipleAccounts` takes a hard maximum of a hundred addresses.
  *
  * Which is fine for a cabin of forty and silently not fine for one of 178:
@@ -403,6 +477,16 @@ export async function readHolderList(source: HolderSource): Promise<HolderList |
   }
 
   if (!rpc || !mint) return null;
+
+  /* Helius `getTokenAccounts` is tried first: it reads from their DAS index
+     rather than scanning the token program, so it costs far fewer credits per
+     call and returns owners directly — skipping the `peopleOnly` pass.
+     On any other RPC this returns null and the standard path takes over. */
+  const heliusHolders = rpcUrl ? await fromHeliusTokenAccounts(rpcUrl, mint, decimals) : null;
+  if (heliusHolders && heliusHolders.length) {
+    const top = [...heliusHolders].sort((a, b) => b.balance - a.balance).slice(0, manifestSize + 10);
+    return { holders: top, supply, live: true };
+  }
 
   /* The whole aircraft, off the chain. Only as many as could be seated, with
      room for the contracts that will drop out — the same slice the indexer

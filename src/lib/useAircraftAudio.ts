@@ -159,6 +159,17 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
 
   const begin = async (AudioContextClass: typeof AudioContext) => {
     const ctx = new AudioContextClass();
+    /* Mobile browsers (Android/iOS) keep an AudioContext suspended even after
+       resume() resolves unless a real buffer plays inside the user gesture.
+       Playing one silent frame inside the same call stack as the tap is the
+       standard unlock; without it resume() appears to succeed but ctx.state
+       stays 'suspended' and nothing is ever heard. */
+    try {
+      const unlock = ctx.createBufferSource();
+      unlock.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      unlock.connect(ctx.destination);
+      unlock.start(0);
+    } catch { /* ignore — desktop contexts don't need this */ }
     /* Without the visitor's say-so a context stays suspended and resuming
        it never settles; give up after a moment rather than wait forever,
        and the next click or key tries again. */
@@ -178,30 +189,19 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
     recording.loop = true;
     recording.connect(master);
 
-    const warningResponse = await fetch('/seatbelt-warning.mp3');
-    if (!warningResponse.ok) throw new Error('Seat-belt warning sound could not be loaded.');
-    const seatbeltBuffer = await ctx.decodeAudioData(await warningResponse.arrayBuffer());
+    if (!wanted.current) { void ctx.close(); return; }
 
-    const occasionalSeatbeltResponse = await fetch('/seatbelt-online-audio-converter.mp3');
-    if (!occasionalSeatbeltResponse.ok) throw new Error('Occasional seat-belt sound could not be loaded.');
-    const occasionalSeatbeltBuffer = await ctx.decodeAudioData(await occasionalSeatbeltResponse.arrayBuffer());
-
-    const intercomBuffers = await Promise.all(
-      INTERCOM_FILES.map(async file => {
-        const response = await fetch(`/intercom/${file}`);
-        if (!response.ok) throw new Error(`Intercom sound could not be loaded: ${file}`);
-        return ctx.decodeAudioData(await response.arrayBuffer());
-      }),
-    );
-
+    // Ambient starts now. Seatbelt chimes and intercoms load in the background
+    // so the cabin doesn't stay silent while 20 files trickle in over mobile.
+    const silence = ctx.createBuffer(1, 1, ctx.sampleRate);
     const nextRig: AudioRig = {
       ctx,
       master,
       recording,
-      seatbeltBuffer,
-      occasionalSeatbeltBuffer,
-      intercomBuffers,
-      intercomOrder: shuffled(intercomBuffers.length),
+      seatbeltBuffer: silence,
+      occasionalSeatbeltBuffer: silence,
+      intercomBuffers: [],
+      intercomOrder: [],
       lastIntercomIndex: null,
       intercomTimer: null,
       occasionalSeatbeltTimer: null,
@@ -209,15 +209,34 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
       stopped: false,
     };
 
-    // Switched off while it was loading: nothing to start after all.
-    if (!wanted.current) {
-      void ctx.close();
-      return;
-    }
     recording.start();
     rig.current = nextRig;
-    scheduleIntercom(nextRig, true);
-    scheduleOccasionalSeatbelt(nextRig);
+
+    // Load the rest in parallel without blocking playback.
+    void (async () => {
+      try {
+        const decode = async (url: string) => {
+          const r = await fetch(url);
+          if (!r.ok) return null;
+          return ctx.decodeAudioData(await r.arrayBuffer());
+        };
+        const results = await Promise.all([
+          decode('/seatbelt-warning.mp3'),
+          decode('/seatbelt-online-audio-converter.mp3'),
+          ...INTERCOM_FILES.map(f => decode(`/intercom/${f}`)),
+        ]);
+        const target = rig.current;
+        if (!target || target.stopped) return;
+        if (results[0]) target.seatbeltBuffer = results[0];
+        if (results[1]) target.occasionalSeatbeltBuffer = results[1];
+        target.intercomBuffers = results.slice(2).filter((b): b is AudioBuffer => b !== null);
+        target.intercomOrder = shuffled(target.intercomBuffers.length);
+        scheduleIntercom(target, true);
+        scheduleOccasionalSeatbelt(target);
+      } catch {
+        // Secondary audio unavailable — ambient keeps playing.
+      }
+    })();
   };
 
   const toggle = useCallback(() => {

@@ -34,10 +34,14 @@ database_id = "a8e4747a-ef46-4689-ac75-c50f7f428b83"
 # bucket with no public URL would mean paying R2's write path for none of its
 # read benefit.
 #
-# To finish: R2 → seat-airlines-banners → Settings → Public access → enable
-# r2.dev, then put that URL here and redeploy. Until then KV serves the
-# images and everything works.
-# PUBLIC_IMAGE_BASE = "https://pub-XXXXXXXX.r2.dev"
+# To enable:
+#   Cloudflare dashboard → R2 → seat-airlines-banners → Settings →
+#   Public access → Allow Access → copy the pub-*.r2.dev URL, then:
+#
+PUBLIC_IMAGE_BASE = "https://pub-7bcf6d5d613c464da99814dd49b0f3ff.r2.dev"
+#
+# Until this is set, images are served through the Worker from KV — correct,
+# but it keeps the Worker on the read path for every image request.
 
 # The origins allowed to call this. Left empty the Worker echoes whatever
 # origin asks, which is fine locally and careless in production.
@@ -74,30 +78,26 @@ ALLOWED_ORIGINS = "https://seat-airlines.space,https://www.seat-airlines.space"
 # adverts from wallets that do not hold it; without that secret the check is
 # skipped, and adverts from non-holders still never display on the page.
 TOKEN_MINT = "AWJCyg9PrMtYju9yaQmdQLcwrGobHMTv9JU3mo4upump"
-# RPC_URL is a secret rather than a var, since paid endpoints carry a key in
-# the URL:  npx wrangler secret put RPC_URL
+# RPC_URL is a secret (paid endpoints carry an API key in the URL):
 #
-# It is also the page's endpoint now, at one remove: the page reads balances
-# and the holder list from this Worker rather than opening an RPC of its own,
+#   npx wrangler secret put RPC_URL
+#   → https://mainnet.helius-rpc.com/?api-key=<YOUR_HELIUS_KEY>
+#
+# This is also the page's endpoint at one remove: the page reads balances and
+# the holder list from this Worker rather than opening an RPC of its own,
 # because a VITE_ variable carrying an API key is a key published to every
 # visitor. Leave VITE_RPC_URL unset and set this.
 #
-# Unset, the Worker uses Solana's public endpoint rather than giving up on
-# reading the chain. That is not an invitation to leave it unset — the public
-# endpoint will rate-limit anything resembling traffic — it is because a
-# secret has to be set by hand, and a deploy where nobody remembered used to
-# produce a directory that opened, listed everybody, and withheld every
-# contact detail from everybody with only `sections: false` on /health to say
-# so. A rate limit is a failure that retries. Silence is not.
+# The Worker tries Helius's indexed `getTokenAccounts` first (cheaper, uses
+# their DAS index) and falls back to the standard `getProgramAccounts` scan
+# for any non-Helius endpoint. Both paths cache the result for LADDER_CACHE_MS
+# (default 60 s), so peak traffic costs one scan a minute for the whole site
+# rather than one per visitor.
 #
-# There is one cost the public endpoint carries that a rate limit does not.
-# Reading the whole holder list means asking the token program for every
-# account it owns for this mint, which is the expensive call, and an endpoint
-# that refuses it drops the reading to `getTokenLargestAccounts` — twenty
-# accounts, hard capped. The directory then works correctly for twenty people
-# and does not exist for the other hundred and fifty-eight. `GET /health`
-# reports `seated` out of `cabin`, so that is a number to read rather than a
-# thing to suspect.
+# Unset, the Worker falls back to Solana's public endpoint — which rate-limits
+# the expensive holder scan and caps the cabin at twenty. `GET /health` reports
+# `seated` out of `cabin`; anything well below the full aircraft means the scan
+# is being refused and the endpoint needs to be set.
 
 # The one wallet the operator's things belong to:
 #
