@@ -14,3 +14,6 @@ node_modules
 # be committed.
 !.env.example
 dist-test
+
+# Rendered by scripts/banner.mjs
+banner/
