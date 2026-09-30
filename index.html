@@ -3,12 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
-    <title>SEAT AIRLINES — SA350</title>
-    <meta name="description" content="A flight simulator flown by one number. Market cap is altitude: $1M is above the clouds, $10M is space, $50M is the moon, $100M is Mars." />
-    <meta name="keywords" content="Seat Airlines, SA350, flight simulator, token community, interactive cabin" />
+    <title>Seat Airlines ($SEAT) — the flight simulator flown by market cap</title>
+    <meta name="description" content="Seat Airlines ($SEAT) is a Solana token with a 3D airliner flown by its market cap: $1M is above the clouds, $10M is space, $50M is the moon, $100M is Mars. Your bag is your seat." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="application-name" content="Seat Airlines" />
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="./favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="./favicon-96.png" sizes="96x96" type="image/png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="manifest" href="./site.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,7 +19,9 @@
       rel="stylesheet"
     />
     <meta name="theme-color" content="#0F1725" />
-    <meta property="og:title" content="SEAT AIRLINES — SA350" />
+    <meta property="og:site_name" content="Seat Airlines" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Seat Airlines ($SEAT) — the flight simulator flown by market cap" />
     <meta property="og:description" content="One plane. Everyone's in it. Your bag is your seat." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://seat-airlines.space/" />
@@ -28,14 +31,49 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Seat Airlines: lightning strikes an airliner's engine. Hold more. Fly higher." />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="SEAT AIRLINES — SA350" />
+    <meta name="twitter:site" content="@seatairlines" />
+    <meta name="twitter:title" content="Seat Airlines ($SEAT) — the flight simulator flown by market cap" />
     <meta name="twitter:description" content="One plane. Everyone's in it. Your bag is your seat." />
     <meta name="twitter:image" content="https://seat-airlines.space/og-card.jpg" />
     <meta name="twitter:image:alt" content="Seat Airlines: lightning strikes an airliner's engine. Hold more. Fly higher." />
     <link rel="canonical" href="https://seat-airlines.space/" />
+    <!-- What search engines read about the site. Data, not a script: the
+         Content-Security-Policy does not run it and does not need to. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://seat-airlines.space/#website",
+            "name": "Seat Airlines",
+            "alternateName": ["$SEAT", "SA350"],
+            "url": "https://seat-airlines.space/",
+            "description": "A Solana token with a 3D airliner flown by its market cap."
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://seat-airlines.space/#org",
+            "name": "Seat Airlines",
+            "url": "https://seat-airlines.space/",
+            "logo": "https://seat-airlines.space/icon-512.png",
+            "sameAs": [
+              "https://x.com/seatairlines",
+              "https://pump.fun/coin/AWJCyg9PrMtYju9yaQmdQLcwrGobHMTv9JU3mo4upump",
+              "https://seat-airlines.gitbook.io/seat-airlines-docs/"
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>Seat Airlines ($SEAT)</h1>
+      <p>A flight simulator flown by one number: the token's market cap is the airliner's altitude. The cabin has 178 seats, ranked by holder balance, and holders can put an advert on their own seat.</p>
+      <p>Seat Airlines needs JavaScript and WebGL to fly. <a href="https://seat-airlines.gitbook.io/seat-airlines-docs/">Read the docs</a> or <a href="https://pump.fun/coin/AWJCyg9PrMtYju9yaQmdQLcwrGobHMTv9JU3mo4upump">see $SEAT on pump.fun</a>.</p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -4,7 +4,8 @@
  * from it:
  *
  *   public/seat-airlines-logo.svg  →  favicon.svg, icon-square.svg,
- *                                     favicon-32.png, apple-touch-icon.png,
+ *                                     favicon.ico (16/32/48), favicon-32.png,
+ *                                     favicon-96.png, apple-touch-icon.png,
  *                                     icon-192.png, icon-512.png
  *
  *   npm run icons
@@ -58,10 +59,36 @@ if (!pw) {
       `width="${size}" height="${size}" style="display:block"></body>`,
     );
     await page.waitForFunction(() => document.images[0]?.complete && document.images[0].naturalWidth > 0);
-    await page.screenshot({ path: new URL(`public/${name}`, root).pathname, omitBackground: transparent });
-    console.log(`wrote ${name}`);
+    const png = await page.screenshot({ path: name ? new URL(`public/${name}`, root).pathname : undefined, omitBackground: transparent });
+    if (name) console.log(`wrote ${name}`);
+    return png;
   };
+  /* favicon.ico: the three sizes a tab, a bookmark and a search result ask
+     for, each stored as PNG (which every browser since IE's last reads).
+     Browsers and crawlers request /favicon.ico whether or not it is linked. */
+  const sizes = [16, 32, 48];
+  const pngs = [];
+  for (const size of sizes) pngs.push(await raster(favicon, null, size, true));
+  const head = Buffer.alloc(6 + 16 * pngs.length);
+  head.writeUInt16LE(0, 0);
+  head.writeUInt16LE(1, 2);
+  head.writeUInt16LE(pngs.length, 4);
+  let offset = head.length;
+  pngs.forEach((png, i) => {
+    const at = 6 + 16 * i;
+    head.writeUInt8(sizes[i], at);
+    head.writeUInt8(sizes[i], at + 1);
+    head.writeUInt16LE(1, at + 4);
+    head.writeUInt16LE(32, at + 6);
+    head.writeUInt32LE(png.length, at + 8);
+    head.writeUInt32LE(offset, at + 12);
+    offset += png.length;
+  });
+  await writeFile(pub('favicon.ico'), Buffer.concat([head, ...pngs]));
+  console.log('wrote favicon.ico');
   await raster(favicon, 'favicon-32.png', 32, true);
+  // Google shows a site's icon in results only from 48px up, in multiples of 48.
+  await raster(favicon, 'favicon-96.png', 96, true);
   await raster(square, 'apple-touch-icon.png', 180, false);
   await raster(square, 'icon-192.png', 192, false);
   await raster(square, 'icon-512.png', 512, false);
