@@ -15,6 +15,8 @@ import { createAirframe, ENGINE_AT, WING_CUT } from './airframe';
 import { createScenery } from './scenery';
 import { createRanges } from './ranges';
 import { precompiler } from './precompile';
+import { CITY_TILE, cityTextures, createSkyline, towerTopAt } from './skyline';
+import { createSnowfall, snowShader, type SnowParams } from './snow';
 import { createEngineFire } from './engineFire';
 import { createLightning } from './lightning';
 import { createUfoCraft, createWingBreak, type UfoPose, type WingBreak } from './ufoCraft';
@@ -176,7 +178,7 @@ export interface WorldHandles {
   /**
    * The highest ground under the aeroplane as of the last frame, in metres
    * on the same datum as `ViewPose.height`: the hills where they are drawn,
-   * or the sea's surface. Read under the nose, the wing box and the tail,
+   * the city's towers, or the sea's surface. Read under the nose, the wing box and the tail,
    * so flying into a slope counts when the nose meets it — or, given
    * `ahead`, that many metres further along the way it is pointing.
    */
@@ -706,13 +708,17 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     fade: { value: 0 },
     tint: { value: new THREE.Color(0x9ed9e5) },
   };
+  /* Snow lies on the land, plate and relief alike (see `snow.ts`). */
+  const snowCover: SnowParams = { value: 0 };
   nearMat.onBeforeCompile = (shader) => {
     noTileShader(shader, landNoTile, true, nearRim);
     lakeShader(shader, lakes);
+    snowShader(shader, snowCover);
   };
   groundMat.onBeforeCompile = (shader) => {
     noTileShader(shader, landNoTile, false);
     lakeShader(shader, lakes);
+    snowShader(shader, snowCover);
   };
   for (const mat of [groundMat, nearMat]) {
     mat.envMap = envRT.texture;
@@ -791,6 +797,47 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   scene.add(sheen);
   // The incoming sea shuffles with the ground it comes in over.
   seaMat.onBeforeCompile = (shader) => noTileShader(shader, waterNoTile, false);
+
+  /* ── The city ─────────────────────────────────────────────────────────
+     Every so often the fields give way to a city of nothing but towers, as
+     far as the eye goes (see `skyline.ts`). It comes in the way the sea
+     does: the hills sink, a painted street grid dissolves in over them on
+     an overlay of its own, and once it is all city the plate takes the
+     city's maps and the overlay stands down. The towers rise out of the
+     streets as it comes in and sink back into them as it goes. */
+  const city = cityTextures();
+  city.day.repeat.setScalar(GROUND / CITY_TILE);
+  city.night.repeat.setScalar(GROUND / CITY_TILE);
+  const streetMat = new THREE.MeshStandardMaterial({
+    map: city.day,
+    emissive: new THREE.Color(0xffffff),
+    emissiveMap: city.night,
+    emissiveIntensity: 0,
+    roughness: 0.85,
+    metalness: 0,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const streets = new THREE.Mesh(groundGeometry, streetMat);
+  streets.rotation.x = -Math.PI / 2;
+  streets.position.y = OVERLAY_LIFT;
+  streets.renderOrder = OVERLAY_ORDER;
+  streets.visible = false;
+  scene.add(streets);
+  const skyline = createSkyline({ blocks: lowPower ? 52 : 72, envMap: envRT.texture });
+  scene.add(skyline.mesh);
+
+  /* ── Snowfall ─────────────────────────────────────────────────────────
+     Over the snowfields it is snowing, in the air round whichever camera
+     is looking (see `snow.ts`). */
+  const snowfall = createSnowfall({ flakes: lowPower ? 2600 : 5200 });
+  scene.add(snowfall.points);
+  const eyeAt = new THREE.Vector3();
+  const toAircraft = new THREE.Matrix4();
+  const SNOW_HAZE = new THREE.Color(0xd9e0e8);
+  const SNOW_BOUNCE = new THREE.Color(0xe8eef5);
+  const snowHaze = new THREE.Color();
 
   /* ── The mountains ────────────────────────────────────────────────────
      Ranges and hill country on the horizon, laid over the farmland's plate
@@ -1021,7 +1068,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      eye reads as speed. */
   const shift = { x: 0, z: 0 };
   /** What `groundAt` reads: set each frame as the ground is chosen. */
-  const underfoot = { relief: 0, floor: -2, heading: 0 };
+  const underfoot = { relief: 0, floor: -2, heading: 0, towers: 0 };
   let last = performance.now();
   const CLOUD_SPAN = 44000;
   /* What the eye reads as speed is v/h: the ground's speed over the
@@ -1171,31 +1218,35 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
        with distance so the horizon dissolves rather than ending. Above the
        atmosphere the plate gives way to the limb, which is a sphere. */
     /* Which country is under the aircraft. Another world overrules the coast. */
-    const seaBlend = elsewhere ? 0 : biomeAt(Date.now()).ocean;
+    const biome = biomeAt(Date.now());
+    const seaBlend = elsewhere ? 0 : biome.ocean;
+    const cityBlend = elsewhere ? 0 : biome.city;
+    const snowBlend = elsewhere ? 0 : biome.snow;
+    // Lakes lie under snow, and there are none in the city.
     const waterFade = band.band === 'atmosphere'
-      ? (1 - THREE.MathUtils.smoothstep(height, 1450, 2150)) * (1 - seaBlend)
+      ? (1 - THREE.MathUtils.smoothstep(height, 1450, 2150)) * (1 - seaBlend) * (1 - snowBlend) * (1 - cityBlend)
       : 0;
     // Zero skips the lake layer in the ground's shader altogether.
     lakes.fade.value = waterFade > 0.01 ? waterFade : 0;
     /* The plate takes whichever map the moment calls for; the crossfade mesh
        only exists while the coast is actually going by. */
     const body = surfaceFor(band.band);
-    const plateMap = body ? body.day : seaBlend >= 0.999 ? ocean.day : farmland.day;
+    const plateMap = body ? body.day : seaBlend >= 0.999 ? ocean.day : cityBlend >= 0.999 ? city.day : farmland.day;
     if (groundMat.map !== plateMap) {
       groundMat.map = plateMap;
       // Nobody is home on the moon or Mars; ships are, at sea.
-      groundMat.emissiveMap = body ? null : seaBlend >= 0.999 ? ocean.night : farmland.night;
-      groundMat.roughness = plateMap === ocean.day ? 0.62 : 1;
+      groundMat.emissiveMap = body ? null : seaBlend >= 0.999 ? ocean.night : cityBlend >= 0.999 ? city.night : farmland.night;
+      groundMat.roughness = plateMap === ocean.day ? 0.62 : plateMap === city.day ? 0.85 : 1;
       groundMat.needsUpdate = true;
     }
     /* The relief: the farmland's hills, sinking as the coast arrives so the
        sea has somewhere flat to come in over — or another world's craters,
        mesas and dunes, whole. Normal map and displacement go together. */
-    const farmRelief = plateMap === farmland.day ? 1 - THREE.MathUtils.smoothstep(seaBlend, 0, 0.6) : 0;
-    /* Over open water the farmland's normal map stays bound, at zero
-       strength (farmRelief is 0 there), which shades exactly as no normal
-       map does. Unbinding it would change the ground's shader, and compiling
-       the new one mid-flight is a hitch at every first coast crossing. */
+    const farmRelief = plateMap === farmland.day ? 1 - THREE.MathUtils.smoothstep(Math.max(seaBlend, cityBlend), 0, 0.6) : 0;
+    /* Over open water and the city the farmland's normal map stays bound, at
+       zero strength (farmRelief is 0 there), which shades exactly as no
+       normal map does. Unbinding it would change the ground's shader, and
+       compiling the new one mid-flight is a hitch at every first crossing. */
     const wantNormal = body ? body.normal : farmland.normal;
     if (groundMat.normalMap !== wantNormal) {
       groundMat.normalMap = wantNormal;
@@ -1219,6 +1270,9 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     ground.position.y = (body ? body.level * body.relief : 0) - 2;
     sea.visible = !elsewhere && !inSpace && seaBlend > 0.001 && seaBlend < 0.999;
     underfoot.relief = !body && !inSpace && !aboveClouds ? HILL_HEIGHT * farmRelief : 0;
+    streets.visible = !elsewhere && !inSpace && cityBlend > 0.001 && cityBlend < 0.999;
+    streetMat.opacity = cityBlend;
+    snowCover.value = snowBlend;
     underfoot.floor = sea.visible ? OVERLAY_LIFT : ground.position.y;
     seaMat.opacity = seaBlend;
     /* Lights up through dusk, out by mid-morning. Civil twilight is about
@@ -1229,6 +1283,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       ? 0
       : 1 - THREE.MathUtils.smoothstep(skyState.elevation, -8, 3);
     seaMat.emissiveIntensity = groundMat.emissiveIntensity;
+    streetMat.emissiveIntensity = groundMat.emissiveIntensity;
     nearMat.emissiveIntensity = groundMat.emissiveIntensity;
     ground.visible = !inSpace;
     // Above the deck the hills are three kilometres down and mostly under
@@ -1343,6 +1398,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       groundTint.setStyle(skyState.palette.horizon).lerp(EARTH, 0.58);
       // Skylight bounced off open water is bluer than off stubble.
       if (seaBlend > 0) groundTint.lerp(SEA_TINT, seaBlend * 0.6);
+      // Snow throws a great deal of light back up.
+      if (snowBlend > 0) groundTint.lerp(SNOW_BOUNCE, snowBlend * 0.55);
       ambient.color.copy(skyTint);
       ambient.groundColor.copy(groundTint);
       ambient.intensity = overcast ? 0.95 : lerp(0.8, 0.46, day);
@@ -1386,6 +1443,9 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
          fields while both are on screen mid-crossfade. */
       ocean.day.offset.copy(map.offset);
       ocean.night.offset.copy(map.offset);
+      // The city's tile is its own size: eight blocks, streets on the towers' lines.
+      city.day.offset.set(shift.x / CITY_TILE, shift.z / CITY_TILE);
+      city.night.offset.copy(city.day.offset);
       /* The glint slides a touch faster than the water it rides — two layers
          at two rates being the whole recipe for "liquid" — plus a slow
          breathing wobble so the sparkle lives even when the camera holds
@@ -1418,7 +1478,30 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
 
     /* The ranges drift with the ground, more slowly, as anything far off
        does. They stand on farmland, in the weather or above the cloud. */
-    ranges.update(shift.x, shift.z, inSpace || elsewhere ? 0 : farmRelief);
+    ranges.update(shift.x, shift.z, inSpace || elsewhere ? 0 : farmRelief, snowBlend);
+
+    /* The towers, below the cloud deck: above it they are specks under it. */
+    const rise = inWeather ? THREE.MathUtils.smoothstep(cityBlend, 0.25, 1) : 0;
+    skyline.update({ shiftX: shift.x, shiftZ: shift.z, rise, night: groundMat.emissiveIntensity });
+    // Hand-flown, a tower is as solid as a hill.
+    underfoot.towers = rise;
+    /* Snow falling round the camera, in the weather. */
+    camera.getWorldPosition(eyeAt);
+    toAircraft.copy(aircraft.matrixWorld).invert();
+    snowfall.update({
+      eye: eyeAt,
+      shiftX: shift.x,
+      shiftZ: shift.z,
+      dt,
+      amount: inWeather ? snowBlend : 0,
+      day,
+      toAircraft,
+    });
+    /* And the air thick with it: a white-grey haze that closes the view in. */
+    if (snowBlend > 0 && !elsewhere && !inSpace) {
+      fog.color.lerp(snowHaze.copy(SNOW_HAZE).multiplyScalar(0.22 + 0.78 * day), snowBlend * 0.65);
+      fog.density = lerp(fog.density, Math.max(fog.density, 0.00005), snowBlend);
+    }
 
     /* The cloud deck sits at a fixed altitude; the aircraft climbs past it. */
     cloudDeckY = 2400;
@@ -1935,7 +2018,11 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     const fz = -Math.cos(h);
     // The nose, the wing box and the tail, along the way it is pointing.
     let top = 0;
-    for (const along of [24, 0, -22]) top = Math.max(top, reliefAt(fx * (along + ahead), fz * (along + ahead)));
+    for (const along of [24, 0, -22]) {
+      const x = fx * (along + ahead);
+      const z = fz * (along + ahead);
+      top = Math.max(top, reliefAt(x, z), towerTopAt(x, z, shift.x, shift.z, underfoot.towers));
+    }
     return Math.max(top, underfoot.floor);
   };
 
@@ -1956,6 +2043,11 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     nearGeometry.dispose();
     nearMat.dispose();
     scenery.dispose();
+    skyline.dispose();
+    snowfall.dispose();
+    streetMat.dispose();
+    city.day.dispose();
+    city.night.dispose();
     ranges.dispose();
     ocean.day.dispose();
     ocean.night.dispose();

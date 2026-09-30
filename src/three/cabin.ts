@@ -823,25 +823,50 @@ export function createCabin(): CabinHandles {
   /* Spacing matters as much as intensity. Lamps close enough together to
      overlap give a flat field; spaced a little wider than their own reach,
      they give the cabin its rhythm of bright bays and dimmer joints, which is
-     what a fuselage actually looks like down its length. */
-  for (let z = -3; z < cabinLength - 2; z += 2.9) {
+     what a fuselage actually looks like down its length.
+
+     Only the bays round the viewer are lit, though: every lamp in a scene is
+     paid for by every lit pixel, every frame, and fifty of them — one set
+     every three metres of a thirty-row cabin — was most of the cost of
+     drawing it, and on a phone the difference between a cabin that turns
+     smoothly and one that stutters. Four bays follow the viewer from seat to
+     seat: two ahead, their own, and one behind. Past them the rows are small
+     on screen, and the fill light carries them. */
+  const BAY = 2.9;
+  const bays: THREE.Group[] = [];
+  for (let k = 0; k < 4; k++) {
+    const bay = new THREE.Group();
     // The cove itself: up across the ceiling, down over the bin doors.
     for (const x of [-0.88, 0.88]) {
       const cove = new THREE.PointLight(0xffe3bb, 4.2, 4.2, 2);
-      cove.position.set(x, CABIN.binTopY + 0.03, z);
-      group.add(cove);
+      cove.position.set(x, CABIN.binTopY + 0.03, 0);
+      bay.add(cove);
     }
     // Under the bins, where nothing above can reach.
     for (const x of [-0.98, 0.98]) {
       const wash = new THREE.PointLight(0xffe6c4, 2.6, 3.2, 2);
-      wash.position.set(x, CABIN.binBottomY - 0.08, z);
-      group.add(wash);
+      wash.position.set(x, CABIN.binBottomY - 0.08, 0);
+      bay.add(wash);
     }
     // A little down the aisle, so the cabin recedes into light and not murk.
     const aisle = new THREE.PointLight(0xffdcb0, 2.2, 4.2, 2);
-    aisle.position.set(0, CABIN.binBottomY + 0.12, z);
-    group.add(aisle);
+    aisle.position.set(0, CABIN.binBottomY + 0.12, 0);
+    bay.add(aisle);
+    group.add(bay);
+    bays.push(bay);
   }
+  /** Hang the four lit bays round a row, on the same three-metre rhythm as ever. */
+  const lastBay = Math.ceil((cabinLength + 1) / BAY) - 1;
+  const lightBaysAround = (row: number) => {
+    const here = Math.round((rowZ(row) + 3) / BAY);
+    // Slid as a block at either end of the cabin, so no two bays ever share a place.
+    const first = THREE.MathUtils.clamp(here - 2, 0, lastBay - bays.length + 1);
+    bays.forEach((bay, k) => {
+      bay.position.z = -3 + (first + k) * BAY;
+    });
+  };
+  lightBaysAround(1);
+
 
   /* The guidance strip: twin threads of pale blue along the aisle's floor
      edges, running the length of the cabin. Every airliner has them, they
@@ -1107,6 +1132,7 @@ export function createCabin(): CabinHandles {
     if (id === viewer) return;
     viewer = id;
     rebuild();
+    lightBaysAround(Number(id.replace(/\D/g, '')) || 1);
     // A, B, C sit to port; D, E, F to starboard.
     const row = Number(id.replace(/\D/g, '')) || null;
     const letter = id.replace(/\d/g, '').toUpperCase();

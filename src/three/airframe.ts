@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { CABIN, rowZ } from './cabin';
 import { MARK_PATH } from '../components/Mark';
 import { BEACON_CYCLE, createLampRig, type LampSpec, type WindowSpot } from './lamps';
+import { AIRLINER_MESH } from './airlinerMesh';
 
 /**
  * The aircraft, from outside.
@@ -19,12 +20,16 @@ import { BEACON_CYCLE, createLampRig, type LampSpec, type WindowSpot } from './l
  * literally the tube whose seats you are booking — same radius, same thirty
  * rows at the same pitch, windows punched where the rows actually are.
  *
- * Dimensions are an A320's: 37.6 m long, 34 m span, 1.85 m body radius.
+ * It is an A320. The fuselage and the engines are a real one's — lifted out
+ * of a SketchUp model by scripts/skp-faces.py, repainted and packed into
+ * airlinerMesh.ts by scripts/airliner-mesh.mjs, scaled so its cabin is the
+ * cabin's tube — and the wings and tail are this file's own, built to the
+ * same aeroplane's planform, because they are the parts that move.
  */
 
 /** Nose tip and tail tip, in the cabin's own z (row 1 sits at z = 0). */
-const NOSE_Z = -7.6;
-const TAIL_Z = 31.8;
+const NOSE_Z = AIRLINER_MESH.noseZ;
+const TAIL_Z = AIRLINER_MESH.tailZ;
 
 /* Where the wing sits on the fuselage.
  *
@@ -55,8 +60,8 @@ const WING = {
 };
 const R = CABIN.radius;
 
-/** Where each engine hangs, starboard side (mirror x for port), in the airframe's frame. */
-export const ENGINE_AT = { x: 6.6, y: -2.25, z: WING.rootZ + WING.engineZ } as const;
+/** Where each engine hangs, starboard side (mirror x for port), in the airframe's frame: the model's nacelle. */
+export const ENGINE_AT = { x: AIRLINER_MESH.engine.x, y: AIRLINER_MESH.engine.y, z: AIRLINER_MESH.engine.z } as const;
 
 /* ── Fuselage ─────────────────────────────────────────────────────────────
    A body of revolution swept along z, which is the only honest way to get the
@@ -65,70 +70,76 @@ export const ENGINE_AT = { x: 6.6, y: -2.25, z: WING.rootZ + WING.engineZ } as c
    that both tapers and *lifts* — the upsweep that clears the runway on
    rotation, and the single most recognisable line on the aeroplane. */
 
+/** The fuselage's measured section at a station: [radius, how far its axis has lifted]. */
+function sectionAt(z: number): [number, number] {
+  const table = AIRLINER_MESH.profile;
+  if (z <= table[0][0]) return [z < NOSE_Z ? 0.001 : table[0][1], table[0][2]];
+  const last = table[table.length - 1];
+  if (z >= last[0]) return [z > TAIL_Z ? 0.001 : last[1], last[2]];
+  let i = 1;
+  while (table[i][0] < z) i++;
+  const [z0, r0, y0] = table[i - 1];
+  const [z1, r1, y1] = table[i];
+  const t = (z - z0) / (z1 - z0);
+  return [r0 + (r1 - r0) * t, y0 + (y1 - y0) * t];
+}
+
 /** Body radius at a station. */
 function radiusAt(z: number): number {
-  if (z <= NOSE_Z) return 0.001;
-  if (z < -2.2) {
-    // Ogive: fast at the tip, flattening into the barrel.
-    const t = (z - NOSE_Z) / (-2.2 - NOSE_Z);
-    return R * Math.pow(t, 0.42);
-  }
-  if (z < 23.5) return R;
-  const t = (z - 23.5) / (TAIL_Z - 23.5);
-  // Tapers to a blade rather than a point — a tail cone ends in a fairing.
-  return R * (1 - 0.86 * Math.pow(t, 1.5));
+  return sectionAt(z)[0];
 }
 
-/** How far the centreline has lifted at a station. */
+/** How far the centreline has lifted at a station: the nose droops, the tail sweeps up. */
 function riseAt(z: number): number {
-  if (z < 21) return 0;
-  const t = (z - 21) / (TAIL_Z - 21);
-  return 2.15 * t * t;
+  return sectionAt(z)[1];
 }
 
-function fuselageGeometry(): THREE.BufferGeometry {
-  const RINGS = 96;
-  const SEG = 44;
-  const pos: number[] = [];
-  const nor: number[] = [];
-  const uv: number[] = [];
-  const idx: number[] = [];
+/** What each face of the model is: the order its materials are handed over in. */
+const AIRLINER_PART = { skin: 0, glass: 1, seam: 2, cowl: 3, lip: 4, intake: 5, core: 6, pylon: 7 } as const;
 
-  for (let i = 0; i <= RINGS; i++) {
-    const t = i / RINGS;
-    const z = NOSE_Z + (TAIL_Z - NOSE_Z) * t;
-    const r = radiusAt(z);
-    const y0 = riseAt(z);
-    // Slope of the surface along z, so the normals stay honest on the cones.
-    const dz = 0.05;
-    const dr = (radiusAt(z + dz) - radiusAt(z - dz)) / (2 * dz);
-
-    for (let j = 0; j <= SEG; j++) {
-      const a = (j / SEG) * Math.PI * 2;
-      const ca = Math.cos(a);
-      const sa = Math.sin(a);
-      pos.push(ca * r, y0 + sa * r, z);
-      const n = new THREE.Vector3(ca, sa, -dr).normalize();
-      nor.push(n.x, n.y, n.z);
-      uv.push(t, j / SEG);
-    }
+/**
+ * The model's fuselage and engines, unpacked: one geometry, a group per
+ * part, so the whole of it is a handful of draw calls.
+ */
+function airlinerGeometry(): THREE.BufferGeometry {
+  const m = AIRLINER_MESH;
+  const bin = Uint8Array.from(atob(m.data), (ch) => ch.charCodeAt(0));
+  const dv = new DataView(bin.buffer);
+  const n = m.vertices;
+  const pos = new Float32Array(n * 3);
+  const nor = new Float32Array(n * 3);
+  for (let i = 0; i < n * 3; i++) {
+    pos[i] = m.min[i % 3] + (dv.getUint16(i * 2, true) / 65535) * m.span[i % 3];
+    nor[i] = dv.getInt8(n * 6 + i) / 127;
   }
-  for (let i = 0; i < RINGS; i++) {
-    for (let j = 0; j < SEG; j++) {
-      const a = i * (SEG + 1) + j;
-      const b = a + SEG + 1;
-      // Counter-clockwise seen from outside, or the skin is culled and the
-      // tube renders as its own dark interior.
-      idx.push(a, a + 1, b, b, a + 1, b + 1);
-    }
+  const part = bin.subarray(n * 9, n * 10);
+  const tris: number[][] = Object.values(AIRLINER_PART).map(() => []);
+  for (let t = 0; t < m.triangles; t++) {
+    const o = n * 10 + t * 6;
+    const a = dv.getUint16(o, true), b = dv.getUint16(o + 2, true), c = dv.getUint16(o + 4, true);
+    tris[part[a]].push(a, b, c);
   }
-
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  g.setIndex(idx);
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  const index: number[] = [];
+  tris.forEach((list, k) => {
+    g.addGroup(index.length, list.length, k);
+    for (const i of list) index.push(i);
+  });
+  g.setIndex(index);
+  g.computeBoundingSphere();
   return g;
+}
+
+/** The lowest point of the belly at a station: where the lower beacon goes. */
+function bellyAt(g: THREE.BufferGeometry, z: number): number {
+  const p = g.getAttribute('position');
+  let low = 0;
+  for (let i = 0; i < p.count; i++) {
+    if (Math.abs(p.getX(i)) < 0.4 && Math.abs(p.getZ(i) - z) < 0.5) low = Math.min(low, p.getY(i));
+  }
+  return low;
 }
 
 /* ── Lifting surfaces ─────────────────────────────────────────────────────
@@ -473,7 +484,7 @@ function flapGeometry(
   return { geometry, pivot };
 }
 
-/** The belly fairing: a scaled sphere, centred under the wing box. */
+/** The belly fairing, as the ellipsoid the lamps test against: the model's own is drawn. */
 const FAIRING = {
   y: -R * 0.66,
   z: WING.rootZ + WING.rootChord * 0.52,
@@ -483,30 +494,28 @@ const FAIRING = {
 };
 
 /**
- * The wing-root fairing.
- *
- * An airliner does not have a wing that stops at the skin: it has a wing box
- * running through the fuselage, and a long blister underneath covering it,
- * the main gear bays and the air-conditioning packs. Without it the wing
- * reads as having been pushed into the side of a tube, which is exactly what
- * it was. It is the single largest thing missing from the silhouette, and
- * from below it is most of what there is to see.
+ * The fin and the tailplane, measured off the model: leading edges and
+ * chords at root and tip, the fin's height and the tailplane's span, in the
+ * airframe's frame.
  */
-function bellyFairing(): THREE.BufferGeometry {
-  const g = new THREE.SphereGeometry(1, 40, 24);
-  g.scale(FAIRING.rx, FAIRING.ry, FAIRING.rz);
-  g.translate(0, FAIRING.y, FAIRING.z);
-  return g;
-}
+const FIN = { rootY: 1.6, height: 6.12, rootZ: 22.45, rootChord: 5.74, tipZ: 27.47, tipChord: 1.97 };
+const TAILPLANE = { rootX: 0.35, rootY: 1.02, span: 5.8, rise: 0.52, rootZ: 25.86, rootChord: 2.54, tipZ: 28.29, tipChord: 1.14 };
 
-/** The centre of the mark on the fin's starboard face; the port one mirrors it. */
-const FIN_MARK_AT = { x: 0.2, y: R * 0.72 + 2.45, z: 28.5 };
-
-/** The underside of the fairing at a station. */
-function fairingBottom(z: number): number {
-  const u = (z - FAIRING.z) / FAIRING.rz;
-  return FAIRING.y - FAIRING.ry * Math.sqrt(Math.max(0, 1 - u * u));
-}
+/**
+ * The mark on the fin's starboard face; the port one mirrors it. Centred on
+ * the fixed part of the fin — between the swept leading edge and the rudder
+ * hinge, which lean aft at different rates — at the height where both are
+ * clear of the mark by the same margin, above the crown where the fin starts
+ * to show.
+ */
+const FIN_MARK_SIZE = 2.2;
+const FIN_MARK_AT = (() => {
+  const y = 4.3;
+  const t = (y - FIN.rootY) / FIN.height;
+  const leading = THREE.MathUtils.lerp(FIN.rootZ, FIN.tipZ, t);
+  const hinge = leading + THREE.MathUtils.lerp(FIN.rootChord, FIN.tipChord, t) * 0.7;
+  return { x: 0.19, y, z: (leading + hinge) / 2 + 0.12 };
+})();
 
 /**
  * The dorsal fillet ahead of the fin.
@@ -516,8 +525,8 @@ function fairingBottom(z: number): number {
  * thick at the bottom where it meets the crown and vanishing at the top.
  */
 function dorsalFillet(): THREE.BufferGeometry {
-  const z0 = 21.4;
-  const z1 = 26.8;
+  const z0 = FIN.rootZ - 2.9;
+  const z1 = FIN.rootZ + 1.7;
   const halfWidth = 0.22;
   const steps = 18;
   const pos: number[] = [];
@@ -555,30 +564,11 @@ interface EngineMaterials {
   pylon: THREE.Material;
 }
 
-/** A swept, tapered pylon rather than a rectangular block under the wing. */
-function pylonGeometry(): THREE.BufferGeometry {
-  const shape = new THREE.Shape();
-  shape.moveTo(-1.10, 1.75);
-  shape.lineTo(0.95, 1.52);
-  shape.lineTo(1.55, 0.45);
-  shape.lineTo(0.42, 0.22);
-  shape.lineTo(-0.78, 0.52);
-  shape.closePath();
-  const g = new THREE.ExtrudeGeometry(shape, {
-    depth: 0.38,
-    bevelEnabled: true,
-    bevelSegments: 2,
-    bevelThickness: 0.025,
-    bevelSize: 0.025,
-    curveSegments: 3,
-  });
-  // Shape x is longitudinal z; extrude depth becomes the narrow spanwise x.
-  g.rotateY(-Math.PI / 2);
-  g.translate(0.19, 0, 0);
-  return g;
-}
-
-/** One engine: rolled intake, fan, spinner, cowling and a shaped pylon. */
+/**
+ * What turns in an engine: the fan and its spinner, set in the model's
+ * nacelle just inside the intake. The nacelle, core and pylon are the
+ * model's own; this is the part that has to move.
+ */
 function engine(
   mirror: number,
   mat: EngineMaterials,
@@ -586,31 +576,13 @@ function engine(
   fans: THREE.Group[],
 ): THREE.Group {
   const g = new THREE.Group();
-  // Cylinder y becomes the aircraft's z. RadiusBottom is therefore the
-  // forward (negative-z) intake, which must be the larger end.
-  const nacelle = new THREE.Mesh(track(new THREE.CylinderGeometry(0.90, 1.07, 3.9, 48, 4, true)), mat.cowl);
-  nacelle.rotation.x = Math.PI / 2;
-  nacelle.castShadow = nacelle.receiveShadow = true;
-  g.add(nacelle);
-
-  // The intake is a real face-on assembly. The original torus and spinner
-  // were left in their default vertical orientation, making the engine read
-  // as a collection of unrelated primitives at any three-quarter angle.
-  const lip = new THREE.Mesh(track(new THREE.TorusGeometry(1.02, 0.09, 12, 48)), mat.cowl);
-  lip.position.z = -1.95;
-  lip.castShadow = lip.receiveShadow = true;
-  g.add(lip);
-
-  const duct = new THREE.Mesh(
-    track(new THREE.CylinderGeometry(0.74, 0.94, 0.86, 40, 2, true)),
-    mat.intake,
-  );
-  duct.rotation.x = Math.PI / 2;
-  duct.position.z = -1.53;
-  g.add(duct);
+  // Sized to the model's intake: its fan face is a touch inside the cowl's lip.
+  const scale = (AIRLINER_MESH.engine.radius * 0.86) / 0.92;
+  const fanZ = AIRLINER_MESH.engine.intake + 0.36 - ENGINE_AT.z;
 
   const fan = new THREE.Group();
-  fan.position.z = -1.78;
+  fan.position.z = fanZ;
+  fan.scale.setScalar(scale);
   fans.push(fan);
   const fanDisc = new THREE.Mesh(track(new THREE.CircleGeometry(0.92, 48)), mat.intake);
   fanDisc.rotation.y = Math.PI;
@@ -625,35 +597,14 @@ function engine(
   }
   g.add(fan);
 
-  const spinner = new THREE.Mesh(track(new THREE.ConeGeometry(0.31, 0.62, 28)), mat.spinner);
+  const spinner = new THREE.Mesh(track(new THREE.ConeGeometry(0.31 * scale, 0.62 * scale, 28)), mat.spinner);
   spinner.rotation.x = -Math.PI / 2;
-  spinner.position.z = -1.49;
+  spinner.position.z = fanZ + 0.29 * scale;
   spinner.castShadow = spinner.receiveShadow = true;
   g.add(spinner);
 
-  const nozzle = new THREE.Mesh(track(new THREE.CylinderGeometry(0.52, 0.63, 0.96, 32, 2, true)), mat.nozzle);
-  nozzle.rotation.x = Math.PI / 2;
-  nozzle.position.z = 2.2;
-  nozzle.castShadow = nozzle.receiveShadow = true;
-  g.add(nozzle);
-
-  /* The exhaust plug. A turbofan's hot nozzle is an annulus with a cone
-     filling the middle of it, not an open pipe — and since the aeroplane is
-     seen from behind more often than from anywhere else, an open pipe is
-     the error most on screen. */
-  const plug = new THREE.Mesh(track(new THREE.ConeGeometry(0.34, 1.1, 28)), mat.spinner);
-  plug.rotation.x = Math.PI / 2;
-  plug.position.z = 2.75;
-  plug.castShadow = true;
-  g.add(plug);
-
-  const pylon = new THREE.Mesh(track(pylonGeometry()), mat.pylon);
-  pylon.position.set(0, 0.05, 0.35);
-  pylon.castShadow = pylon.receiveShadow = true;
-  g.add(pylon);
-
   // Hung from the wing, so it moves with it rather than being left behind.
-  g.position.set(6.6 * mirror, -2.25, WING.rootZ + WING.engineZ);
+  g.position.set(ENGINE_AT.x * mirror, ENGINE_AT.y, ENGINE_AT.z);
   return g;
 }
 
@@ -811,23 +762,6 @@ function barrelDecal(side: number, z0: number, z1: number, yTop: number, yBot: n
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
   g.computeVertexNormals();
-  return g;
-}
-
-/** Crisp door seams make the smooth fuselage feel manufactured, not toy-like. */
-function doorFrame(side: number, z: number): THREE.BufferGeometry {
-  const top = 0.77;
-  const bottom = -0.61;
-  const halfWidth = 0.34;
-  const xAt = (y: number) => side * Math.sqrt(R * R - y * y) * 1.005;
-  const corners: [number, number, number][] = [
-    [xAt(top), top, z - halfWidth], [xAt(top), top, z + halfWidth],
-    [xAt(top), top, z + halfWidth], [xAt(bottom), bottom, z + halfWidth],
-    [xAt(bottom), bottom, z + halfWidth], [xAt(bottom), bottom, z - halfWidth],
-    [xAt(bottom), bottom, z - halfWidth], [xAt(top), top, z - halfWidth],
-  ];
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(corners.flat(), 3));
   return g;
 }
 
@@ -1000,18 +934,32 @@ export function createAirframe(): AirframeHandles {
   const windshieldFrameMat = track(new THREE.MeshStandardMaterial({ color: 0x63728a, roughness: 0.32, metalness: 0.55 }));
   const seamMat = track(new THREE.LineBasicMaterial({ color: 0x536071, transparent: true, opacity: 0.7 }));
 
-  const body = new THREE.Mesh(track(fuselageGeometry()), skin);
+  /* The body: the model's fuselage and engines, in this airline's paint.
+     Its doors, hatches and panel lines come with it, drawn a shade darker
+     than the skin; its flight-deck glass is the deck glass below, which
+     glows faintly with the instruments after dark. */
+  const seamPaint = track(new THREE.MeshStandardMaterial({ color: 0x9aa4b2, roughness: 0.4, metalness: 0.05 }));
+  // Dark, with the instruments' faint glow behind it after dark.
+  const deckGlass = track(new THREE.MeshStandardMaterial({
+    color: 0x0b1220, roughness: 0.07, metalness: 0.55, emissive: 0x1f3a44, emissiveIntensity: 0,
+  }));
+  const airliner = track(airlinerGeometry());
+  const body = new THREE.Mesh(airliner, [skin, deckGlass, seamPaint, skin, spinnerMat, intake, nozzleMat, pylonMat]);
   body.castShadow = body.receiveShadow = true;
   group.add(body);
 
-  /* Livery and the handful of seams visible at an exterior viewing distance. */
+  /* Livery: the navy cheatline along the windows. */
   for (const side of [1, -1]) {
     const ribbon = new THREE.Mesh(track(liveryRibbon(side)), navy);
     group.add(ribbon);
-    for (const z of [-0.55, 10.9, 22.15]) {
-      group.add(new THREE.LineSegments(track(doorFrame(side, z)), seamMat));
-    }
   }
+
+  const finMarkTex = track(finMarkTexture('#F4F7FB'));
+  const finMarkMat = track(new THREE.MeshStandardMaterial({
+    map: finMarkTex, transparent: true, roughness: 0.34, metalness: 0.04,
+    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2,
+  }));
+  const wingletMarkGeo = track(new THREE.PlaneGeometry(0.72, 0.72));
 
   /* The lights, gathered as each part that carries them is built. What they
      do is lamps.ts; where they are is here, because it is the airframe's
@@ -1080,6 +1028,21 @@ export function createAirframe(): AirframeHandles {
     winglet.castShadow = winglet.receiveShadow = true;
     group.add(winglet);
     outboard[side].push(winglet);
+    /* The mark again, small, on both faces of the winglet — it is navy like
+       the fin, and it is what shows of the aeroplane from its own cabin
+       windows. The winglet leans out as it rises, so each decal faces the
+       way its face does. */
+    const wingletAt = new THREE.Vector3(side * (16.2 + 0.35 * 0.46), 0.5 + 1.9 * 0.46,
+      THREE.MathUtils.lerp(WING.tipZ, WING.tipZ + WING.wingletRun, 0.46) + THREE.MathUtils.lerp(WING.tipChord, 0.9, 0.46) * 0.46);
+    const outward = new THREE.Vector3(side * 1.9, -0.35, 0).normalize();
+    for (const face of [1, -1]) {
+      const n = outward.clone().multiplyScalar(face);
+      const mark = new THREE.Mesh(wingletMarkGeo, finMarkMat);
+      mark.position.copy(wingletAt).addScaledVector(n, 0.03);
+      mark.lookAt(mark.position.clone().add(n));
+      group.add(mark);
+      outboard[side].push(mark);
+    }
 
     /* The wingtip's lights. The position lamp sits in the leading edge —
        red to port, green to starboard — and is seen from dead ahead round
@@ -1122,9 +1085,9 @@ export function createAirframe(): AirframeHandles {
 
     // Tailplane
     const stabPanel: Panel = {
-      originX: side * 0.5, originY: 0.9, span: side * 5.9, rise: 0.5,
-      rootZ: 28.0, rootChord: 3.2, rootThick: 0.4,
-      tipZ: 30.2, tipChord: 1.1, tipThick: 0.1,
+      originX: side * TAILPLANE.rootX, originY: TAILPLANE.rootY, span: side * TAILPLANE.span, rise: TAILPLANE.rise,
+      rootZ: TAILPLANE.rootZ, rootChord: TAILPLANE.rootChord, rootThick: 0.34,
+      tipZ: TAILPLANE.tipZ, tipChord: TAILPLANE.tipChord, tipThick: 0.1,
     };
     const stab = new THREE.Mesh(track(cutPanel(stabPanel, 0.08, 0.94, 0.68, true)), wingMat);
     stab.castShadow = stab.receiveShadow = true;
@@ -1190,7 +1153,7 @@ export function createAirframe(): AirframeHandles {
       geo.rotateX(-Math.PI / 2);
       geo.rotateY(Math.PI / 2);
       const trail = new THREE.Mesh(geo, contrailMats[i]);
-      trail.position.set(6.6 * side, -2.3, WING.rootZ + WING.engineZ + seg.z0 + len / 2);
+      trail.position.set(ENGINE_AT.x * side, ENGINE_AT.y - 0.05, ENGINE_AT.z + seg.z0 + len / 2);
       trail.renderOrder = 2;
       group.add(trail);
       trails.push({ side, mesh: trail });
@@ -1207,13 +1170,13 @@ export function createAirframe(): AirframeHandles {
 
   /* The fin: the same panel, stood on its edge so its span axis is height. */
   const finPanel: Panel = {
-    originX: 0, originY: 0, span: 6.1, rise: 0,
-    rootZ: 25.6, rootChord: 5.4, rootThick: 0.5,
-    tipZ: 29.1, tipChord: 2.2, tipThick: 0.22,
+    originX: 0, originY: 0, span: FIN.height, rise: 0,
+    rootZ: FIN.rootZ, rootChord: FIN.rootChord, rootThick: 0.46,
+    tipZ: FIN.tipZ, tipChord: FIN.tipChord, tipThick: 0.2,
   };
   const finFrame = new THREE.Group();
   finFrame.rotation.z = Math.PI / 2;
-  finFrame.position.y = R * 0.72;
+  finFrame.position.y = FIN.rootY;
   group.add(finFrame);
   const fin = new THREE.Mesh(track(cutPanel(finPanel, 0.05, 0.95, 0.7, true)), navy);
   fin.castShadow = fin.receiveShadow = true;
@@ -1225,37 +1188,16 @@ export function createAirframe(): AirframeHandles {
   /* The blister under the wing box, and the fillet that runs the fin into
      the crown. Both are silhouette rather than surface detail, which is why
      they do more for the aeroplane than any amount of panel lining. */
-  const belly = new THREE.Mesh(track(bellyFairing()), skin);
-  belly.castShadow = belly.receiveShadow = true;
-  group.add(belly);
-
   const fillet = new THREE.Mesh(track(dorsalFillet()), skin);
   fillet.castShadow = fillet.receiveShadow = true;
   group.add(fillet);
 
-  /* The APU exhaust, right at the tip of the tail cone. A tail that simply
-     tapers to nothing is the one part of an airliner nobody draws, and the
-     dark port at the end of it is the tell that somebody did. */
-  const apu = new THREE.Mesh(
-    track(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 20, 1, true)),
-    nozzleMat,
-  );
-  apu.rotation.x = Math.PI / 2;
-  apu.position.set(0, riseAt(TAIL_Z - 0.3), TAIL_Z - 0.05);
-  group.add(apu);
-
   /* The mark on the fin, one decal per side, sitting just proud of the
      panel's own half-thickness at that height so it never punches through. */
-  const finMarkTex = track(finMarkTexture('#F4F7FB'));
-  const finMarkMat = track(new THREE.MeshStandardMaterial({
-    map: finMarkTex, transparent: true, roughness: 0.34, metalness: 0.04,
-    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2,
-  }));
   /* Kept forward of the rudder hinge, on the fixed fin: a mark straddling
      the hinge would tear in half every time the rudder moved. */
-  const FIN_MARK = 2.5;
   for (const side of [1, -1]) {
-    const decal = new THREE.Mesh(track(new THREE.PlaneGeometry(FIN_MARK, FIN_MARK)), finMarkMat);
+    const decal = new THREE.Mesh(track(new THREE.PlaneGeometry(FIN_MARK_SIZE, FIN_MARK_SIZE)), finMarkMat);
     decal.position.set(side * FIN_MARK_AT.x, FIN_MARK_AT.y, FIN_MARK_AT.z);
     decal.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
     group.add(decal);
@@ -1307,43 +1249,6 @@ export function createAirframe(): AirframeHandles {
   windows.instanceMatrix.needsUpdate = true;
   group.add(windows);
 
-  /* Flight-deck glass.
-     A sphere cap was the wrong solid for this: the nose is already tapering,
-     so any cap big enough to read poked out through the skin as a black wedge.
-     A band wrapped round the nose at its own local radius sits *on* the
-     surface, which is what a windscreen does. */
-  const glassZ = -4.7;
-  // Dark, with the instruments' faint glow behind it after dark.
-  const deckGlass = track(new THREE.MeshStandardMaterial({
-    color: 0x0b1220, roughness: 0.07, metalness: 0.55, emissive: 0x1f3a44, emissiveIntensity: 0,
-  }));
-  const glass = new THREE.Mesh(
-    track(new THREE.CylinderGeometry(
-      radiusAt(glassZ) * 1.004, radiusAt(glassZ - 1.1) * 1.004, 1.5, 32, 1, true,
-      // CylinderGeometry's radial z maps to -y after the rotation below.
-      // This interval is centred on the crown of the nose, not its flank.
-      Math.PI * 0.68, Math.PI * 0.64,
-    )),
-    deckGlass,
-  );
-  glass.rotation.x = Math.PI / 2;
-  glass.position.set(0, 0.12, glassZ - 0.55);
-  group.add(glass);
-
-  // Three slim mullions make the windscreen read as individual panes rather
-  // than a single dark band across the nose.
-  const windscreenRadius = radiusAt(glassZ - 0.55) * 1.013;
-  for (const theta of [Math.PI * 0.84, Math.PI, Math.PI * 1.16]) {
-    const frame = new THREE.Mesh(track(new THREE.BoxGeometry(0.055, 0.045, 1.58)), windshieldFrameMat);
-    frame.position.set(
-      Math.sin(theta) * windscreenRadius,
-      0.12 - Math.cos(theta) * windscreenRadius,
-      glassZ - 0.55,
-    );
-    frame.rotation.z = theta + Math.PI;
-    group.add(frame);
-  }
-
   /* ── Lights ─────────────────────────────────────────────────────────────
      The wingtips and tailplane have hung theirs already. The tail cone
      carries a white position lamp shining aft and the third strobe; the
@@ -1383,7 +1288,7 @@ export function createAirframe(): AirframeHandles {
     },
     {
       kind: 'beacon',
-      at: new THREE.Vector3(0, fairingBottom(12.4) - 0.04, 12.4),
+      at: new THREE.Vector3(0, bellyAt(airliner, 12.4) - 0.04, 12.4),
       colour: 0xff1a0e,
       beam: { axis: new THREE.Vector3(0, -1, 0), edge: -0.55 },
       phase: BEACON_CYCLE / 2,

@@ -181,15 +181,17 @@ function normals(pos: number[], index: number[]) {
 
 /**
  * How finely each distance is drawn. The row a passenger sits in and the
- * row ahead of it are close enough to count eyelashes, so they get the head
- * smoothed twice and hair with hundreds of strand cards; the few rows beyond
- * get one smoothing and fewer strands; everyone else is the model as it came
- * with a plain shell of hair — which from twenty rows back is all anyone sees.
+ * row ahead of it are close enough to count eyelashes, so they get the body
+ * and head smoothed and hair with strand cards; everyone else is the model
+ * as it came with a plain shell of hair — which from a few rows back, over a
+ * seat back, is all anyone sees, and on a phone is the difference between a
+ * cabin that turns smoothly and one that stutters. (The middle level is
+ * kept in the table for the lookup's sake and never built.)
  */
 const DETAIL = [
-  { head: 2, body: 1, cols: 64, rows: 18, cards: 320 },
-  { head: 1, body: 1, cols: 48, rows: 14, cards: 130 },
-  { head: 0, body: 0, cols: 24, rows: 8, cards: 0 },
+  { head: 1, body: 1, cols: 48, rows: 14, cards: 170 },
+  { head: 0, body: 0, cols: 20, rows: 7, cards: 0 },
+  { head: 0, body: 0, cols: 16, rows: 6, cards: 0 },
 ] as const;
 type Detail = 0 | 1 | 2;
 
@@ -831,7 +833,7 @@ export interface PassengerHandles {
  * everyone else. Rows ahead have lower numbers.
  */
 const detailFor = (row: number, viewerRow: number): Detail =>
-  row === viewerRow || row === viewerRow - 1 ? 0 : row >= viewerRow - 3 && row <= viewerRow + 1 ? 1 : 2;
+  row === viewerRow || row === viewerRow - 1 ? 0 : 2;
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 /** The cushion's top, above the floor: where he sits. */
 export const SEAT_HEIGHT = 0.5;
@@ -860,12 +862,13 @@ export function createPassengers(layout: SeatLayout): PassengerHandles {
     hair: Record<HairName, THREE.InstancedMesh>;
   }
   const buildLod = (detail: Detail): Lod => ({
-    /* Both sides of the clothes, since the model was made to be seen from the
-       front: from behind, the gap between a sleeve and the arm in it would
-       otherwise show the seat through the shirt. The inside is drawn dark. */
+    /* Close up, both sides of the clothes, since the model was made to be
+       seen from the front: from behind, the gap between a sleeve and the arm
+       in it would otherwise show the seat through the shirt. Further off
+       nobody can see into a sleeve, and one side is half the work. */
     body: Object.fromEntries(builds.map((build) => [build, {
-      short: make(bodyGeometry(build, 'short', detail), hairMaterial),
-      long: make(bodyGeometry(build, 'long', detail), hairMaterial),
+      short: make(bodyGeometry(build, 'short', detail), detail === 0 ? hairMaterial : material),
+      long: make(bodyGeometry(build, 'long', detail), detail === 0 ? hairMaterial : material),
     }])) as Record<Build, Record<Sleeves, THREE.InstancedMesh>>,
     head: Object.fromEntries(builds.map((build) => [build, make(headGeometry(build, detail), material)])) as Record<Build, THREE.InstancedMesh>,
     hair: Object.fromEntries(
@@ -880,7 +883,7 @@ export function createPassengers(layout: SeatLayout): PassengerHandles {
   let lastPlace: Parameters<PassengerHandles['place']> | null = null;
   const later = (fn: () => void) =>
     typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 1200 }) : setTimeout(fn, 60);
-  const queue: Detail[] = [1, 0];
+  const queue: Detail[] = [0];
   const buildNext = () => {
     const detail = queue.shift();
     if (detail === undefined || disposed) return;
