@@ -3,6 +3,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Attitude } from '../lib/useAttitude';
+import { precompiler } from './precompile';
 
 /**
  * The cargo hold, as geometry.
@@ -380,6 +381,8 @@ export function createCargoHold(canvasEl: HTMLCanvasElement): CargoHoldHandles {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
+  // The first frame waits for the shaders, compiled in parallel (see precompile.ts).
+  const canDraw = precompiler(renderer);
 
   const scene = new THREE.Scene();
   /* Something for the metal to reflect. Without it a metallic surface has
@@ -763,6 +766,7 @@ export function createCargoHold(canvasEl: HTMLCanvasElement): CargoHoldHandles {
       (scene.background as THREE.Color).copy(fog);
     }
 
+    if (!canDraw(scene, camera)) return;
     renderer.render(scene, camera);
   };
 

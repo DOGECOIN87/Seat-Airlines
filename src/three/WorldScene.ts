@@ -14,6 +14,7 @@ import { createFlightDeck, type DeckReadout } from './flightDeck';
 import { createAirframe, ENGINE_AT, WING_CUT } from './airframe';
 import { createScenery } from './scenery';
 import { createRanges } from './ranges';
+import { precompiler } from './precompile';
 import { createEngineFire } from './engineFire';
 import { createLightning } from './lightning';
 import { createUfoCraft, createWingBreak, type UfoPose, type WingBreak } from './ufoCraft';
@@ -221,6 +222,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   renderer.toneMappingExposure = 0.85;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  /* The first frame waits for the shaders, compiled in parallel (see precompile.ts). */
+  const canDraw = precompiler(renderer);
 
   const scene = new THREE.Scene();
   /* The near plane sits as far out as each view allows. Clip-space depth is
@@ -794,7 +797,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      out where it is haze (see `ranges.ts`). They take the same envMap and the
      same fog as the ground, and sink out of sight over water and past the
      cloud. */
-  const ranges = createRanges({ base: import.meta.env.BASE_URL, segments: lowPower ? 112 : 176, envMap: envRT.texture });
+  const ranges = createRanges({ base: import.meta.env.BASE_URL, segments: lowPower ? 96 : 128, envMap: envRT.texture });
   scene.add(ranges.group);
 
   /* ── What stands on it ────────────────────────────────────────────────
@@ -1189,7 +1192,11 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
        sea has somewhere flat to come in over — or another world's craters,
        mesas and dunes, whole. Normal map and displacement go together. */
     const farmRelief = plateMap === farmland.day ? 1 - THREE.MathUtils.smoothstep(seaBlend, 0, 0.6) : 0;
-    const wantNormal = body ? body.normal : plateMap === farmland.day ? farmland.normal : null;
+    /* Over open water the farmland's normal map stays bound, at zero
+       strength (farmRelief is 0 there), which shades exactly as no normal
+       map does. Unbinding it would change the ground's shader, and compiling
+       the new one mid-flight is a hitch at every first coast crossing. */
+    const wantNormal = body ? body.normal : farmland.normal;
     if (groundMat.normalMap !== wantNormal) {
       groundMat.normalMap = wantNormal;
       groundMat.needsUpdate = true;
@@ -1840,6 +1847,9 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       earthSun.copy(sunPos).transformDirection(camera.matrixWorldInverse);
     }
 
+    /* Posed, lit and dressed for this frame: exactly the state the shaders
+       have to be compiled for. Until they are, the canvas waits. */
+    if (!canDraw(scene, camera)) return;
     const frameStart = performance.now();
     renderer.render(scene, camera);
     frameTimeTotal += performance.now() - frameStart;

@@ -16,15 +16,37 @@
 export type RangeKind = 'montana' | 'spain';
 
 /** Metres across one cell. */
-export const CELL = 48000;
-/** Cells kept in play each way: enough that the lattice always covers the horizon. */
-export const POOL = 4;
-/** How much of the ground's own speed the ranges drift at. */
-export const DRIFT = 0.06;
+export const CELL = 32000;
+/** Cells kept in play each way: enough that the lattice always covers the horizon (see `REACH`). */
+export const POOL = 5;
+/**
+ * How much of the ground's own speed the ranges drift at. A quarter: enough
+ * that the skyline changes over a visit, slow enough that a range takes a
+ * couple of minutes to cross the band it rises and sets in — too slow to see
+ * it happen — and slow the way anything far off is.
+ */
+export const DRIFT = 0.25;
 
-/** Distances from the aircraft, in metres, at which the relief has fully risen and begins to sink again. */
+/**
+ * Distances from the aircraft, in metres, over which the relief rises out of
+ * the ground, and over which it settles back to the horizon line again.
+ *
+ * The settling is long and gentle, and goes with the haze: a range further
+ * off stands lower and paler, the way distant ranges do past the curve of the
+ * Earth, and it reaches the horizon line just as it is lost in the haze. A
+ * range faded to the fog's colour at full height would stand as a flat grey
+ * shape against whatever sky is behind it; this way nothing is left to see.
+ */
 export const RISE: readonly [number, number] = [22000, 31000];
-export const SET: readonly [number, number] = [52000, 60000];
+export const SET: readonly [number, number] = [42000, 59500];
+/** Distances over which a range fades into the haze. */
+export const HAZE: readonly [number, number] = [36000, 59500];
+/**
+ * The furthest any relief stands: the lattice has to cover this far all round.
+ * It is inside the ground plate (60 km out along each axis), so everything
+ * sunk short of it has the plate above it.
+ */
+export const REACH = SET[1];
 
 export interface Cell {
   kind: RangeKind | null;
@@ -45,7 +67,7 @@ function hash(i: number, j: number, salt: number): number {
 export function cellAt(i: number, j: number): Cell {
   const pick = hash(i, j, 1);
   return {
-    kind: pick < 0.3 ? 'montana' : pick < 0.55 ? 'spain' : null,
+    kind: pick < 0.5 ? 'montana' : pick < 0.8 ? 'spain' : null,
     turns: Math.floor(hash(i, j, 2) * 4),
     mirror: hash(i, j, 3) < 0.5,
     height: 0.75 + hash(i, j, 4) * 0.4,
@@ -72,6 +94,20 @@ export function place(a: number, b: number, shiftX: number, shiftZ: number): Pla
   const i = a + POOL * Math.round((u / CELL - 0.5 - a) / POOL);
   const j = b + POOL * Math.round((-v / CELL - 0.5 - b) / POOL);
   return { i, j, x: (i + 0.5) * CELL - u, z: (j + 0.5) * CELL + v };
+}
+
+/**
+ * Whether any of a cell centred at (x, z) relative to the aircraft lies
+ * where relief stands — between the rise and the set. A cell wholly inside
+ * the rise is flat under the ground, and one wholly past the set is sunk.
+ */
+export function inBand(x: number, z: number): boolean {
+  const h = CELL / 2;
+  const nx = Math.max(0, Math.abs(x) - h);
+  const nz = Math.max(0, Math.abs(z) - h);
+  const near = Math.hypot(nx, nz);
+  const far = Math.hypot(Math.abs(x) + h, Math.abs(z) + h);
+  return near < SET[1] && far > RISE[0];
 }
 
 /** 0–1: how much of its height a range has at this distance from the aircraft. */

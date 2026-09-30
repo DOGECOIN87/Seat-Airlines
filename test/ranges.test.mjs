@@ -6,7 +6,7 @@
  *
  *   npm test
  */
-import { CELL, POOL, cellAt, place, rise, shapeHeights } from '../dist-test/ranges.js';
+import { CELL, POOL, REACH, RISE, SET, cellAt, inBand, place, rise, shapeHeights } from '../dist-test/ranges.js';
 
 let pass = 0, fail = 0;
 const check = (name, fn) => {
@@ -23,12 +23,13 @@ check('a cell is the same country every time', () => {
   }
 });
 
-check('about half the cells are empty, and both landscapes turn up', () => {
+check('mostly mountains, some hill country, a few gaps', () => {
   const counts = { montana: 0, spain: 0, none: 0 };
   for (let i = 0; i < 60; i++) for (let j = 0; j < 60; j++) counts[cellAt(i, j).kind ?? 'none']++;
   const n = 3600;
-  assert(counts.none / n > 0.35 && counts.none / n < 0.6, `empty ${counts.none / n}`);
-  assert(counts.montana / n > 0.2 && counts.spain / n > 0.15, `montana ${counts.montana}, spain ${counts.spain}`);
+  assert(counts.none / n > 0.12 && counts.none / n < 0.28, `empty ${counts.none / n}`);
+  assert(counts.montana / n > 0.42 && counts.montana / n < 0.58, `montana ${counts.montana / n}`);
+  assert(counts.spain / n > 0.22 && counts.spain / n < 0.38, `spain ${counts.spain / n}`);
 });
 
 check('turns, mirrors and heights vary but stay in range', () => {
@@ -53,12 +54,36 @@ check('every slot holds a distinct cell, all within reach of the aircraft', () =
   }
 });
 
+check('the lattice covers everywhere relief can stand, whatever the shift', () => {
+  for (const [sx, sz] of [[0, 0], [123456, -98765], [-4e6, 7e6], [CELL * 2.5 / 0.25, -CELL * 1.5 / 0.25]]) {
+    const cells = [];
+    for (let a = 0; a < POOL; a++) for (let b = 0; b < POOL; b++) cells.push(place(a, b, sx, sz));
+    for (let ang = 0; ang < 360; ang += 7.5) for (const r of [RISE[0], (RISE[0] + REACH) / 2, REACH]) {
+      const x = r * Math.cos(ang * Math.PI / 180), z = r * Math.sin(ang * Math.PI / 180);
+      assert(cells.some((c) => Math.abs(x - c.x) <= CELL / 2 && Math.abs(z - c.z) <= CELL / 2), `nothing at ${x.toFixed(0)},${z.toFixed(0)} for shift ${sx},${sz}`);
+    }
+  }
+});
+
+check('only cells that reach the band are drawn', () => {
+  assert(inBand(CELL, 0), 'the next cell over should show');
+  assert(!inBand(0, 0) || CELL / 2 * Math.SQRT2 > RISE[0], 'a cell under the aircraft wholly inside the rise should not');
+  assert(!inBand(SET[1] + CELL, 0), 'a cell wholly past the set should not');
+  assert(!inBand((SET[1] + CELL) / Math.SQRT2 + CELL / 2, (SET[1] + CELL) / Math.SQRT2 + CELL / 2), 'a far corner cell should not');
+  // Wherever rise() is above zero, the cell holding that point is drawn.
+  for (let x = -70000; x <= 70000; x += 2500) for (let z = -70000; z <= 70000; z += 2500) {
+    if (rise(Math.hypot(x, z)) === 0) continue;
+    const cx = Math.round(x / CELL) * CELL, cz = Math.round(z / CELL) * CELL;
+    assert(inBand(cx, cz), `cell at ${cx},${cz} dropped though ${x},${z} stands`);
+  }
+});
+
 check('the ranges drift the way the ground does, and a cell keeps its address as it goes', () => {
-  const a = place(1, 2, 0, 0);
-  const b = place(1, 2, 1000, 500);
+  const a = place(1, 1, 0, 0);
+  const b = place(1, 1, 1000, 500);
   assert(b.x < a.x, 'x should decrease with shiftX');
   assert(b.z > a.z, 'z should increase with shiftZ');
-  const c = place(1, 2, 10, 5);
+  const c = place(1, 1, 10, 5);
   assert(c.i === a.i && c.j === a.j, 'a small step changed the cell');
 });
 

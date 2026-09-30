@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CELL, POOL, cellAt, place, shapeHeights, type RangeKind } from '../lib/ranges';
+import { CELL, HAZE, POOL, RISE, SET, cellAt, inBand, place, shapeHeights, type RangeKind } from '../lib/ranges';
 import { noise2 } from './noise';
 
 /**
@@ -18,7 +18,12 @@ import { noise2 } from './noise';
  * that drifts past slowly. In the vertex shader each cell's relief rises out
  * of the ground as it comes into view on the horizon and sinks back before it
  * is overhead, so there is never a mountain to fly into — and its foothills
- * come up out of the fields rather than lying on them.
+ * come up out of the fields rather than lying on them. Far out, a range pales
+ * into the haze as it settles to the horizon line (see `SET` in lib/ranges).
+ *
+ * Only the cells that can show are drawn: each has a true bounding sphere, so
+ * the renderer culls the ones behind the camera, and a cell wholly outside
+ * the band where relief stands is not drawn at all.
  */
 
 /** Metres from the plain to the highest point of each landscape. */
@@ -26,6 +31,9 @@ const PEAK: Record<RangeKind, number> = { montana: 3900, spain: 1900 };
 
 /** Where the relief is sunk to when it is not showing: under the ground plate, which lies at −2. */
 const SUNK = -30;
+
+/** How much of its relief the ground's low colour is worked out for: foothill country, whatever the height. */
+const LOW = 0.1;
 
 const FILES: Record<RangeKind, string> = { montana: 'terrain/montana.bin', spain: 'terrain/spain.bin' };
 
@@ -50,7 +58,7 @@ const PALETTES: Record<RangeKind, (out: THREE.Color, h: number, slope: number, n
       out.lerp(scree, smooth(h, 0.24 + m * 0.08, 0.42));
       out.lerp(rock, smooth(slope, 0.35, 0.8) * smooth(h, 0.1, 0.35));
       // The snowline is ragged and lower on gentle ground; cliffs shed it.
-      const line = 0.5 - m * 0.16 - n * 0.05;
+      const line = 0.6 - m * 0.14 - n * 0.05;
       const cover = smooth(h, line, line + 0.16) * (1 - smooth(slope, 0.55, 1.05) * 0.8);
       out.lerp(snow, cover).lerp(shadeSnow, cover * smooth(slope, 0.25, 0.7) * 0.5);
     };
@@ -78,6 +86,8 @@ function buildGeometry(kind: RangeKind, field: Float32Array, size: number, seg: 
   const verts = (seg + 1) * (seg + 1);
   const position = new Float32Array(verts * 3);
   const colour = new Float32Array(verts * 3);
+  // The same ground as it looks flattened, while the range is still rising out of it.
+  const lowColour = new Float32Array(verts * 3);
   const heights = new Float32Array(verts);
   const sample = (u: number, v: number) => {
     const fx = u * (size - 1);
@@ -111,11 +121,15 @@ function buildGeometry(kind: RangeKind, field: Float32Array, size: number, seg: 
       // Two scales of value noise: broad blotches and fine grain.
       const blot = (noise2(Math.floor(i / 5), Math.floor(j / 5), seed) + noise2(Math.floor(i / 11), Math.floor(j / 11), seed + 1)) / 2;
       const grain = noise2(i, j, seed + 2);
-      PALETTES[kind](paint, heights[k], slope, blot, grain);
       const shade = 0.94 + grain * 0.12;
+      PALETTES[kind](paint, heights[k], slope, blot, grain);
       colour[k * 3] = paint.r * shade;
       colour[k * 3 + 1] = paint.g * shade;
       colour[k * 3 + 2] = paint.b * shade;
+      PALETTES[kind](paint, heights[k] * LOW, slope * LOW, blot, grain);
+      lowColour[k * 3] = paint.r * shade;
+      lowColour[k * 3 + 1] = paint.g * shade;
+      lowColour[k * 3 + 2] = paint.b * shade;
     }
   }
   const index = new Uint32Array(seg * seg * 6);
@@ -133,10 +147,13 @@ function buildGeometry(kind: RangeKind, field: Float32Array, size: number, seg: 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(position, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(colour, 3));
+  geo.setAttribute('lowColor', new THREE.BufferAttribute(lowColour, 3));
   geo.setIndex(new THREE.BufferAttribute(index, 1));
   geo.computeVertexNormals();
-  // Displaced in the shader, and moving with the ground: never cull one on a stale box.
-  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), CELL);
+  /* The shader only ever lowers a vertex (toward SUNK), so the mesh as built,
+     stretched down to SUNK, bounds it wherever it is drawn. */
+  const top = PEAK[kind];
+  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, (top + SUNK) / 2, 0), Math.hypot(CELL / Math.SQRT2, (top - SUNK) / 2));
   return geo;
 }
 
@@ -152,20 +169,46 @@ export function createRanges(o: { base: string; segments: number; envMap?: THREE
   group.visible = false;
   const amount = { value: 1 };
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, envMap: o.envMap ?? null, envMapIntensity: 0.5 });
+  const f1 = (v: number) => v.toFixed(1);
   material.onBeforeCompile = (shader) => {
     shader.uniforms.rangeAmount = amount;
     shader.vertexShader = shader.vertexShader
-      .replace('void main() {', 'uniform float rangeAmount;\nvoid main() {')
+      .replace('void main() {', 'uniform float rangeAmount;\nattribute vec3 lowColor;\nvarying float vRangeDist;\nvoid main() {')
+      .replace(
+        '#include <beginnormal_vertex>',
+        `#include <beginnormal_vertex>
+        // Relief comes up out of the ground through the rise, and goes back under it past the set.
+        float rangeD = length((modelMatrix * vec4(position, 1.0)).xz);
+        float rangeF = smoothstep(${f1(RISE[0])}, ${f1(RISE[1])}, rangeD) * (1.0 - smoothstep(${f1(SET[0])}, ${f1(SET[1])}, rangeD)) * rangeAmount;
+        // A height field scaled by f has its slopes scaled by f: lit as it stands, not as it will.
+        objectNormal = normalize(vec3(objectNormal.x * rangeF, objectNormal.y, objectNormal.z * rangeF));
+        // And it wears the colours of the country it is, still low, not of the peaks it is to be.
+        vColor.rgb = mix(lowColor, vColor.rgb, rangeF);
+        vRangeDist = rangeD;`,
+      )
       .replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
-        {
-          // Relief comes up out of the ground between 22 and 31 km, and goes back under it between 52 and 60.
-          vec2 fromHere = (modelMatrix * vec4(position, 1.0)).xz;
-          float d = length(fromHere);
-          float f = smoothstep(22000.0, 31000.0, d) * (1.0 - smoothstep(52000.0, 60000.0, d)) * rangeAmount;
-          transformed.y = position.y * f + ${SUNK.toFixed(1)} * (1.0 - f);
-        }`,
+        transformed.y = position.y * rangeF + ${f1(SUNK)} * (1.0 - rangeF);`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        'void main() {',
+        `varying float vRangeDist;
+        void main() {
+          /* Nothing stands inside the rise or past the set: the ground there is
+             sunk, and past the edge of the ground plate (60 km out along each
+             axis) there is nothing above it to hide it, so it would show as a
+             flat band just under the horizon. Nor is it worth shading. */
+          if (vRangeDist < ${f1(RISE[0])} || vRangeDist > ${f1(SET[1])}) discard;`,
+      )
+      .replace(
+        '#include <fog_fragment>',
+        `#include <fog_fragment>
+        #ifdef USE_FOG
+          // Into the haze with distance, as the range settles to the horizon.
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, smoothstep(${f1(HAZE[0])}, ${f1(HAZE[1])}, vRangeDist));
+        #endif`,
       );
   };
 
@@ -175,8 +218,7 @@ export function createRanges(o: { base: string; segments: number; envMap?: THREE
     for (let b = 0; b < POOL; b++) {
       const mesh = new THREE.Mesh(undefined, material);
       mesh.visible = false;
-      mesh.userData = { a, b, i: NaN, j: NaN };
-      mesh.frustumCulled = false;
+      mesh.userData = { a, b, i: NaN, j: NaN, dressed: false };
       slots.push(mesh);
       group.add(mesh);
     }
@@ -209,7 +251,7 @@ export function createRanges(o: { base: string; segments: number; envMap?: THREE
         mesh.userData.j = at.j;
         const cell = cellAt(at.i, at.j);
         const geo = cell.kind ? geometries.get(cell.kind) : undefined;
-        mesh.visible = !!geo;
+        mesh.userData.dressed = !!geo;
         if (geo) {
           mesh.geometry = geo;
           mesh.rotation.y = (cell.turns * Math.PI) / 2;
@@ -217,6 +259,7 @@ export function createRanges(o: { base: string; segments: number; envMap?: THREE
         }
       }
       mesh.position.set(at.x, 0, at.z);
+      mesh.visible = mesh.userData.dressed && inBand(at.x, at.z);
     }
   };
 
