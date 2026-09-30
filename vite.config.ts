@@ -1,8 +1,69 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { DEFAULT_WORKER_API } from './src/lib/workerBase';
 
-export default defineConfig({
-  plugins: [react()],
+/**
+ * The page's Content-Security-Policy, as a <meta> tag, because GitHub Pages
+ * cannot send headers.
+ *
+ * What it buys: a script that is not one of this site's own files does not
+ * run, whatever gets into the page — an advert caption, a card, a message —
+ * and data can only be sent to the services named here. So the list of
+ * services is made from the same VITE_ variables the build reads, rather than
+ * typed out a second time: point the page at another Worker or feed and the
+ * policy follows, instead of quietly blocking it.
+ *
+ * Wallets are unaffected: Phantom, Solflare, Backpack and Nightly inject from
+ * their own extension context, which a page's policy does not reach (pump.fun
+ * runs the same `script-src 'self'`). Only on `vite build`: the dev server
+ * needs inline scripts and a socket for hot reload. `frame-ancestors` cannot
+ * be set from a meta tag, so framing is not covered here.
+ */
+function contentSecurityPolicy(env: Record<string, string>): Plugin {
+  const origin = (value: string | undefined) => {
+    try {
+      return value?.trim() ? new URL(value.trim()).origin : null;
+    } catch {
+      return null;
+    }
+  };
+  const connect = new Set([
+    "'self'",
+    origin(env.VITE_BANNERS_API) ?? DEFAULT_WORKER_API,
+    origin(env.VITE_DIRECTORY_API),
+    origin(env.VITE_BANNERS_URL),
+    origin(env.VITE_HOLDERS_URL),
+    origin(env.VITE_RPC_URL),
+    origin(env.VITE_MARKET_URL) ?? 'https://api.jup.ag',
+    'https://api.open-meteo.com',
+    // Advert artwork when it is served straight from R2 (the Worker's PUBLIC_IMAGE_BASE).
+    'https://*.r2.dev',
+  ].filter((o): o is string => Boolean(o)));
+  const policy = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    // Adverts come from wherever the Worker stores them; wallet icons are data: URLs; the editor draws to blobs.
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' data: blob:",
+    `connect-src ${[...connect].join(' ')}`,
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ');
+  return {
+    name: 'seat-airlines-csp',
+    apply: 'build',
+    transformIndexHtml: () => [
+      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: policy }, injectTo: 'head-prepend' },
+    ],
+  };
+}
+
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), contentSecurityPolicy(loadEnv(mode, process.cwd(), 'VITE_'))],
   // Served from a project page as often as a root domain, so relative asset
   // URLs keep both working without a rebuild.
   base: './',
@@ -24,4 +85,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
