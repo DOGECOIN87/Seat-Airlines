@@ -10,6 +10,7 @@ import { biomeAt } from '../lib/biome';
 import { lakeShader, noTileShader, type LakeParams, type NoTileParams } from './noTile';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import { CABIN, cabinLevel, createCabin, rowZ } from './cabin';
+import { createFlightDeck, type DeckReadout } from './flightDeck';
 import { createAirframe, ENGINE_AT, WING_CUT } from './airframe';
 import { createScenery } from './scenery';
 import { createEngineFire } from './engineFire';
@@ -69,6 +70,8 @@ export interface ViewPose {
   id: string;
   /** Head turn in degrees: negative left, positive right. */
   yaw: number;
+  /** Head tilt in degrees, up positive. Only the flight deck reads it. */
+  pitch?: number;
   /**
    * Outside the aeroplane, looking at it.
    *
@@ -181,6 +184,8 @@ export interface WorldHandles {
    * canvas: for framing a picture of it.
    */
   planeOnScreen: () => { x: number; y: number };
+  /** What the flight deck's screens and cabin signs show, beyond the attitude. */
+  setDeckReadout: (r: DeckReadout) => void;
   dispose: () => void;
 }
 
@@ -234,7 +239,14 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
 
   const cabin = createCabin();
   aircraft.add(cabin.group);
-  aircraft.add(camera);  const cabinLamps: Array<{ light: THREE.PointLight; intensity: number; colour: THREE.Color }> = [];
+  aircraft.add(camera);
+  /* The flight deck, ahead of the cabin: built around the captain's eye and
+     shown only when the camera is sitting in it. */
+  const deck = createFlightDeck();
+  deck.group.visible = false;
+  deck.group.position.set(-0.52, CABIN.floorY + CABIN.eyeHeight, rowZ(1) - 4.2);
+  aircraft.add(deck.group);
+  const cabinLamps: Array<{ light: THREE.PointLight; intensity: number; colour: THREE.Color }> = [];
   cabin.group.traverse(object => {
     if (object instanceof THREE.PointLight) {
       cabinLamps.push({ light: object, intensity: object.intensity, colour: object.color.clone() });
@@ -1644,6 +1656,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       if (!elsewhere && !inSpace) bounce.color.lerp(TOWN_GLOW, night * (1 - seaBlend) * 0.7);
       bounce.visible = true;
       cabin.group.visible = false;
+      deck.group.visible = false;
       cabinLight.visible = false;
       cabinFill.intensity = 0;
       cabinAmbient.intensity = 0;
@@ -1652,19 +1665,28 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       /* A seat is a place in the cabin, so looking around is looking around. */
       const interiorLightLevel = cabinLit;
       cabin.setViewer(pose.id);
-      const x = pose.seatIndex === null ? 0 : CABIN.seatX[pose.seatIndex];
-      const z = pose.seatIndex === null ? rowZ(1) - 4.2 : rowZ(pose.row);
-      camera.position.set(x, CABIN.floorY + CABIN.eyeHeight, z + 0.02);
+      const onDeck = pose.seatIndex === null;
+      const x = onDeck ? 0 : CABIN.seatX[pose.seatIndex as number];
+      const z = onDeck ? rowZ(1) - 4.2 : rowZ(pose.row);
+      // On the flight deck the eye is the captain's, in the left seat.
+      if (onDeck) camera.position.copy(deck.group.position);
+      else camera.position.set(x, CABIN.floorY + CABIN.eyeHeight, z + 0.02);
       cabinLight.position.set(x, CABIN.ceilingY - 0.3, z - 1.4);
       /* `YXZ`, so the roll is applied innermost — about the camera's own
          line of sight rather than about any world axis. Which is what makes
-         it a roll of the shot and not a swing of the head. */
-      camera.rotation.set(0, THREE.MathUtils.degToRad(-pose.yaw), THREE.MathUtils.degToRad(a.roll), 'YXZ');
-      if (camera.fov !== 70 || camera.near !== CABIN_NEAR) {
-        camera.fov = 70;
+         it a roll of the shot and not a swing of the head. From the left
+         seat the head is tipped down a little, so the panel and the sky
+         share the frame. */
+      const lookDown = onDeck ? deck.restPitch + (pose.pitch ?? 0) : 0;
+      camera.rotation.set(THREE.MathUtils.degToRad(lookDown), THREE.MathUtils.degToRad(-pose.yaw), THREE.MathUtils.degToRad(a.roll), 'YXZ');
+      const fov = onDeck ? 72 : 70;
+      if (camera.fov !== fov || camera.near !== CABIN_NEAR) {
+        camera.fov = fov;
         camera.near = CABIN_NEAR;
         camera.updateProjectionMatrix();
       }
+      deck.group.visible = onDeck;
+      if (onDeck) deck.update(a, performance.now(), cabinNight);
       // The eye opens a little in a dimmed cabin, but not all the way.
       renderer.toneMappingExposure = 0.85 * THREE.MathUtils.lerp(1, 0.8, cabinNight);
 
@@ -1894,6 +1916,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
 
   const dispose = () => {
     cabin.dispose();
+    deck.dispose();
     fires?.forEach((e) => e.fire.dispose());
     bolt?.dispose();
     ufo?.dispose();
@@ -1959,5 +1982,5 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     return { x: (onScreen.x + 1) / 2, y: (1 - onScreen.y) / 2 };
   };
 
-  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, groundAt, planeOnScreen, dispose };
+  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, groundAt, planeOnScreen, setDeckReadout: deck.setReadout, dispose };
 }

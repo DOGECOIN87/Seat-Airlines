@@ -70,7 +70,7 @@ The server times every run from the moment you take the controls and refuses a s
 | **Outside** | The whole aircraft in its livery, over the ground it is actually flying above. Drag to walk the camera around it. The corner reads **Souls on board** — how many holders are seated. |
 | **Seat · forward** | The row ahead, the passengers in it, and your seat-back screen. |
 | **Seat · look left / right** | Your head turned. What is beside you depends on your seat. |
-| **Flight deck** | The cockpit: overhead panel, autopilot panel, primary flight display and navigation display. |
+| **Flight deck** | The cockpit in 3D, from the captain's seat: the real sky and ground through the windshield, the glareshield and autopilot panel, live flight, navigation and engine displays for both pilots, the overhead panel with the cabin signs lit, and the throttles. The yokes turn with the bank. Drag to look around. |
 | **Cargo hold** | Below the floor, where everyone under the cutoff rides: a 3D room of frames and insulation, containers, netted bags and swinging work lamps. Drag to look around; the higher the flight, the more frost on the skin. |
 
 ## Getting around

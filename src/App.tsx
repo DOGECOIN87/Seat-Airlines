@@ -65,7 +65,7 @@ import { visibilityAwareInterval } from './lib/visibility';
 // interactive immediately, rather than making the whole page wait on WebGL.
 const CabinView3D = lazy(() => import('./components/CabinView3D'));
 const ExteriorView = lazy(() => import('./components/ExteriorView'));
-const loadFlightDeck = () => import('./components/FlightDeck');
+const loadFlightDeck = () => import('./components/FlightDeck3D');
 const loadSeatMap = () => import('./components/SeatMap');
 const FlightDeck = lazy(loadFlightDeck);
 const CargoHold = lazy(() => import('./components/CargoHold3D'));
@@ -847,7 +847,9 @@ export default function App() {
                   <ExteriorView feed={feed} sky={sky} band={band} taken={taken} claimed={claimedSeat} viewing={viewSeat} controls={controls} />
                 </Suspense>
               ) : camera === 'deck' ? (
-                <FlightDeck feed={feed} lamps={lamps} sky={sky} band={band} controls={controls} />
+                <Suspense fallback={<SceneLoading />}>
+                  <FlightDeck feed={feed} lamps={lamps} sky={sky} band={band} controls={controls} />
+                </Suspense>
               ) : (
                 <Suspense fallback={<SceneLoading />}>
                   <CabinView3D
