@@ -69,8 +69,8 @@ The server times every run from the moment you take the controls and refuses a s
 | --- | --- |
 | **Outside** | The whole aircraft in its livery, over the ground it is actually flying above. Drag to walk the camera around it. The corner reads **Souls on board** — how many holders are seated. |
 | **Seat · forward** | The row ahead, the passengers in it, and your seat-back screen. |
-| **Seat · look left / right** | Your head turned. What is beside you depends on your seat. |
-| **Flight deck** | The cockpit in 3D, from the captain's seat: the real sky and ground through the windshield, the glareshield and autopilot panel, live flight, navigation and engine displays for both pilots, the overhead panel with the cabin signs lit, and the throttles. The yokes turn with the bank. Drag to look around. |
+| **Seat · look left / right** | Your head turned. What is beside you depends on your seat — and the seat next to you is always taken. |
+| **Flight deck** | The cockpit in 3D, from the captain's seat: the real sky and ground through the windshield, the glareshield and autopilot panel, live flight, navigation and engine displays for both pilots, the overhead panel with the cabin signs lit, and the throttles. The yokes turn with the bank. The first officer's seat is taken too. Drag to look around. |
 | **Cargo hold** | Below the floor, where everyone under the cutoff rides: a 3D room of frames and insulation, containers, netted bags and swinging work lamps. Drag to look around; the higher the flight, the more frost on the skin. |
 
 ## Getting around
@@ -96,6 +96,12 @@ Windows — a seat, the high scores, the advert editor — open over the page wi
 ### Turning your head depends on your seat
 
 From **8A** the window is one turn to the left and fills the view. From **8F** that same window is on the far side of the cabin — two seats, the aisle, three more seats, and a porthole the size of a coin. From **8C** you look past 8B's shoulder to see any of it. The row is modelled as it really is — window, seats, aisle, seats, window — and read outward from wherever you sit.
+
+### Who is on board
+
+Every holder's seat has somebody in it: one seated body in a crowd of outfits — suits, shirts and knitwear, short sleeves or long — two builds, a range of skin tones, and a haircut each from seven, from a crop to a bun to hair past the shoulders. Faces have eyes, brows and lips, and people turn their heads — out of the window, now and then, from a window seat. The rows nearest you are drawn finest; the far end of the cabin is drawn plainer, which from twenty rows back is all anyone sees.
+
+And beside you, whichever seat you view, sits the passenger nobody booked: a hooded figure in a long dark robe, bone for hands, a skull under the hood with embers for eyes, and a sickle across its knee. From a window seat it has the middle; from the middle or the aisle, the seat outboard of you. Every so often it turns its head and looks at you. On the flight deck it flies as first officer.
 
 ## Zoom and pan
 
