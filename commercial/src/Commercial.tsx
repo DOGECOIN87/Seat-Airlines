@@ -285,8 +285,8 @@ const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }
     {scene.id === 'altitudes' && <AltBandHud />}
     {scene.id === 'advert' && <Caption text="Your ad, on board." frames={frames} />}
     {scene.id === 'climb' && <ClimbHud />}
-    {scene.id === 'endcard' && <EndCard />}
-    {scene.id !== 'intro' && scene.id !== 'endcard' && scene.id !== 'hero' && scene.id !== 'seats' && scene.id !== 'seats_scroll' && scene.id !== 'altitudes' && <LogoBug frames={frames} />}
+    {(scene.id === 'endcard' || scene.id === 'brandopen') && <EndCard />}
+    {scene.id !== 'intro' && scene.id !== 'endcard' && scene.id !== 'brandopen' && scene.id !== 'hero' && scene.id !== 'seats' && scene.id !== 'seats_scroll' && scene.id !== 'altitudes' && <LogoBug frames={frames} />}
   </AbsoluteFill>
 );
 
@@ -337,9 +337,21 @@ export const Commercial: React.FC<{ order: Scene[] }> = ({ order }) => {
 
       {/* Sound design: all synthesized (see CREDITS.md). */}
       {sfx('audio/chime.wav', 0, 0.8)}
-      <Sequence from={0} durationInFrames={Math.round(t('splash') * fps) + 15} layout="none">
-        <Audio src={staticFile('audio/hum.wav')} volume={(f) => interpolate(f, [0, 8, t('splash') * fps - 10, t('splash') * fps + 15], [0, 0.35, 0.35, 0], clamp)} />
-      </Sequence>
+      {/* Background hum tiled across full video: 5 s clip placed every 4.5 s. */}
+      {[0, 4.5, 9, 13.5, 18].map((startSec, i) => {
+        const startFrame = Math.round(startSec * fps);
+        const dur = Math.min(total - startFrame, Math.round(5.5 * fps));
+        if (dur <= 0) return null;
+        return (
+          <Sequence key={`hum${i}`} from={startFrame} durationInFrames={dur} layout="none">
+            <Audio src={staticFile('audio/hum.wav')} volume={(f: number) => {
+              const fadeIn = interpolate(f, [0, 8], [0, 0.28], clamp);
+              const fadeOut = interpolate(f, [dur - 12, dur], [0.28, 0], clamp);
+              return Math.min(fadeIn, fadeOut);
+            }} />
+          </Sequence>
+        );
+      })}
       {order.map((s, i) => (s.transitionIn.kind === 'wipeUp' || s.transitionIn.kind === 'slideUp' || s.transitionIn.kind === 'fade') && i > 0
         ? sfx('audio/whoosh.wav', at[i] / fps - 0.25, 0.45, `w${i}`) : null)}
       {sfx('audio/riser.wav', breakAt - 1.2, 0.5)}
