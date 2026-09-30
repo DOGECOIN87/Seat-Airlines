@@ -48,7 +48,7 @@ const ownerAddress = (n) => '1'.repeat(31) + B58[n];
 /** A fake chain. Records every call so the batching is observable. */
 function chain({
   holders = [], programOwned = [], failPage = -1, largest = [],
-  tokenAccounts = null, decimals = 0, mintOwner = TOKEN,
+  tokenAccounts = null, decimals = 0, mintOwner = TOKEN, helius = null,
 } = {}) {
   const calls = [];
   globalThis.fetch = async (url, init) => {
@@ -72,6 +72,12 @@ function chain({
         return reply(tokenAccounts);
       case 'getTokenLargestAccounts':
         return reply({ value: largest });
+      // Helius's DAS method. Unset, it is an endpoint that does not know it.
+      case 'getTokenAccounts': {
+        if (!helius) return reply(null);
+        const { page, limit } = body.params;
+        return reply({ total: helius.length, limit, page, token_accounts: helius.slice((page - 1) * limit, page * limit) });
+      }
       case 'getMultipleAccounts': {
         const page = calls.filter((c) => c.method === 'getMultipleAccounts').length - 1;
         if (page === failPage) return { ok: false, json: async () => ({}) };
@@ -261,6 +267,37 @@ await check('an indexer is still preferred to scanning the chain', async () => {
   assert(list.holders.length === 30, `the indexer's answer was not used: ${list.holders.length}`);
   assert(!calls.some((c) => c.method === 'getProgramAccounts'),
     'the chain was scanned although an indexer had already answered');
+});
+
+await check('Helius is asked first, and a pool it lists is not a passenger', async () => {
+  /* getTokenAccounts returns every token account for the mint, a bonding
+     curve's and a pool's included, and the pool is usually the biggest. It
+     was trusted as if it came pre-filtered, which seats the pool in 1A. */
+  const helius = [
+    { owner: 'pool', amount: 5000 },
+    ...Array.from({ length: 10 }, (_, i) => ({ owner: `wallet${i}`, amount: 1000 - i })),
+  ];
+  const calls = chain({ helius, programOwned: ['pool'] });
+  const list = await readHolderList({ rpcUrl: RPC, mint: 'MINT', manifestSize: 178 });
+
+  assert(list && list.live, 'the Helius answer seated nobody');
+  assert(!list.holders.some((h) => h.address === 'pool'), 'a pool was seated from the Helius list');
+  assert(list.holders[0].address === 'wallet0', `1A went to ${list.holders[0]?.address}`);
+  assert(!calls.some((c) => c.method === 'getProgramAccounts'), 'scanned the chain when Helius had answered');
+});
+
+await check('and every page of it is read, not just the first thousand', async () => {
+  /* The biggest holder is on the last page here. A sweep that stopped after
+     one page would never have met them. */
+  const helius = [
+    ...Array.from({ length: 1000 }, (_, i) => ({ owner: `small${i}`, amount: 1 })),
+    { owner: 'whale', amount: 1_000_000 },
+  ];
+  const calls = chain({ helius });
+  const list = await readHolderList({ rpcUrl: RPC, mint: 'MINT', manifestSize: 178 });
+
+  assert(calls.filter((c) => c.method === 'getTokenAccounts').length === 2, 'the second page was never asked for');
+  assert(list.holders[0].address === 'whale', `the largest holder was missed; 1A went to ${list.holders[0]?.address}`);
 });
 
 await check('with neither an indexer nor an RPC there is no aircraft', async () => {
