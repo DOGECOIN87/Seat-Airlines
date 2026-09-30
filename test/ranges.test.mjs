@@ -88,11 +88,11 @@ check('the ranges drift the way the ground does, and a cell keeps its address as
 });
 
 check('relief is down overhead, up out toward the horizon, and down again past the plate', () => {
-  assert(rise(0) === 0 && rise(15000) === 0, 'not flat close in');
-  assert(rise(40000) === 1, 'not at full height mid-distance');
+  assert(rise(0) === 0 && rise(RISE[0] - 1) === 0, 'not flat close in');
+  assert(rise((RISE[1] + SET[0]) / 2) === 1, 'not at full height mid-distance');
   assert(rise(70000) === 0, 'still standing past the plate');
   let last = 0;
-  for (let d = 22000; d <= 31000; d += 500) { const r = rise(d); assert(r >= last, 'not monotonic'); last = r; }
+  for (let d = RISE[0]; d <= RISE[1]; d += 500) { const r = rise(d); assert(r >= last, 'not monotonic'); last = r; }
 });
 
 check('a height field is 0–1, tops out at 1 and meets the plain at its edge', () => {

@@ -27,7 +27,7 @@ import { noise2 } from './noise';
  */
 
 /** Metres from the plain to the highest point of each landscape. */
-const PEAK: Record<RangeKind, number> = { montana: 3900, spain: 1900 };
+const PEAK: Record<RangeKind, number> = { montana: 5200, spain: 2400 };
 
 /** Where the relief is sunk to when it is not showing: under the ground plate, which lies at −2. */
 const SUNK = -30;
@@ -237,7 +237,7 @@ export function createRanges(o: { base: string; segments: number; envMap?: THREE
       })
       .catch(() => {
         // No mountains is a fair fallback: the farmland was fine on its own.
-      })
+      });
   }
 
   const update = (shiftX: number, shiftZ: number, amt: number) => {

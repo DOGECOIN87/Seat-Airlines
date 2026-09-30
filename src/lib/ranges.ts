@@ -37,10 +37,10 @@ export const DRIFT = 0.25;
  * range faded to the fog's colour at full height would stand as a flat grey
  * shape against whatever sky is behind it; this way nothing is left to see.
  */
-export const RISE: readonly [number, number] = [22000, 31000];
-export const SET: readonly [number, number] = [42000, 59500];
+export const RISE: readonly [number, number] = [16000, 25000];
+export const SET: readonly [number, number] = [40000, 59500];
 /** Distances over which a range fades into the haze. */
-export const HAZE: readonly [number, number] = [36000, 59500];
+export const HAZE: readonly [number, number] = [34000, 59500];
 /**
  * The furthest any relief stands: the lattice has to cover this far all round.
  * It is inside the ground plate (60 km out along each axis), so everything
