@@ -39,33 +39,26 @@ export interface Scene {
 }
 
 const VO = {
-  welcome: {
-    file: 'vo/01.wav', at: 0.3, seconds: 2.32,
-    captions: [],
-  },
-  onePlane: { file: 'vo/02.wav', at: -0.2, seconds: 2.69, captions: [] },
-  altitude: {
-    file: 'vo/03.wav', at: -0.45, seconds: 6.13,
-    captions: [],
-  },
-  boarding: {
-    file: 'vo/04.wav', at: 0.1, seconds: 2.05,
-    // Said on the end card, which carries the words itself (SEAT AIRLINES, NOW BOARDING): no caption card over the fine print.
-    captions: [],
-  },
+  welcome: { file: 'vo/01.wav', at: 0.2, seconds: 1.64, captions: [] },
+  onePlane: { file: 'vo/02.wav', at: 0.1, seconds: 1.3, captions: [] },
+  bag: { file: 'vo/03.wav', at: 0.1, seconds: 3.67, captions: [] },
+  brand: { file: 'vo/05.wav', at: 0.1, seconds: 1.3, captions: [] },
+  altitude: { file: 'vo/06.wav', at: 0.15, seconds: 4.02, captions: [] },
+  // After the end card's fade, ~2.3 s clear of the altitude line.
+  boarding: { file: 'vo/04.wav', at: 0.2, seconds: 1.64, captions: [] },
 } satisfies Record<string, VoCue>;
 
 const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   /* Brand-open card: same EndCard component, no VO — used as the opening beat. */
-  brandopen: { id: 'brandopen' },
+  brandopen: { id: 'brandopen', vo: [VO.welcome] },
   /* The intro is the supplied animation (assets/source/user-plane.mp4, 21.0–25.5 s): no text in it, audio muted. */
   intro: { id: 'intro', clip: { src: 'clips/intro.mp4', from: 0 }, vo: [VO.welcome] },
   splash: { id: 'splash', clip: { src: 'clips/splash.mp4', from: 3.0 }, push: true },
   hero: { id: 'hero', clip: { src: 'clips/hero.mp4', from: 0 }, push: true, vo: [VO.onePlane] },
-  seats: { id: 'seats', clip: { src: 'clips/seats.mp4', from: 0 }, push: true, focus: { x: 0.705, y: 0.5, scale: 1.75 } },
+  seats: { id: 'seats', clip: { src: 'clips/seats.mp4', from: 0 }, push: true, vo: [VO.bag], focus: { x: 0.705, y: 0.5, scale: 1.75 } },
   /* Slow pan top→bottom through the full 178-seat grid, same clip zoomed in tighter. */
   seats_scroll: { id: 'seats_scroll', clip: { src: 'clips/seats.mp4', from: 0.2 }, focus: { x: 0.705, y: 0.15, scale: 2.2 }, focusEnd: { x: 0.705, y: 0.82, scale: 2.2 } },
-  advert: { id: 'advert', clip: { src: 'clips/advert.mp4', from: 0 }, focus: { x: 0.5, y: 0.8, scale: 2.2 } },
+  advert: { id: 'advert', clip: { src: 'clips/advert.mp4', from: 0 }, vo: [VO.brand], focus: { x: 0.5, y: 0.8, scale: 2.2 } },
   /* Altitude band showcase: exterior at each of the five altitude bands (0.8 s each). */
   altitudes: { id: 'altitudes', clip: { src: 'clips/altitudes.mp4', from: 0 } },
   game: { id: 'game', clip: { src: 'clips/game.mp4', from: 0.6 } },
