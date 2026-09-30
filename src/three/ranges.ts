@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CELL, POOL, cellAt, place, shapeHeights, type RangeKind } from '../lib/ranges';
 import { noise2 } from './noise';
+import { snowShader } from './snow';
 
 /**
  * The mountains and valleys on the horizon.
@@ -142,8 +143,8 @@ function buildGeometry(kind: RangeKind, field: Float32Array, size: number, seg: 
 
 export interface RangesHandles {
   group: THREE.Group;
-  /** Carry the ranges with the ground's shift; `amount` is 0–1, 0 to lay them down out of sight. */
-  update: (shiftX: number, shiftZ: number, amount: number) => void;
+  /** Carry the ranges with the ground's shift; `amount` is 0–1, 0 to lay them down out of sight; `snow` 0–1 whitens them. */
+  update: (shiftX: number, shiftZ: number, amount: number, snow?: number) => void;
   dispose: () => void;
 }
 
@@ -151,9 +152,11 @@ export function createRanges(o: { base: string; segments: number; envMap?: THREE
   const group = new THREE.Group();
   group.visible = false;
   const amount = { value: 1 };
+  const snow = { value: 0 };
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, envMap: o.envMap ?? null, envMapIntensity: 0.5 });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.rangeAmount = amount;
+    snowShader(shader, snow);
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'uniform float rangeAmount;\nvoid main() {')
       .replace(
@@ -198,8 +201,9 @@ export function createRanges(o: { base: string; segments: number; envMap?: THREE
       })
   }
 
-  const update = (shiftX: number, shiftZ: number, amt: number) => {
+  const update = (shiftX: number, shiftZ: number, amt: number, white = 0) => {
     amount.value = amt;
+    snow.value = white;
     group.visible = amt > 0.001 && geometries.size > 0;
     if (!group.visible) return;
     for (const mesh of slots) {
