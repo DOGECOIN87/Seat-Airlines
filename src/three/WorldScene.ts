@@ -15,7 +15,7 @@ import { createAirframe, ENGINE_AT, WING_CUT } from './airframe';
 import { createScenery } from './scenery';
 import { createRanges } from './ranges';
 import { precompiler } from './precompile';
-import { CITY_TILE, cityTextures, createSkyline, towerTopAt } from './skyline';
+import { CITY_TILE_X, CITY_TILE_Z, cityTextures, createSkyline, towerTopAt } from './skyline';
 import { createSnowfall, snowShader, type SnowParams } from './snow';
 import { createEngineFire } from './engineFire';
 import { createLightning } from './lightning';
@@ -806,8 +806,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      city's maps and the overlay stands down. The towers rise out of the
      streets as it comes in and sink back into them as it goes. */
   const city = cityTextures();
-  city.day.repeat.setScalar(GROUND / CITY_TILE);
-  city.night.repeat.setScalar(GROUND / CITY_TILE);
+  city.day.repeat.set(GROUND / CITY_TILE_X, GROUND / CITY_TILE_Z);
+  city.night.repeat.copy(city.day.repeat);
   const streetMat = new THREE.MeshStandardMaterial({
     map: city.day,
     emissive: new THREE.Color(0xffffff),
@@ -825,7 +825,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   streets.renderOrder = OVERLAY_ORDER;
   streets.visible = false;
   scene.add(streets);
-  const skyline = createSkyline({ blocks: lowPower ? 64 : 96, envMap: envRT.texture });
+  const skyline = createSkyline({ lotsX: lowPower ? 60 : 88, lotsZ: lowPower ? 76 : 110, envMap: envRT.texture });
   scene.add(skyline.group);
 
   /* ── Snowfall ─────────────────────────────────────────────────────────
@@ -1427,8 +1427,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     /* The ground is one repeating plane, so flying over it is an offset. */
     const map = groundMat.map;
     if (map) {
-      const tile = GROUND / map.repeat.x;
-      map.offset.set(shift.x / tile, shift.z / tile);
+      // Each axis by its own repeat: the city's tile is not square.
+      map.offset.set((shift.x * map.repeat.x) / GROUND, (shift.z * map.repeat.y) / GROUND);
       /* The emissive map has to travel with the diffuse one to the pixel.
          Drifting them apart slides every town's lights off the town. */
       groundMat.emissiveMap?.offset.copy(map.offset);
@@ -1443,8 +1443,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
          fields while both are on screen mid-crossfade. */
       ocean.day.offset.copy(map.offset);
       ocean.night.offset.copy(map.offset);
-      // The city's tile is its own size: eight blocks, streets on the towers' lines.
-      city.day.offset.set(shift.x / CITY_TILE, shift.z / CITY_TILE);
+      // The city's tile is its own size, streets on the buildings' lot lines.
+      city.day.offset.set(shift.x / CITY_TILE_X, shift.z / CITY_TILE_Z);
       city.night.offset.copy(city.day.offset);
       /* The glint slides a touch faster than the water it rides — two layers
          at two rates being the whole recipe for "liquid" — plus a slow
