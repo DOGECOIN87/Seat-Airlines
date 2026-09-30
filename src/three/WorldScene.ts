@@ -822,8 +822,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   streets.renderOrder = OVERLAY_ORDER;
   streets.visible = false;
   scene.add(streets);
-  const skyline = createSkyline({ blocks: lowPower ? 52 : 72, envMap: envRT.texture });
-  scene.add(skyline.mesh);
+  const skyline = createSkyline({ blocks: lowPower ? 64 : 96, envMap: envRT.texture });
+  scene.add(skyline.group);
 
   /* ── Snowfall ─────────────────────────────────────────────────────────
      Over the snowfields it is snowing, in the air round whichever camera
@@ -1475,7 +1475,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
 
     /* The towers, below the cloud deck: above it they are specks under it. */
     const rise = inWeather ? THREE.MathUtils.smoothstep(cityBlend, 0.25, 1) : 0;
-    skyline.update({ shiftX: shift.x, shiftZ: shift.z, rise, night: groundMat.emissiveIntensity });
+    skyline.update({ shiftX: shift.x, shiftZ: shift.z, rise, night: groundMat.emissiveIntensity, height });
     // Hand-flown, a tower is as solid as a hill.
     underfoot.towers = rise;
     /* Snow falling round the camera, in the weather. */
