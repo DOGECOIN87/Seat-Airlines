@@ -68,7 +68,7 @@ const ExteriorView = lazy(() => import('./components/ExteriorView'));
 const loadFlightDeck = () => import('./components/FlightDeck');
 const loadSeatMap = () => import('./components/SeatMap');
 const FlightDeck = lazy(loadFlightDeck);
-const CargoHold = lazy(() => import('./components/CargoHold'));
+const CargoHold = lazy(() => import('./components/CargoHold3D'));
 const CheckIn = lazy(() => import('./components/CheckIn'));
 const BoardingLadder = lazy(() => import('./components/BoardingLadder'));
 const SeatMap = lazy(loadSeatMap);

@@ -71,7 +71,7 @@ The server times every run from the moment you take the controls and refuses a s
 | **Seat · forward** | The row ahead, the passengers in it, and your seat-back screen. |
 | **Seat · look left / right** | Your head turned. What is beside you depends on your seat. |
 | **Flight deck** | The cockpit: overhead panel, autopilot panel, primary flight display and navigation display. |
-| **Cargo hold** | Below the floor, where everyone under the cutoff rides. |
+| **Cargo hold** | Below the floor, where everyone under the cutoff rides: a 3D room of frames and insulation, containers, netted bags and swinging work lamps. Drag to look around; the higher the flight, the more frost on the skin. |
 
 ## Getting around
 
