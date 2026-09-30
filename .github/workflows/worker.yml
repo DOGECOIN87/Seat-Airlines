@@ -9,6 +9,14 @@ on:
     paths:
       - 'worker/**'
       - '.github/workflows/worker.yml'
+      # The Worker also bundles these from the page's source — the seating
+      # rules, the holder scan, the cabin layout — and a change to one of
+      # them alone must redeploy it, or the two sides stop agreeing.
+      - 'src/content/cabin.ts'
+      - 'src/lib/seating.ts'
+      - 'src/lib/holderList.ts'
+      - 'src/lib/manualControls.ts'
+      - 'src/lib/scoring.ts'
   workflow_dispatch:
 
 permissions:
