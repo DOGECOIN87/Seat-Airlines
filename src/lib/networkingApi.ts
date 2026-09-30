@@ -214,6 +214,22 @@ export function storedSession(address: string | null): Session | null {
   }
 }
 
+/**
+ * Call back when another tab of this site opens or drops a session.
+ *
+ * A holder who signs in in one tab and switches back to another used to find
+ * the second still asking them to sign — a second popup, a second token, for
+ * a session this browser already held. Returns the unsubscribe.
+ */
+export function onStoredSessionChange(callback: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const listener = (event: StorageEvent) => {
+    if (event.key === SESSION_KEY || event.key === null) callback();
+  };
+  window.addEventListener('storage', listener);
+  return () => window.removeEventListener('storage', listener);
+}
+
 function keepSession(session: Session | null): void {
   try {
     if (session) window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
