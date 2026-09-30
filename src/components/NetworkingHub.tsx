@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest, ManifestEntry } from '../lib/manifest';
 import { CABIN_ZONES, type ZoneKey } from '../content/cabin';
 import {
@@ -101,6 +101,74 @@ const StatusLine = ({ text, error, onDismiss, className = '' }: {
   </p>
 );
 
+/** The Worker's `MAX_BODY_CHARS`: what one message may be. */
+const MAX_MESSAGE = 1000;
+
+/**
+ * A message box and its button, the same for an introduction, a room and
+ * the PA.
+ *
+ * It grows with what is typed, up to a point, rather than scrolling a
+ * two-line box behind a phone keyboard; it counts toward the limit, which it
+ * used to stop at without saying so; and ⌘/Ctrl-Enter sends. Plain Enter is
+ * left alone — it is a new line, and on a phone the only way to get one.
+ */
+const MessageBox = ({
+  value, onChange, onSend, placeholder, rows = 2, busy, disabled, action, busyLabel, focusClass, label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSend: () => void;
+  placeholder: string;
+  rows?: number;
+  /** This box's own send is in flight. */
+  busy: boolean;
+  /** Any send is in flight, or this box cannot send. */
+  disabled: boolean;
+  action: string;
+  busyLabel: string;
+  focusClass: string;
+  label: string;
+}) => {
+  const box = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight + 2, 224)}px`;
+  }, [value]);
+  const near = value.length >= MAX_MESSAGE * 0.9;
+  return (
+    <>
+      <textarea
+        ref={box}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !disabled) {
+            event.preventDefault();
+            onSend();
+          }
+        }}
+        aria-label={label}
+        placeholder={placeholder}
+        rows={rows}
+        maxLength={MAX_MESSAGE}
+        autoCapitalize="sentences"
+        className={`mt-2 block max-h-56 w-full resize-none overflow-y-auto rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] leading-relaxed text-ui-ink outline-none ${focusClass}`}
+      />
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <button type="button" onClick={onSend} disabled={disabled || !value.trim()} className="sa-cta disabled:opacity-60">
+          {busy ? busyLabel : action} <span aria-hidden>→</span>
+        </button>
+        <span className={`text-[11px] tabular-nums ${near ? 'font-semibold text-[#96201F]' : 'text-ui-faint'}`} aria-live={near ? 'polite' : 'off'}>
+          {value.length}/{MAX_MESSAGE}
+        </span>
+      </div>
+    </>
+  );
+};
+
 function holderName(entry: ManifestEntry): string {
   return `Holder ${entry.address.slice(0, 4)}`;
 }
@@ -142,7 +210,9 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   const showDirectory = part !== 'chat';
   const showChat = part !== 'directory';
   const [selected, setSelected] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
+  /* One draft per holder: a note half-written to one card used to follow
+     you to the next one you opened, addressed to somebody else. */
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<NetworkingProfile>(EMPTY_PROFILE);
   const [invalid, setInvalid] = useState<string | null>(null);
@@ -226,6 +296,20 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
 
   const rooms = viewerZone ? [viewerZone, ...(listeningAft ? roomsAft : [])] : [];
 
+  /* The PA is one a day, and the server says so only after a second one has
+     been written out in full. Your own announcement is in the list already,
+     so the box can say it before anybody types into it. Returns when the PA
+     is yours again, or null while it is. */
+  const announcedToday = useMemo(() => {
+    const day = 24 * 60 * 60 * 1000;
+    const last = directory.announcements
+      .filter((message) => message.from === address)
+      .map((message) => Date.parse(message.sentAt))
+      .filter((at) => Number.isFinite(at) && Date.now() - at < day)
+      .sort((a, b) => b - a)[0];
+    return last === undefined ? null : new Date(last + day).toISOString();
+  }, [directory.announcements, address]);
+
   /* After a save the editor goes, and the button that was focused goes with
      it — focus fell to the page, and a phone scrolled wherever it liked.
      It lands on the card's own Edit button instead, in the card it saved. */
@@ -296,13 +380,13 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   const submitMessage = async (target: ManifestEntry) => {
     if (!address || !canMessage(viewerZone, target.seat.zone, address, target.address)) return;
     setStatusAt('intro');
-    const body = draft.trim();
+    const body = (drafts[target.address] ?? '').trim();
     if (!body) {
       setInvalid('Write something first.');
       return;
     }
     setInvalid(null);
-    if (await directory.send(target.address, body)) setDraft('');
+    if (await directory.send(target.address, body)) setDrafts((current) => ({ ...current, [target.address]: '' }));
   };
 
   if (!manifest.entries.length) {
@@ -375,7 +459,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
             <ul className="mt-3 space-y-2">
               {directory.announcements.map((message) => (
                 <li key={message.id} className="rounded-xl border border-[#E6D08A] bg-white/70 px-3.5 py-3">
-                  <p className="text-[13px] leading-relaxed text-ui-ink">{message.body}</p>
+                  <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-ui-ink">{message.body}</p>
                   <p className="mt-1.5 text-[11px] uppercase tracking-[0.14em] text-ui-faint">
                     {senders(message.from)} · {when(message.sentAt)}
                   </p>
@@ -390,17 +474,24 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
             <div className="mt-4 rounded-xl border border-[#E6D08A] bg-white/70 p-3">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A6D00]">Yours to use</p>
               <p className="mt-1 text-[11px] leading-relaxed text-ui-soft">One a day. Everyone hears it.</p>
-              <textarea
-                value={paDraft}
-                onChange={(event) => setPaDraft(event.target.value)}
-                placeholder="Cabin crew, doors to arrival…"
-                rows={2}
-                maxLength={1000}
-                className="mt-2 w-full resize-none rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#C8A93B]"
-              />
-              <button type="button" onClick={() => void announce()} disabled={directory.saving} className="sa-cta mt-2 disabled:opacity-60">
-                {directory.saving ? 'Announcing…' : 'Announce'} <span aria-hidden>→</span>
-              </button>
+              {announcedToday ? (
+                <p className="mt-2 text-[11px] leading-relaxed text-ui-soft">
+                  You have made today's. The PA is yours again at {when(announcedToday)}.
+                </p>
+              ) : (
+                <MessageBox
+                  value={paDraft}
+                  onChange={setPaDraft}
+                  onSend={() => void announce()}
+                  label="Announcement"
+                  placeholder="Cabin crew, doors to arrival…"
+                  busy={directory.saving && statusAt === 'pa'}
+                  disabled={directory.saving}
+                  action="Announce"
+                  busyLabel="Announcing…"
+                  focusClass="focus:border-[#C8A93B]"
+                />
+              )}
               {statusHere('pa', 'mt-2')}
             </div>
           )}
@@ -487,8 +578,32 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                                 ? `${overheardBy} can read this too.`
                                 : 'Only the two of you can read this.'}
                             </p>
-                            <textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Introduce yourself…" rows={3} maxLength={1000} className="mt-2 w-full resize-none rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#FF668F]" />
-                            <button type="button" onClick={() => void submitMessage(entry)} disabled={directory.saving} className="sa-cta mt-2 disabled:opacity-60">{directory.saving ? 'Sending…' : 'Send'} <span aria-hidden>→</span></button>
+                            {/* What you have already said to them, so a sent
+                                note is seen to have gone, and a second one is
+                                not written in ignorance of the first. */}
+                            {directory.sent.some((message) => message.to === entry.address) && (
+                              <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto pr-1">
+                                {directory.sent.filter((message) => message.to === entry.address).slice(0, 5).map((message) => (
+                                  <li key={message.id} className="rounded-lg border border-ui-line bg-white/80 px-2.5 py-2">
+                                    <p className="whitespace-pre-wrap break-words text-[12px] leading-relaxed text-ui-soft">{message.body}</p>
+                                    <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-ui-faint">You · {when(message.sentAt)}</p>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <MessageBox
+                              value={drafts[entry.address] ?? ''}
+                              onChange={(value) => setDrafts((current) => ({ ...current, [entry.address]: value }))}
+                              onSend={() => void submitMessage(entry)}
+                              label={`Introduction to ${card?.displayName || holderName(entry)}`}
+                              placeholder="Introduce yourself…"
+                              rows={3}
+                              busy={directory.saving && statusAt === 'intro'}
+                              disabled={directory.saving}
+                              action="Send"
+                              busyLabel="Sending…"
+                              focusClass="focus:border-[#FF668F]"
+                            />
                             {statusHere('intro', 'mt-2')}
                           </div>
                         )}
@@ -608,7 +723,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                   {directory.inbox.map((message) => (
                     <li key={message.id} className="rounded-xl border border-ui-line bg-white px-3 py-2.5">
                       <p className="text-[11px] font-semibold text-ui-ink">{senders(message.from)}</p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-ui-soft">{message.body}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-ui-soft">{message.body}</p>
                       <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-ui-faint">{when(message.sentAt)}</p>
                     </li>
                   ))}
@@ -632,7 +747,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                         <p className="text-[11px] font-semibold text-ui-ink">
                           {senders(message.from)} <span className="font-normal text-ui-faint">to</span> {senders(message.to)}
                         </p>
-                        <p className="mt-1 text-[12px] leading-relaxed text-ui-soft">{message.body}</p>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-ui-soft">{message.body}</p>
                         <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-ui-faint">{when(message.sentAt)}</p>
                       </li>
                     ))}
@@ -691,17 +806,18 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
           </div>
 
           <div className="mt-4 rounded-2xl border border-ui-line bg-white/70 p-3.5">
-            <textarea
+            <MessageBox
               value={roomDraft}
-              onChange={(event) => setRoomDraft(event.target.value)}
+              onChange={setRoomDraft}
+              onSend={() => void postToRoom()}
+              label={`Message to ${sectionLabel(viewerZone)}`}
               placeholder={`Say something to ${sectionLabel(viewerZone)}…`}
-              rows={2}
-              maxLength={1000}
-              className="w-full resize-none rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#FF668F]"
+              busy={directory.saving && statusAt === 'room'}
+              disabled={directory.saving}
+              action="Post"
+              busyLabel="Posting…"
+              focusClass="focus:border-[#FF668F]"
             />
-            <button type="button" onClick={() => void postToRoom()} disabled={directory.saving} className="sa-cta mt-2 disabled:opacity-60">
-              {directory.saving ? 'Posting…' : 'Post'} <span aria-hidden>→</span>
-            </button>
             {statusHere('room', 'mt-2')}
           </div>
 
@@ -725,7 +841,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                       {said.map((message) => (
                         <li key={message.id} className="rounded-xl border border-ui-line bg-white/80 px-3 py-2.5">
                           <p className="text-[11px] font-semibold text-ui-ink">{senders(message.from)}</p>
-                          <p className="mt-1 text-[12px] leading-relaxed text-ui-soft">{message.body}</p>
+                          <p className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-ui-soft">{message.body}</p>
                           <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-ui-faint">{when(message.sentAt)}</p>
                         </li>
                       ))}
