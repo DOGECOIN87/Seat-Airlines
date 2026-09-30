@@ -1264,15 +1264,18 @@ async function handle(request: Request, env: Env): Promise<Response> {
            the list, seated or not, because you are allowed to edit it after
            being out-held. */
         const wanted = [...new Set([...ladder.seated(), me])];
-        const holes = wanted.map(() => '?').join(',');
         await ensureProfileLinks(db);
+        /* The wallets go in as one JSON parameter, not one `?` each. D1 takes
+           at most 100 bound parameters a statement, and a full aircraft is
+           178 seats — so the old `IN (?, ?, …)` failed the whole roster the
+           day the hundredth holder was seated. */
         const { results } = await db
           .prepare(
             'SELECT p.address, p.display_name, p.role, p.email, p.website, p.linkedin, p.updated_at, l.links' +
             ' FROM profiles p LEFT JOIN profile_links l ON l.address = p.address' +
-            ` WHERE p.address IN (${holes}) ORDER BY p.updated_at DESC`,
+            ' WHERE p.address IN (SELECT value FROM json_each(?)) ORDER BY p.updated_at DESC',
           )
-          .bind(...wanted)
+          .bind(JSON.stringify(wanted))
           .all<ProfileRow>();
 
         const out: Record<string, ReturnType<typeof asProfile>> = {};
