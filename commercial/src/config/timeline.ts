@@ -49,7 +49,7 @@ const VO = {
     captions: [{ text: 'Market cap is altitude.', from: 0.45, to: 2.0 }],
   },
   boarding: {
-    file: 'vo/04.wav', at: -0.6, seconds: 1.65,
+    file: 'vo/04.wav', at: 0.1, seconds: 2.05,
     // Said on the end card, which carries the words itself (SEAT AIRLINES, NOW BOARDING): no caption card over the fine print.
     captions: [],
   },
@@ -61,11 +61,11 @@ const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   /* The intro is the supplied animation (assets/source/user-plane.mp4, 21.0–25.5 s): no text in it, audio muted. */
   intro: { id: 'intro', clip: { src: 'clips/intro.mp4', from: 0 }, vo: [VO.welcome] },
   splash: { id: 'splash', clip: { src: 'clips/splash.mp4', from: 3.0 }, push: true },
-  hero: { id: 'hero', clip: { src: 'clips/hero.mp4', from: 0.5 }, push: true, vo: [VO.onePlane] },
-  seats: { id: 'seats', clip: { src: 'clips/seats.mp4', from: 0.2 }, push: true, focus: { x: 0.705, y: 0.5, scale: 1.75 } },
+  hero: { id: 'hero', clip: { src: 'clips/hero.mp4', from: 0 }, push: true, vo: [VO.onePlane] },
+  seats: { id: 'seats', clip: { src: 'clips/seats.mp4', from: 0 }, push: true, focus: { x: 0.705, y: 0.5, scale: 1.75 } },
   /* Slow pan top→bottom through the full 178-seat grid, same clip zoomed in tighter. */
   seats_scroll: { id: 'seats_scroll', clip: { src: 'clips/seats.mp4', from: 0.2 }, focus: { x: 0.705, y: 0.15, scale: 2.2 }, focusEnd: { x: 0.705, y: 0.82, scale: 2.2 } },
-  advert: { id: 'advert', clip: { src: 'clips/advert.mp4', from: 0.5 }, focus: { x: 0.5, y: 0.8, scale: 2.2 } },
+  advert: { id: 'advert', clip: { src: 'clips/advert.mp4', from: 0 }, focus: { x: 0.5, y: 0.8, scale: 2.2 } },
   /* Altitude band showcase: exterior at each of the five altitude bands (0.8 s each). */
   altitudes: { id: 'altitudes', clip: { src: 'clips/altitudes.mp4', from: 0 } },
   game: { id: 'game', clip: { src: 'clips/game.mp4', from: 0.6 } },
@@ -74,32 +74,33 @@ const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   endcard: { id: 'endcard', vo: [VO.boarding] },
 };
 
-/** Order A (primary): brand open → intro → hero → seats → scroll → ad → climb → altitudes → end. 19.5 s. */
+/* Every change is a half-second crossfade; each scene carries the extra time for it. */
+const X = { kind: 'fade', frames: 15 } as const;
+
+/** Order A (primary): brand open → splash → hero → seats → scroll → ad → climb → altitudes → end. 21.5 s. */
 export const ORDER_A: Scene[] = [
-  { ...S.brandopen, seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
-  { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 8 } },
-  { ...S.splash, seconds: 1.5, transitionIn: { kind: 'none', frames: 0 } },
-  { ...S.hero, seconds: 1.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
-  { ...S.seats, seconds: 1.0, transitionIn: { kind: 'slideUp', frames: 8 } },
-  { ...S.seats_scroll, seconds: 3.0, transitionIn: { kind: 'none', frames: 0 } },
-  { ...S.advert, seconds: 1.0, transitionIn: { kind: 'fade', frames: 6 } },
-  { ...S.climb, seconds: 2.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
-  { ...S.altitudes, seconds: 4.0, transitionIn: { kind: 'fade', frames: 8 } },
-  { ...S.endcard, seconds: 1.5, transitionIn: { kind: 'fade', frames: 8 } },
+  { ...S.brandopen, seconds: 2.0, transitionIn: X },
+  { ...S.splash, seconds: 2.0, transitionIn: X },
+  { ...S.hero, seconds: 1.5, transitionIn: X },
+  { ...S.seats, seconds: 1.5, transitionIn: X },
+  { ...S.seats_scroll, seconds: 3.5, transitionIn: X },
+  { ...S.advert, seconds: 1.5, transitionIn: X },
+  { ...S.climb, seconds: 2.5, transitionIn: X },
+  { ...S.altitudes, seconds: 4.0, transitionIn: X },
+  { ...S.endcard, seconds: 3.0, transitionIn: X },
 ];
 
-/** Order B (comparison): brand open → hero → seats → scroll → climb → altitudes → end. 19.5 s. */
+/** Order B (comparison): brand open → splash → hero → ad → seats → scroll → climb → altitudes → end. 21.5 s. */
 export const ORDER_B: Scene[] = [
-  { ...S.brandopen, seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
-  { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 8 } },
-  { ...S.splash, seconds: 1.5, transitionIn: { kind: 'none', frames: 0 } },
-  { ...S.hero, seconds: 1.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
-  { ...S.advert, seconds: 1.0, transitionIn: { kind: 'fade', frames: 6 } },
-  { ...S.seats, seconds: 1.0, transitionIn: { kind: 'slideUp', frames: 8 } },
-  { ...S.seats_scroll, seconds: 3.0, transitionIn: { kind: 'none', frames: 0 } },
-  { ...S.climb, seconds: 2.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
-  { ...S.altitudes, seconds: 4.0, transitionIn: { kind: 'fade', frames: 8 } },
-  { ...S.endcard, seconds: 1.5, transitionIn: { kind: 'fade', frames: 8 } },
+  { ...S.brandopen, seconds: 2.0, transitionIn: X },
+  { ...S.splash, seconds: 2.0, transitionIn: X },
+  { ...S.hero, seconds: 1.5, transitionIn: X },
+  { ...S.advert, seconds: 1.5, transitionIn: X },
+  { ...S.seats, seconds: 1.5, transitionIn: X },
+  { ...S.seats_scroll, seconds: 3.5, transitionIn: X },
+  { ...S.climb, seconds: 2.5, transitionIn: X },
+  { ...S.altitudes, seconds: 4.0, transitionIn: X },
+  { ...S.endcard, seconds: 3.0, transitionIn: X },
 ];
 
 /** Start frame of every scene on the final timeline. */
