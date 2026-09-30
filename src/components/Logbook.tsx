@@ -507,6 +507,9 @@ const Logbook = ({ manifest, address, sign, controls, onControls, onClose }: Log
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
                   maxLength={120}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="A wallet, a handle, a room"
                   className="mt-1 w-full rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#8E76E8]"
                 />
@@ -516,6 +519,9 @@ const Logbook = ({ manifest, address, sign, controls, onControls, onClose }: Log
                 <input
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="listing, partner, cex"
                   className="mt-1 w-full rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#8E76E8]"
                 />
@@ -559,6 +565,9 @@ const Logbook = ({ manifest, address, sign, controls, onControls, onClose }: Log
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              type="search"
+              enterKeyHint="search"
+              aria-label="Search the logbook"
               placeholder="Search"
               className="w-full max-w-xs rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#8E76E8]"
             />

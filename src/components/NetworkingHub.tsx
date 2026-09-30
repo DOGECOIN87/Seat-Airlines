@@ -39,6 +39,37 @@ const zoneAccent: Record<ZoneKey, string> = {
   economy: 'border-[#00A8D1] bg-[#EFFBFE]',
 };
 
+/**
+ * The card's own fields, each with the keyboard it wants.
+ *
+ * A phone keyboard is chosen by these attributes and nothing else: without
+ * them an email went in with a capital first letter and autocorrect turning
+ * "gmail" into "gamil", and a link had no "/" or ".com" on the keys. The
+ * lengths are the Worker's (`FIELD_LIMITS` in worker/src/networking.ts), so
+ * what fits here is what is kept. The links stay `type="text"`: `url` would
+ * have the browser refuse "example.com", which the card takes and completes.
+ */
+const CARD_FIELDS = [
+  { key: 'displayName', label: 'Name or company', type: 'text', maxLength: 80, autoComplete: 'name', autoCapitalize: 'words' },
+  { key: 'role', label: 'Role', type: 'text', maxLength: 120, autoComplete: 'organization-title', autoCapitalize: 'sentences' },
+  {
+    key: 'email', label: 'Email', maxLength: 254, type: 'email', inputMode: 'email', autoComplete: 'email',
+    autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false, placeholder: 'you@example.com',
+  },
+  {
+    key: 'website', label: 'Website', type: 'text', maxLength: 300, inputMode: 'url', autoComplete: 'url',
+    autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false, placeholder: 'example.com',
+  },
+  {
+    key: 'linkedin', label: 'LinkedIn', type: 'text', maxLength: 300, inputMode: 'url', autoComplete: 'off',
+    autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false, placeholder: 'linkedin.com/in/name',
+  },
+] as const satisfies readonly ({
+  key: Exclude<keyof NetworkingProfile, 'links'>;
+  label: string;
+  type: 'text' | 'email';
+} & Pick<React.InputHTMLAttributes<HTMLInputElement>, 'maxLength' | 'inputMode' | 'autoComplete' | 'autoCapitalize' | 'autoCorrect' | 'spellCheck' | 'placeholder'>)[];
+
 function holderName(entry: ManifestEntry): string {
   return `Holder ${entry.address.slice(0, 4)}`;
 }
@@ -402,16 +433,16 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
             <p className="mt-4 text-[12px] leading-relaxed text-ui-soft">Take a seat to publish a card.</p>
           ) : editing ? (
             <div className="mt-4 space-y-3">
-              {([
-                ['displayName', 'Name or company'],
-                ['role', 'Role'],
-                ['email', 'Email'],
-                ['website', 'Website'],
-                ['linkedin', 'LinkedIn'],
-              ] as const).map(([key, label]) => (
+              {CARD_FIELDS.map(({ key, label, ...field }) => (
                 <label key={key} className="block text-[11px] font-bold uppercase tracking-[0.14em] text-ui-faint">
                   {label}
-                  <input value={form[key]} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} className="mt-1 w-full rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] font-normal normal-case tracking-normal text-ui-ink outline-none focus:border-ui-blue" />
+                  <input
+                    {...field}
+                    enterKeyHint="next"
+                    value={form[key]}
+                    onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-ui-line bg-white px-3 py-2.5 text-[12px] font-normal normal-case tracking-normal text-ui-ink outline-none placeholder:text-ui-faint/60 focus:border-ui-blue"
+                  />
                 </label>
               ))}
               {/* A handle, an @handle or the profile link all do: the server
@@ -420,13 +451,17 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                 <label key={social.key} className="block text-[11px] font-bold uppercase tracking-[0.14em] text-ui-faint">
                   {social.label}
                   <input
+                    type="text"
                     value={form.links[social.key] ?? ''}
                     placeholder={social.placeholder}
                     autoCapitalize="none"
                     autoCorrect="off"
+                    autoComplete="off"
                     spellCheck={false}
+                    enterKeyHint="next"
+                    maxLength={300}
                     onChange={(event) => setForm((current) => ({ ...current, links: { ...current.links, [social.key]: event.target.value } }))}
-                    className="mt-1 w-full rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] font-normal normal-case tracking-normal text-ui-ink outline-none placeholder:text-ui-faint/60 focus:border-ui-blue"
+                    className="mt-1 w-full rounded-lg border border-ui-line bg-white px-3 py-2.5 text-[12px] font-normal normal-case tracking-normal text-ui-ink outline-none placeholder:text-ui-faint/60 focus:border-ui-blue"
                   />
                 </label>
               ))}

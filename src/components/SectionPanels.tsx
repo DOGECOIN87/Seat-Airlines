@@ -123,6 +123,41 @@ export function SectionPanel({ open, onClose, render }: SectionPanelProps) {
     heading.current?.focus({ preventScroll: true });
   }, [open]);
 
+  /* A field the keyboard comes up over is brought back into sight.
+
+     On a phone the sheet is fixed to the bottom of the screen, above the tab
+     bar, and the keyboard rises over exactly that part of it — so the card
+     editor's lower fields and every composer were typed into blind. The
+     viewport is asked to shrink for the keyboard (`interactive-widget` in
+     index.html), which makes the sheet shorter; this then scrolls the sheet's
+     own body so the field is inside what is left. It waits for the resize,
+     because scrolling before it lands measures a screen that is about to
+     change, and falls back on a timer for browsers that never send one. */
+  useEffect(() => {
+    const root = body.current;
+    if (!open || !root) return;
+    let timer = 0;
+    const onFocus = (e: FocusEvent) => {
+      const field = e.target;
+      if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
+      if (!window.matchMedia(SHEET_QUERY).matches) return;
+      const viewport = window.visualViewport;
+      const reveal = () => {
+        window.clearTimeout(timer);
+        viewport?.removeEventListener('resize', reveal);
+        if (document.activeElement === field) field.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      };
+      viewport?.addEventListener('resize', reveal, { once: true });
+      window.clearTimeout(timer);
+      timer = window.setTimeout(reveal, 400);
+    };
+    root.addEventListener('focusin', onFocus);
+    return () => {
+      window.clearTimeout(timer);
+      root.removeEventListener('focusin', onFocus);
+    };
+  }, [open, def?.key]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

@@ -136,7 +136,7 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
         </div>
       </div>
       <label className="mt-4 block"><span className="mb-1 block text-[11px] uppercase tracking-[.16em] text-ui-faint">Description</span><input value={alt} onChange={e => setAlt(e.target.value)} maxLength={120} placeholder="What the advert says" className="ui-field" /></label>
-      <label className="mt-3 block"><span className="mb-1 block text-[11px] uppercase tracking-[.16em] text-ui-faint">Link (optional)</span><input value={href} onChange={e => setHref(e.target.value)} inputMode="url" placeholder="https://" className="ui-field" /></label>
+      <label className="mt-3 block"><span className="mb-1 block text-[11px] uppercase tracking-[.16em] text-ui-faint">Link (optional)</span><input value={href} onChange={e => setHref(e.target.value)} type="text" inputMode="url" autoComplete="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={500} placeholder="https://" className="ui-field" /></label>
       <p className="mt-4 ui-rule pt-3 text-[11px] leading-relaxed text-ui-faint">{shared ? 'Your wallet signs this image. No funds move.' : 'Saved in this browser only.'}</p>
       </div>
 

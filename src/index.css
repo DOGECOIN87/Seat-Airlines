@@ -2015,6 +2015,30 @@ html {
 .ui-field::placeholder { color: var(--ui-faint); }
 .ui-field:focus { outline: 2px solid var(--accent-deep); outline-offset: 2px; }
 
+/* Every text field on a phone, not only the ones drawn as `.ui-field`.
+
+   Below 16px, iOS zooms the page in on focus and leaves it there, and the
+   hub's and the logbook's fields were set at 12px — so tapping one threw
+   the sheet sideways and half off the screen. And a field shorter than a
+   fingertip is one that gets missed, or that lands the tap on the card
+   behind it. Unlayered, so it wins over the utilities that set 12px. */
+@media (max-width: 640px) {
+  input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='file']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='file']) {
+    min-height: 44px;
+  }
+}
+/* A field the keyboard would cover is scrolled clear of it: the sheet's
+   own head and the tab bar are the edges that matter here. */
+input,
+textarea {
+  scroll-margin-block: 5rem 2rem;
+}
+
 /* ── The contract address ─────────────────────────────────────────────
    Above everything, including the gate sign, because it is the first
    thing somebody arriving from a link is looking for. Drawn as a recess
