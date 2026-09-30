@@ -51,7 +51,7 @@ export const CITY_TOP = 380;
  * (3) and of districts (12 × 10) each way, so the repeat has no seam.
  */
 const PERIOD_X = 132;
-const PERIOD_Z = 130;
+const PERIOD_Z = 170;
 const DISTRICT_X = 12;
 const DISTRICT_Z = 10;
 /** The park, in lots of the repeating pattern: nine hundred metres by four kilometres, bounded by avenues. */
@@ -146,17 +146,18 @@ export function cityTextures(): CityTextures {
     }
   }
 
-  /* The streets themselves glow at night: sodium light pooled on the
-     asphalt, brightest at the crossings, which is most of what a city looks
-     like from the air after dark. */
-  n.fillStyle = 'rgba(255, 158, 74, 0.34)';
-  for (const x of avenues) n.fillRect(x - ave / 2, 0, ave, h);
-  n.fillStyle = 'rgba(255, 158, 74, 0.24)';
-  for (const y of streets) n.fillRect(0, y - st / 2, w, st);
+  /* The streets glow softly at night: sodium light pooled on the asphalt,
+     brightest at the crossings and uneven from block to block. Soft, because
+     from the air the buildings are the lights; an even orange grid to the
+     horizon reads as a mesh rather than a city. */
   for (const x of avenues) {
     for (const y of streets) {
-      const pool = n.createRadialGradient(x, y, 0, x, y, ave * 0.9);
-      pool.addColorStop(0, 'rgba(255, 196, 120, 0.55)');
+      const a = 0.05 + rand() * 0.1;
+      n.fillStyle = `rgba(255, 158, 74, ${a.toFixed(3)})`;
+      n.fillRect(x - ave / 2, y, ave, blockH);
+      n.fillRect(x, y - st / 2, lotW * 3, st);
+      const pool = n.createRadialGradient(x, y, 0, x, y, ave * 0.8);
+      pool.addColorStop(0, `rgba(255, 196, 120, ${(0.15 + rand() * 0.2).toFixed(3)})`);
       pool.addColorStop(1, 'rgba(255, 170, 90, 0)');
       n.fillStyle = pool;
       n.fillRect(x - ave, y - ave, ave * 2, ave * 2);
@@ -164,15 +165,15 @@ export function cityTextures(): CityTextures {
   }
   // Sodium lamps along both kerbs; the avenues busier and brighter.
   for (const x of avenues) {
-    n.fillStyle = 'rgba(255, 180, 96, 0.95)';
-    for (let y = 0; y < h; y += 7) {
+    n.fillStyle = 'rgba(255, 180, 96, 0.45)';
+    for (let y = 0; y < h; y += 11) {
       n.fillRect(x - ave / 2 + 1, y, 1.8, 1.8);
       n.fillRect(x + ave / 2 - 2.8, y, 1.8, 1.8);
     }
   }
-  n.fillStyle = 'rgba(255, 170, 90, 0.8)';
+  n.fillStyle = 'rgba(255, 170, 90, 0.35)';
   for (const y of streets) {
-    for (let x = 0; x < w; x += 9) {
+    for (let x = 0; x < w; x += 14) {
       n.fillRect(x, y - st / 2 + 1, 1.5, 1.5);
       n.fillRect(x, y + st / 2 - 2.5, 1.5, 1.5);
     }
@@ -227,10 +228,14 @@ export function cityTextures(): CityTextures {
         d.arc(tx, ty, 2.2 + rand() * 1.5, 0, Math.PI * 2);
         d.fill();
       }
-      // By night, the top floors that are lit.
-      for (let q = 0; q < 30; q++) {
-        n.fillStyle = rand() < 0.8 ? 'rgba(255, 214, 150, 0.8)' : 'rgba(180, 214, 255, 0.75)';
-        n.fillRect(x0 + rand() * (x1 - x0), y0 + rand() * (y1 - y0), 1.5, 1.5);
+      /* By night, the windows of the buildings too far off to be built:
+         past the towers the painted city is a sea of lit windows, which is
+         how a city runs to the horizon after dark. */
+      const busy = 0.4 + rand() * 0.6;
+      for (let q = 0; q < 140 * busy; q++) {
+        const c = rand();
+        n.fillStyle = c < 0.55 ? 'rgba(255, 214, 150, 0.9)' : c < 0.9 ? 'rgba(200, 222, 255, 0.9)' : 'rgba(255, 245, 225, 1)';
+        n.fillRect(x0 + rand() * (x1 - x0), y0 + rand() * (y1 - y0), 1.4, 1.4);
       }
     }
   }
@@ -588,9 +593,22 @@ vec3 skLight = skCurtain
   ? mix( vec3( 0.78, 0.88, 1.0 ), vec3( 1.0, 0.95, 0.82 ), step( 0.8, skWarm ) )
   : mix( vec3( 1.0, 0.78, 0.5 ), vec3( 0.95, 0.93, 0.86 ), step( 0.65, skWarm ) );
 skLight *= 0.75 + 0.5 * skHash2( skId + 9.1 );
-vec3 skGlow = skLight * mix( skLit * skPane * skShade, skLitP * skMean * 0.75, skBlur ) * ( 1.0 - skPlant ) * ( 1.0 - skPier ) * skWall;
+/* Far off, where a window is under a pixel, the wall does not fade to an
+   even glow — that turned every distant tower flat grey. It keeps a coarser
+   pattern instead: patches a few rooms wide and a couple of floors tall,
+   lit or dark, so a far tower is a dark shaft speckled with light, the way
+   a city reads from a few kilometres off. Only past that scale too does it
+   settle to a dim average. */
+vec2 skCc = skWc / vec2( 3.0, 2.0 );
+vec2 skCId = floor( skCc );
+float skCoarse = step( 1.0 - skLitP * 0.8, skHash2( skCId + vec2( vSkSeed * 43.0, 7.0 ) ) );
+vec2 skCF = fract( skCc );
+skCoarse *= step( 0.12, skCF.x ) * step( skCF.x, 0.88 ) * step( 0.15, skCF.y ) * step( skCF.y, 0.85 );
+float skBlurC = smoothstep( 0.35, 0.9, max( fwidth( skCc.x ), fwidth( skCc.y ) ) );
+float skFar = mix( skCoarse * 0.85, skLitP * 0.35, skBlurC );
+vec3 skGlow = skLight * mix( skLit * skPane * skShade, skFar, skBlur ) * ( 1.0 - skPlant ) * ( 1.0 - skPier ) * skWall;
 // Glass towers glow pale blue all over, their lit interiors seen through the curtain wall.
-if ( skCurtain ) skGlow += vec3( 0.22, 0.32, 0.5 ) * 0.3 * skWall * ( 1.0 - skPlant * 0.5 );
+if ( skCurtain ) skGlow += vec3( 0.22, 0.32, 0.5 ) * 0.15 * skWall * ( 1.0 - skPlant * 0.5 );
 // Floodlit crowns: the top floors of the tall ones washed with light from the setbacks.
 float skCrownWash = step( 90.0, vSkTop ) * smoothstep( vSkTop - 14.0, vSkTop - 1.0, vSkAt.y ) * skWall;
 skGlow += ( skCurtain ? vec3( 0.7, 0.85, 1.0 ) : vec3( 1.0, 0.86, 0.62 ) ) * skCrownWash * 0.45;

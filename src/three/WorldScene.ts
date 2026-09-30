@@ -825,7 +825,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   streets.renderOrder = OVERLAY_ORDER;
   streets.visible = false;
   scene.add(streets);
-  const skyline = createSkyline({ lotsX: lowPower ? 60 : 88, lotsZ: lowPower ? 76 : 110, envMap: envRT.texture });
+  const skyline = createSkyline({ lotsX: lowPower ? 80 : 120, lotsZ: lowPower ? 100 : 150, envMap: envRT.texture });
   scene.add(skyline.group);
 
   /* ── Snowfall ─────────────────────────────────────────────────────────
