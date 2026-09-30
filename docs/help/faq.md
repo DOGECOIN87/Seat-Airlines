@@ -146,6 +146,6 @@ They are seated in another cabin. Contact details are readable only by the holde
 
 <summary>Why can't I send somebody an introduction?</summary>
 
-You can only write to holders whose card you can read — your own section and every section behind it. Introductions never carry forward, and there is a limit of 20 messages an hour.
+You can only write to holders whose card you can read — the people in your own section. Introductions never go to another cabin, and there is a limit of 20 messages an hour.
 
 </details>

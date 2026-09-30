@@ -122,7 +122,7 @@ Step inside to a seat, turn your head, walk the aircraft, climb into the **fligh
 
 ### The seat ladder
 
-178 seats across five cabins — **flight deck, first, business, exit row, economy** — filled strictly by rank. Your seat is your placement on the wall, the size of your tile, and how far forward you can see in the directory.
+178 seats across five cabins — **flight deck, first, business, exit row, economy** — filled strictly by rank. Your seat is your placement on the wall, the size of your tile, and which cabin's directory and room you belong to.
 
 Check in with **Phantom, Solflare, Backpack or Nightly** and your boarding pass is issued on the spot.
 
@@ -206,7 +206,7 @@ The full guide lives on **[GitBook](https://seat-airlines.gitbook.io/seat-airlin
 
 **Section network**
 
-- [How far you can see](docs/section-network/how-far-you-can-see.md)
+- [Your seat is which room you are in](docs/section-network/how-far-you-can-see.md)
 - [Cards and sign-in](docs/section-network/cards-and-sign-in.md)
 - [Introductions, rooms and the PA](docs/section-network/introductions-rooms-and-the-pa.md)
 

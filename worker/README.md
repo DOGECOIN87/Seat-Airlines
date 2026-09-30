@@ -1,7 +1,7 @@
 # The advert server, and the cabin directory
 
 Holders put images on their own seats, publish a card, and introduce
-themselves to the section in front of them. This is what stores all of it.
+themselves to the people in their own cabin. This is what stores all of it.
 
 The wall:
 
@@ -39,7 +39,6 @@ The directory, every route of which needs a session:
 | `GET /directory` | every published card |
 | `PUT /profile` | publish or amend your own |
 | `GET /messages` | your introductions, your own cabin's room, and the PA |
-| `GET /messages?rooms=all` | the same, plus every cabin behind you |
 | `POST /messages` | to a wallet, to `section:<cabin>`, or to `announcement` |
 
 ## What the wall deliberately does not know
@@ -181,64 +180,49 @@ rule applies. That check stands aside when it cannot reach the RPC, and with
 no `RPC_URL`/`TOKEN_MINT` there is nothing to check against at all; see
 `holdsToken` on why an unanswered question is "do not know".
 
-Inside the room, the aircraft decides the rest, and it is transparent looking
-aft and opaque looking forward:
+Inside the room, the aircraft decides the rest, and **each cabin sees only
+itself**:
 
 | | |
 | --- | --- |
-| A name and role | the roster, and the roster belongs to the whole cabin |
-| Contact details | your own section and every seated cabin behind it, never one in front |
-| A conversation | the two wallets on it, plus any section seated ahead of **both** |
-| An introduction | wherever a card can be read: your own section and every seated one behind it |
-| A cabin's room | heard the same way; **spoken in only by the people seated in it** |
+| A name and role | the roster, and the roster belongs to the whole aircraft |
+| Contact details | your own section, and nobody else's |
+| A conversation | the two wallets on it, and nobody else |
+| An introduction | wherever a card can be read: your own section only |
+| A cabin's room | read and spoken in only by the people seated in it |
 | The PA | one line a day from the flight deck, heard by the whole aircraft |
 
-Three consequences worth stating plainly, because they are the point rather
-than side effects. The flight deck reads everything, and economy — with no
-cabin behind it — reads nothing. A section cannot read its *peers*: First
-Class sees every conversation in business and economy, and none of the other
-First Class ones, because a chat with one end level with you is not behind
-you.
+This used to run the other way: a seat saw down the aircraft, so the flight
+deck read every cabin's cards, rooms and even the private introductions
+between two seats behind it (`overheard`), and could write to anybody. All of
+that is gone. The rank still decides which cabin you are in; it no longer
+buys a view of anybody else's. `GET /messages` still sends `overheard`,
+always empty, and ignores `?rooms=all`, so a page from before the change
+keeps working. `canOverhear` is kept in the shared module, answering no.
 
 And **the hold is not a cabin.** Every rule above is scoped to the manifest.
 A wallet that did not get a seat is on no roster and has no name the page
-could put to it, so its card is not served and its conversations are not
-read out of the database in order to be withheld. Both queries name the
-seats — `WHERE address IN (…)` and `WHERE sender IN (…) AND recipient IN
-(…)`, a cabinful of bound parameters — rather than asking for everything and
-filtering after. A row nobody can be shown is a row not worth fetching.
+could put to it, so its card is not served and it has no room.
+
+The roster is read by naming the seats rather than asking for everything and
+filtering after — but as **one** bound parameter, a JSON array read with
+`json_each(?)`. It used to be `WHERE address IN (?, ?, …)`, one parameter per
+seat, and D1 allows 100 bound parameters a statement: a full aircraft is 178
+seats, so the roster would have failed outright once about a hundred holders
+were aboard.
 
 **Writing goes exactly as far as reading.** A card you can read is a card you
-can answer, and nothing carries forward. So the flight deck can reach anybody
-on the aircraft and nobody can reach the flight deck; the further forward a
-holder sits, the fewer people can write to them at all.
+can answer, so you write to the people in your own cabin and to nobody else.
+`canMessage` sits in the shared seating module with the other rules — it *is*
+`canViewContact`, plus the check that a wallet is not an introduction to
+itself — and `POST /messages` asks it before it writes a row. The page hides a
+composer it knows would be refused, but the rule is enforced here.
 
-That rule was narrower once — First Class to First Class and nothing else, on
-the reasoning that an inbox is a claim on somebody's attention rather than a
-view. The reasoning was sound; the rule drawn from it was not. It left the two
-largest holders unable to write to a single person or be written to, and every
-cabin behind First with a directory it could read and never use. "Never
-forward" protects what that reasoning was actually protecting, and it is
-already the line everything else here runs on.
-
-Until recently the rule was the page's alone: the composer was hidden and this
-route took the message anyway, so one fetch wrote into an inbox the sender
-could not otherwise reach. Reads were enforced here; writes were on trust.
-`canMessage` sits in the shared seating module with the other two rules now —
-it *is* `canViewContact`, plus the check that a wallet is not an introduction
-to itself — and `POST /messages` asks it before it writes a row.
-
-### Rooms, and the one place posting is narrower than reading
+### Rooms
 
 A cabin is somewhere to talk as well as somewhere to sit. Each has a channel,
-and a holder **hears their own and every one behind it** — the same line as a
-contact card — but **speaks only in their own**. You can read what Economy is
-saying, and write to anybody in Economy personally, and still not walk into
-their conversation and talk. A section's room belongs to the people sitting in
-it; a room the rows in front can post into is not that.
-
-It is also what keeps moving up worth something in the other direction. Every
-seat forward is one more room you can hear and one fewer voice in your own.
+and a holder reads and speaks only in their own. A section's room belongs to
+the people sitting in it.
 
 A channel is addressed the way a wallet is, as the `recipient` of a message,
 because to a table of messages that is exactly what it is: somewhere a message
@@ -248,21 +232,10 @@ convenience, not the argument. The argument is that the one place a room and a
 person must never be confused is the one place they cannot be: base58 has no
 colon in it, so no key anybody holds can ever spell a cabin.
 
-Only cabins with somebody in them have rooms. An empty cabin's is necessarily
-empty, so asking after it is a query whose answer is known in advance, and
-drawing it would promise a conversation nobody could ever be in.
-
-**A sign-in fetches one room: the one you are sitting in.** Which cabins a
-seat *may* hear has not changed — that is still its own and every one behind
-it — but the hub opens on your own cabin and puts the rest behind a button, so
-reading all five on every sign-in meant up to 250 rows fetched to paint about
-twenty. `?rooms=all` is what that button asks for, and it asks at the moment
-somebody wants them. It is a request for what the seat may hear, not a way
-around it: Business asking for everything still gets Business.
-
-Worst case for a sign-in is now 5 queries and about 85 rows rather than 8 and
-405. Every read is still bounded by a `LIMIT`; none of them has ever been "all
-the messages".
+A request reads one room — yours — so the worst case for `GET /messages` is
+four queries (inbox, sent, your room, the PA), each bounded by a `LIMIT`; none
+of them has ever been "all the messages". The page re-reads it every 30
+seconds while it is open and in front, and not at all from a background tab.
 
 ### The PA
 
@@ -275,9 +248,9 @@ is listened to and a thing said twenty times is weather — and it was a promise
 printed on the boarding pass long before there was anywhere to keep it:
 *"You have the PA. One announcement a day. Use it well."*
 
-So the seat is not just a placement any more. It is how far forward you can
-see, how far back you can reach, and how many rooms you can hear — which is
-the seat ladder's own argument applied to people instead of legroom.
+So the seat is not just a placement any more. It is which cabin's cards you
+read, whose inbox you can reach and which room you talk in — the seat
+ladder's own argument, applied to people instead of legroom.
 
 ### Knowing that without a second ladder
 
@@ -308,13 +281,22 @@ middle of row 4 unless somebody wired up an indexer.
 There is a way to get the rest out of a plain RPC, and it is the one every
 explorer uses: ask the token program for every account it owns whose mint
 field is this mint. Not capped, and pinned by indexed filters so it is not a
-scan of every token on Solana. `holderList.ts` tries three sources in order:
+scan of every token on Solana. `holderList.ts` tries four sources in order:
 
 1. `HOLDERS_URL`, an indexer. Still the best answer, still uncapped.
-2. Every token account for the mint, summed by owner — the whole aircraft,
+2. **Helius `getTokenAccounts`**, when `RPC_URL` is a Helius endpoint: every
+   token account for the mint off Helius's DAS index, paged a thousand at a
+   time, for far fewer credits than a program scan. Any other endpoint does
+   not know the method and this step is skipped.
+3. Every token account for the mint, summed by owner — the whole aircraft,
    from the mint alone, no indexer required.
-3. The twenty largest accounts, for endpoints that refuse the scan. Several
+4. The twenty largest accounts, for endpoints that refuse the scan. Several
    public ones do.
+
+Whichever answers, the accounts owned by a program — a bonding curve, an AMM
+pool — are taken out before anybody is seated. Helius's list is not
+pre-filtered: the pool is usually its largest holder, and an earlier version
+that trusted it would have seated the pool in 1A.
 
 **There are two token programs**, classic SPL Token and Token-2022, and a
 mint belongs to exactly one. `getProgramAccounts` is asked *of a program*, so
@@ -684,9 +666,10 @@ The section cases need an aircraft with people in it, so **the suite serves
 its own holder list** on `127.0.0.1:8788` — the URL `wrangler.local.toml`
 points `HOLDERS_URL` at — and seats the wallets it has just generated: one on
 the flight deck, two in First, one in business. Then: a First Class card is
-name and role only to business; the same card is readable in full from the
-flight deck; a First Class conversation carries forward to the deck and not
-back to business; and the two wallets on a message always read it themselves.
+name and role only to business, and to the flight deck too; nobody overhears
+a conversation they are not on; an introduction to another cabin is refused
+in either direction; each cabin hears only its own room, `?rooms=all` or not;
+and the two wallets on a message always read it themselves.
 The local config also sets `LADDER_CACHE_MS = "1000"`, so a run is not judged
 against the seating of the run before it.
 
