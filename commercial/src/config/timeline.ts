@@ -39,13 +39,13 @@ export interface Scene {
 }
 
 const VO = {
-  welcome: { file: 'vo/01.wav', at: 0.2, seconds: 1.64, captions: [] },
-  onePlane: { file: 'vo/02.wav', at: 0.1, seconds: 1.3, captions: [] },
-  bag: { file: 'vo/03.wav', at: 0.1, seconds: 3.67, captions: [] },
-  brand: { file: 'vo/05.wav', at: 0.1, seconds: 1.3, captions: [] },
-  altitude: { file: 'vo/06.wav', at: 0.15, seconds: 4.02, captions: [] },
-  // After the end card's fade, ~2.3 s clear of the altitude line.
-  boarding: { file: 'vo/04.wav', at: 0.2, seconds: 1.64, captions: [] },
+  welcome: { file: 'vo/01.wav', at: 0.2, seconds: 2.23, captions: [] },
+  onePlane: { file: 'vo/02.wav', at: 0.1, seconds: 2.44, captions: [] },
+  bag: { file: 'vo/03.wav', at: 0.1, seconds: 4.76, captions: [] },
+  brand: { file: 'vo/05.wav', at: 0.3, seconds: 1.72, captions: [] },
+  altitude: { file: 'vo/06.wav', at: 0.15, seconds: 5.1, captions: [] },
+  // Starts as the end card settles, ~2 s clear of the altitude line.
+  boarding: { file: 'vo/04.wav', at: 0.3, seconds: 3.17, captions: [] },
 } satisfies Record<string, VoCue>;
 
 const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
@@ -67,33 +67,33 @@ const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   endcard: { id: 'endcard', vo: [VO.boarding] },
 };
 
-/* Every change is a half-second crossfade; each scene carries the extra time for it. */
+/* Every change is a half-second crossfade; scenes are long enough for their voice line at natural pace. */
 const X = { kind: 'fade', frames: 15 } as const;
 
-/** Order A (primary): brand open → splash → hero → seats → scroll → ad → climb → altitudes → end. 21.5 s. */
+/** Order A (primary): brand open → splash → hero → seats → scroll → ad → climb → altitudes → end. 25.5 s. */
 export const ORDER_A: Scene[] = [
-  { ...S.brandopen, seconds: 2.0, transitionIn: X },
+  { ...S.brandopen, seconds: 3.0, transitionIn: X },
   { ...S.splash, seconds: 2.0, transitionIn: X },
-  { ...S.hero, seconds: 1.5, transitionIn: X },
+  { ...S.hero, seconds: 2.5, transitionIn: X },
   { ...S.seats, seconds: 1.5, transitionIn: X },
   { ...S.seats_scroll, seconds: 3.5, transitionIn: X },
-  { ...S.advert, seconds: 1.5, transitionIn: X },
+  { ...S.advert, seconds: 2.0, transitionIn: X },
   { ...S.climb, seconds: 2.5, transitionIn: X },
-  { ...S.altitudes, seconds: 4.0, transitionIn: X },
-  { ...S.endcard, seconds: 3.0, transitionIn: X },
+  { ...S.altitudes, seconds: 4.5, transitionIn: X },
+  { ...S.endcard, seconds: 4.0, transitionIn: X },
 ];
 
-/** Order B (comparison): brand open → splash → hero → ad → seats → scroll → climb → altitudes → end. 21.5 s. */
+/** Order B (comparison): brand open → splash → hero → ad → seats → scroll → climb → altitudes → end. 25.5 s. */
 export const ORDER_B: Scene[] = [
-  { ...S.brandopen, seconds: 2.0, transitionIn: X },
+  { ...S.brandopen, seconds: 3.0, transitionIn: X },
   { ...S.splash, seconds: 2.0, transitionIn: X },
-  { ...S.hero, seconds: 1.5, transitionIn: X },
-  { ...S.advert, seconds: 1.5, transitionIn: X },
+  { ...S.hero, seconds: 2.5, transitionIn: X },
+  { ...S.advert, seconds: 2.0, transitionIn: X },
   { ...S.seats, seconds: 1.5, transitionIn: X },
   { ...S.seats_scroll, seconds: 3.5, transitionIn: X },
   { ...S.climb, seconds: 2.5, transitionIn: X },
-  { ...S.altitudes, seconds: 4.0, transitionIn: X },
-  { ...S.endcard, seconds: 3.0, transitionIn: X },
+  { ...S.altitudes, seconds: 4.5, transitionIn: X },
+  { ...S.endcard, seconds: 4.0, transitionIn: X },
 ];
 
 /** Start frame of every scene on the final timeline. */
