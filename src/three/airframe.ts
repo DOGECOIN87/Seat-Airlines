@@ -501,12 +501,21 @@ const FAIRING = {
 const FIN = { rootY: 1.6, height: 6.12, rootZ: 22.45, rootChord: 5.74, tipZ: 27.47, tipChord: 1.97 };
 const TAILPLANE = { rootX: 0.35, rootY: 1.02, span: 5.8, rise: 0.52, rootZ: 25.86, rootChord: 2.54, tipZ: 28.29, tipChord: 1.14 };
 
-/** The centre of the mark on the fin's starboard face — halfway up, forward of the rudder; the port one mirrors it. */
-const FIN_MARK_AT = {
-  x: 0.2,
-  y: FIN.rootY + FIN.height * 0.47,
-  z: THREE.MathUtils.lerp(FIN.rootZ, FIN.tipZ, 0.47) + THREE.MathUtils.lerp(FIN.rootChord, FIN.tipChord, 0.47) * 0.36,
-};
+/**
+ * The mark on the fin's starboard face; the port one mirrors it. Centred on
+ * the fixed part of the fin — between the swept leading edge and the rudder
+ * hinge, which lean aft at different rates — at the height where both are
+ * clear of the mark by the same margin, above the crown where the fin starts
+ * to show.
+ */
+const FIN_MARK_SIZE = 2.2;
+const FIN_MARK_AT = (() => {
+  const y = 4.3;
+  const t = (y - FIN.rootY) / FIN.height;
+  const leading = THREE.MathUtils.lerp(FIN.rootZ, FIN.tipZ, t);
+  const hinge = leading + THREE.MathUtils.lerp(FIN.rootChord, FIN.tipChord, t) * 0.7;
+  return { x: 0.19, y, z: (leading + hinge) / 2 + 0.12 };
+})();
 
 /**
  * The dorsal fillet ahead of the fin.
@@ -945,6 +954,13 @@ export function createAirframe(): AirframeHandles {
     group.add(ribbon);
   }
 
+  const finMarkTex = track(finMarkTexture('#F4F7FB'));
+  const finMarkMat = track(new THREE.MeshStandardMaterial({
+    map: finMarkTex, transparent: true, roughness: 0.34, metalness: 0.04,
+    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2,
+  }));
+  const wingletMarkGeo = track(new THREE.PlaneGeometry(0.72, 0.72));
+
   /* The lights, gathered as each part that carries them is built. What they
      do is lamps.ts; where they are is here, because it is the airframe's
      geometry that says where a wingtip or a tail cone actually is. */
@@ -1012,6 +1028,21 @@ export function createAirframe(): AirframeHandles {
     winglet.castShadow = winglet.receiveShadow = true;
     group.add(winglet);
     outboard[side].push(winglet);
+    /* The mark again, small, on both faces of the winglet — it is navy like
+       the fin, and it is what shows of the aeroplane from its own cabin
+       windows. The winglet leans out as it rises, so each decal faces the
+       way its face does. */
+    const wingletAt = new THREE.Vector3(side * (16.2 + 0.35 * 0.46), 0.5 + 1.9 * 0.46,
+      THREE.MathUtils.lerp(WING.tipZ, WING.tipZ + WING.wingletRun, 0.46) + THREE.MathUtils.lerp(WING.tipChord, 0.9, 0.46) * 0.46);
+    const outward = new THREE.Vector3(side * 1.9, -0.35, 0).normalize();
+    for (const face of [1, -1]) {
+      const n = outward.clone().multiplyScalar(face);
+      const mark = new THREE.Mesh(wingletMarkGeo, finMarkMat);
+      mark.position.copy(wingletAt).addScaledVector(n, 0.03);
+      mark.lookAt(mark.position.clone().add(n));
+      group.add(mark);
+      outboard[side].push(mark);
+    }
 
     /* The wingtip's lights. The position lamp sits in the leading edge —
        red to port, green to starboard — and is seen from dead ahead round
@@ -1163,16 +1194,10 @@ export function createAirframe(): AirframeHandles {
 
   /* The mark on the fin, one decal per side, sitting just proud of the
      panel's own half-thickness at that height so it never punches through. */
-  const finMarkTex = track(finMarkTexture('#F4F7FB'));
-  const finMarkMat = track(new THREE.MeshStandardMaterial({
-    map: finMarkTex, transparent: true, roughness: 0.34, metalness: 0.04,
-    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2,
-  }));
   /* Kept forward of the rudder hinge, on the fixed fin: a mark straddling
      the hinge would tear in half every time the rudder moved. */
-  const FIN_MARK = 2.5;
   for (const side of [1, -1]) {
-    const decal = new THREE.Mesh(track(new THREE.PlaneGeometry(FIN_MARK, FIN_MARK)), finMarkMat);
+    const decal = new THREE.Mesh(track(new THREE.PlaneGeometry(FIN_MARK_SIZE, FIN_MARK_SIZE)), finMarkMat);
     decal.position.set(side * FIN_MARK_AT.x, FIN_MARK_AT.y, FIN_MARK_AT.z);
     decal.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
     group.add(decal);

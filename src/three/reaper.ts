@@ -333,7 +333,7 @@ function headGeometry(): THREE.BufferGeometry {
   nets(b, skull, { part: PART.skin, group: FIGURE_GROUP.head }, {
     min: v3(-0.085, -0.215, -0.11),
     max: v3(0.085, 0.115, 0.12),
-    cell: 0.0026,
+    cell: 0.0031,
     aoStep: 0.004,
     aoGain: 30,
   });
