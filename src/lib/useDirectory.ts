@@ -46,6 +46,9 @@ export interface DirectoryState {
   dismiss: () => void;
 }
 
+/** How often an open, visible hub re-reads its messages. */
+const POLL_MS = 30_000;
+
 /** Whether this browser will keep anything in `localStorage` at all. */
 function storageWorks(): boolean {
   try {
@@ -94,6 +97,8 @@ export function useDirectory(
      one, moves it on, so an old attempt that settles late cannot flip the
      button back — though a signature it brings back is still used. */
   const attempt = useRef(0);
+  /** Counts finished writes, so a poll can tell one landed while it waited. */
+  const writes = useRef(0);
   /* There used to be a "still mounted?" ref here, checked after every await.
   
      It was re-armed on mount rather than only cleared on unmount, because
@@ -146,6 +151,53 @@ export function useDirectory(
     if (!session) return;
     void load(session);
   }, [session, load]);
+
+  /* New messages, while the page is open.
+
+     The inbox, the room and the PA were read once, at sign-in, and never
+     again — so a reply, a line in your cabin or the day's announcement only
+     appeared after signing in again. They are re-read every so often while
+     the tab is in front, and at once when it comes back to the front; a tab
+     in the background asks nothing.
+
+     A poll that set off before one of your own writes landed carries a list
+     from before it, and would briefly take your message back off the page,
+     so a write in the meantime discards that poll's answer. The next one
+     has it. */
+  useEffect(() => {
+    if (!session) return;
+    let inFlight = false;
+    const poll = async () => {
+      if (inFlight || document.visibilityState !== 'visible') return;
+      inFlight = true;
+      const before = writes.current;
+      try {
+        const messages = await fetchMessages(session);
+        if (writing.current || writes.current !== before) return;
+        setInbox(messages.inbox);
+        setSent(messages.sent);
+        setChannels(messages.channels ?? {});
+        setAnnouncements(messages.announcements ?? []);
+      } catch (e) {
+        /* A missed poll is not worth a red line; an ended session is. */
+        if (e instanceof SessionExpired) {
+          setSession(null);
+          setError(e.message);
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+    const timer = window.setInterval(() => void poll(), POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void poll();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [session]);
 
   /* A session opened somewhere else in this browser is this one's too.
 
@@ -256,6 +308,7 @@ export function useDirectory(
       return false;
     } finally {
       writing.current = false;
+      writes.current += 1;
       setSaving(false);
     }
   }, [session]);
@@ -289,6 +342,7 @@ export function useDirectory(
       return false;
     } finally {
       writing.current = false;
+      writes.current += 1;
       setSaving(false);
     }
   }, [session]);
