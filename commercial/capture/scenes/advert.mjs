@@ -5,6 +5,7 @@ const png = fs.readFileSync(`${ROOT}/assets/advert/nimbus-cold-brew.png`).toStri
 const s = await open();
 await board(s);
 await s.api((api, src) => { api.setPlate('view'); api.setCamera('exitRowForward'); api.setAdvert(src, '15A'); }, `data:image/png;base64,${png}`);
+await s.settle();
 await s.step(15, 100);
 if (preview) await s.shot(stillPath('advert'));
 else await s.record('advert_take1', 30);

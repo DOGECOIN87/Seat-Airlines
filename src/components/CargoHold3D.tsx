@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CAPTURE, captureState } from '../capture/flag';
 import { createCargoHold, type CargoHoldHandles } from '../three/cargoHold';
 import type { FlightFeed } from '../lib/flightFeed';
 import type { BandState } from '../lib/flightModel';
@@ -68,6 +69,7 @@ const CargoHold3D = ({ feed, band, belowCutoff, controls = HANDS_OFF }: CargoHol
   }, []);
 
   useAttitude(feed, (a, tick) => {
+    if (CAPTURE && captureState.yaw !== null) look.current.yaw = captureState.yaw;
     hold.current?.render(a, frostRef.current, look.current, performance.now());
     if (tick && capRead.current) capRead.current.textContent = formatCap(tick.marketCap);
   }, controls);

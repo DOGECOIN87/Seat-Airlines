@@ -16,11 +16,12 @@ const HOLD = 12;   // recorded frames per band (= 0.8 s after blend to 30 fps)
 const s = await open();
 await board(s);
 await s.api((api) => { api.app.setCamera('exterior'); api.setPlate('view'); });
+await s.settle();
 
 // Prime every band once so the geometry is in the GPU cache.
 for (const b of BANDS) {
   await s.api((api, v) => api.setMarketCap(v), b.cap);
-  await s.step(SETTLE);
+  await s.settle(4); // each band builds its own world, with its own shaders
 }
 
 // Record: jump to each band, settle, then capture HOLD frames.

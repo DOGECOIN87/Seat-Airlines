@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CAPTURE, captureState } from '../capture/flag';
 import { createWorld, type ViewPose, type WorldHandles } from '../three/WorldScene';
 import type { FlightFeed, FlightTick } from '../lib/flightFeed';
 import type { Annunciators, BandState } from '../lib/flightModel';
@@ -83,6 +84,7 @@ const FlightDeck3D = ({ feed, lamps, sky, band, controls = HANDS_OFF }: FlightDe
       latest.current.tick = tick;
       push();
     }
+    if (CAPTURE && captureState.yaw !== null) pose.current.yaw = captureState.yaw;
     world.current?.render(a, latest.current.sky, latest.current.band, pose.current);
   }, controls);
 

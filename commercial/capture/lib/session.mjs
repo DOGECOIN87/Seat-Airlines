@@ -19,8 +19,11 @@ const fontCss = [
   `@font-face{font-family:'${family}';font-style:normal;font-weight:${w};font-display:block;src:url(https://fonts.gstatic.com/local/${dir}/${dir}-latin-${w}-normal.woff2) format('woff2');}`)).join('\n');
 
 export async function open({ query = '', width = 1920, height = 1080, epoch } = {}) {
+  // SA_GL=gpu renders on the machine's own GPU through ANGLE's GL backend;
+  // the default, SwiftShader, needs no GPU and is what the first cut was shot on.
+  const gl = process.env.SA_GL === 'gpu' ? ['--use-angle=gl'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const browser = await chromium.launch({
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--hide-scrollbars', '--mute-audio'],
+    args: [...gl, '--ignore-gpu-blocklist', '--hide-scrollbars', '--mute-audio'],
   });
   const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, timezoneId: 'UTC', locale: 'en-US' });
   await context.addInitScript(`window.__VCLOCK_EPOCH__=${epoch ?? Date.UTC(2026, 5, 21, 15, 0, 0)};`
@@ -76,6 +79,10 @@ export async function open({ query = '', width = 1920, height = 1080, epoch } = 
         '-c:v', 'libx264', '-crf', '13', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-g', '15', out]);
       console.log('wrote', out);
       return out;
+    },
+    /** Steps the page while giving real time to what does not run on the virtual clock: chunk loads and the driver's shader compiles. */
+    async settle(rounds = 8, realMs = 700) {
+      for (let i = 0; i < rounds; i++) { await s.step(5, 100); await page.waitForTimeout(realMs); }
     },
     async untilReady(maxFrames = 600) {
       for (let i = 0; i < maxFrames; i++) {

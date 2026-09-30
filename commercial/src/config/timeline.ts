@@ -23,7 +23,7 @@ export interface VoCue {
 }
 
 export interface Scene {
-  id: 'brandopen' | 'intro' | 'splash' | 'hero' | 'altitudes' | 'seats' | 'seats_scroll' | 'advert' | 'game' | 'highscore' | 'climb' | 'endcard';
+  id: 'brandopen' | 'intro' | 'splash' | 'hero' | 'deck' | 'hold' | 'altitudes' | 'seats' | 'seats_scroll' | 'advert' | 'game' | 'highscore' | 'climb' | 'endcard';
   seconds: number;
   /** How this scene comes in, and over how many frames. */
   transitionIn: { kind: TransitionKind; frames: number };
@@ -58,10 +58,15 @@ const VO = {
 const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   /* Brand-open card: same EndCard component, no VO — used as the opening beat. */
   brandopen: { id: 'brandopen' },
-  /* The intro is the supplied animation (assets/source/user-plane.mp4, 21.0–25.5 s): no text in it, audio muted. */
+  /* The intro is the supplied animation (assets/source/user-plane.mp4, 21.0–25.5 s) when it is to hand, else the app's own
+     airliner filmed outside (capture/scenes/intro.mjs): no text in either, audio muted. */
   intro: { id: 'intro', clip: { src: 'clips/intro.mp4', from: 0 }, vo: [VO.welcome] },
   splash: { id: 'splash', clip: { src: 'clips/splash.mp4', from: 3.0 }, push: true },
   hero: { id: 'hero', clip: { src: 'clips/hero.mp4', from: 0.5 }, push: true, vo: [VO.onePlane] },
+  /* The flight deck from the captain's seat, panning across the glass; the top two holders sit here. */
+  deck: { id: 'deck', clip: { src: 'clips/deck.mp4', from: 0.1 } },
+  /* The cargo hold, panning from the baggage to the cargo door: everyone below the seat cutoff rides here. */
+  hold: { id: 'hold', clip: { src: 'clips/hold.mp4', from: 0.1 } },
   seats: { id: 'seats', clip: { src: 'clips/seats.mp4', from: 0.2 }, push: true, focus: { x: 0.705, y: 0.5, scale: 1.75 } },
   /* Slow pan top→bottom through the full 178-seat grid, same clip zoomed in tighter. */
   seats_scroll: { id: 'seats_scroll', clip: { src: 'clips/seats.mp4', from: 0.2 }, focus: { x: 0.705, y: 0.15, scale: 2.2 }, focusEnd: { x: 0.705, y: 0.82, scale: 2.2 } },
@@ -74,27 +79,31 @@ const S: Record<Scene['id'], Omit<Scene, 'seconds' | 'transitionIn'>> = {
   endcard: { id: 'endcard', vo: [VO.boarding] },
 };
 
-/** Order A (primary): brand open → intro → hero → seats → scroll → ad → climb → altitudes → end. 19.5 s. */
+/** Order A (primary): brand open → intro → hero → flight deck → seats → scroll → ad → hold → climb → altitudes → end. 24 s. */
 export const ORDER_A: Scene[] = [
   { ...S.brandopen, seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
   { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.splash, seconds: 1.5, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.hero, seconds: 1.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
+  { ...S.deck, seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
   { ...S.seats, seconds: 1.0, transitionIn: { kind: 'slideUp', frames: 8 } },
   { ...S.seats_scroll, seconds: 3.0, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.advert, seconds: 1.0, transitionIn: { kind: 'fade', frames: 6 } },
+  { ...S.hold, seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
   { ...S.climb, seconds: 2.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
   { ...S.altitudes, seconds: 4.0, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.endcard, seconds: 1.5, transitionIn: { kind: 'fade', frames: 8 } },
 ];
 
-/** Order B (comparison): brand open → hero → seats → scroll → climb → altitudes → end. 19.5 s. */
+/** Order B (comparison): brand open → intro → hero → ad → flight deck → hold → seats → scroll → climb → altitudes → end. 24 s. */
 export const ORDER_B: Scene[] = [
   { ...S.brandopen, seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
   { ...S.intro, seconds: 4.5, transitionIn: { kind: 'fade', frames: 8 } },
   { ...S.splash, seconds: 1.5, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.hero, seconds: 1.0, transitionIn: { kind: 'wipeUp', frames: 8 } },
   { ...S.advert, seconds: 1.0, transitionIn: { kind: 'fade', frames: 6 } },
+  { ...S.deck, seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
+  { ...S.hold, seconds: 1.5, transitionIn: { kind: 'fade', frames: 6 } },
   { ...S.seats, seconds: 1.0, transitionIn: { kind: 'slideUp', frames: 8 } },
   { ...S.seats_scroll, seconds: 3.0, transitionIn: { kind: 'none', frames: 0 } },
   { ...S.climb, seconds: 2.0, transitionIn: { kind: 'wipeUp', frames: 8 } },

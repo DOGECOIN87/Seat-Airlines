@@ -12,8 +12,8 @@ for v in A B; do
   ffmpeg -y -loglevel error -i out/raw-$v.mp4 -c:v copy -af "loudnorm=I=-14:TP=-1:LRA=11:measured_I=$(get input_i):measured_TP=$(get input_tp):measured_LRA=$(get input_lra):measured_thresh=$(get input_thresh):offset=$(get target_offset):linear=true,aresample=48000" -c:a aac -b:a 192k out/seat-airlines-commercial-$v.mp4
   rm out/raw-$v.mp4
 done
-# One still per scene midpoint of cut A.
-i=0; for t in 2.25 5.25 6.5 7.5 8.5 9.75 11.0 12.5 14.25; do
+# One still per scene midpoint of cut A (12 scenes; update with the timeline).
+i=0; for t in 0.75 3.75 6.75 8.0 9.25 10.5 12.5 14.5 15.75 17.5 20.5 23.25; do
   ffmpeg -y -loglevel error -ss $t -i out/seat-airlines-commercial-A.mp4 -frames:v 1 -vf "scale=640:-2,drawtext=text='$t s':x=8:y=8:fontsize=22:fontcolor=white:box=1:boxcolor=black@0.6" out/_cs$i.png; i=$((i+1)); done
-ffmpeg -y -loglevel error -i out/_cs%d.png -vf tile=3x3 -frames:v 1 out/contact-sheet-A.jpg && rm out/_cs*.png
+ffmpeg -y -loglevel error -i out/_cs%d.png -vf tile=4x3 -frames:v 1 out/contact-sheet-A.jpg && rm out/_cs*.png
 ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,r_frame_rate -of compact out/seat-airlines-commercial-A.mp4

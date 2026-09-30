@@ -284,6 +284,8 @@ const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }
     {scene.id === 'seats_scroll' && <Caption text="178 seats. One flight." frames={frames} />}
     {scene.id === 'altitudes' && <AltBandHud />}
     {scene.id === 'advert' && <Caption text="Your ad, on board." frames={frames} />}
+    {scene.id === 'deck' && <Caption text="The top two holders fly it." frames={frames} />}
+    {scene.id === 'hold' && <Caption text="Below the cutoff? You ride in the hold." frames={frames} />}
     {scene.id === 'climb' && <ClimbHud />}
     {(scene.id === 'endcard' || scene.id === 'brandopen') && <EndCard />}
     {scene.id !== 'intro' && scene.id !== 'endcard' && scene.id !== 'brandopen' && scene.id !== 'hero' && scene.id !== 'seats' && scene.id !== 'seats_scroll' && scene.id !== 'altitudes' && <LogoBug frames={frames} />}
@@ -337,8 +339,8 @@ export const Commercial: React.FC<{ order: Scene[] }> = ({ order }) => {
 
       {/* Sound design: all synthesized (see CREDITS.md). */}
       {sfx('audio/chime.wav', 0, 0.8)}
-      {/* Background hum tiled across full video: 5 s clip placed every 4.5 s. */}
-      {[0, 4.5, 9, 13.5, 18].map((startSec, i) => {
+      {/* Background hum tiled across the whole cut: the 5 s clip placed every 4.5 s. */}
+      {Array.from({ length: Math.ceil(total / fps / 4.5) }, (_, i) => i * 4.5).map((startSec, i) => {
         const startFrame = Math.round(startSec * fps);
         const dur = Math.min(total - startFrame, Math.round(5.5 * fps));
         if (dur <= 0) return null;

@@ -123,6 +123,14 @@ style.textContent = `
   }
   html.sa-capture[data-plate="view"] .sa-viewport > * > :not(.sd-view):not(:has(.sd-view)) { display: none !important; }
   html.sa-capture[data-plate="view"] .sa-viewport .sd-view > :not(canvas) { display: none !important; }
+  /* The frame round the view, its badge, and the dock of tabs along the foot of the page. */
+  html.sa-capture[data-plate="view"] .sa-viewport .sd-viewframe,
+  html.sa-capture[data-plate="view"] .sa-viewport .sd-glass,
+  html.sa-capture[data-plate="view"] .sa-viewport .sd-glass > * {
+    width: 100% !important; height: 100% !important; padding: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important;
+  }
+  html.sa-capture[data-plate="view"] .sa-viewport .sd-badge,
+  html.sa-capture[data-plate="view"] .sa-dock { display: none !important; }
   /* The brand plate: the landing's wordmark, with the airliner crossing it, alone and large. */
   html.sa-capture[data-plate="brand"] .sa-landing { background: #0F1725 !important; }
   html.sa-capture[data-plate="brand"] .sa-landing > :not(.sa-landing__top) { display: none !important; }
@@ -255,6 +263,18 @@ const api = {
     const a = PRESETS[from].yaw;
     const b = PRESETS[to].yaw;
     return tween(ms, easing, (k) => { captureState.yaw = a + (b - a) * k; });
+  },
+  /** Goes to the flight deck or the cargo hold, looking straight ahead. */
+  goTo(room: 'deck' | 'hold') {
+    captureState.yaw = 0;
+    captureState.app.setCamera?.(room);
+  },
+  /** Turns the head in the deck or the hold, degrees (negative left); null hands it back to the drag. */
+  setLook(yaw: number | null) {
+    captureState.yaw = yaw;
+  },
+  panLook(from: number, to: number, ms: number, easing = 'easeInOutCubic') {
+    return tween(ms, easing, (k) => { captureState.yaw = from + (to - from) * k; });
   },
   /** The plate: 'view' is the 3D view alone, full screen; 'brand' the wordmark and its flyover on navy; null the page. */
   setPlate(plate: 'view' | 'brand' | null) {

@@ -6,8 +6,9 @@ const capAt = (t) => { const u = Math.min(1, Math.max(0, t / c.rampSeconds)); re
 const s = await open();
 await board(s);
 await s.api((api) => { api.app.setCamera('exterior'); api.setPlate('view'); });
+await s.settle();
 // Build the cloud sea once, off camera, then start low.
-await s.api((api, v) => api.setMarketCap(v), c.to); await s.step(30);
+await s.api((api, v) => api.setMarketCap(v), c.to); await s.settle(4);
 await s.api((api, v) => api.setMarketCap(v), c.from); await s.step(60);
 const head = Math.round(c.headSeconds * FPS);
 const frames = head + Math.round((c.sceneSeconds + 1) * FPS);
