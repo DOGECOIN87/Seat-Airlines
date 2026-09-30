@@ -841,7 +841,9 @@ export default function App() {
               }
             >
               {camera === 'hold' ? (
-                <CargoHold feed={feed} band={band} belowCutoff={belowCutoff} controls={controls} />
+                <Suspense fallback={<SceneLoading />}>
+                  <CargoHold feed={feed} band={band} belowCutoff={belowCutoff} controls={controls} />
+                </Suspense>
               ) : camera === 'exterior' ? (
                 <Suspense fallback={<SceneLoading exterior />}>
                   <ExteriorView feed={feed} sky={sky} band={band} taken={taken} claimed={claimedSeat} viewing={viewSeat} controls={controls} />

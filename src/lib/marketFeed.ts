@@ -151,7 +151,15 @@ function readChange(body: Json): number | null {
 }
 
 /** What the cabin needs, pulled out of whatever shape arrived. */
-export function readTick(body: Json, previous: FlightTick): FlightTick {
+export function readTick(json: Json, previous: FlightTick): FlightTick {
+  /* A search answers with a list. Today a mint's own address finds only that
+     token, but the numbers below are taken from the first match anywhere, so
+     if the search ever found another token first this would fly on its chart.
+     Read our own entry when it can be told apart; anything else as before. */
+  const own = Array.isArray(json) && TOKEN_MINT
+    ? json.find((t) => !!t && typeof t === 'object' && (t as { id?: unknown }).id === TOKEN_MINT)
+    : undefined;
+  const body = own ?? json;
   const marketCap = findNumber(body, ['mcap', 'marketCap', 'market_cap', 'fdv']);
   const change = readChange(body);
   const holders = findNumber(body, ['holderCount', 'holder_count', 'holders']);

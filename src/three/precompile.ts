@@ -24,10 +24,30 @@ export function precompiler(renderer: THREE.WebGLRenderer): (scene: THREE.Object
     if (state === 'ready') return true;
     if (state === 'idle') {
       state = 'compiling';
+      // Never hold the first frame for long, whatever the driver does.
+      setTimeout(ready, 8000);
+      /* three's own compileAsync polls the same way, but throws from inside
+         its timer when a material has no program by the time it looks (one
+         swapped or disposed while compiling), and its promise then never
+         settles: the canvas sat black until the timeout above. Here a
+         material without a program counts as done, and anything unexpected
+         lets the frame through rather than holding it. */
       try {
-        renderer.compileAsync(scene, camera).then(ready, ready);
-        // Never hold the first frame for long, whatever the driver does.
-        setTimeout(ready, 8000);
+        const pending = renderer.compile(scene, camera);
+        const poll = () => {
+          if (state === 'ready') return;
+          try {
+            for (const material of pending) {
+              const { currentProgram } = renderer.properties.get(material) as { currentProgram?: { isReady(): boolean } };
+              if (!currentProgram || currentProgram.isReady()) pending.delete(material);
+            }
+          } catch {
+            pending.clear();
+          }
+          if (pending.size === 0) ready();
+          else setTimeout(poll, 10);
+        };
+        poll();
       } catch {
         ready();
       }
