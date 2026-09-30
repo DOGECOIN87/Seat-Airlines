@@ -91,8 +91,9 @@ TOKEN_MINT = "AWJCyg9PrMtYju9yaQmdQLcwrGobHMTv9JU3mo4upump"
 # The Worker tries Helius's indexed `getTokenAccounts` first (cheaper, uses
 # their DAS index) and falls back to the standard `getProgramAccounts` scan
 # for any non-Helius endpoint. Both paths cache the result for LADDER_CACHE_MS
-# (default 60 s), so peak traffic costs one scan a minute for the whole site
-# rather than one per visitor.
+# (default 120 s) and share it between every copy of the Worker through the
+# DIRECTORY database, so peak traffic costs one scan every two minutes for the
+# whole site rather than one per visitor, or one per copy.
 #
 # Unset, the Worker falls back to Solana's public endpoint — which rate-limits
 # the expensive holder scan and caps the cabin at twenty. `GET /health` reports

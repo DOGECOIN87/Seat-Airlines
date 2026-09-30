@@ -475,12 +475,24 @@ await check('GET /holders hands the page the list the cabin is seated from', asy
   assert(supply === 1_000_000, `the supply did not come with the list: ${supply}`);
 });
 
-await check('GET /holding answers a balance, so no page has to carry an RPC key', async () => {
+await check('GET /holding answers a seated wallet from the seating, with no call to the chain', async () => {
+  /* Alice is on the holder list at 800,000, and the chain here would say
+     1,000: the answer being the list's is the proof nothing was asked. In
+     production the two are the same read of the same chain. */
   const res = await fetch(`${BASE}/holding?address=${alice.address}`, { headers: { origin: ORIGIN } });
   assert(res.status === 200, `status ${res.status}`);
   const body = await res.json();
-  assert(body.balance === 1000, `balance: ${body.balance}`);
+  assert(body.balance === 800_000, `balance: ${body.balance}`);
   assert(body.supply === 1_000_000, `supply: ${body.supply}`);
+  assert(Math.abs(body.share - 0.8) < 1e-9, `share: ${body.share}`);
+});
+
+await check('GET /holding asks the chain for a wallet not on the list', async () => {
+  const fresh = await wallet();
+  const res = await fetch(`${BASE}/holding?address=${fresh.address}`, { headers: { origin: ORIGIN } });
+  assert(res.status === 200, `status ${res.status}`);
+  const body = await res.json();
+  assert(body.balance === 1000, `balance: ${body.balance}`);
   assert(Math.abs(body.share - 0.001) < 1e-9, `share: ${body.share}`);
 });
 

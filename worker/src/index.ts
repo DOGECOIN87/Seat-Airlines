@@ -760,14 +760,18 @@ async function handle(request: Request, env: Env): Promise<Response> {
         return json(cached.value, 200, { ...cors, 'cache-control': 'public, max-age=20' });
       }
 
-      const balance = await readBalance(env, address);
+      /* Somebody with a seat is on the list the seating was read from, with
+         their balance on it: answered from that, at no cost, and in step with
+         the seat it puts them in. Only a wallet not on the list — a small
+         holder, or nobody — costs a call to the chain. */
+      const ladder = await readLadder(env);
+      const balance = ladder.balanceOf(address) ?? (await readBalance(env, address));
       if (balance === null) {
         return json({ error: 'The chain could not be asked just now.' }, 503, { ...cors, 'cache-control': 'no-store' });
       }
 
       /* The supply the seating was read with, rather than a second call for a
          number that changes about as often as the mint does. */
-      const ladder = await readLadder(env);
       const supply = ladder.supply
         || (await rpc<{ value: TokenAmount }>(env, 'getTokenSupply', [env.TOKEN_MINT]))?.value.uiAmount
         || 0;
