@@ -364,7 +364,7 @@ if ( skWall < 0.5 ) {
 // Spires are steel.
 if ( vSkTier > 2.5 ) skCol = vec3( 0.5, 0.52, 0.55 );
 diffuseColor.rgb = skCol;
-float skLitP = mix( 0.3, 0.7, skS2 );
+float skLitP = mix( 0.4, 0.8, skS2 );
 float skLit = step( 1.0 - skLitP, skHash2( skId + vec2( vSkSeed * 91.0, floor( vSkSeed * 13.0 ) ) ) );
 float skWarm = skHash2( skId + 5.5 );
 vec3 skLight = mix( vec3( 0.75, 0.85, 1.0 ), vec3( 1.0, 0.78, 0.5 ), step( 0.3, skWarm ) );
@@ -448,7 +448,20 @@ export function createSkyline(o: { blocks: number; envMap?: THREE.Texture }): Sk
         .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix( 0.04, skCurtain ? 0.5 : 0.2, skGlass ) + ( vSkTier > 2.5 ? 0.6 : 0.0 );')
         .replace(
           '#include <emissivemap_fragment>',
-          '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skGlow * skNight * 1.5;',
+          '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skGlow * skNight * 3.0;',
+        )
+        /* After dark a city is its windows. The scene's skylight stays up at
+           night so the fields and the aircraft stay legible, and on a tower
+           that lit every wall grey as if it were dusk; so once the sun is
+           down the towers take almost none of it, nor of the sky's
+           reflection, and go black round their lit windows. */
+        .replace(
+          '#include <lights_fragment_end>',
+          `#include <lights_fragment_end>
+          reflectedLight.indirectDiffuse *= mix( 1.0, 0.04, skNight );
+          reflectedLight.indirectSpecular *= mix( 1.0, 0.06, skNight );
+          reflectedLight.directDiffuse *= mix( 1.0, 0.15, skNight );
+          reflectedLight.directSpecular *= mix( 1.0, 0.15, skNight );`,
         );
     };
     material.customProgramCacheKey = () => (near ? 'skyline-near' : 'skyline-far');
