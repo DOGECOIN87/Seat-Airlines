@@ -266,9 +266,14 @@ const Enter: React.FC<{ kind: Scene['transitionIn']['kind']; frames: number; chi
   return <AbsoluteFill>{children}</AbsoluteFill>;
 };
 
-const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }) => (
+const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }) => {
+  const f = useCurrentFrame();
+  // Every scene pushes in slowly; the clip's own push is off so the two never stack.
+  const zoom = interpolate(f, [0, frames], [1, 1.07], { ...clamp, easing: Easing.inOut(Easing.sin) });
+  return (
   <AbsoluteFill style={{ background: NAVY }}>
-    {scene.clip && <Clip src={scene.clip.src} from={scene.clip.from} push={scene.push} frames={frames} focus={scene.focus} focusEnd={scene.focusEnd} />}
+  <AbsoluteFill style={{ transform: `scale(${zoom})` }}>
+    {scene.clip && <Clip src={scene.clip.src} from={scene.clip.from} push={false} frames={frames} focus={scene.focus} focusEnd={scene.focusEnd} />}
     {scene.id === 'intro' && (
       <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'center', paddingTop: 84 }}>
         <Sequence from={20} layout="none"><SplitFlap text="FLIGHT SA350" size={52} /></Sequence>
@@ -286,7 +291,9 @@ const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }
     {(scene.id === 'endcard' || scene.id === 'brandopen') && <EndCard />}
     {scene.id !== 'intro' && scene.id !== 'endcard' && scene.id !== 'brandopen' && scene.id !== 'hero' && scene.id !== 'seats' && scene.id !== 'seats_scroll' && scene.id !== 'altitudes' && <LogoBug frames={frames} />}
   </AbsoluteFill>
-);
+  </AbsoluteFill>
+  );
+};
 
 /* ── The cut ───────────────────────────────────────────────────────── */
 
