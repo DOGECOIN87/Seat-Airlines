@@ -14,7 +14,7 @@ The wall is the seat map in **The wall** section, laid out like the aircraft wit
 * **A held seat** is a tile raised out of it.
 * **Your seat** is the one lit blue.
 * Front seats are drawn bigger — the flight deck at 1.5× and First at 1.22× — because rank 1 and rank 178 are not the same placement.
-* Runs of rows nobody holds are folded into a single strip; **Show** unfolds them.
+* Each cabin opens closed, as one line: its name, how many of its seats are taken, and **Show**. Tap a cabin to draw its seats, and tap it again (**Hide**) to fold it away.
 
 Point at a seat to read it in the panel beside the map. Click it to open it in a window, with the page frosted behind it: the advert large on the left, and on the right the seat and its rank, the holder's full address (with **Copy address** and a link to Solscan), their bag and share of supply, and the advert's description and link. **Esc**, the **×** or a click outside closes the window.
 

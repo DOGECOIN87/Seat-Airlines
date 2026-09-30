@@ -1574,7 +1574,8 @@ html {
   color: var(--ui-soft);
 }
 .sa-zone-head__title { min-width: 0; }
-.sa-zone-head h3 {
+.sa-zone-head h3,
+.sa-zone-head__name {
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
@@ -1593,7 +1594,48 @@ html {
   white-space: nowrap;
   color: var(--ui-faint);
 }
-.sa-zone-head--plain h3 { color: var(--ui-faint); }
+.sa-zone-head--plain h3,
+.sa-zone-head--plain .sa-zone-head__name { color: var(--ui-faint); }
+
+/* The header is the cabin's switch: the whole bar opens and closes it. */
+.sa-zone-toggle {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.sa-zone-toggle:hover { filter: brightness(1.03); }
+.sa-zone-toggle:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: -3px; }
+.sa-zone-toggle[aria-expanded='false'] { border-bottom-color: transparent; }
+.sa-zone-toggle .sa-zone-head__title { flex: 1 1 auto; min-width: 0; }
+.sa-zone-toggle .sa-zone-head__visual { white-space: normal; overflow-wrap: normal; }
+.sa-zone-toggle__label {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.4rem;
+  border-radius: 999px;
+  padding: 0.35rem 0.6rem;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: var(--e-press);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent-deep);
+}
+.sa-zone-toggle__chev {
+  width: 0.7rem;
+  height: 0.7rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.2s ease;
+}
+.sa-zone-toggle[aria-expanded='true'] .sa-zone-toggle__chev { transform: rotate(180deg); }
 .sa-zone-head__note {
   margin-left: auto;
   font-size: 11px;
@@ -1679,29 +1721,6 @@ html {
 .sa-seat--mine .sa-seat__rest { background: rgba(255, 255, 255, 0.75); }
 
 /* A folded run of rows nobody has taken. */
-.sa-gap {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  border-radius: var(--r);
-  padding: 0.7rem 0.9rem;
-  background: var(--ui-sink);
-  box-shadow: var(--e-press);
-  text-align: left;
-  transition: box-shadow 0.15s ease;
-}
-.sa-gap:hover { box-shadow: inset -3px -3px 7px rgba(255, 255, 255, 0.9), inset 3px 3px 7px rgba(0, 135, 234, 0.28); }
-.sa-gap__tick { width: 0.5rem; height: 0.75rem; border-radius: 2px; background: rgba(163, 167, 180, 0.45); }
-.sa-gap__text { font-size: 11.5px; color: var(--ui-soft); }
-.sa-gap__show {
-  margin-left: auto;
-  white-space: nowrap;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--ui-faint);
-}
-.sa-gap:hover .sa-gap__show { color: var(--accent-deep); }
 .sa-rownum { color: var(--ui-faint); }
 
 .sa-map__side { padding: var(--s-3) var(--s-2); }
@@ -2225,6 +2244,7 @@ p { text-wrap-style: pretty; }
 }
 
 .sa-zone-head h3,
+.sa-zone-head__name,
 .sa-zone-head__visual,
 .sa-zone-head__note,
 .sa-map__label,
@@ -2236,7 +2256,8 @@ p { text-wrap-style: pretty; }
 .sa-lamp__detail {
   line-height: 1.25;
 }
-.sa-zone-head h3 { line-height: 1.1; }
+.sa-zone-head h3,
+.sa-zone-head__name { line-height: 1.1; }
 .sa-zone-head__visual { line-height: 1.25; }
 .sa-map__seat { line-height: 1; }
 .sa-map__note,

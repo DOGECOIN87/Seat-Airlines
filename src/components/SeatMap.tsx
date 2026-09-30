@@ -1,5 +1,5 @@
 import { memo, useCallback, useState, type CSSProperties } from 'react';
-import { CABIN_ZONES, CARGO_HOLD, LAVATORY_SEATS, findSeat, seatCount, type CabinRow, type ZoneKey } from '../content/cabin';
+import { CABIN_ZONES, CARGO_HOLD, LAVATORY_SEATS, findSeat, seatCount, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner, type BannerSet } from '../lib/banners';
 import { shortAddress, type Manifest, type ManifestEntry } from '../lib/manifest';
 import { formatShare, formatTokens } from '../lib/seatLadder';
@@ -92,13 +92,6 @@ const Seat = ({ id, zone, entry, banner, mine, onOpen, onInspect }: SeatProps) =
   );
 };
 
-/** A run of consecutive rows with nobody in any of them. */
-interface Gap {
-  from: number;
-  to: number;
-  seats: number;
-}
-
 interface SeatMapProps {
   manifest: Manifest;
   banners: BannerSet;
@@ -113,7 +106,19 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
   const [selected, setSelected] = useState<string | null>(null);
   /** The seat open in its own window, over the page. */
   const [open, setOpen] = useState<{ id: string; zone: ZoneKey } | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  /* Which cabins are open. None, to begin with: the wall opens on its five
+     cabin headers and a cabin's seats are drawn only when somebody taps it.
+     Economy alone is 126 seats, and drawing all 178 — each a button, most
+     of them adverts — on every open of the panel was a long scroll on a
+     phone and a lot of work for seats nobody had asked to see. */
+  const [openZones, setOpenZones] = useState<ReadonlySet<ZoneKey>>(() => new Set());
+  const toggleZone = useCallback((zone: ZoneKey) => {
+    setOpenZones((current) => {
+      const next = new Set(current);
+      if (next.has(zone)) next.delete(zone); else next.add(zone);
+      return next;
+    });
+  }, []);
   /* A click opens the seat. It is also the selection, so the readout beside
      the map is still on it once the window closes. */
   const openSeat = useCallback((id: string) => {
@@ -123,48 +128,6 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
     setOpen({ id, zone: seat.zone });
   }, []);
   const closeSeat = useCallback(() => setOpen(null), []);
-
-  /* How full each zone is.
-
-     The map already shows this as a picture — the front is solid, the back
-     is empty — but a picture of it is not a number, and the number is what
-     somebody works out their own landing spot from. Put beside the map
-     rather than under it, it also gives the readout column something to be
-     when nothing is under the cursor. */
-  /* Runs of rows with nobody in them collapse into one line.
-
-     The aircraft fills from the front, so an unexpanded map is mostly empty
-     rows — a screen of blank outlines that says nothing except that the map
-     is long. Folding them up puts the seats that are actually held, and the
-     adverts on them, at a size worth looking at, and the fold itself carries
-     the number: this many seats, nobody holding them. */
-  const blocksFor = (rows: readonly CabinRow[]): ({ row: CabinRow } | { gap: Gap })[] => {
-    const out: ({ row: CabinRow } | { gap: Gap })[] = [];
-    let run: CabinRow[] = [];
-    const flush = () => {
-      if (!run.length) return;
-      if (showAll || run.length < 3) {
-        out.push(...run.map((row) => ({ row })));
-      } else {
-        out.push({
-          gap: {
-            from: run[0].n ?? 0,
-            to: run[run.length - 1].n ?? 0,
-            seats: run.reduce((n, r) => n + r.left.length + r.right.length, 0),
-          },
-        });
-      }
-      run = [];
-    };
-    for (const row of rows) {
-      const sold = [...row.left, ...row.right].some((c) =>
-        manifest.seats.has(row.n === null ? c : `${row.n}${c}`),
-      );
-      if (sold) { flush(); out.push({ row }); } else run.push(row);
-    }
-    flush();
-    return out;
-  };
 
   /* How big a seat is drawn, by class.
 
@@ -213,54 +176,62 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
         <div className="sa-map__cabin mx-auto max-w-[var(--cabin-w)]">
           {CABIN_ZONES.map((zone) => {
             const accent = ACCENT[zone.accent];
+            const isOpen = openZones.has(zone.key);
+            const total = seatCount(zone);
+            const held = zone.rows.reduce((n, row) => n + [...row.left, ...row.right]
+              .filter((c) => manifest.seats.has(row.n === null ? c : `${row.n}${c}`)).length, 0);
             return (
                 <section key={zone.key} className={`sa-zone sa-zone--${zone.key}`}>
-                  <header className={`sa-zone-head ${accent}`}>
-                  <span className="sa-zone-head__mark" aria-hidden>{zone.code}</span>
-                  <div className="sa-zone-head__title">
-                    <h3>{zone.name}</h3>
-                    {/* Keep "/ 08 seats" in one piece so a wrapped subtitle breaks after
-                        the name, never before the slash or inside the count. */}
-                    <span className="sa-zone-head__visual">{`${zone.visual}\u00a0/ ${String(seatCount(zone)).padStart(2, '0')}\u00a0seats`}</span>
-                  </div>
-                  {/* A word joiner after each dash, so a range ("Rows 1–2") never splits
-                    across a line on a phone while the note itself may wrap. */}
-                  <span className="sa-zone-head__note">{zone.note.replace(/–/g, '–\u2060')}</span>
-                </header>
+                  {/* The whole header is the switch: a big target on a phone,
+                      and the heading stays a heading for anybody navigating
+                      by them. */}
+                  <h3 className="m-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleZone(zone.key)}
+                      aria-expanded={isOpen}
+                      aria-controls={`sa-zone-${zone.key}`}
+                      className={`sa-zone-head sa-zone-toggle ${accent}`}
+                    >
+                      <span className="sa-zone-head__mark" aria-hidden>{zone.code}</span>
+                      <span className="sa-zone-head__title">
+                        <span className="sa-zone-head__name">{zone.name}</span>
+                        {/* How full it is, so a closed cabin still says whether it
+                            is worth opening, then the cabin's own note. One line
+                            under the name rather than a column beside it: with the
+                            switch on the right there is no room on a phone for a
+                            third column, and squeezing one in broke the name
+                            letter by letter. The count is non-breaking; a dash
+                            is followed by a word joiner so a range never splits. */}
+                        <span className="sa-zone-head__visual">
+                          {`${held}\u00a0of\u00a0${total}\u00a0taken\u00a0`}
+                          <span aria-hidden>· </span>
+                          {zone.note.replace(/–/g, '–\u2060')}
+                        </span>
+                      </span>
+                      <span className="sa-zone-toggle__label" aria-hidden>
+                        {isOpen ? 'Hide' : 'Show'}
+                        <svg viewBox="0 0 12 12" className="sa-zone-toggle__chev"><path d="M3 4.5 6 7.5 9 4.5" /></svg>
+                      </span>
+                    </button>
+                  </h3>
 
+                {isOpen && (
                 <div
+                  id={`sa-zone-${zone.key}`}
                   className={`flex flex-col gap-[5px] px-3 py-3.5 ${zone.key === 'deck' ? 'items-center' : ''}`}
                   style={{ '--seat': `calc(var(--seat-base) * ${ZONE_SCALE[zone.key]})` } as CSSProperties}
                 >
-                  {blocksFor(zone.rows).map((block) =>
-                    'gap' in block ? (
-                      <button
-                        key={`gap-${block.gap.from}`}
-                        type="button"
-                        onClick={() => setShowAll(true)}
-                        className="sa-gap"
-                      >
-                        <span aria-hidden className="flex gap-[3px]">
-                          {[0, 1, 2, 3, 4, 5].map((i) => (
-                            <span key={i} className="sa-gap__tick" />
-                          ))}
-                        </span>
-                        <span className="sa-gap__text">
-                          Rows {block.gap.from}–{block.gap.to} ·{' '}
-                          <span className="font-mono">{block.gap.seats}</span> seats nobody has taken
-                        </span>
-                        <span className="sa-gap__show">Show</span>
-                      </button>
-                    ) : (
-                      <div key={block.row.n ?? 'deck'} className="flex items-center justify-center gap-[5px]">
-                        {block.row.n !== null && (
-                          <span className="sa-rownum w-6 flex-none text-right font-mono text-[11px]">{block.row.n}</span>
+                  {zone.rows.map((row) => (
+                      <div key={row.n ?? 'deck'} className="flex items-center justify-center gap-[5px]">
+                        {row.n !== null && (
+                          <span className="sa-rownum w-6 flex-none text-right font-mono text-[11px]">{row.n}</span>
                         )}
-                        {[block.row.left, block.row.right].map((bank, side) => (
+                        {[row.left, row.right].map((bank, side) => (
                           <div key={side} className="contents">
                             {side === 1 && <span aria-hidden className="w-5 flex-none" />}
                             {bank.map((c) => {
-                              const id = block.row.n === null ? c : `${block.row.n}${c}`;
+                              const id = row.n === null ? c : `${row.n}${c}`;
                               return (
                                 <Seat
                                   key={id}
@@ -276,13 +247,13 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                             })}
                           </div>
                         ))}
-                        {block.row.n !== null && (
-                          <span className="sa-rownum w-6 flex-none font-mono text-[11px]">{block.row.n}</span>
+                        {row.n !== null && (
+                          <span className="sa-rownum w-6 flex-none font-mono text-[11px]">{row.n}</span>
                         )}
                       </div>
-                    ),
-                  )}
+                  ))}
                 </div>
+                )}
               </section>
             );
           })}
