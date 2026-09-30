@@ -13,6 +13,7 @@ import { CABIN, cabinLevel, createCabin, rowZ } from './cabin';
 import { createFlightDeck, type DeckReadout } from './flightDeck';
 import { createAirframe, ENGINE_AT, WING_CUT } from './airframe';
 import { createScenery } from './scenery';
+import { createRanges } from './ranges';
 import { createEngineFire } from './engineFire';
 import { createLightning } from './lightning';
 import { createUfoCraft, createWingBreak, type UfoPose, type WingBreak } from './ufoCraft';
@@ -787,6 +788,14 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   // The incoming sea shuffles with the ground it comes in over.
   seaMat.onBeforeCompile = (shader) => noTileShader(shader, waterNoTile, false);
 
+  /* ── The mountains ────────────────────────────────────────────────────
+     Ranges and hill country on the horizon, laid over the farmland's plate
+     out where it is haze (see `ranges.ts`). They take the same envMap and the
+     same fog as the ground, and sink out of sight over water and past the
+     cloud. */
+  const ranges = createRanges({ base: import.meta.env.BASE_URL, segments: lowPower ? 112 : 176, envMap: envRT.texture });
+  scene.add(ranges.group);
+
   /* ── What stands on it ────────────────────────────────────────────────
      The trees, houses and farms of the farmland and the ships at sea, in the
      round, standing on exactly what the ground has painted for them (see
@@ -1399,6 +1408,10 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       day,
     });
 
+    /* The ranges drift with the ground, more slowly, as anything far off
+       does. They stand on farmland, in the weather or above the cloud. */
+    ranges.update(shift.x, shift.z, inSpace || elsewhere ? 0 : farmRelief);
+
     /* The cloud deck sits at a fixed altitude; the aircraft climbs past it. */
     cloudDeckY = 2400;
     /* Even a clear day has fair-weather cumulus at this altitude, and without
@@ -1931,6 +1944,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     nearGeometry.dispose();
     nearMat.dispose();
     scenery.dispose();
+    ranges.dispose();
     ocean.day.dispose();
     ocean.night.dispose();
     ocean.glint.dispose();
