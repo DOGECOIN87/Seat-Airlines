@@ -40,13 +40,19 @@ interface SeatProps {
 const Seat = ({ id, zone, entry, banner, mine, onOpen, onInspect }: SeatProps) => {
   const lavatory = (LAVATORY_SEATS as readonly string[]).includes(id);
   const sold = entry !== null;
+  /* An advert whose picture will not load is drawn as a held seat without
+     one — its rank and number — rather than as the browser's broken-image
+     icon, which is what the front of the wall showed when one went missing.
+     Keyed to the URL, so a replaced advert gets a fresh try. */
+  const [failed, setFailed] = useState<string | null>(null);
+  const picture = banner && failed !== banner.image ? banner : null;
 
   /* Raised means held, sunk means open, blue means yours. The whole legend
      is three shadows, which is why the map can be read without one. */
   const state = mine
     ? 'sa-seat--mine'
     : sold
-      ? (banner ? 'sa-seat--advert' : 'sa-seat--sold')
+      ? (picture ? 'sa-seat--advert' : 'sa-seat--sold')
       : zone === 'exit'
         ? 'sa-seat--open sa-seat--exit'
         : lavatory
@@ -71,8 +77,13 @@ const Seat = ({ id, zone, entry, banner, mine, onOpen, onInspect }: SeatProps) =
       style={{ width: 'var(--seat)', height: 'var(--seat)' }}
       className={`sa-seat ${state}`}
     >
-      {banner ? (
-        <img src={banner.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      {picture ? (
+        <img
+          src={picture.image}
+          alt=""
+          onError={() => setFailed(picture.image)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
       ) : sold ? (
         // No advert up yet, so the seat advertises itself: rank, then the
         // seat number under it, at a size somebody can actually read.
