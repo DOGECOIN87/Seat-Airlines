@@ -196,7 +196,7 @@ const FlightDeck = ({ feed, lamps, sky, band, controls = HANDS_OFF }: FlightDeck
 
   return (
     <div
-      className="sd-view sd-frame sa-hud relative w-full overflow-hidden border border-white/12 bg-[#05070F]"
+      className="sd-view sd-frame sa-flightdeck relative w-full overflow-hidden border border-white/12 bg-[#05070F]"
       
       role="img"
       aria-label="The flight deck of SA350: overhead panel, windshield, and the captain's primary flight and navigation displays. Every reading is driven by the token's 5-minute change, and the values are published as text below."

@@ -1335,7 +1335,11 @@ html {
 .sa-shine:hover::after { animation: sa-shine 0.9s ease; }
 
 /* ── The flight deck ──────────────────────────────────────── */
-.sa-hud { contain: paint; }
+/* Its own name. It was `.sa-hud`, and the landing's game HUD later took the
+   same name for an absolutely positioned overlay — which pulled the flight
+   deck out of the page's flow, so its frame had no height and the view was
+   simply gone. */
+.sa-flightdeck { contain: paint; }
 
 /* ── The ground going past ────────────────────────────────────────────
    Each layer translates by exactly one pattern width and starts again, so
