@@ -138,5 +138,50 @@ await check('a wallet that leaves is no longer offered', () => {
   assert(!listWallets().some((w) => w.name === 'Temporary'), 'the wallet that left is still offered');
 });
 
+console.log('\nswitching account inside the wallet');
+
+await check('a registered wallet reports the new account, and then signs with it', async () => {
+  const changes = new Set();
+  const switcher = standardWallet('Switcher', { address: 'FirstAccount1111' });
+  switcher.features['standard:events'] = { version: '1.0.0', on: (_event, fn) => { changes.add(fn); return () => changes.delete(fn); } };
+  window.dispatchEvent(new CustomEvent('wallet-standard:register-wallet', { detail: ({ register }) => register(switcher) }));
+  const wallet = listWallets().find((w) => w.name === 'Switcher');
+  await wallet.connect(false);
+  const seen = [];
+  const stop = wallet.onAccountChange((a) => seen.push(a));
+  const second = { address: 'SecondAccount1111', chains: ['solana:mainnet'] };
+  changes.forEach((fn) => fn({ accounts: [second] }));
+  changes.forEach((fn) => fn({ chains: ['solana:devnet'] })); // not about accounts
+  changes.forEach((fn) => fn({ accounts: [second] })); // the same account again
+  assert(seen.join() === 'SecondAccount1111', `the page was told: ${seen}`);
+  await wallet.signMessage(new Uint8Array([1]));
+  assert(switcher.asked.sign.at(-1).account.address === 'SecondAccount1111', 'it signed with the old account');
+  changes.forEach((fn) => fn({ accounts: [] }));
+  assert(seen.at(-1) === null, 'an account the site is not trusted with did not read as disconnected');
+  stop();
+  assert(changes.size === 0, 'unsubscribing left the listener behind');
+});
+
+await check('an older provider reports the new key, a null one, and a disconnect', () => {
+  const handlers = {};
+  window.solflare.on = (e, fn) => { (handlers[e] ??= new Set()).add(fn); };
+  window.solflare.off = (e, fn) => handlers[e]?.delete(fn);
+  const wallet = listWallets().find((w) => w.name === 'Solflare');
+  const seen = [];
+  const stop = wallet.onAccountChange((a) => seen.push(a));
+  handlers.accountChanged.forEach((fn) => fn({ toString: () => 'NewKey1111' }));
+  handlers.accountChanged.forEach((fn) => fn(null));
+  handlers.disconnect.forEach((fn) => fn());
+  assert(seen.join('|') === 'NewKey1111||', `the page was told: ${JSON.stringify(seen)}`);
+  stop();
+  assert(!handlers.accountChanged.size && !handlers.disconnect.size, 'unsubscribing left a listener behind');
+});
+
+await check('a wallet with no events is followed by nothing, and nothing breaks', () => {
+  const wallet = listWallets().find((w) => w.name === 'Nightly');
+  const stop = wallet.onAccountChange(() => { throw new Error('called'); });
+  stop();
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

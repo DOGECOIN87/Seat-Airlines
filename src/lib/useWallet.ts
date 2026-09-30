@@ -106,7 +106,26 @@ export function useWallet(): WalletState {
   const [picking, setPicking] = useState(false);
   /** The wallet that is connected: it signs, and it is the one disconnected. */
   const active = useRef<WalletAdapter | null>(null);
+  const unfollow = useRef<(() => void) | null>(null);
   const answer = useRef<((wallet: WalletAdapter | null) => void) | null>(null);
+
+  /* The wallet that signs is the one being followed. Switching account inside
+     it moves the page to the new address (and with it the seat, and a fresh
+     directory session, which is kept per address); an account the site has
+     not been trusted with reads as disconnected, rather than leaving the old
+     address on screen for a signature the new key could never make. */
+  const follow = useCallback((wallet: WalletAdapter | null) => {
+    unfollow.current?.();
+    unfollow.current = null;
+    active.current = wallet;
+    if (!wallet) return;
+    unfollow.current = wallet.onAccountChange((next) => {
+      if (active.current !== wallet) return;
+      setAddress(next);
+      if (!next) setWalletName(null);
+    });
+  }, []);
+  useEffect(() => () => unfollow.current?.(), []);
 
   // Wallets register as they load, so the list is kept current rather than read once.
   useEffect(() => {
@@ -131,14 +150,14 @@ export function useWallet(): WalletState {
       .connect(true)
       .then((key) => {
         if (!key) return;
-        active.current = wallet;
+        follow(wallet);
         setWalletName(wallet.name);
         setAddress(key);
       })
       .catch(() => {
         /* not previously trusted — wait to be asked */
       });
-  }, [found, address]);
+  }, [found, address, follow]);
 
   const choose = useCallback((id: string | null) => {
     setPicking(false);
@@ -167,7 +186,7 @@ export function useWallet(): WalletState {
     try {
       const key = await wallet.connect(false);
       if (!key) throw new Error('The wallet connected but did not return an address.');
-      active.current = wallet;
+      follow(wallet);
       keepChosen(wallet.name);
       setWalletName(wallet.name);
       setAddress(key);
@@ -180,11 +199,11 @@ export function useWallet(): WalletState {
     } finally {
       setConnecting(false);
     }
-  }, []);
+  }, [follow]);
 
   const disconnect = useCallback(async () => {
     const wallet = active.current;
-    active.current = null;
+    follow(null);
     keepChosen(null);
     try {
       await wallet?.disconnect();
@@ -192,7 +211,7 @@ export function useWallet(): WalletState {
       /* disconnecting is best-effort; drop the address either way */
     }
     setAddress(null);
-  }, []);
+  }, [follow]);
 
   const signMessage = useCallback(async (message: string) => {
     const wallet = active.current;

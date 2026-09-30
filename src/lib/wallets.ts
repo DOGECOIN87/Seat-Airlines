@@ -29,6 +29,13 @@ export interface WalletAdapter {
   connect: (silent: boolean) => Promise<string | null>;
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   disconnect: () => Promise<void>;
+  /**
+   * Told when the person switches account inside the wallet, with the new
+   * address, or null when the wallet no longer offers this site one (it
+   * disconnected, or the account switched to has not trusted the site).
+   * Returns the unsubscribe. A wallet that reports nothing never calls it.
+   */
+  onAccountChange: (fn: (address: string | null) => void) => () => void;
 }
 
 /* ── The Wallet Standard ─────────────────────────────────────────────────
@@ -54,6 +61,9 @@ interface StdConnect {
 }
 interface StdDisconnect {
   disconnect: () => Promise<void>;
+}
+interface StdEvents {
+  on: (event: 'change', listener: (properties: { accounts?: readonly StdAccount[] }) => void) => () => void;
 }
 interface StdSignMessage {
   signMessage: (...inputs: { account: StdAccount; message: Uint8Array }[]) => Promise<readonly { signature: Uint8Array }[]>;
@@ -88,6 +98,18 @@ function fromStandard(w: StdWallet): WalletAdapter {
       account = null;
       await (w.features['standard:disconnect'] as StdDisconnect | undefined)?.disconnect();
     },
+    onAccountChange(fn) {
+      const events = w.features['standard:events'] as StdEvents | undefined;
+      if (typeof events?.on !== 'function') return () => {};
+      return events.on('change', ({ accounts }) => {
+        // A change that does not name the accounts is about something else (chains, features).
+        if (!accounts) return;
+        const next = solanaAccount(accounts);
+        if (next?.address === account?.address) return;
+        account = next;
+        fn(next?.address ?? null);
+      });
+    },
   };
 }
 
@@ -99,6 +121,9 @@ interface InjectedProvider {
   disconnect?: () => Promise<void>;
   publicKey?: { toString(): string } | null;
   isPhantom?: boolean;
+  on?: (event: string, listener: (arg?: unknown) => void) => void;
+  off?: (event: string, listener: (arg?: unknown) => void) => void;
+  removeListener?: (event: string, listener: (arg?: unknown) => void) => void;
 }
 
 type Injected = {
@@ -128,6 +153,23 @@ function fromInjected(name: string, provider: InjectedProvider): WalletAdapter {
     },
     async disconnect() {
       await provider.disconnect?.();
+    },
+    onAccountChange(fn) {
+      if (typeof provider.on !== 'function') return () => {};
+      /* Phantom's shape, which Solflare and Backpack follow: the new public key,
+         or null for an account that has not trusted this site yet. */
+      const changed = (key?: unknown) => {
+        const next = key && typeof (key as { toString?: unknown }).toString === 'function' ? String(key) : null;
+        fn(next);
+      };
+      const gone = () => fn(null);
+      provider.on('accountChanged', changed);
+      provider.on('disconnect', gone);
+      return () => {
+        const off = provider.off ?? provider.removeListener;
+        off?.call(provider, 'accountChanged', changed);
+        off?.call(provider, 'disconnect', gone);
+      };
     },
   };
 }
