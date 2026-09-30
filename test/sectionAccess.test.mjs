@@ -1,8 +1,8 @@
 /**
- * Who can see whom, in one direction only.
+ * Who can see whom: each cabin sees only itself.
  *
- * The cabin is transparent looking aft and opaque looking forward: a holder
- * reads their own section and everything behind it, and nothing ahead. These
+ * A holder reads their own section's cards, writes to its people, and hears
+ * its room — and nothing of any other section, in front or behind. These
  * are the rules the Worker enforces — it imports the same module — so a
  * change here that is not deliberate is a change to a privacy boundary.
  *
@@ -35,16 +35,13 @@ check('you can read your own section', () => {
   assert.equal(canViewContact(economy, economy), true);
 });
 
-check('you can read every cabin behind you', () => {
-  assert.equal(canViewContact(deck, economy), true);
-  assert.equal(canViewContact(first, business), true);
-  assert.equal(canViewContact(business, economy), true);
-});
-
-check('you can read nothing ahead of you', () => {
-  assert.equal(canViewContact(business, first), false);
-  assert.equal(canViewContact(economy, deck), false);
-  assert.equal(canViewContact(first, deck), false);
+check('you can read no other section, in front or behind', () => {
+  for (const viewer of CABINS) {
+    for (const member of CABINS) {
+      if (viewer === member) continue;
+      assert.equal(canViewContact(viewer, member), false, `${viewer} read ${member}`);
+    }
+  }
 });
 
 check('the hold is not a cabin: nobody reads it, and it reads nobody', () => {
@@ -54,24 +51,14 @@ check('the hold is not a cabin: nobody reads it, and it reads nobody', () => {
   assert.equal(canViewContact(hold, hold), false);
 });
 
-check('a conversation carries forward, never aft', () => {
-  assert.equal(canOverhear(deck, first, business), true, 'the deck is ahead of both ends');
-  assert.equal(canOverhear(first, business, economy), true);
-  assert.equal(canOverhear(business, first, economy), false, 'one end is ahead of the reader');
-  assert.equal(canOverhear(economy, first, first), false);
-});
-
-check('a section cannot read its own peers', () => {
-  assert.equal(canOverhear(first, first, business), false, 'one end is level with the reader');
-  assert.equal(canOverhear(first, first, first), false);
-  assert.equal(canOverhear(business, business, business), false);
-});
-
-check('a conversation with the hold is nobody’s to read', () => {
-  assert.equal(canOverhear(hold, first, economy), false, 'an unseated wallet overhears nothing');
-  assert.equal(canOverhear(economy, hold, hold), false, 'two wallets nobody can see are not the cabin’s business');
-  assert.equal(canOverhear(deck, economy, hold), false, 'one end off the manifest is enough to close it');
-  assert.equal(canOverhear(economy, hold, economy), false);
+check('nobody overhears a conversation they are not on', () => {
+  for (const viewer of [...CABINS, hold]) {
+    for (const from of [...CABINS, hold]) {
+      for (const to of [...CABINS, hold]) {
+        assert.equal(canOverhear(viewer, from, to), false, `${viewer} overheard ${from} → ${to}`);
+      }
+    }
+  }
 });
 
 check('outranks is strictly forward', () => {
@@ -81,23 +68,13 @@ check('outranks is strictly forward', () => {
   assert.equal(outranks(business, hold), true);
 });
 
-check('an introduction carries aft, the way a card does', () => {
+check('an introduction stays within the cabin', () => {
   assert.equal(canMessage(first, first, alice, bob), true, 'a cabin cannot write to itself');
-  assert.equal(canMessage(first, business, alice, bob), true, 'First Class cannot write to the cabin behind it');
-  assert.equal(canMessage(deck, economy, alice, bob), true, 'the flight deck cannot reach the back');
-  assert.equal(canMessage(first, first, alice, alice), false, 'a wallet introduced itself to itself');
-});
-
-check('and never forward', () => {
-  /* The line that does the protecting. It used to be done by the rule being
-     narrow — First Class to First Class and nothing else — which also left
-     the two largest holders on the aircraft unable to write to anybody. This
-     is what was actually worth keeping: the further forward you sit, the
-     fewer people can reach you, and nobody at all can reach the flight deck
-     from behind it. */
+  assert.equal(canMessage(deck, deck, alice, bob), true, 'the flight deck cannot write to itself');
+  assert.equal(canMessage(first, business, alice, bob), false, 'First Class wrote to the cabin behind it');
+  assert.equal(canMessage(deck, economy, alice, bob), false, 'the flight deck wrote to the back');
   assert.equal(canMessage(business, first, alice, bob), false, 'business wrote into the cabin in front of it');
-  assert.equal(canMessage(economy, deck, alice, bob), false);
-  assert.equal(canMessage(first, deck, alice, bob), false, 'the flight deck was written to from behind');
+  assert.equal(canMessage(first, first, alice, alice), false, 'a wallet introduced itself to itself');
 });
 
 check('writing is the same line as reading, in every cabin', () => {
@@ -137,10 +114,6 @@ check('a room is addressed like a person, and can never be one', () => {
 });
 
 check('you speak in your own cabin and no other', () => {
-  /* The one place posting is narrower than reading. You can read the cabin
-     behind you and write to anybody in it personally — but you cannot walk
-     into its conversation and talk, because that conversation belongs to the
-     people sitting in it. */
   assert.equal(canPostToChannel(first, first), true);
   assert.equal(canPostToChannel(first, business), false, 'First Class talked in the room behind it');
   assert.equal(canPostToChannel(business, first), false, 'business talked in the room in front of it');
@@ -149,7 +122,7 @@ check('you speak in your own cabin and no other', () => {
   assert.equal(canPostToChannel(hold, hold), false);
 });
 
-check('but you hear your own cabin and every one behind it', () => {
+check('and you hear your own cabin and no other', () => {
   for (const viewer of CABINS) {
     for (const room of CABINS) {
       assert.equal(
@@ -159,7 +132,8 @@ check('but you hear your own cabin and every one behind it', () => {
       );
     }
   }
-  assert.equal(canReadChannel(deck, economy), true, 'the flight deck hears the whole aeroplane');
+  assert.equal(canReadChannel(first, first), true);
+  assert.equal(canReadChannel(deck, economy), false, 'the flight deck heard economy');
   assert.equal(canReadChannel(economy, business), false, 'the last row heard the cabin in front');
   assert.equal(canReadChannel(hold, economy), false, 'the hold heard a cabin');
 });

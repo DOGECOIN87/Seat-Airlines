@@ -28,9 +28,7 @@ export interface DirectoryState {
   profiles: Record<string, PublishedProfile>;
   inbox: NetworkingMessage[];
   sent: NetworkingMessage[];
-  /** Conversations from the cabins behind you, which your seat lets you read. */
-  overheard: NetworkingMessage[];
-  /** Each cabin's own room, keyed by section. Only the ones you may read. */
+  /** Your own cabin's room, keyed by its section. */
   channels: Partial<Record<ZoneKey, NetworkingMessage[]>>;
   /** The PA, newest first. */
   announcements: NetworkingMessage[];
@@ -45,14 +43,6 @@ export interface DirectoryState {
   signOut: () => Promise<void>;
   save: (profile: NetworkingProfile) => Promise<boolean>;
   send: (to: string, body: string) => Promise<boolean>;
-  /**
-   * Fetch the cabins behind you as well as your own.
-   *
-   * What the hub's listen button calls. The first load asks for one room
-   * because that is what the hub draws; this is the moment somebody says
-   * they want the rest.
-   */
-  hearAft: () => Promise<void>;
   dismiss: () => void;
 }
 
@@ -88,7 +78,6 @@ export function useDirectory(
   const [profiles, setProfiles] = useState<Record<string, PublishedProfile>>({});
   const [inbox, setInbox] = useState<NetworkingMessage[]>([]);
   const [sent, setSent] = useState<NetworkingMessage[]>([]);
-  const [overheard, setOverheard] = useState<NetworkingMessage[]>([]);
   const [channels, setChannels] = useState<Partial<Record<ZoneKey, NetworkingMessage[]>>>({});
   const [announcements, setAnnouncements] = useState<NetworkingMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -129,7 +118,6 @@ export function useDirectory(
     setProfiles({});
     setInbox([]);
     setSent([]);
-    setOverheard([]);
     setChannels({});
     setAnnouncements([]);
     setError(null);
@@ -143,7 +131,6 @@ export function useDirectory(
       setProfiles(directory);
       setInbox(messages.inbox);
       setSent(messages.sent);
-      setOverheard(messages.overheard ?? []);
       setChannels(messages.channels ?? {});
       setAnnouncements(messages.announcements ?? []);
       setError(null);
@@ -246,7 +233,6 @@ export function useDirectory(
     setProfiles({});
     setInbox([]);
     setSent([]);
-    setOverheard([]);
     setChannels({});
     setAnnouncements([]);
     setNotice(null);
@@ -307,21 +293,6 @@ export function useDirectory(
     }
   }, [session]);
 
-  const hearAft = useCallback(async () => {
-    if (!session) return;
-    setLoading(true);
-    try {
-      // `rooms=all` is own *and* behind, so this replaces rather than merges.
-      const messages = await fetchMessages(session, 'all');
-      setChannels(messages.channels ?? {});
-    } catch (e) {
-      if (e instanceof SessionExpired) setSession(null);
-      setError(reason(e) || null);
-    } finally {
-      setLoading(false);
-    }
-  }, [session]);
-
   const dismiss = useCallback(() => {
     setError(null);
     setNotice(null);
@@ -329,8 +300,8 @@ export function useDirectory(
 
   return {
     available: hasDirectory,
-    session, profiles, inbox, sent, overheard, channels, announcements,
+    session, profiles, inbox, sent, channels, announcements,
     loading, signingIn, saving, error, notice,
-    signIn, signOut, save, send, hearAft, dismiss,
+    signIn, signOut, save, send, dismiss,
   };
 }

@@ -102,11 +102,10 @@ Every directory route needs a session: send `Authorization: Bearer <token>`.
 | `DELETE /session` | Sign out, revoking the token |
 | `GET /directory` | The cards of every seated holder, plus your own. Contact fields are included only where your seat can read them. |
 | `PUT /profile` | Publish or amend your card: `{ displayName, role, email, website, linkedin, links }`, where `links` maps `x`, `telegram`, `discord`, `linktree`, `instagram`, `tiktok`, `youtube` and `github` to a handle (a profile link is read down to one). Stored in `profile_links`, which the Worker makes on first use |
-| `GET /messages` | `{ inbox, sent, overheard, channels, announcements }` — your own cabin's room only |
-| `GET /messages?rooms=all` | The same, plus the room of every cabin behind yours |
+| `GET /messages` | `{ inbox, sent, overheard, channels, announcements }` — your own cabin's room only; `overheard` is always empty and kept for older pages |
 | `POST /messages` | `{ to, body }`, where `to` is a wallet, `section:<cabin>`, or `announcement` |
 
-The cabins are `deck`, `first`, `business`, `exit` and `economy`. The rules in [Your seat is how far you can see](../section-network/how-far-you-can-see.md) are enforced here, before any row is written or read.
+The cabins are `deck`, `first`, `business`, `exit` and `economy`. The rules in [Your seat is which room you are in](../section-network/how-far-you-can-see.md) are enforced here, before any row is written or read.
 
 ## CORS
 

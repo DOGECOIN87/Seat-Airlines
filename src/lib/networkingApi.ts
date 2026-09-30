@@ -95,7 +95,7 @@ export interface PublishedProfile extends NetworkingProfile {
   address: string;
   /**
    * False when the contact fields were withheld because this card belongs to
-   * a cabin ahead of yours — as opposed to being empty. The server decides
+   * another cabin — as opposed to being empty. The server decides
    * it; the page only reports what it was told.
    */
   readable: boolean;
@@ -107,12 +107,9 @@ export interface Inbox {
   inbox: NetworkingMessage[];
   /** Introductions you sent. */
   sent: NetworkingMessage[];
-  /** Conversations from the cabins behind you, which your seat lets you read. */
-  overheard: NetworkingMessage[];
   /**
-   * Each cabin's own conversation, keyed by section.
+   * Your own cabin's conversation, keyed by its section.
    *
-   * Only the ones this seat may read: your own, and every cabin behind it.
    * A section the server did not send is one you cannot hear, so an absent
    * key and an empty room are deliberately different things.
    */
@@ -321,20 +318,12 @@ export function saveProfile(session: Session, profile: NetworkingProfile): Promi
 }
 
 /**
- * Everything this seat can hear.
- *
- * Introductions both directions, whatever it overhears, the PA, and — by
- * default — the conversation in your own cabin and no other. One request,
- * because they are one table and one rule, and because the hub shows them on
- * one screen.
- *
- * `rooms: 'all'` adds every cabin behind you, which is what the hub's listen
- * button asks for. It is a separate request on purpose: the hub opens on your
- * own cabin, so fetching five rooms on every sign-in would be several hundred
- * rows read to paint one of them.
+ * Everything this seat can hear: introductions both directions, the PA, and
+ * the conversation in your own cabin. One request, because they are one
+ * table and one rule, and the hub shows them on one screen.
  */
-export function fetchMessages(session: Session, rooms: 'own' | 'all' = 'own'): Promise<Inbox> {
-  return call<Inbox>(rooms === 'all' ? '/messages?rooms=all' : '/messages', { token: session.token });
+export function fetchMessages(session: Session): Promise<Inbox> {
+  return call<Inbox>('/messages', { token: session.token });
 }
 
 /**

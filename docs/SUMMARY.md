@@ -29,7 +29,7 @@
 
 ## Section network
 
-* [Your seat is how far you can see](section-network/how-far-you-can-see.md)
+* [Your seat is which room you are in](section-network/how-far-you-can-see.md)
 * [Cards and sign-in](section-network/cards-and-sign-in.md)
 * [Introductions, rooms and the PA](section-network/introductions-rooms-and-the-pa.md)
 

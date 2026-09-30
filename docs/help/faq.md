@@ -138,7 +138,7 @@ Open your seat on the wall. **Change your advert** publishes a new one in its pl
 
 <summary>Why can't I see somebody's email or links?</summary>
 
-They are seated ahead of you. Contact details are readable by the holder's own section and the sections ahead of theirs, never the ones behind. See [Your seat is how far you can see](../section-network/how-far-you-can-see.md).
+They are seated in another cabin. Contact details are readable only by the holder's own section. See [Your seat is which room you are in](../section-network/how-far-you-can-see.md).
 
 </details>
 

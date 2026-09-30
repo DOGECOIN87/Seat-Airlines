@@ -23,7 +23,7 @@ These are real differences, not decoration:
 
 * **Your square on the wall.** The wall is laid out like the cabin, front at the top, and front seats are drawn bigger: the flight deck at 1.5× and First at 1.22× the size of the rest. See [Every seat is a billboard](../the-wall/every-seat-is-a-billboard.md).
 * **Your view.** A window seat has the window beside it. An aisle seat looks down the aisle with the window a seat away, and a middle seat has a neighbour's shoulder between it and the daylight. See [Views and controls](views-and-controls.md).
-* **How far you can see in the directory.** Your own section and every cabin behind it. See [Your seat is how far you can see](../section-network/how-far-you-can-see.md).
+* **Who you see in the directory.** Your own section, and nobody else's. See [Your seat is which room you are in](../section-network/how-far-you-can-see.md).
 * **The PA.** The flight deck can make one announcement a day that the whole aircraft hears. See [Introductions, rooms and the PA](../section-network/introductions-rooms-and-the-pa.md).
 
 ## What your boarding pass says

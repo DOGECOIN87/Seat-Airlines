@@ -1,16 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest, ManifestEntry } from '../lib/manifest';
-import { CABIN_ZONES, type ZoneKey } from '../content/cabin';
+import type { ZoneKey } from '../content/cabin';
 import {
   ANNOUNCEMENT,
   canAnnounce,
   canMessage,
-  canReadChannel,
   canViewContact,
   channelFor,
   defaultRole,
   isValidExternalUrl,
-  outranks,
   sectionLabel,
   shortMember,
 } from '../lib/sectionAccess';
@@ -173,10 +171,6 @@ function holderName(entry: ManifestEntry): string {
   return `Holder ${entry.address.slice(0, 4)}`;
 }
 
-/** "Business, Exit Row and Economy" — a list a person would read aloud. */
-const list = (items: string[]) =>
-  items.length <= 1 ? items[0] ?? '' : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
-
 const when = (iso: string) => {
   const at = new Date(iso);
   return Number.isNaN(at.getTime()) ? '' : at.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -218,10 +212,6 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   const [invalid, setInvalid] = useState<string | null>(null);
   const [roomDraft, setRoomDraft] = useState('');
   const [paDraft, setPaDraft] = useState('');
-  /* Your own cabin is what you get by default. The rooms behind are yours to
-     read, but they are somebody else's conversation, and opening on all five
-     would bury your own section under whichever one is busiest. */
-  const [listeningAft, setListeningAft] = useState(false);
   /* Which of the composers the status line belongs to. `card` is also
      everything that is not a composer's — signing in, a load — and goes
      where the line always has. */
@@ -250,28 +240,6 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
       : EMPTY_PROFILE);
   }, [published, editing]);
 
-  /* The rule, in the only terms that matter to the person reading it: the
-     names of the cabins on either side of them. Stated rather than left to
-     be worked out from a card that will not open. */
-  const sections = useMemo(() => {
-    if (!viewerZone) return null;
-    /* Cabins with somebody in them, not cabins the aircraft has.
-       Seats fill strictly by rank, so at the default manifest size the last
-       one taken is the back of business and the two cabins behind it are
-       empty — naming them would promise a reader thirty-eight rows of people
-       who are not there. The hold is not a cabin at all: no manifest, no
-       roster, no name to put to anybody in it. */
-    const occupied = new Set(manifest.entries.map((entry) => entry.seat.zone));
-    const ahead = CABIN_ZONES.filter((zone) => outranks(zone.key, viewerZone) && occupied.has(zone.key));
-    const behind = CABIN_ZONES.filter((zone) => outranks(viewerZone, zone.key) && occupied.has(zone.key));
-    return {
-      ahead: list(ahead.map((zone) => sectionLabel(zone.key))),
-      aheadCount: ahead.length,
-      behind: list(behind.map((zone) => sectionLabel(zone.key))),
-      behindCount: behind.length,
-    };
-  }, [viewerZone, manifest.entries]);
-  const overheardBy = sections?.ahead ?? '';
 
   const senders = useMemo(() => {
     const byAddress = new Map(manifest.entries.map((entry) => [entry.address, entry] as const));
@@ -282,19 +250,6 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
     };
   }, [manifest.entries, directory.profiles]);
 
-  /* The cabins whose rooms this seat may listen to, behind it and occupied.
-     Empty cabins are left out for the same reason the header leaves them out:
-     naming a room with nobody in it promises a conversation that cannot
-     exist. */
-  const roomsAft = useMemo(() => {
-    if (!viewerZone) return [];
-    const occupied = new Set(manifest.entries.map((entry) => entry.seat.zone));
-    return CABIN_ZONES
-      .filter((zone) => zone.key !== viewerZone && canReadChannel(viewerZone, zone.key) && occupied.has(zone.key))
-      .map((zone) => zone.key);
-  }, [viewerZone, manifest.entries]);
-
-  const rooms = viewerZone ? [viewerZone, ...(listeningAft ? roomsAft : [])] : [];
 
   /* The PA is one a day, and the server says so only after a second one has
      been written out in full. Your own announcement is in the list already,
@@ -428,10 +383,9 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
           <div>
             <h3 className="font-heading text-2xl leading-tight text-ui-ink">From your seat</h3>
             <p className="mt-2 max-w-[62ch] text-[13px] leading-relaxed text-ui-soft">
-              {sections ? (
+              {viewerZone ? (
                 <>
-                  You read <strong className="text-ui-ink">{sectionLabel(viewerZone as ZoneKey)}</strong>
-                  {sections.behindCount ? <> and {sections.behind}</> : null}.
+                  You see and talk to <strong className="text-ui-ink">{sectionLabel(viewerZone)}</strong>, and only {sectionLabel(viewerZone)}.
                 </>
               ) : (
                 'Connect a wallet to see who you can reach.'
@@ -543,7 +497,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                         </p>
                         {entry.address === address ? (
                           <>
-                            <p>Seen by {sectionLabel(entry.seat.zone)} and every cabin ahead.</p>
+                            <p>Seen by {sectionLabel(entry.seat.zone)} only.</p>
                             <button type="button" onClick={() => (editing ? setEditing(false) : openEditor())} className="sa-cta mt-2">{editing ? 'Close' : 'Edit card'} <span aria-hidden>→</span></button>
                           </>
                         ) : !directory.session ? (
@@ -558,11 +512,11 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                             <SocialList links={card.links} />
                           </div>
                         ) : (
-                          /* The page thinks this card is level with you or
-                             behind you and the server disagrees, so the two
+                          /* The page thinks this card is in your cabin and
+                             the server disagrees, so the two
                              are reading different seating — a directory with
                              no holder feed, or one still holding a minute-old
-                             copy of it. Saying "forward of you" here would be
+                             copy of it. Saying "another cabin" here would be
                              a confident wrong answer. */
                           <p>Links hidden while your seat syncs.</p>
                         )}
@@ -571,12 +525,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#B3265E]">
                               Introduction
                             </p>
-                            {/* Nobody should learn this from the seat in front
-                                quoting them. It is the first thing the box says. */}
                             <p className="mt-1.5 text-[11px] leading-relaxed text-ui-soft">
-                              {overheardBy
-                                ? `${overheardBy} can read this too.`
-                                : 'Only the two of you can read this.'}
+                              Only the two of you can read this.
                             </p>
                             {/* What you have already said to them, so a sent
                                 note is seen to have gone, and a second one is
@@ -607,15 +557,11 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                             {statusHere('intro', 'mt-2')}
                           </div>
                         )}
-                        {/* There is no "you cannot write to this one" line any
-                            more, and nothing to put in its place: a card you
-                            can read is a card you can answer. The cabins you
-                            cannot write to are the ones ahead of you, and they
-                            do not reach this branch — they say so themselves,
-                            below, in the terms that actually explain it. */}
+                        {/* A card you can read is a card you can answer; the
+                            other cabins do not reach this branch at all. */}
                       </div>
                     ) : (
-                      <p className="text-[12px] leading-relaxed text-ui-soft">Ahead of your cabin. Move up to read it.</p>
+                      <p className="text-[12px] leading-relaxed text-ui-soft">Another cabin. Only its own passengers can open this card.</p>
                     )}
                   </div>
                 )}
@@ -684,7 +630,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
               ))}
 
               <p className="rounded-lg border border-ui-line bg-white px-3 py-2.5 text-[11px] leading-relaxed text-ui-soft">
-                Holders only: your cabin and every cabin ahead.
+                Holders only: seen by your own cabin and nobody else.
               </p>
               <button type="submit" disabled={directory.saving} className="sa-cta w-full justify-center disabled:opacity-60">
                 {directory.saving && statusAt === 'card' ? 'Publishing…' : 'Publish card'} <span aria-hidden>→</span>
@@ -735,25 +681,6 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                 <p className="mt-3 text-[11px] text-ui-soft">{directory.sent.length} sent.</p>
               )}
 
-              {/* The other half of the rule: what carries forward from the
-                  cabins behind you, because your seat is ahead of both ends
-                  of it. */}
-              {directory.overheard.length > 0 && (
-                <div className="mt-5 border-t border-ui-line pt-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep">Overheard</p>
-                  <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto pr-1">
-                    {directory.overheard.map((message) => (
-                      <li key={message.id} className="rounded-xl border border-ui-line bg-white/60 px-3 py-2.5">
-                        <p className="text-[11px] font-semibold text-ui-ink">
-                          {senders(message.from)} <span className="font-normal text-ui-faint">to</span> {senders(message.to)}
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-ui-soft">{message.body}</p>
-                        <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-ui-faint">{when(message.sentAt)}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
               <button type="button" onClick={() => void directory.signOut()} className="mt-4 text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep underline">
                 Sign out
               </button>
@@ -766,14 +693,9 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
 
       {/* The rooms.
 
-          A cabin is somewhere to talk as well as somewhere to sit. You post
-          in your own and read every one behind it — so the reading is the
-          same line as a contact card, and the posting is narrower than both.
-          A section's conversation belongs to the people sitting in it.
-
-          Opens on your own cabin. The rest are a button away rather than
-          always on, because five rooms at once buries the one you are in
-          under whichever is busiest. */}
+          A cabin is somewhere to talk as well as somewhere to sit. You read
+          and post in your own, and hear no other: a section's conversation
+          belongs to the people sitting in it. */}
       {showChat && directory.session && viewerZone && (
         <div className={`${showDirectory || directory.announcements.length > 0 || canAnnounce(viewerZone) ? 'border-t border-ui-line ' : ''}px-5 py-6 sm:px-7`}>
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -783,26 +705,6 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                 {sectionLabel(viewerZone)} is talking
               </h3>
             </div>
-            {roomsAft.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !listeningAft;
-                  setListeningAft(next);
-                  /* The sign-in only asked for the room you are sitting in,
-                     because that is the one the hub draws. This is the moment
-                     somebody says they want the rest, so this is when they
-                     are fetched. */
-                  if (next) void directory.hearAft();
-                }}
-                aria-pressed={listeningAft}
-                className="rounded-full border border-ui-line px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep transition-colors hover:bg-black/5"
-              >
-                {listeningAft
-                  ? `Just ${sectionLabel(viewerZone)}`
-                  : `Listen to ${list(roomsAft.map((zone) => sectionLabel(zone)))} too`}
-              </button>
-            )}
           </div>
 
           <div className="mt-4 rounded-2xl border border-ui-line bg-white/70 p-3.5">
@@ -821,8 +723,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
             {statusHere('room', 'mt-2')}
           </div>
 
-          <div className={`mt-5 grid gap-4 ${rooms.length > 1 ? '@3xl:grid-cols-2' : ''}`}>
-            {rooms.map((zone) => {
+          <div className="mt-5 grid gap-4">
+            {[viewerZone].map((zone) => {
               /* Absent is not empty. A room the server has not been asked for
                  yet is still on its way; one it sent with nothing in it is
                  quiet. Saying "quiet back there" about a room nobody has
@@ -831,8 +733,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
               return (
                 <div key={zone} className={`rounded-2xl border p-4 ${zoneAccent[zone]}`}>
                   <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep">
-                    {sectionLabel(zone)}
-                    {zone === viewerZone ? ' · yours' : ' · listening'}
+                    {sectionLabel(zone)} · yours
                   </p>
                   {said === undefined ? (
                     <p className="mt-3 text-[11px] text-ui-soft">Listening…</p>
@@ -848,7 +749,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                     </ul>
                   ) : (
                     <p className="mt-3 text-[11px] text-ui-soft">
-                      {zone === viewerZone ? 'No messages yet.' : 'Quiet back there.'}
+                      No messages yet.
                     </p>
                   )}
                 </div>

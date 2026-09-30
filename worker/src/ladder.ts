@@ -152,22 +152,11 @@ export interface Ladder {
   zoneOf(address: string): ZoneKey | null;
   /** Everybody with a seat, which is everybody the page draws. */
   seated(): readonly string[];
-  /**
-   * Seated wallets strictly aft of this zone.
-   *
-   * Asked as a list of people rather than as "everybody except those in
-   * front" on purpose. The complement would sweep in every wallet that has
-   * ever held the token, and the hold is not on the manifest, not on the
-   * roster, and not something the page can put a name to — so a conversation
-   * between two of them is nobody's to read and nothing anybody would want
-   * queried. The aircraft is the list; the list is at most a cabinful.
-   */
-  seatedBehind(zone: ZoneKey | null): readonly string[];
 }
 
 /** A ladder that knows nothing, and therefore permits nothing. */
 const NO_LADDER: Ladder = {
-  live: false, holders: [], supply: 0, zoneOf: () => null, seated: () => [], seatedBehind: () => [],
+  live: false, holders: [], supply: 0, zoneOf: () => null, seated: () => [],
 };
 
 let snapshot: { value: Ladder; expiresAt: number } | undefined;
@@ -208,9 +197,6 @@ export async function readLadder(env: LadderEnv): Promise<Ladder> {
     supply: list.supply,
     zoneOf: (address) => zones.get(address) ?? null,
     seated: () => manifest.entries.map((e) => e.address),
-    seatedBehind: (zone) => manifest.entries
-      .filter((e) => zoneRank(e.seat.zone) > zoneRank(zone))
-      .map((e) => e.address),
   };
 
   const ttl = Number(env.LADDER_CACHE_MS || DEFAULT_CACHE_MS);

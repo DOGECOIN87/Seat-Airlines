@@ -140,10 +140,13 @@ export function findEntry(manifest: Manifest, address: string | null): ManifestE
    The flight deck is 0 and economy is the last zone; anybody not on the
    manifest is in the hold, which is below every seat there is.
 
-   The rule the cabin runs on is that you can see down the aircraft and never
-   up. Your bag bought a view of everything behind you, and nothing in front
-   of you — which is the same thing the seat ladder itself says, applied to
-   people rather than to legroom. */
+   The rule the cabin runs on is that each cabin is its own room. You see the
+   cards of the people seated in your section, write to them, and hear their
+   conversation — and nothing of any other section, in front or behind. It
+   used to be that a seat could see down the aircraft: every cabin behind
+   yours, its cards, its room, even its private introductions. That is gone.
+   The rank still decides which room you are in; it no longer buys a view of
+   anybody else's. */
 
 const ZONE_RANK: ReadonlyMap<ZoneKey, number> = new Map(CABIN_ZONES.map((z, i) => [z.key, i] as const));
 
@@ -161,10 +164,7 @@ export function outranks(zone: ZoneKey | null, other: ZoneKey | null): boolean {
 /**
  * Whether a viewer may read a member's contact details.
  *
- * Your own section, and every seated section behind it. Somebody in front of
- * you keeps their card to themselves, which is what makes moving up the
- * aircraft worth something: the view forward is the thing you cannot buy with
- * a smaller bag.
+ * Your own section, and only your own.
  *
  * Both of you have to be on the manifest. The hold is not a section — it is
  * everybody who did not get a seat, it is on no roster, and the page cannot
@@ -173,56 +173,39 @@ export function outranks(zone: ZoneKey | null, other: ZoneKey | null): boolean {
  */
 export function canViewContact(viewerZone: ZoneKey | null, memberZone: ZoneKey | null): boolean {
   if (!viewerZone || !memberZone) return false;
-  return zoneRank(viewerZone) <= zoneRank(memberZone);
+  return viewerZone === memberZone;
 }
 
 /**
  * Whether a viewer may read a conversation they are not part of.
  *
- * Both ends seated, and both behind you. A chat with one end level with you
- * or in front of you is not yours to read — otherwise economy could follow a
- * conversation simply by being cc'd into the cabin it happened in, and the
- * whole point is that the aircraft is only transparent looking aft.
- *
- * Both ends *seated* for the same reason a card from the hold is not shown:
- * two wallets nobody can see, talking to each other, are not part of the
- * aircraft the page draws. The last row therefore hears nothing, which is
- * what being in the last row means.
- *
- * Being *on* the message is handled by the caller: sender and recipient can
- * always read their own, whatever anybody's seat is doing.
+ * Never. An introduction is between the two people on it. The forward cabins
+ * used to be able to read every introduction between two seats behind them;
+ * that went with the rest of the view aft. Kept as a function, answering no,
+ * so that anything still asking gets the rule rather than a missing import.
  */
 export function canOverhear(
-  viewerZone: ZoneKey | null,
-  senderZone: ZoneKey | null,
-  recipientZone: ZoneKey | null,
+  _viewerZone: ZoneKey | null,
+  _senderZone: ZoneKey | null,
+  _recipientZone: ZoneKey | null,
 ): boolean {
-  if (!viewerZone || !senderZone || !recipientZone) return false;
-  return outranks(viewerZone, senderZone) && outranks(viewerZone, recipientZone);
+  return false;
 }
 
 /**
  * Whether a viewer may send an introduction to a member.
  *
- * The same rule as reading their card: your own section, and every seated
- * section behind it. If you can see somebody's contact details you can
- * introduce yourself to them — which is the version that needs no explaining,
- * and why this delegates rather than restating the comparison.
+ * The same rule as reading their card: your own section, and only your own.
+ * If you can see somebody's contact details you can introduce yourself to
+ * them — which is the version that needs no explaining, and why this
+ * delegates rather than restating the comparison.
  *
- * ── Why it used to be narrower ────────────────────────────────────────────
- * It was First Class to First Class and nothing else, on the reasoning that
- * an inbox is a claim on somebody's attention rather than a view, and that a
- * cabin should sell that in one place. The reasoning was sound; the rule
- * drawn from it was not. It left the flight deck — the two largest holders on
- * the aircraft — unable to write to anybody or be written to, and it left
- * every cabin behind First with a directory it could read and never use. A
- * perk that excludes the people at the front is not a perk.
- *
- * What that reasoning was protecting is still protected, by the same line
- * that protects everything else: nobody writes forward. A holder cannot mail
- * the seat ahead of them, so the flight deck's inbox reaches only the flight
- * deck, and the further forward you sit the fewer people can reach you at
- * all. The view forward is what the next seat up buys, and so is the quiet.
+ * ── How it has moved ──────────────────────────────────────────────────────
+ * It started as First Class to First Class and nothing else, then widened to
+ * every seated cabin behind you, so the flight deck was not left writing to
+ * nobody. It is back to a cabin at a time, for every cabin: you write to the
+ * people you sit with. The flight deck writes to the flight deck, economy to
+ * economy, and nobody's inbox is reachable from another section.
  *
  * ── Why it lives here ─────────────────────────────────────────────────────
  * It was in `sectionAccess.ts`, the page's own module, for as long as the
@@ -301,9 +284,9 @@ export function canPostToChannel(viewerZone: ZoneKey | null, channelZone: ZoneKe
 /**
  * Whether a holder may read a section's channel.
  *
- * Your own and every one behind it — the same line as a contact card, and the
- * same line as everything else here. The flight deck hears the whole
- * aeroplane; the last row hears only itself.
+ * Your own, and only your own — the same line as a contact card, and the same
+ * line as posting in it. A cabin's conversation is heard by the people
+ * sitting in it and nobody else.
  */
 export function canReadChannel(viewerZone: ZoneKey | null, channelZone: ZoneKey | null): boolean {
   return canViewContact(viewerZone, channelZone);

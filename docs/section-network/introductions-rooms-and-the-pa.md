@@ -1,5 +1,5 @@
 ---
-description: Write to anyone behind you, talk in your own cabin, and — from the flight deck — address the whole aircraft.
+description: Write to anyone in your cabin, talk in your cabin's room, and — from the flight deck — address the whole aircraft.
 ---
 
 # Introductions, rooms and the PA
@@ -10,21 +10,19 @@ All three need you to be [signed in to the directory](cards-and-sign-in.md).
 
 An introduction is a private message from one holder to another.
 
-* **Who you can write to:** anyone whose card you can read — your own section and every section behind it. Nothing carries forward. See [Your seat is how far you can see](how-far-you-can-see.md).
+* **Who you can write to:** anyone whose card you can read — the people in your own section, and nobody outside it. See [Your seat is which room you are in](how-far-you-can-see.md).
 * **How:** open a holder's card in the roster, write in the box — _Introduce your company, campaign, or partnership idea…_ — and send.
-* **Your inbox:** **Introductions** lists what you have been sent. Under it, **From behind you** shows the conversations your seat lets you overhear.
+* **Your inbox:** **Introductions** lists what you have been sent. What you have sent a holder is listed above the box on their card.
 
-The two wallets on a conversation can always read it, wherever either of them sits.
+Only the two wallets on a conversation can read it.
 
 ## Rooms
 
 Every cabin is a room as well as a rank.
 
 * **You speak in your own cabin's room, and only there.** Write in _Say something to Business…_ and press **Post to Business** (with your own cabin's name).
-* **You can listen to every cabin behind yours.** The hub opens on your own room; **Listen to … too** adds the cabins behind you, and **Just …** goes back to yours.
-* Rooms you are listening to are marked _you are listening, they cannot hear you_.
-
-You can read what Economy is saying, and write to anybody in Economy personally, and still not walk into their room and talk: a cabin's room belongs to the people sitting in it. Every seat forward is one more room you can hear, and one fewer voice in your own.
+* **You hear your own cabin's room, and only it.** A cabin's room belongs to the people sitting in it; no other section can read it.
+* New messages appear on their own while the page is open.
 
 ## The PA
 

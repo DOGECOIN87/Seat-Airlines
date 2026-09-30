@@ -42,7 +42,7 @@ so the aeroplane on your screen *is* the chart — and its 178 seats go to the b
 | **Your bag is your seat** | The 178 biggest holders are seated by rank, flight deck first. Everyone else rides in the cargo hold. |
 | **Seats are finite** | Out-hold the holder in front of you and you take their seat — and the PA tells the whole cabin. |
 | **Every seat is a billboard** | A seated holder can put a square image on their seat, and it moves with them. |
-| **Your seat is how far you can see** | In the cabin directory you read your own section and every cabin behind you — never the ones ahead. |
+| **Your seat is which room you are in** | In the cabin directory you see and reach your own section, and nobody else's. |
 
 > [!IMPORTANT]
 > Seat Airlines never asks your wallet to approve a transaction. Every signature it requests is a plain-text message, and [Wallet safety](docs/safety/wallet-safety.md) prints each one word for word.
@@ -144,9 +144,9 @@ Every seat is a square, so every held seat is a billboard. Holders put a 1:1 ima
 
 ### Section network
 
-A holder directory with the cabin's own manners: publish a card, read your section and every one behind it, introduce yourself, talk in your cabin's room — and from the flight deck, one PA announcement a day that the whole aircraft hears.
+A holder directory with the cabin's own manners: publish a card, read your own section's cards, introduce yourself, talk in your cabin's room — and from the flight deck, one PA announcement a day that the whole aircraft hears.
 
-→ [Your seat is how far you can see](docs/section-network/how-far-you-can-see.md)
+→ [Your seat is which room you are in](docs/section-network/how-far-you-can-see.md)
 
 </td>
 </tr>

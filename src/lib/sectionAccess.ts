@@ -35,11 +35,8 @@ export { canMessage, canViewContact, canOverhear, outranks, zoneRank } from './s
 /**
  * And who may speak in which room.
  *
- * A cabin is a room as well as a rank. Reading one is the same line as
- * reading a card — your own and every one behind it — but *posting* is
- * narrower than both: your own section only. The conversation in a cabin
- * belongs to the people sitting in it, and a room the rows in front can talk
- * in is not that.
+ * A cabin is a room as well as a rank. Reading one, posting in one and
+ * reading a card are all the same line: your own section, and only yours.
  */
 export {
   ANNOUNCEMENT, canAnnounce, canPostToChannel, canReadChannel, channelFor, isChannel, zoneOfChannel,

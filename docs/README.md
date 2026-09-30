@@ -19,7 +19,7 @@ Flight **SA350** · Nonstop · [seat-airlines.space](https://seat-airlines.space
 | **Your bag is your seat** | The 178 biggest holders are seated by rank, flight deck first. Everyone else rides in the cargo hold. |
 | **Seats are finite** | Out-hold the holder in front of you and you take their seat, and they move back. When your seat changes, the PA announces it. |
 | **Every seat is a billboard** | A seated holder can put a square image on their seat, and it moves with them. |
-| **Your seat is how far you can see** | In the cabin directory you read your own section and every cabin behind you — never the ones ahead. |
+| **Your seat is which room you are in** | In the cabin directory you see and reach your own section, and nobody else's. |
 
 ## Where to next
 

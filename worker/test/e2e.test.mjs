@@ -633,9 +633,10 @@ await check('an empty introduction, and one to yourself, are refused', async () 
   assert(self.status === 400, `a message to yourself got ${self.status}`);
 });
 
-/* ── Reading down the aircraft, and not up ────────────────────────────────
+/* ── Each cabin sees only itself ──────────────────────────────────────────
    alice and bob are both in First. The captain is on the flight deck, ahead
-   of them; mabel is in business, behind them. */
+   of them; mabel is in business, behind them. Neither can read First, and
+   First can read neither of them. */
 
 await check('a card in a cabin ahead is name and role only', async () => {
   const hers = (await (await api('/session', { method: 'POST', body: await signInBody(mabel) })).json()).token;
@@ -648,41 +649,34 @@ await check('a card in a cabin ahead is name and role only', async () => {
   assert(JSON.stringify(card.links) === '{}', `business read social accounts from the cabin in front: ${JSON.stringify(card.links)}`);
 });
 
-await check('a card from behind is readable in full', async () => {
+await check('and so is a card in a cabin behind', async () => {
   await api('/profile', {
     method: 'PUT', token: bobToken,
     body: { displayName: 'Middle Seat Ventures', role: 'Growth', email: 'bob@seat-airlines.space', links: { github: 'github.com/middle-seat' } },
   });
   const captainToken = (await (await api('/session', { method: 'POST', body: await signInBody(captain) })).json()).token;
   const card = (await (await api('/directory', { token: captainToken })).json())[bob.address];
-  assert(card.readable === true, 'the flight deck could not read a First Class card');
-  assert(card.email === 'bob@seat-airlines.space', 'the contact details did not carry forward');
-  assert(card.links.github === 'middle-seat', 'the social accounts did not carry forward');
+  assert(card.displayName === 'Middle Seat Ventures', 'the name did not reach the rest of the aircraft');
+  assert(card.readable === false, 'the flight deck was told it could read a First Class card');
+  assert(card.email === '', 'the contact details carried forward to the flight deck');
+  assert(JSON.stringify(card.links) === '{}', 'the social accounts carried forward to the flight deck');
 });
 
-await check('a conversation carries forward to the section ahead', async () => {
+await check('nobody overhears a conversation between two other wallets', async () => {
   const captainToken = (await (await api('/session', { method: 'POST', body: await signInBody(captain) })).json()).token;
   const heard = await (await api('/messages', { token: captainToken })).json();
-  const theirs = heard.overheard.find((m) => m.from === alice.address && m.to === bob.address);
-  assert(theirs, 'the flight deck cannot read a First Class conversation it is seated ahead of');
+  assert(Array.isArray(heard.overheard) && heard.overheard.length === 0, 'the flight deck overheard a First Class conversation');
   assert(heard.inbox.length === 0 && heard.sent.length === 0, 'the captain was credited with somebody else’s post');
-});
 
-await check('and never aft', async () => {
   const hers = (await (await api('/session', { method: 'POST', body: await signInBody(mabel) })).json()).token;
-  const heard = await (await api('/messages', { token: hers })).json();
-  assert(Array.isArray(heard.overheard), 'no overheard list came back at all');
-  assert(
-    !heard.overheard.some((m) => m.from === alice.address || m.to === alice.address),
-    'business read a conversation from the cabin in front of it',
-  );
+  const theirs = await (await api('/messages', { token: hers })).json();
+  assert(theirs.overheard.length === 0, 'business overheard a conversation');
 });
 
 /* ── Writing, which goes exactly as far as reading ────────────────────────
-   A card you can read is a card you can answer, and nothing carries forward.
-   The page hides a composer it knows would be refused; until this route
-   checked for itself, that was the whole of the rule, and it was one fetch
-   away from not existing. These cases are that fetch. */
+   A card you can read is a card you can answer, and only your own cabin's
+   cards can be read. The page hides a composer it knows would be refused;
+   these cases are the fetch that goes around the page. */
 
 await check('a cabin behind cannot introduce itself forward', async () => {
   const hers = (await (await api('/session', { method: 'POST', body: await signInBody(mabel) })).json()).token;
@@ -698,40 +692,20 @@ await check('a cabin behind cannot introduce itself forward', async () => {
   );
 });
 
-await check('but First Class can write aft, because it can read aft', async () => {
-  /* alice reads every word of mabel's card, so she can answer it. This used
-     to be refused, back when the rule was First Class to First Class and
-     nothing else — which also left the whole aircraft behind First with a
-     directory it could read and never use. */
+await check('nor can a cabin ahead introduce itself aft', async () => {
   const res = await api('/messages', {
     method: 'POST', token: aliceToken, body: { to: mabel.address, body: 'Row 1, writing to row 11.' },
   });
-  assert(res.status === 200, `First Class could not post into business: ${res.status}`);
+  assert(res.status === 403, `First Class posted into a business inbox: ${res.status}`);
 
-  const hers = (await (await api('/session', { method: 'POST', body: await signInBody(mabel) })).json()).token;
-  const theirs = await (await api('/messages', { token: hers })).json();
-  assert(
-    theirs.inbox.some((m) => m.body === 'Row 1, writing to row 11.'),
-    'it was accepted and never arrived',
-  );
-});
-
-await check('and the flight deck can reach anybody, which is the point of it', async () => {
-  /* The case that made the old rule wrong rather than merely narrow: the two
-     largest holders on the aircraft could not write to a single person, nor
-     be written to. Being at the front should not be the one seat with no
-     directory. */
   const captainToken = (await (await api('/session', { method: 'POST', body: await signInBody(captain) })).json()).token;
-  const res = await api('/messages', {
+  const deck = await api('/messages', {
     method: 'POST', token: captainToken, body: { to: alice.address, body: 'From the deck.' },
   });
-  assert(res.status === 200, `the flight deck could not post into First Class: ${res.status}`);
+  assert(deck.status === 403, `the flight deck posted into First Class: ${deck.status}`);
 });
 
-await check('and nobody at all can write to the flight deck', async () => {
-  /* The other half, and the reason the quiet at the front survives widening
-     the rule. Nothing carries forward, so the deck's inbox reaches only the
-     deck — the further forward you sit, the fewer people can reach you. */
+await check('and nobody outside it can write to the flight deck', async () => {
   const res = await api('/messages', {
     method: 'POST', token: aliceToken, body: { to: captain.address, body: 'Row 1 to the cockpit.' },
   });
@@ -739,10 +713,8 @@ await check('and nobody at all can write to the flight deck', async () => {
 });
 
 /* ── The rooms ────────────────────────────────────────────────────────────
-   A cabin is somewhere to talk as well as somewhere to sit. Reading one is
-   the same line as reading a card — your own and every one behind it — and
-   posting is narrower than both: your own section only, because a cabin's
-   conversation belongs to the people sitting in it. */
+   A cabin is somewhere to talk as well as somewhere to sit. Reading one and
+   posting in one are the same line as a card: your own section only. */
 
 const room = (zone) => `section:${zone}`;
 
@@ -759,10 +731,7 @@ await check('a holder speaks in their own cabin', async () => {
   );
 });
 
-await check('and cannot speak in the cabin behind, though they can hear it', async () => {
-  /* The one place reading and posting come apart. alice reads every word said
-     in business and can write to anybody in it personally — but she cannot
-     walk into their conversation and talk. */
+await check('and cannot speak in the cabin behind', async () => {
   const res = await api('/messages', {
     method: 'POST', token: aliceToken, body: { to: room('business'), body: 'First Class, visiting.' },
   });
@@ -777,35 +746,21 @@ await check('nor in the one ahead of them', async () => {
   assert(res.status === 403, `business talked in the room in front of it: ${res.status}`);
 });
 
-await check('a sign-in fetches only the room you are sitting in', async () => {
-  /* The hub opens on your own cabin, so fetching every room you *may* hear on
-     every sign-in was up to five rooms read to paint one. What a seat is
-     allowed to hear has not changed; when it is fetched has. */
+await check('a cabin hears its own room and no other', async () => {
   const captainToken = (await (await api('/session', { method: 'POST', body: await signInBody(captain) })).json()).token;
   const deck = await (await api('/messages', { token: captainToken })).json();
-  const rooms = Object.keys(deck.channels ?? {}).sort();
-  assert(rooms.join(',') === 'deck', `a sign-in fetched: ${rooms.join(',') || 'nothing'}`);
+  assert(Object.keys(deck.channels ?? {}).join(',') === 'deck', `the flight deck heard: ${Object.keys(deck.channels ?? {}).join(',') || 'nothing'}`);
 });
 
-await check('and the cabins behind it only when asked for', async () => {
+await check('and asking for all of them changes nothing', async () => {
+  /* `?rooms=all` used to add every cabin behind you. It is ignored now, so a
+     page from before the change gets its own room and nothing else. */
   const captainToken = (await (await api('/session', { method: 'POST', body: await signInBody(captain) })).json()).token;
   const deck = await (await api('/messages?rooms=all', { token: captainToken })).json();
-  const rooms = Object.keys(deck.channels ?? {}).sort();
-  assert(rooms.join(',') === 'business,deck,first', `the flight deck heard: ${rooms.join(',') || 'nothing'}`);
+  assert(Object.keys(deck.channels ?? {}).join(',') === 'deck', `the flight deck heard: ${Object.keys(deck.channels ?? {}).join(',')}`);
   assert(
-    (deck.channels.first ?? []).some((m) => m.body === 'First Class, anyone awake?'),
-    'the flight deck could not hear First Class talking',
-  );
-});
-
-await check('asking for all of them is still only the ones behind you', async () => {
-  /* `?rooms=all` is a request for what this seat may hear, not a way around
-     it. Business asking for everything gets its own room and nothing else. */
-  const hers = (await (await api('/session', { method: 'POST', body: await signInBody(mabel) })).json()).token;
-  const business = await (await api('/messages?rooms=all', { token: hers })).json();
-  assert(
-    Object.keys(business.channels ?? {}).join(',') === 'business',
-    `business heard more than its own room: ${Object.keys(business.channels ?? {}).join(',')}`,
+    !(deck.channels.deck ?? []).some((m) => m.body === 'First Class, anyone awake?'),
+    'the flight deck heard First Class talking',
   );
 });
 
@@ -866,13 +821,7 @@ await check('a conversation with the hold is started by nobody, and fetched by n
      on no manifest and no roster, and the page could not name it if it tried.
      A conversation it is part of is not the cabin's business, and — the
      reason this is a rule rather than a filter — not something the Worker
-     should be reading out of the database to then decline to show.
-
-     Both halves are asserted because the send being refused would otherwise
-     make the read assertion pass for the wrong reason. The read side still
-     has work to do: rows written before this rule existed are in the table,
-     and what keeps them out of somebody's `overheard` is the query naming
-     the seats rather than the sender having been turned away. */
+     should be reading out of the database to then decline to show. */
   const stranger = await wallet();
   const strangerToken =
     (await (await api('/session', { method: 'POST', body: await signInBody(stranger) })).json()).token;

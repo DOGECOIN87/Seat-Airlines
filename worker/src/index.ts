@@ -58,12 +58,11 @@ import {
 } from './logbook';
 import { cabinSize, canSeat, readLadder, rpcUrl } from './ladder';
 import { HANDS_OFF, clamped, handsOff, type ManualControls } from '../../src/lib/manualControls';
-import { CABIN_ZONES } from '../../src/content/cabin';
 import { scoreChallenge } from '../../src/lib/scoring';
 import { BOARD_SIZE, RUN_TTL_MS, RUNS_PER_HOUR, implausible, newRunId, readScorePost } from './leaderboard';
 import { CARD_TTL_SECONDS, cardId, cardPage, cardProblem, isCardId } from './cards';
 import {
-  ANNOUNCEMENT, canAnnounce, canMessage, canPostToChannel, canReadChannel, canViewContact,
+  ANNOUNCEMENT, canAnnounce, canMessage, canPostToChannel, canViewContact,
   channelFor, zoneOfChannel,
 } from '../../src/lib/seating';
 
@@ -1337,74 +1336,21 @@ async function handle(request: Request, env: Env): Promise<Response> {
           ).bind(me, ANNOUNCEMENT, MESSAGE_PAGE),
         ]);
 
-        /* What carries forward from further aft.
+        /* Your own cabin's room, and nobody else's.
 
-           The cabin is transparent looking backwards and opaque looking
-           forwards: a holder reads the conversations of every section behind
-           them, and none of the one they are in or ahead of it.
+           Each cabin hears only itself. The forward cabins used to read every
+           room behind them, and every introduction between two seats behind
+           them ("overheard"); both went with the rest of the view aft.
+           `overheard` is still sent, empty, so a page from before this change
+           draws nothing rather than failing, and `?rooms=all` is ignored for
+           the same reason.
 
-           Named as the people it covers rather than as everybody it does not.
-           "Neither end is in front of me" would also sweep in the hold, whose
-           wallets are on no manifest and no roster and have no name the page
-           could put to them — two strangers the reader cannot see, talking.
-           Nobody is owed that, and it is a table scan to fetch it. So the
-           question asked is the small one: both ends seated, both behind me.
-
-           Unseated yourself, you overhear nothing. */
-        let overheard: MessageRow[] = [];
+           The PA is not a room: it is one line from the flight deck that the
+           whole aeroplane hears, the hold included. Being aboard is the only
+           qualification for hearing it. */
         const ladder = await readLadder(env);
-        const mine = ladder.zoneOf(me);
-        if (ladder.live && mine) {
-          const behind = ladder.seatedBehind(mine);
-          if (behind.length) {
-            const holes = behind.map(() => '?').join(',');
-            const rows = await db
-              .prepare(
-                `${columns} WHERE sender IN (${holes}) AND recipient IN (${holes})` +
-                ' ORDER BY sent_at DESC LIMIT ?',
-              )
-              .bind(...behind, ...behind, MESSAGE_PAGE)
-              .all<MessageRow>();
-            overheard = rows.results ?? [];
-          }
-        }
-
-        /* The rooms.
-
-           One channel per cabin, and a holder reads their own and every one
-           behind it — the same line as a contact card. Asked as one statement
-           per channel rather than one for all of them, so a busy Economy
-           cannot crowd the flight deck's own room out of its own page. At
-           most five of them, and each is an index seek on
-           `messages_by_recipient`.
-
-           Cabins with somebody in them, not cabins the aircraft has. An empty
-           cabin's room is necessarily empty — there is nobody seated there to
-           have said anything — so asking after it is a query whose answer is
-           known in advance, and handing the page back `economy: []` on a
-           five-person aeroplane is a room it would draw and nobody could ever
-           be in. The same reasoning the roster and the header already use.
-
-           And by default, only the room you are sitting in.
-
-           Which cabins a holder *may* hear has not changed — still their own
-           and every one behind it, and `?rooms=all` asks for all of them.
-           What changed is when they are fetched. The hub opens on your own
-           cabin and puts the rest behind a button, so reading all five on
-           every sign-in was up to two hundred and fifty rows fetched to paint
-           about twenty. The button asks for the rest, and it asks at the
-           moment somebody actually wants them.
-
-           The PA is not one of these: it is one line from the flight deck
-           that the whole aeroplane hears, the hold included. Being aboard is
-           the only qualification for hearing it. */
-        const occupied = new Set(ladder.seated().map((address) => ladder.zoneOf(address)));
-        const wantsAll = url.searchParams.get('rooms') === 'all';
-        const readable = ladder.live && mine
-          ? CABIN_ZONES.map((z) => z.key).filter((zone) => occupied.has(zone)
-            && (wantsAll ? canReadChannel(mine, zone) : zone === mine))
-          : [];
-
+        const mine = ladder.live ? ladder.zoneOf(me) : null;
+        const readable = mine ? [mine] : [];
         const roomRows = readable.length
           ? await db.batch<MessageRow>(readable.map((zone) => db
             .prepare(`${columns} WHERE recipient = ? ORDER BY sent_at DESC LIMIT ?`)
@@ -1423,7 +1369,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
         return json({
           inbox: (inbox.results ?? []).map(asMessage),
           sent: (sent.results ?? []).map(asMessage),
-          overheard: overheard.map(asMessage),
+          overheard: [],
           channels,
           announcements: (pa.results ?? []).map(asMessage),
         }, 200, priv);
@@ -1480,18 +1426,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
           return json({ error: 'The PA belongs to the flight deck.' }, 403, priv);
         }
         if (room && !canPostToChannel(mine, room)) {
-          /* Readable is not the same as postable here, and this is the one
-             place those two come apart. A cabin's conversation belongs to the
-             people sitting in it; the rows in front can listen, and can write
-             to anybody in it personally, but cannot talk in the room. */
-          return json({
-            error: canReadChannel(mine, room)
-              ? 'You can read that cabin, but its conversation belongs to the people sitting in it.'
-              : 'That cabin is ahead of yours.',
-          }, 403, priv);
+          return json({ error: 'That is another cabin. You can only talk in your own.' }, 403, priv);
         }
         if (!room && !announcing && !canMessage(mine, ladder.zoneOf(to), me, to)) {
-          return json({ error: 'That cabin is ahead of yours. Introductions carry aft, never forward.' }, 403, priv);
+          return json({ error: 'That holder is in another cabin. Introductions stay within your own.' }, 403, priv);
         }
 
         /* The PA is rationed by the day rather than by the hour, because a

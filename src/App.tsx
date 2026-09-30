@@ -632,7 +632,7 @@ export default function App() {
       case 'network':
         return (
           <>
-            <p className="sa-lead">See contacts in your cabin and every cabin behind it.</p>
+            <p className="sa-lead">See and reach the people in your own cabin.</p>
             <div className="mt-6">
               <Loaded minHeight="32rem">
                 <NetworkingHub part="directory" manifest={manifest} address={seatKey} viewerZone={claimedSeat?.zone ?? null} sign={wallet.signMessage} />
@@ -643,7 +643,7 @@ export default function App() {
       case 'chat':
         return (
           <>
-            <p className="sa-lead">Talk in your cabin. Listen to every cabin behind it.</p>
+            <p className="sa-lead">Talk with the people in your cabin.</p>
             <div className="mt-6">
               <Loaded minHeight="20rem">
                 <NetworkingHub part="chat" manifest={manifest} address={seatKey} viewerZone={claimedSeat?.zone ?? null} sign={wallet.signMessage} />

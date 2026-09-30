@@ -60,7 +60,7 @@ All three are checked by the server, and all three expire: a signature more than
 
 * **Your seat, rank, address and balance.** Balances are public on Solana, and the wall shows them for every seated holder.
 * **Your advert**, with its description and link, for everyone.
-* **Your card's name and role**, for every holder signed in to the directory, and **its contact details** for your own section and the sections ahead of you — see [Your seat is how far you can see](../section-network/how-far-you-can-see.md).
+* **Your card's name and role**, for every holder signed in to the directory, and **its contact details** for your own section only — see [Your seat is which room you are in](../section-network/how-far-you-can-see.md).
 
 ## What is stored, and where
 

@@ -55,7 +55,7 @@ Every publish is signed over a challenge that names the wallet, **pins the exact
 ## The directory: one seating chart, enforced on the server
 
 * **One signature, not one per action.** A wallet popup for every message would be unusable, and worse, would teach people to approve things unread. The wallet signs one plain-text line to open a session and gets a bearer token good for a day; the server keeps only its hash.
-* **Transparent looking aft, opaque looking forward.** Names and roles belong to everyone; contact details reach your own section and every cabin behind it; a conversation is readable by its two wallets and by any section seated ahead of both. Writing goes exactly as far as reading, and nothing carries forward.
+* **Each cabin sees only itself.** Names and roles belong to everyone; contact details, introductions and a cabin's room stay within its own section; a conversation is readable by its two wallets and nobody else. Writing goes exactly as far as reading. `canOverhear` is kept, answering no.
 * **The hold is not a cabin.** A wallet without a seat is on no roster. Its cards are not served and its conversations are never read out of the database only to be withheld — the queries ask for the seats, and never for the rest.
 * **The seating is shared, not copied.** The ladder lives in `src/lib/seating.ts`, with no browser and no Cloudflare in it, and the page and the Worker import the same file. With no mint configured the Worker fails closed, and `GET /health` says so (`sections: false`, and `seated` out of `cabin`).
 
