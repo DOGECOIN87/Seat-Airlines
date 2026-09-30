@@ -2,24 +2,24 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Annunciators, FlightBand } from './flightModel';
 
 const INTERCOM_FILES = [
-  '01_captain_speaking_intercom.wav',
-  '02_tray_tables_seats_upright_intercom.wav',
-  '03_fasten_seat_belts_takeoff_intercom.wav',
-  '04_unlikely_water_landing_intercom.wav',
-  '05_flight_crew_serving_food_intercom.wav',
-  '06_altitude_move_about_cabin_intercom.wav',
-  '07_funny_turbulence_warning_intercom.wav',
-  '08_secure_your_dignity_intercom.wav',
-  '09_finish_your_beverage_intercom.wav',
-  '10_tray_tables_again_intercom.wav',
-  '11_roller_coaster_turbulence_intercom.wav',
-  '12_secure_loose_items_intercom.wav',
-  '13_floating_coffee_intercom.wav',
-  '14_overhead_bins_not_escape_hatches_intercom.wav',
-  '15_restroom_reminder_intercom.wav',
-  '16_awkward_elevator_turbulence_intercom.wav',
-  '17_seat_back_reminder_intercom.wav',
-  '18_thank_you_for_pretending_intercom.wav',
+  '01_captain_speaking_intercom.mp3',
+  '02_tray_tables_seats_upright_intercom.mp3',
+  '03_fasten_seat_belts_takeoff_intercom.mp3',
+  '04_unlikely_water_landing_intercom.mp3',
+  '05_flight_crew_serving_food_intercom.mp3',
+  '06_altitude_move_about_cabin_intercom.mp3',
+  '07_funny_turbulence_warning_intercom.mp3',
+  '08_secure_your_dignity_intercom.mp3',
+  '09_finish_your_beverage_intercom.mp3',
+  '10_tray_tables_again_intercom.mp3',
+  '11_roller_coaster_turbulence_intercom.mp3',
+  '12_secure_loose_items_intercom.mp3',
+  '13_floating_coffee_intercom.mp3',
+  '14_overhead_bins_not_escape_hatches_intercom.mp3',
+  '15_restroom_reminder_intercom.mp3',
+  '16_awkward_elevator_turbulence_intercom.mp3',
+  '17_seat_back_reminder_intercom.mp3',
+  '18_thank_you_for_pretending_intercom.mp3',
 ] as const;
 
 interface AudioRig {
@@ -28,7 +28,12 @@ interface AudioRig {
   recording: AudioBufferSourceNode;
   seatbeltBuffer: AudioBuffer;
   occasionalSeatbeltBuffer: AudioBuffer;
-  intercomBuffers: AudioBuffer[];
+  /**
+   * Each announcement, once it has been fetched and decoded. They are loaded
+   * one at a time, during the pause before each is played — never all at
+   * once — and kept, so a second hearing costs nothing.
+   */
+  intercomBuffers: Map<number, Promise<AudioBuffer | null>>;
   intercomOrder: number[];
   lastIntercomIndex: number | null;
   intercomTimer: number | null;
@@ -62,8 +67,22 @@ const playBuffer = (
   source.start();
 };
 
+/** One announcement, fetched and decoded the first time it is asked for. */
+const loadIntercom = (rig: AudioRig, index: number): Promise<AudioBuffer | null> => {
+  let loading = rig.intercomBuffers.get(index);
+  if (!loading) {
+    loading = fetch(`/intercom/${INTERCOM_FILES[index]}`)
+      .then(async (r) => (r.ok ? rig.ctx.decodeAudioData(await r.arrayBuffer()) : null))
+      .catch(() => null);
+    rig.intercomBuffers.set(index, loading);
+    /* A failure is not kept: the next time round it is tried again. */
+    void loading.then((buffer) => { if (!buffer) rig.intercomBuffers.delete(index); });
+  }
+  return loading;
+};
+
 const nextIntercomIndex = (rig: AudioRig) => {
-  if (rig.intercomOrder.length === 0) rig.intercomOrder = shuffled(rig.intercomBuffers.length);
+  if (rig.intercomOrder.length === 0) rig.intercomOrder = shuffled(INTERCOM_FILES.length);
 
   let index = rig.intercomOrder.pop() as number;
   // Never repeat the same announcement across a shuffle-bag boundary.
@@ -79,10 +98,16 @@ const nextIntercomIndex = (rig: AudioRig) => {
 const scheduleIntercom = (rig: AudioRig, first = false) => {
   if (rig.stopped) return;
   const delay = first ? randomBetween(12000, 24000) : randomBetween(18000, 42000);
+  /* Chosen now and fetched during the pause, so it is ready when its turn
+     comes without the other seventeen being downloaded alongside it. */
+  const index = nextIntercomIndex(rig);
+  const ready = loadIntercom(rig, index);
   rig.intercomTimer = window.setTimeout(() => {
-    if (rig.stopped) return;
-    const index = nextIntercomIndex(rig);
-    playBuffer(rig, rig.intercomBuffers[index], 0.58, () => scheduleIntercom(rig));
+    void ready.then((buffer) => {
+      if (rig.stopped) return;
+      if (buffer) playBuffer(rig, buffer, 0.58, () => scheduleIntercom(rig));
+      else scheduleIntercom(rig);
+    });
   }, delay);
 };
 
@@ -191,8 +216,8 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
 
     if (!wanted.current) { void ctx.close(); return; }
 
-    // Ambient starts now. Seatbelt chimes and intercoms load in the background
-    // so the cabin doesn't stay silent while 20 files trickle in over mobile.
+    // Ambient starts now. The seatbelt chimes load in the background, and the
+    // intercom announcements one at a time, each just before it is played.
     const silence = ctx.createBuffer(1, 1, ctx.sampleRate);
     const nextRig: AudioRig = {
       ctx,
@@ -200,7 +225,7 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
       recording,
       seatbeltBuffer: silence,
       occasionalSeatbeltBuffer: silence,
-      intercomBuffers: [],
+      intercomBuffers: new Map(),
       intercomOrder: [],
       lastIntercomIndex: null,
       intercomTimer: null,
@@ -220,17 +245,15 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
           if (!r.ok) return null;
           return ctx.decodeAudioData(await r.arrayBuffer());
         };
-        const results = await Promise.all([
-          decode('/seatbelt-warning.mp3'),
-          decode('/seatbelt-online-audio-converter.mp3'),
-          ...INTERCOM_FILES.map(f => decode(`/intercom/${f}`)),
-        ]);
+        /* The sign's chime and the occasional one are the same recording —
+           they were two byte-identical files, fetched and decoded twice. */
+        const chime = await decode('/seatbelt-warning.mp3');
         const target = rig.current;
         if (!target || target.stopped) return;
-        if (results[0]) target.seatbeltBuffer = results[0];
-        if (results[1]) target.occasionalSeatbeltBuffer = results[1];
-        target.intercomBuffers = results.slice(2).filter((b): b is AudioBuffer => b !== null);
-        target.intercomOrder = shuffled(target.intercomBuffers.length);
+        if (chime) {
+          target.seatbeltBuffer = chime;
+          target.occasionalSeatbeltBuffer = chime;
+        }
         scheduleIntercom(target, true);
         scheduleOccasionalSeatbelt(target);
       } catch {
