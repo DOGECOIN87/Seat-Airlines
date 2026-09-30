@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { MARK_NAVY, MARK_PATH } from '../components/Mark';
+import { SEAT_HEIGHT, createPassengers } from './passengers';
+import { createReaper } from './reaper';
 
 /**
  * The cabin, as geometry.
@@ -170,38 +172,6 @@ function wallTexture(): THREE.CanvasTexture {
   /* One tile is one row: repeat and offset are set where the tube is built,
      because they depend on where the tube sits. */
   return finish(g, 1, 1);
-}
-
-/**
- * Hair, as relief.
- *
- * Strands running the way the hair falls, at two scales: a few coarse locks
- * that catch the light, and a great many fine ones that break it up. Bump
- * only — hair's colour is the instance's, so this carries none of its own.
- */
-function strandTexture(): THREE.CanvasTexture {
-  const s = 512;
-  const g = ctx(s, s);
-  g.fillStyle = '#808080';
-  g.fillRect(0, 0, s, s);
-  const strand = (n: number, width: number, alpha: number, wobble: number) => {
-    for (let i = 0; i < n; i++) {
-      const x = Math.random() * s;
-      const bright = Math.random() > 0.5;
-      g.strokeStyle = bright ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`;
-      g.lineWidth = width;
-      g.beginPath();
-      g.moveTo(x, -10);
-      // v runs from crown to nape on the shell, so a strand runs down it.
-      for (let y = -10; y < s + 10; y += 26) {
-        g.lineTo(x + Math.sin(y / 40 + i) * wobble, y);
-      }
-      g.stroke();
-    }
-  };
-  strand(70, 5.5, 0.16, 9);
-  strand(420, 1.6, 0.22, 5);
-  return finish(g, 3, 2);
 }
 
 /** Seat fabric: a flecked weave, the way airline cloth hides wear. */
@@ -568,6 +538,8 @@ export interface CabinHandles {
    * scene's), `daylight` how much sun is behind the blinds.
    */
   setLighting: (night: number, daylight: number) => void;
+  /** Once a frame, with where the viewer's eye is in the world, so what is sitting beside them can look at them. */
+  tick: (nowMs: number, eye: THREE.Vector3) => void;
   dispose: () => void;
 }
 
@@ -580,19 +552,6 @@ const LENS_OFF = new THREE.Color(0x3a3833);
 const LENS_ON = new THREE.Color(0xffd9a0).multiplyScalar(1.6);
 const CEILING_GLOW = new THREE.Color(0xe0d6c0);
 const MOOD_GLOW = new THREE.Color(0x9ab8e6);
-
-const SKIN = [0xc99a72, 0x8d5f3f, 0xe3b894, 0x6b4529, 0xa8724c, 0xd9a87e, 0x5a3a22];
-/* Trousers get their own palette, darker and greyer than the tops — most
-   people do not dress in one colour, and thirty rows of people who do read
-   as a uniform. */
-const TROUSERS = [0x232830, 0x2b3340, 0x3b3f49, 0x494037, 0x2f3a46, 0x24222b];
-/* Hair reads as hair only if it is plainly not skin. The old set ran through
-   mid-browns a shade or two off the skin tones it sat on, so from a seat
-   behind — which is the only angle that matters — every passenger was one
-   smooth tan ovoid. Real hair is far darker than the face under it, or
-   unmistakably grey or fair; nothing in between. */
-const HAIR = [0x17110d, 0x241a13, 0x3d2a1b, 0x0c0a09, 0x9a9086, 0xc9a96f, 0x1e1a18, 0x5a3a20];
-const CLOTHES = [0x2e3540, 0x6b2f2f, 0x2f4a3a, 0x40404a, 0x7a6a4a, 0x24303f, 0x53365a];
 
 export function createCabin(): CabinHandles {
   const group = new THREE.Group();
@@ -981,233 +940,40 @@ export function createCabin(): CabinHandles {
 
   /* ── Passengers, in the seats that are sold ─────────────────────────────
      Heads clear the headrests, because a cabin you are sitting in is mostly
-     the backs of other people's heads. Which is the whole problem with
-     drawing them as spheres: a sphere on a capsule is a balloon on a bean,
-     and thirty rows of them read as a ball pit rather than a cabin.
-
-     What a head actually is, from a seat behind it, is a mass of hair with a
-     neck under it. So the head is shaped like one — an egg, tapered at the
-     crown, narrowed at the jaw, flatter at the back than the front — and it
-     carries its own neck, since the neck is skin and the torso is not and an
-     instance can only be one colour. The hair is the same shape one step
-     larger with its face and underside sunk back inside, which leaves a cap
-     over the crown, the back and the sides and a hairline where a hairline
-     belongs. */
-  const eggify = (g: THREE.BufferGeometry, r: number) => {
-    const p = g.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-      const t = y / r;                                   // −1 chin, +1 crown
-      const crown = 1 - Math.max(0, t) * 0.17;           // tapers to the top
-      const jaw = 1 - Math.max(0, -t - 0.3) * 0.5;       // and in at the jaw
-      const k = crown * jaw;
-      // +z is aft: the back of the head, which is the flatter side.
-      p.setXYZ(i, x * k * 0.96, y * 1.2, z * k * (z > 0 ? 1.0 : 1.06));
-    }
-    g.computeVertexNormals();
-    return g;
-  };
-
-  const HEAD_R = 0.092;
-  const skull = eggify(new THREE.SphereGeometry(HEAD_R, 22, 16), HEAD_R);
-  const neck = new THREE.CylinderGeometry(0.05, 0.062, 0.12, 14, 1, true);
-  neck.translate(0, -0.1, 0.006);
-  /* Hair with actual bulk. At five per cent over the skull it was a coat of
-     paint — technically present, and thirty rows of it still read as a tray
-     of eggs. Hair is centimetres thick and it is most of what you see of
-     somebody from behind, so it is built that way: a fifth over the skull at
-     the back and crown, tapering into a hairline at the brow, and sunk back
-     inside the head under the ears so it does not hang in the air. */
-  const hairGeo = skull.clone();
-  hairGeo.scale(1.2, 1.16, 1.2);
-  {
-    const p = hairGeo.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-      const front = Math.max(0, -z) / (HEAD_R * 1.2);
-      const under = Math.max(0, -y) / (HEAD_R * 1.4);
-      // 0 at the crown and the back; 1 at the face and under the jaw.
-      const cut = Math.min(1, front * front * 1.15 + under * 1.45);
-      const k = 1 - 0.24 * cut;
-      p.setXYZ(i, x * k, y * k, z * k);
-    }
-    hairGeo.computeVertexNormals();
-  }
-
-  /* Longer hair, as a second shell: the face cut back the same way, but the
-     underside kept and drawn down, so it drapes over the nape and the collar
-     instead of stopping at a hairline. Half the cabin wears one, half the
-     other, and a few wear neither — which is the difference between
-     passengers and a moulding repeated a hundred and eighty times. */
-  const hairLongGeo = skull.clone();
-  hairLongGeo.scale(1.24, 1.2, 1.24);
-  {
-    const p = hairLongGeo.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-      const front = Math.max(0, -z) / (HEAD_R * 1.24);
-      const cut = Math.min(1, front * front * 1.3);
-      const k = 1 - 0.26 * cut;
-      // The drape: below the ears the shell reaches down — further at the
-      // back, only a little beside the face.
-      const drop = y < 0 ? (z > 0 ? 1.6 : 1.12) : 1;
-      p.setXYZ(i, x * k, y * drop, z * k);
-    }
-    hairLongGeo.computeVertexNormals();
-  }
-
-  /* Ears. Two flattened spheres, and the single cheapest thing that stops a
-     head reading as an egg. */
-  const earParts: Part[] = [{ g: skull.clone(), c: 0xffffff }, { g: neck, c: 0xffffff }];
-  for (const side of [-1, 1]) {
-    const ear = new THREE.SphereGeometry(0.026, 10, 8);
-    ear.scale(0.42, 1.25, 0.92);
-    ear.translate(side * HEAD_R * 0.93, -0.004, 0.004);
-    earParts.push({ g: ear, c: 0xffffff });
-  }
-  const headGeo = mergeParts(earParts);
-  skull.dispose();
-
-  /* A seated body, not a capsule. From the row behind you see shoulders and
-     the tops of arms; from across the aisle you see a person sitting — chest,
-     arms into the armrests, forearms toward the lap, thighs to the knee. The
-     old rounded box gave the first view and simply ended at the waist in the
-     second, which is why the redesign starts here. Sleeves are the shirt's
-     colour, so the whole upper body is one instance tint; the lap is its own
-     mesh so trousers can disagree with the shirt. */
-  const torsoParts: Part[] = [];
-  {
-    const chest = roundedBox(0.4, 0.44, 0.24, 0.1);
-    chest.translate(0, 0.04, 0.01);
-    torsoParts.push({ g: chest, c: 0xffffff });
-    for (const s of [-1, 1]) {
-      // The shoulder: a soft cap, so the silhouette slopes instead of ending
-      // in a beam.
-      const cap = new THREE.SphereGeometry(0.088, 12, 9);
-      cap.scale(1.12, 0.8, 1);
-      cap.translate(s * 0.185, 0.24, 0.01);
-      torsoParts.push({ g: cap, c: 0xffffff });
-      const arm = new THREE.CylinderGeometry(0.05, 0.057, 0.3, 10);
-      arm.rotateX(0.2);
-      arm.rotateZ(s * 0.14);
-      arm.translate(s * 0.235, 0.06, 0.045);
-      torsoParts.push({ g: arm, c: 0xffffff });
-      const fore = new THREE.CylinderGeometry(0.043, 0.048, 0.25, 10);
-      fore.rotateX(Math.PI / 2 - 0.3);
-      fore.translate(s * 0.21, -0.1, -0.1);
-      torsoParts.push({ g: fore, c: 0xffffff });
-    }
-  }
-  const bodyGeo = mergeParts(torsoParts);
-
-  const lapParts: Part[] = [];
-  for (const s of [-1, 1]) {
-    const thigh = roundedBox(0.155, 0.13, 0.42, 0.055);
-    thigh.rotateX(-0.06);
-    thigh.translate(s * 0.1, 0, -0.13);
-    lapParts.push({ g: thigh, c: 0xffffff });
-    const knee = new THREE.SphereGeometry(0.075, 10, 8);
-    knee.scale(1, 0.9, 1);
-    knee.translate(s * 0.1, 0.02, -0.33);
-    lapParts.push({ g: knee, c: 0xffffff });
-  }
-  const lapGeo = mergeParts(lapParts);
-
-  const mk = (g: THREE.BufferGeometry, m: THREE.Material) =>
-    new THREE.InstancedMesh(g, m, seatCount);
-  const heads = mk(headGeo, new THREE.MeshStandardMaterial({ roughness: 0.62 }));
-  /* Strand relief. A smooth shell of any colour is a swim cap; what makes
-     hair read as hair at this distance is that it breaks the highlight into
-     lines running the way the hair falls. */
-  const strands = strandTexture();
-  kill.push(strands);
-  const hairMat = new THREE.MeshStandardMaterial({
-    roughness: 0.88, metalness: 0.04, bumpMap: strands, bumpScale: 2.4,
-  });
-  const hairShort = mk(hairGeo, hairMat);
-  const hairLong = mk(hairLongGeo, hairMat);
-  const bodies = mk(bodyGeo, new THREE.MeshStandardMaterial({ roughness: 0.9 }));
-  const laps = mk(lapGeo, new THREE.MeshStandardMaterial({ roughness: 0.92 }));
-  heads.count = hairShort.count = hairLong.count = bodies.count = laps.count = 0;
-  group.add(heads); group.add(hairShort); group.add(hairLong); group.add(bodies); group.add(laps);
+     the backs of other people's heads. The people themselves are built in
+     passengers.ts; the cabin only says who is sitting where. */
+  const passengers = createPassengers({ rows: CABIN.rows, seatX: CABIN.seatX, floorY: CABIN.floorY, rowZ });
+  group.add(passengers.group);
 
   const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-  const HEAD_Y = CABIN.floorY + 1.19;
 
   let sold: ReadonlySet<string> = new Set();
   /* The seat the camera is in. Its occupant is the viewer, and rendering a
      head 20 cm in front of the lens fills the frame with the back of it. */
   let viewer = '';
 
+  /* And the passenger nobody booked, in the seat beside whichever one you
+     are looking out of: the window seat takes the middle, the middle and
+     the aisle take the one outboard of them. Whoever holds that seat is
+     moved on. */
+  const reaper = createReaper();
+  group.add(reaper.group);
+  const reaperSeat = () => {
+    const row = Number(viewer.replace(/\D/g, ''));
+    const s = letters.indexOf(viewer.replace(/\d/g, '').toUpperCase());
+    if (!row || s < 0) return null;
+    const next = [1, 0, 1, 4, 5, 4][s];
+    return { id: `${row}${letters[next]}`, row, seat: next, viewerSeat: s };
+  };
+
   const rebuild = () => {
-    const taken = sold;
-    let n = 0;
-    let nShort = 0;
-    let nLong = 0;
-    const colour = new THREE.Color();
-    for (let row = 1; row <= CABIN.rows; row++) {
-      for (let s = 0; s < CABIN.seatX.length; s++) {
-        const id = `${row}${letters[s]}`;
-        if (id === viewer || !taken.has(id)) continue;
-        const x = CABIN.seatX[s];
-        const z = rowZ(row);
-        const seed = row * 7 + s * 13;
-        // A little slouch and lean, so the rows are not a rank of dummies.
-        const lean = (((seed * 29) % 100) / 100 - 0.5) * 0.13;
-        const slouch = (((seed * 17) % 100) / 100) * 0.05;
-        /* People are not one size. Eight per cent either way is the spread
-           that stops a cabin reading as a moulding taken from one mould, and
-           it is small enough that nobody looks like a child or a giant. */
-        const build = 0.92 + (((seed * 41) % 100) / 100) * 0.16;
-        // Heads sit at a slight tilt of their own, independent of the lean.
-        const nod = ((((seed * 53) % 100) / 100) - 0.5) * 0.12;
-
-        dummy.scale.setScalar(build);
-        dummy.rotation.set(nod, lean * 2.2, lean);
-
-        dummy.position.set(x + lean * 0.16, HEAD_Y - slouch, z - 0.04);
-        dummy.updateMatrix();
-        heads.setMatrixAt(n, dummy.matrix);
-        colour.setHex(SKIN[seed % SKIN.length]);
-        heads.setColorAt(n, colour);
-
-        /* The hair rides the same head, so it takes the same transform.
-           Which hair — or none: about one passenger in nine has a bare
-           scalp, and it is simply the head's own skin. */
-        const hairPick = (seed * 11) % 100;
-        if (hairPick >= 11) {
-          const wig = hairPick < 57 ? hairShort : hairLong;
-          const w = wig === hairShort ? nShort : nLong;
-          wig.setMatrixAt(w, dummy.matrix);
-          colour.setHex(HAIR[(seed * 3) % HAIR.length]);
-          wig.setColorAt(w, colour);
-          if (wig === hairShort) nShort++; else nLong++;
-        }
-
-        dummy.rotation.set(0, lean * 1.4, lean * 0.6);
-        dummy.position.set(x + lean * 0.1, CABIN.floorY + 0.72 - slouch * 0.8, z - 0.015);
-        dummy.updateMatrix();
-        bodies.setMatrixAt(n, dummy.matrix);
-        colour.setHex(CLOTHES[(seed * 7) % CLOTHES.length]);
-        bodies.setColorAt(n, colour);
-
-        // The lap barely leans: legs are anchored by the floor.
-        dummy.rotation.set(0, lean * 0.5, 0);
-        dummy.position.set(x + lean * 0.04, CABIN.floorY + 0.6 - slouch * 0.3, z - 0.02);
-        dummy.updateMatrix();
-        laps.setMatrixAt(n, dummy.matrix);
-        colour.setHex(TROUSERS[(seed * 13) % TROUSERS.length]);
-        laps.setColorAt(n, colour);
-        dummy.scale.setScalar(1);
-        n++;
-      }
-    }
-    heads.count = bodies.count = laps.count = n;
-    hairShort.count = nShort;
-    hairLong.count = nLong;
-    for (const m of [heads, hairShort, hairLong, bodies, laps]) {
-      m.instanceMatrix.needsUpdate = true;
-      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    const at = reaperSeat();
+    passengers.place(sold, viewer, at?.id);
+    reaper.group.visible = at !== null;
+    if (at) {
+      reaper.group.position.set(CABIN.seatX[at.seat], CABIN.floorY + SEAT_HEIGHT, rowZ(at.row));
+      // The sickle goes in the hand nearer you.
+      reaper.setSide(CABIN.seatX[at.viewerSeat] > CABIN.seatX[at.seat] ? 1 : -1);
     }
   };
 
@@ -1350,6 +1116,8 @@ export function createCabin(): CabinHandles {
   };
 
   const dispose = () => {
+    reaper.dispose();
+    passengers.dispose();
     screenCache.forEach((t) => t.dispose());
     screenCache.clear();
     kill.forEach((x) => x.dispose());
@@ -1362,5 +1130,9 @@ export function createCabin(): CabinHandles {
     });
   };
 
-  return { group, setOccupancy, setViewer, setAdverts, setLighting, dispose };
+  const tick = (nowMs: number, eye: THREE.Vector3) => {
+    if (reaper.group.visible) reaper.update(nowMs, eye);
+  };
+
+  return { group, setOccupancy, setViewer, setAdverts, setLighting, tick, dispose };
 }

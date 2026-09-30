@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Attitude } from '../lib/useAttitude';
+import { createReaper } from './reaper';
 import type { Annunciators } from '../lib/flightModel';
 import { formatCap, formatChange, formatFeet, formatFeetShort, formatVerticalSpeed, phaseFor } from '../lib/flightModel';
 
@@ -917,6 +918,14 @@ export function createFlightDeck(): FlightDeckHandles {
   }
 
   /* ── The first officer's seat, across the pedestal ── */
+  /* It is taken. Whoever is in the left seat has the same company every
+     passenger has: see reaper.ts. Sat on the cushion, its back to the seat
+     back, the sickle in the hand nearer the captain. */
+  const reaper = createReaper();
+  reaper.group.position.set(2 * C, FLOOR + 0.535, 0.31);
+  reaper.setSide(-1);
+  group.add(reaper.group);
+  const captainEye = new THREE.Vector3();
   box(0.5, 0.12, 0.5, seatMat, 2 * C, FLOOR + 0.5, 0.25);
   box(0.5, 0.75, 0.12, seatMat, 2 * C, FLOOR + 0.92, 0.5, -0.12);
   box(0.28, 0.2, 0.1, seatMat, 2 * C, FLOOR + 1.42, 0.56, -0.12);
@@ -956,6 +965,7 @@ export function createFlightDeck(): FlightDeckHandles {
   };
 
   const update = (a: Attitude, nowMs: number, night: number) => {
+    reaper.update(nowMs, group.localToWorld(captainEye.set(0, 0, 0)));
     const over = a.bank + a.roll;
     for (const y of yokes) y.rotation.z = -over * DEG * 0.6;
     const thrust = Math.min(1, Math.max(0, (a.speed - 212) / 260));
@@ -979,7 +989,10 @@ export function createFlightDeck(): FlightDeckHandles {
     mcp.tex.needsUpdate = true;
   };
 
-  const dispose = () => owned.forEach((o) => o.dispose());
+  const dispose = () => {
+    owned.forEach((o) => o.dispose());
+    reaper.dispose();
+  };
 
   return { group, restPitch: -17, setReadout, update, dispose };
 }

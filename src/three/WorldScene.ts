@@ -240,6 +240,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
 
   const cabin = createCabin();
   aircraft.add(cabin.group);
+  const eyeWorld = new THREE.Vector3();
   aircraft.add(camera);
   /* The flight deck, ahead of the cabin: built around the captain's eye and
      shown only when the camera is sitting in it. */
@@ -1700,6 +1701,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       }
       deck.group.visible = onDeck;
       if (onDeck) deck.update(a, performance.now(), cabinNight);
+      else cabin.tick(performance.now(), camera.getWorldPosition(eyeWorld));
       // The eye opens a little in a dimmed cabin, but not all the way.
       renderer.toneMappingExposure = 0.85 * THREE.MathUtils.lerp(1, 0.8, cabinNight);
 
