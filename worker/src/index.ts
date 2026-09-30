@@ -339,46 +339,139 @@ const ownerTtl = (env: Env) => Number(env.OWNER_CACHE_MS || OWNER_CACHE_MS) || O
 let wallSnapshot: { value: Wall; expiresAt: number } | undefined;
 const ownerCache = new Map<string, number>();
 
-async function readWall(env: Env): Promise<Wall> {
-  if (wallSnapshot && wallSnapshot.expiresAt > Date.now()) return wallSnapshot.value;
+/* ── Where the wall is kept ──────────────────────────────────────────────
+   One row per wallet in the directory's database when there is one, and
+   the single KV record above only when there is not.
+
+   The KV record was read, changed and written back whole, from a snapshot
+   up to half a minute old, in a store that takes up to a minute to agree
+   with itself between locations. Two holders publishing within that minute
+   through different copies of the Worker each wrote back a wall without
+   the other's advert, and the one written second won: the first advert
+   stayed stored under `banner:<wallet>` and simply never showed, with no
+   error anywhere and nothing but a republish to bring it back. A row per
+   wallet is one upsert and one delete, and nobody's write touches anybody
+   else's.
+
+   The table is made on the first write (never on a read, as with the other
+   tables here) and filled once from the KV record, so the adverts already
+   up carry over. Reads fall back to the KV record while the table does not
+   exist. Writes still go to the KV record too, best effort, so rolling this
+   back loses nothing written since. `migrations/0006_adverts.sql` is the
+   same schema, for the record and for a database set up by hand. */
+let advertsTable: Promise<unknown> | null = null;
+
+async function readKvWall(env: Env): Promise<Wall> {
   const raw = await env.BANNERS.get(WALL_KEY).catch(() => null);
-  if (!raw) {
-    wallSnapshot = { value: {}, expiresAt: Date.now() + WALL_CACHE_MS };
-    return {};
-  }
-  let parsed: unknown;
+  let parsed: unknown = null;
   try {
-    parsed = JSON.parse(raw);
+    parsed = raw ? JSON.parse(raw) : null;
   } catch {
-    wallSnapshot = { value: {}, expiresAt: Date.now() + WALL_CACHE_MS };
-    return {};
-  }
-  if (!parsed || typeof parsed !== 'object') {
-    wallSnapshot = { value: {}, expiresAt: Date.now() + WALL_CACHE_MS };
-    return {};
+    parsed = null;
   }
   const wall: Wall = {};
+  if (!parsed || typeof parsed !== 'object') return wall;
   for (const [owner, entry] of Object.entries(parsed as Record<string, unknown>)) {
     const stored = readStoredBanner(JSON.stringify(entry));
     if (stored) wall[owner] = stored;
   }
+  return wall;
+}
+
+/** The table, made and seeded from the KV record the first time it is missing. */
+function ensureAdverts(env: Env, db: D1Database): Promise<unknown> {
+  advertsTable ??= (async () => {
+    await db.prepare(`CREATE TABLE IF NOT EXISTS adverts (
+      owner   TEXT PRIMARY KEY,
+      body    TEXT NOT NULL,
+      updated TEXT NOT NULL
+    )`).run();
+    /* Seeded only while the table is empty — whether this copy made it or a
+       migration run by hand did — so the adverts already up carry over. The
+       KV record mirrors every takedown since (see writeKvWall), so it cannot
+       bring back one that was taken down. */
+    if (await db.prepare('SELECT 1 FROM adverts LIMIT 1').first()) return;
+    const seed = Object.entries(await readKvWall(env)).map(([owner, stored]) => db
+      .prepare('INSERT OR IGNORE INTO adverts (owner, body, updated) VALUES (?, ?, ?)')
+      .bind(owner, JSON.stringify(stored), stored.updated));
+    for (let i = 0; i < seed.length; i += 50) await db.batch(seed.slice(i, i + 50));
+  })().catch((e) => {
+    advertsTable = null;
+    throw e;
+  });
+  return advertsTable;
+}
+
+async function readWall(env: Env): Promise<Wall> {
+  if (wallSnapshot && wallSnapshot.expiresAt > Date.now()) return wallSnapshot.value;
+  let wall: Wall | null = null;
+  if (env.DIRECTORY) {
+    try {
+      const { results } = await env.DIRECTORY
+        .prepare('SELECT owner, body FROM adverts')
+        .all<{ owner: string; body: string }>();
+      // Empty is a table nothing has been written to since it was made, and the KV record still the wall.
+      if (results?.length) {
+        wall = {};
+        // One malformed row costs one advert, never the wall.
+        for (const row of results) {
+          const stored = readStoredBanner(row.body);
+          if (stored) wall[row.owner] = stored;
+        }
+      }
+    } catch {
+      // No table yet: nothing has been published since the move. The KV record is the wall.
+      wall = null;
+    }
+  }
+  wall ??= await readKvWall(env);
   wallSnapshot = { value: wall, expiresAt: Date.now() + WALL_CACHE_MS };
   return wall;
 }
 
+/** The old record, kept current as far as it can be, so a rollback loses nothing. */
+async function writeKvWall(env: Env, change: (wall: Wall) => void): Promise<void> {
+  try {
+    const wall = await readKvWall(env);
+    change(wall);
+    await env.BANNERS.put(WALL_KEY, JSON.stringify(wall));
+  } catch {
+    /* best effort */
+  }
+}
+
 async function addToWall(env: Env, owner: string, stored: StoredBanner): Promise<void> {
-  const wall = await readWall(env);
-  wall[owner] = stored;
-  await env.BANNERS.put(WALL_KEY, JSON.stringify(wall));
-  wallSnapshot = { value: wall, expiresAt: Date.now() + WALL_CACHE_MS };
+  if (env.DIRECTORY) {
+    const db = env.DIRECTORY;
+    await ensureAdverts(env, db);
+    await db
+      .prepare('INSERT INTO adverts (owner, body, updated) VALUES (?, ?, ?) ON CONFLICT(owner) DO UPDATE SET body = excluded.body, updated = excluded.updated')
+      .bind(owner, JSON.stringify(stored), stored.updated)
+      .run();
+    await writeKvWall(env, (wall) => { wall[owner] = stored; });
+  } else {
+    const wall = await readKvWall(env);
+    wall[owner] = stored;
+    await env.BANNERS.put(WALL_KEY, JSON.stringify(wall));
+  }
+  // This copy's snapshot is dropped rather than patched: patching a stale one is how the old wall lost adverts.
+  wallSnapshot = undefined;
 }
 
 async function removeFromWall(env: Env, owner: string): Promise<void> {
-  const wall = await readWall(env);
-  if (!(owner in wall)) return;
-  delete wall[owner];
-  await env.BANNERS.put(WALL_KEY, JSON.stringify(wall));
-  wallSnapshot = { value: wall, expiresAt: Date.now() + WALL_CACHE_MS };
+  if (env.DIRECTORY) {
+    const db = env.DIRECTORY;
+    await ensureAdverts(env, db);
+    await db.prepare('DELETE FROM adverts WHERE owner = ?').bind(owner).run();
+    await writeKvWall(env, (wall) => { delete wall[owner]; });
+  } else {
+    const wall = await readKvWall(env);
+    if (owner in wall) {
+      delete wall[owner];
+      await env.BANNERS.put(WALL_KEY, JSON.stringify(wall));
+    }
+  }
+  wallSnapshot = undefined;
 }
 
 function wallEtag(wall: Wall): string {
