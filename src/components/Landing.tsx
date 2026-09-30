@@ -662,6 +662,14 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     stickEl.current?.classList.remove('is-on');
   };
 
+  /* The picture lost in the middle of a flight — iOS reclaiming the GPU,
+     most often — leaves a flight that can never end: carry on into the
+     site, which builds a picture of its own. After the crash the count
+     already does. */
+  useEffect(() => {
+    if (failed && (phase === 'intro' || phase === 'flying')) leave();
+  }, [failed, phase, leave]);
+
   useEffect(() => {
     if (!CAPTURE) return;
     Object.assign(captureState.app, { fly: onFly, leave });

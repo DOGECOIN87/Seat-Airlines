@@ -205,8 +205,14 @@ const LandingScene = ({
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
+    /* iOS takes a page's GPU context away when it needs the memory — often
+       on the way back from another app. The picture is gone for good then,
+       so the landing is told, as it is when there is no WebGL at all. */
+    const lost = () => calls.current.onFail();
+    canvas.addEventListener('webglcontextlost', lost);
     calls.current.onReady();
     return () => {
+      canvas.removeEventListener('webglcontextlost', lost);
       ro.disconnect();
       handles.dispose();
       world.current = null;

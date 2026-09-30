@@ -2092,6 +2092,14 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     sky.geometry.dispose();
     (sky.material as THREE.Material).dispose();
     renderer.dispose();
+    /* And let go of the GPU context itself, rather than leaving it for the
+       garbage collector. Going from the landing into the site builds a whole
+       second world while the first is being torn down, and an iPhone holding
+       both contexts' memory at once can have Safari reload the page instead.
+       Only once the canvas has actually left the page: React tears a scene
+       down and builds it again on the same canvas in development, and a
+       context lost there would stay lost. */
+    if (!canvas.isConnected) renderer.forceContextLoss();
   };
 
   const onScreen = new THREE.Vector3();

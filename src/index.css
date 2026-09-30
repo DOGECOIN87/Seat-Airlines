@@ -3783,8 +3783,13 @@ p { text-wrap-style: pretty; }
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* The landing takes every touch for the stick (touch-action: none); this
+     column has to scroll on a short phone, so it takes vertical drags back. */
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   background: none;
 }
+.sa-landing__end--crash button { touch-action: manipulation; }
 .sa-landing__end--crash > .sa-wasted { margin-top: auto; }
 .sa-landing__end--crash > .sa-landing__end-after { margin-bottom: auto; }
 /* As WASTED lands, the grey goes red: a red laid over the picture and
@@ -3896,6 +3901,10 @@ p { text-wrap-style: pretty; }
   .sa-landing__end--crash .sa-wasted__word { width: min(84vw, 40rem, 58vh); width: min(84vw, 40rem, 58svh); }
   .sa-landing__end--crash .sa-landing__score { font-size: 2rem; }
   .sa-landing__end--crash .sa-landing__end-actions > * { min-height: 3rem; }
+}
+/* On its side, a phone is wide and short: all the buttons on one row. */
+@media (max-height: 560px) and (min-width: 641px) {
+  .sa-landing__end--crash .sa-landing__end-actions { width: min(100%, 42rem); flex-wrap: nowrap; }
 }
 .sa-landing__end-title {
   font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
