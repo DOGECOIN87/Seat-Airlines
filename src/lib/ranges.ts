@@ -67,7 +67,8 @@ function hash(i: number, j: number, salt: number): number {
 export function cellAt(i: number, j: number): Cell {
   const pick = hash(i, j, 1);
   return {
-    kind: pick < 0.5 ? 'montana' : pick < 0.8 ? 'spain' : null,
+    // Half the horizon open: ranges are an event on it, not a wall round it.
+    kind: pick < 0.3 ? 'montana' : pick < 0.5 ? 'spain' : null,
     turns: Math.floor(hash(i, j, 2) * 4),
     mirror: hash(i, j, 3) < 0.5,
     height: 0.75 + hash(i, j, 4) * 0.4,

@@ -23,13 +23,13 @@ check('a cell is the same country every time', () => {
   }
 });
 
-check('mostly mountains, some hill country, a few gaps', () => {
+check('half open horizon, the rest mountains and some hill country', () => {
   const counts = { montana: 0, spain: 0, none: 0 };
   for (let i = 0; i < 60; i++) for (let j = 0; j < 60; j++) counts[cellAt(i, j).kind ?? 'none']++;
   const n = 3600;
-  assert(counts.none / n > 0.12 && counts.none / n < 0.28, `empty ${counts.none / n}`);
-  assert(counts.montana / n > 0.42 && counts.montana / n < 0.58, `montana ${counts.montana / n}`);
-  assert(counts.spain / n > 0.22 && counts.spain / n < 0.38, `spain ${counts.spain / n}`);
+  assert(counts.none / n > 0.42 && counts.none / n < 0.58, `empty ${counts.none / n}`);
+  assert(counts.montana / n > 0.22 && counts.montana / n < 0.38, `montana ${counts.montana / n}`);
+  assert(counts.spain / n > 0.13 && counts.spain / n < 0.27, `spain ${counts.spain / n}`);
 });
 
 check('turns, mirrors and heights vary but stay in range', () => {
