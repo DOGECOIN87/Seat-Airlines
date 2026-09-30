@@ -32,6 +32,14 @@ const PEAK: Record<RangeKind, number> = { montana: 5200, spain: 2400 };
 /** Where the relief is sunk to when it is not showing: under the ground plate, which lies at −2. */
 const SUNK = -30;
 
+/**
+ * Where a range's own plain lies, standing: under the ground plate too. Its
+ * flat valley floors and the edges of its cell are not land to be painted
+ * over the farmland — which, far out and pale with haze, read as grey patches
+ * lying on the fields — so only the relief comes up out of them.
+ */
+const PLAIN = -25;
+
 /** How much of its relief the ground's low colour is worked out for: foothill country, whatever the height. */
 const LOW = 0.1;
 
@@ -189,7 +197,7 @@ export function createRanges(o: { base: string; segments: number; envMap?: THREE
       .replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
-        transformed.y = position.y * rangeF + ${f1(SUNK)} * (1.0 - rangeF);`,
+        transformed.y = (position.y + ${f1(PLAIN)}) * rangeF + ${f1(SUNK)} * (1.0 - rangeF);`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
