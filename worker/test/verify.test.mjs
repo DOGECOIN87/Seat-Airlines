@@ -9,7 +9,7 @@
 import { webcrypto as crypto } from 'node:crypto';
 import assert from 'node:assert/strict';
 import {
-  challenge, decodeDataUrl, imageType, readStoredBanner, sha256Hex, takedownChallenge, verifySignature,
+  advertTextProblem, challenge, decodeDataUrl, imageType, readStoredBanner, sha256Hex, takedownChallenge, verifySignature,
 } from '../dist-test/verify.js';
 
 const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
@@ -63,7 +63,7 @@ const sign = async (msg) =>
 
 const issued = new Date().toISOString();
 const hash = await sha256Hex(JPEG);
-const message = challenge(owner, hash, issued);
+const message = challenge(owner, hash, issued, 'An advert', 'https://example.com/');
 const signature = await sign(message);
 
 console.log('\nverify.ts');
@@ -81,12 +81,27 @@ await check('rejects a signature from a different wallet', async () => {
 await check('rejects a captured signature reused for OTHER artwork', async () => {
   // The whole reason the image hash lives inside the signed text.
   const evil = Uint8Array.from([0xff, 0xd8, 0xff, 0x01, 0x02, 0x03]);
-  const evilMessage = challenge(owner, await sha256Hex(evil), issued);
+  const evilMessage = challenge(owner, await sha256Hex(evil), issued, 'An advert', 'https://example.com/');
   assert.equal(await verifySignature(owner, evilMessage, signature), false);
 });
 
+await check('rejects a captured signature reused with another caption or link', async () => {
+  assert.equal(await verifySignature(owner, challenge(owner, hash, issued, 'Other words', 'https://example.com/'), signature), false);
+  assert.equal(await verifySignature(owner, challenge(owner, hash, issued, 'An advert', 'https://evil.example/'), signature), false);
+  assert.equal(await verifySignature(owner, challenge(owner, hash, issued, 'An advert'), signature), false);
+});
+
+await check('refuses a caption on two lines and a link that is not the web', () => {
+  assert.equal(advertTextProblem('fine', 'https://example.com/'), null);
+  assert.equal(advertTextProblem('fine', undefined), null);
+  assert.ok(advertTextProblem('one\ntwo', undefined));
+  assert.ok(advertTextProblem('fine', 'javascript:alert(1)'));
+  assert.ok(advertTextProblem('fine', 'not a url'));
+  assert.ok(advertTextProblem('x'.repeat(281), undefined));
+});
+
 await check('rejects a tampered timestamp', async () => {
-  const moved = challenge(owner, hash, new Date(Date.now() + 60_000).toISOString());
+  const moved = challenge(owner, hash, new Date(Date.now() + 60_000).toISOString(), 'An advert', 'https://example.com/');
   assert.equal(await verifySignature(owner, moved, signature), false);
 });
 

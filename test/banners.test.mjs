@@ -13,9 +13,9 @@
  *   npm run test
  */
 import {
-  advertKey, challenge, dataUrlBytes, houseAdverts, publishBanner, takedownChallenge, unpublishBanner, ServerUnreachable,
+  advertKey, advertLink, challenge, dataUrlBytes, legacyChallenge, houseAdverts, publishBanner, takedownChallenge, unpublishBanner, ServerUnreachable,
 } from '../dist-test/banners.js';
-import { challenge as workerChallenge, takedownChallenge as workerTakedown } from '../dist-test/workerVerify.js';
+import { challenge as workerChallenge, legacyChallenge as workerLegacy, takedownChallenge as workerTakedown } from '../dist-test/workerVerify.js';
 
 let pass = 0, fail = 0;
 const check = (name, fn) => {
@@ -146,8 +146,23 @@ const R2_URL = 'https://pub-123.r2.dev/banners/fedcba9876543210fedcba9876543210.
 
 check('the page and the Worker sign the same text to publish', () => {
   const issued = '2026-09-24T00:00:00.000Z';
-  assert(challenge('WalletOne', 'ab'.repeat(32), issued) === workerChallenge('WalletOne', 'ab'.repeat(32), issued),
-    'the publish challenges differ');
+  for (const [text, link] of [['An advert', 'https://example.com/'], ['An advert', undefined], ['', undefined]]) {
+    assert(challenge('WalletOne', 'ab'.repeat(32), issued, text, link) === workerChallenge('WalletOne', 'ab'.repeat(32), issued, text, link),
+      `the publish challenges differ for ${text} / ${link}`);
+  }
+  assert(legacyChallenge('WalletOne', 'ab'.repeat(32), issued) === workerLegacy('WalletOne', 'ab'.repeat(32), issued),
+    'the legacy challenges differ');
+});
+
+check('the link is signed as it will be stored: a bare domain gains https, and nothing else gets through', () => {
+  assert(advertLink(' example.com/shop ') === 'https://example.com/shop', `bare domain became ${advertLink('example.com/shop')}`);
+  assert(advertLink('http://example.com') === 'http://example.com/', 'an http link was changed');
+  assert(advertLink('') === undefined && advertLink(undefined) === undefined, 'an empty link was not none');
+  let refused = 0;
+  for (const bad of ['javascript:alert(1)', 'data:text/html,hi', 'https://']) {
+    try { advertLink(bad); } catch { refused++; }
+  }
+  assert(refused === 3, `only ${refused} of 3 bad links were refused`);
 });
 
 check('the page and the Worker sign the same text to take one down', () => {

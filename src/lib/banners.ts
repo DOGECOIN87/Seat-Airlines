@@ -308,9 +308,29 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 /**
  * The text a holder signs. Human-readable on purpose — this appears in a
  * wallet popup, and somebody being asked to sign something ought to be able
- * to read what it says.
+ * to read what it says. It names the caption and link as well as the image,
+ * so the signature covers the whole advert. Must match the Worker's.
  */
-export function challenge(owner: string, imageHash: string, issued: string): string {
+export function challenge(owner: string, imageHash: string, issued: string, text: string, link?: string): string {
+  return [
+    'SEAT AIRLINES',
+    'Publish this advert on my seat.',
+    '',
+    `wallet: ${owner}`,
+    `image:  sha256:${imageHash}`,
+    `text:   ${text}`,
+    `link:   ${link || '(none)'}`,
+    `issued: ${issued}`,
+  ].join('\n');
+}
+
+/**
+ * The text signed before the caption and link were part of it, which pinned
+ * the image and nothing else: a captured request could carry any caption or
+ * link. Still recognised, so a page left open from before can be told to
+ * reload rather than "that signature does not match". Must match the Worker's.
+ */
+export function legacyChallenge(owner: string, imageHash: string, issued: string): string {
   return [
     'SEAT AIRLINES',
     'Publish this advert on my seat.',
@@ -319,6 +339,25 @@ export function challenge(owner: string, imageHash: string, issued: string): str
     `image:  sha256:${imageHash}`,
     `issued: ${issued}`,
   ].join('\n');
+}
+
+/**
+ * The link as it will be signed and stored: trimmed, `https://` added to a
+ * bare domain, and null for none. Throws, with words for a person, for
+ * anything that is not a web address, before a signature is asked for.
+ */
+export function advertLink(href: string | undefined): string | undefined {
+  const raw = href?.trim();
+  if (!raw) return undefined;
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`;
+  let url: URL;
+  try {
+    url = new URL(withScheme);
+  } catch {
+    throw new Error('That link is not a web address.');
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('Use an http:// or https:// link.');
+  return url.href;
 }
 
 export interface PublishResult {
@@ -369,8 +408,12 @@ export async function publishBanner(opts: {
 
   const bytes = dataUrlBytes(opts.image);
   const hash = await sha256Hex(bytes);
+  // The caption and link go out exactly as signed: one line each, no control characters.
+  // eslint-disable-next-line no-control-regex
+  const alt = opts.alt.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').trim().slice(0, 280);
+  const href = advertLink(opts.href);
   const issued = new Date().toISOString();
-  const signature = await opts.sign(challenge(opts.owner, hash, issued));
+  const signature = await opts.sign(challenge(opts.owner, hash, issued, alt, href));
 
   let res: Response;
   try {
@@ -380,8 +423,8 @@ export async function publishBanner(opts: {
       body: JSON.stringify({
         owner: opts.owner,
         image: opts.image,
-        alt: opts.alt,
-        href: opts.href,
+        alt,
+        href,
         issued,
         signature,
       }),

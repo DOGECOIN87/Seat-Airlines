@@ -35,7 +35,10 @@ const toBase58 = (bytes) => {
   return '1'.repeat(zeros) + digits.reverse().map((d) => B58[d]).join('');
 };
 
-const challenge = (owner, hash, issued) =>
+const challenge = (owner, hash, issued, text, link) =>
+  ['SEAT AIRLINES', 'Publish this advert on my seat.', '', `wallet: ${owner}`, `image:  sha256:${hash}`,
+    `text:   ${text}`, `link:   ${link || '(none)'}`, `issued: ${issued}`].join('\n');
+const legacyChallenge = (owner, hash, issued) =>
   ['SEAT AIRLINES', 'Publish this advert on my seat.', '', `wallet: ${owner}`, `image:  sha256:${hash}`, `issued: ${issued}`].join('\n');
 
 const sha256Hex = async (bytes) =>
@@ -69,14 +72,41 @@ const signedBody = async (overrides = {}) => {
   const image = overrides.image ?? dataUrl;
   const bytes = Buffer.from(image.slice(image.indexOf(',') + 1), 'base64');
   const hash = await sha256Hex(bytes);
+  const alt = overrides.alt ?? 'A test advert';
   return {
-    owner, image, issued, alt: 'A test advert',
-    signature: await sign(challenge(owner, hash, issued)),
+    owner, image, issued, alt,
+    signature: await sign(challenge(owner, hash, issued, alt, overrides.href)),
     ...overrides,
   };
 };
 
 console.log('\nworker routes');
+
+await check('a caption or link swapped after signing is refused', async () => {
+  const body = await signedBody({ href: 'https://example.com/' });
+  const swapped = await post({ ...body, href: 'https://evil.example/' });
+  assert(swapped.status === 401, `a swapped link got ${swapped.status}`);
+  const recaptioned = await post({ ...body, alt: 'Something else' });
+  assert(recaptioned.status === 401, `a swapped caption got ${recaptioned.status}`);
+});
+
+await check('a caption with a line break, or a link that is not the web, is refused before anything else', async () => {
+  const broken = await post(await signedBody({ alt: 'one\nlink:   https://evil.example/' }));
+  assert(broken.status === 400, `a two-line caption got ${broken.status}`);
+  const script = await post(await signedBody({ href: 'javascript:alert(1)' }));
+  assert(script.status === 400, `a javascript: link got ${script.status}`);
+  const long = await post(await signedBody({ alt: 'x'.repeat(281) }));
+  assert(long.status === 400, `an overlong caption got ${long.status}`);
+});
+
+await check('a page from before the caption was signed is told to reload, not stored', async () => {
+  const issued = new Date().toISOString();
+  const hash = await sha256Hex(JPEG);
+  const res = await post({ owner, image: dataUrl, issued, alt: 'Old page', signature: await sign(legacyChallenge(owner, hash, issued)) });
+  assert(res.status === 409, `the old page's publish got ${res.status}`);
+  const body = await res.json();
+  assert(/reload/i.test(body.error), `it was told: ${body.error}`);
+});
 
 await check('GET /banners returns JSON', async () => {
   const res = await fetch(`${BASE}/banners`, { headers: { origin: ORIGIN } });
@@ -1305,6 +1335,22 @@ await check('no card without a flight, and none that is not a card', async () =>
 await check('a card that is not there sends a person to the site', async () => {
   const res = await fetch(`${BASE}/c/${'a'.repeat(24)}`, { redirect: 'manual' });
   assert(res.status === 302 && /^http/.test(res.headers.get('location') ?? ''), `status ${res.status}`);
+});
+
+console.log('\nthe chain, rationed');
+
+/* Last, because it spends this address's allowance for the minute. */
+await check('one address asking about many wallets off the list is slowed down; the seated are still answered', async () => {
+  const statuses = [];
+  for (let i = 0; i < 25; i++) {
+    const fresh = await wallet();
+    statuses.push((await fetch(`${BASE}/holding?address=${fresh.address}`, { headers: { origin: ORIGIN } })).status);
+  }
+  const limited = statuses.filter((s) => s === 429).length;
+  assert(limited > 0, `25 lookups in a row were all answered: ${statuses.join(',')}`);
+  assert(statuses.every((s) => s === 200 || s === 429), `unexpected statuses: ${statuses.join(',')}`);
+  const seated = await fetch(`${BASE}/holding?address=${alice.address}`, { headers: { origin: ORIGIN } });
+  assert(seated.status === 200, `a seated wallet was refused with ${seated.status}`);
 });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

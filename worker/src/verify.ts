@@ -44,6 +44,31 @@ export const MAX_AGE_MS = 5 * 60 * 1000;
 export const COOLDOWN_SECONDS = 60;
 /** A 384px square JPEG is tens of kilobytes. This is generous. */
 export const MAX_IMAGE_BYTES = 512 * 1024;
+/** The longest caption and link kept. Refused beyond these, never cut: cutting would change what was signed. */
+export const MAX_ALT_CHARS = 280;
+export const MAX_HREF_CHARS = 500;
+
+/**
+ * Why this caption and link cannot be kept, or null if they can. No control
+ * characters (a newline would add lines of its own to the signed text), and
+ * a link is http or https or nothing.
+ */
+export function advertTextProblem(alt: string, href: string | undefined): string | null {
+  if (alt.length > MAX_ALT_CHARS) return 'That description is too long.';
+  if (href !== undefined && href.length > MAX_HREF_CHARS) return 'That link is too long.';
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f\u2028\u2029]/.test(alt + (href ?? ''))) return 'The description and link must be plain text on one line.';
+  if (href) {
+    let url: URL;
+    try {
+      url = new URL(href);
+    } catch {
+      return 'That link is not a web address.';
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return 'Use an http:// or https:// link.';
+  }
+  return null;
+}
 
 const enc = new TextEncoder();
 
@@ -52,8 +77,33 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** The exact text the client signs. Must match `challenge()` in the app. */
-export function challenge(owner: string, imageHash: string, issued: string): string {
+/**
+ * The exact text the client signs. Must match `challenge()` in the app.
+ *
+ * It names everything the advert is: the wallet, the image's bytes, the
+ * caption and the link. A signature therefore authorises that advert and no
+ * other, not merely that picture under whatever words come with it.
+ */
+export function challenge(owner: string, imageHash: string, issued: string, text: string, link?: string): string {
+  return [
+    'SEAT AIRLINES',
+    'Publish this advert on my seat.',
+    '',
+    `wallet: ${owner}`,
+    `image:  sha256:${imageHash}`,
+    `text:   ${text}`,
+    `link:   ${link || '(none)'}`,
+    `issued: ${issued}`,
+  ].join('\n');
+}
+
+/**
+ * The text signed before the caption and link were part of it, which pinned
+ * the image and nothing else: a captured request could carry any caption or
+ * link. Still recognised, so a page left open from before can be told to
+ * reload rather than "that signature does not match". Must match the Worker's.
+ */
+export function legacyChallenge(owner: string, imageHash: string, issued: string): string {
   return [
     'SEAT AIRLINES',
     'Publish this advert on my seat.',

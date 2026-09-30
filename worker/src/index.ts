@@ -43,7 +43,7 @@
  */
 
 import {
-  challenge, decodeDataUrl, imageType, readStoredBanner, sha256Hex, takedownChallenge, verifySignature,
+  advertTextProblem, challenge, decodeDataUrl, imageType, legacyChallenge, readStoredBanner, sha256Hex, takedownChallenge, verifySignature,
   MAX_AGE_MS, MAX_IMAGE_BYTES, COOLDOWN_SECONDS, type StoredBanner,
 } from './verify';
 import {
@@ -134,6 +134,11 @@ export interface Env {
    * fail in for a route whose answer is somebody's private notes.
    */
   ADMIN_WALLET?: string;
+  /**
+   * Caps how often one address may make `GET /holding` ask the chain, which
+   * costs a metered RPC call per wallet not on the holder list. Unbound, no cap.
+   */
+  HOLDING_LIMIT?: RateLimit;
 }
 
 
@@ -858,7 +863,23 @@ async function handle(request: Request, env: Env): Promise<Response> {
          the seat it puts them in. Only a wallet not on the list — a small
          holder, or nobody — costs a call to the chain. */
       const ladder = await readLadder(env);
-      const balance = ladder.balanceOf(address) ?? (await readBalance(env, address));
+      let balance = ladder.balanceOf(address);
+      if (balance === null) {
+        /* Only this costs anything: a call to the chain on the operator's
+           metered key, for a wallet nobody may be seated in. Anybody could
+           ask about a thousand made-up wallets a minute and spend the key's
+           credit that way, so one address gets so many of these a minute. A
+           person checks one wallet every couple of minutes; the seated are
+           answered above, from the list, and never count. */
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const allowed = env.HOLDING_LIMIT ? (await env.HOLDING_LIMIT.limit({ key: ip }).catch(() => ({ success: true }))).success : true;
+        if (!allowed) {
+          return json({ error: 'Too many lookups from here. Try again in a minute.' }, 429, {
+            ...cors, 'cache-control': 'no-store', 'retry-after': '60',
+          });
+        }
+        balance = await readBalance(env, address);
+      }
       if (balance === null) {
         return json({ error: 'The chain could not be asked just now.' }, 503, { ...cors, 'cache-control': 'no-store' });
       }
@@ -1602,12 +1623,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const image = typeof body.image === 'string' ? body.image : '';
       const issued = typeof body.issued === 'string' ? body.issued : '';
       const signature = typeof body.signature === 'string' ? body.signature : '';
-      const alt = typeof body.alt === 'string' ? body.alt.slice(0, 280) : '';
-      const href = typeof body.href === 'string' ? body.href.slice(0, 500) : undefined;
+      const alt = typeof body.alt === 'string' ? body.alt : '';
+      const href = typeof body.href === 'string' && body.href ? body.href : undefined;
 
       if (!owner || !image || !issued || !signature) {
         return json({ error: 'That request was missing something.' }, 400, cors);
       }
+      // Refused rather than trimmed: what is stored has to be exactly what was signed.
+      const textProblem = advertTextProblem(alt, href);
+      if (textProblem) return json({ error: textProblem }, 400, cors);
 
       // Time first: it is the cheapest check and it bounds replay.
       const at = Date.parse(issued);
@@ -1623,10 +1647,18 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const type = imageType(bytes);
       if (!type) return json({ error: 'Adverts must be JPEG, PNG, or WebP.' }, 415, cors);
 
-      // The signature authorises *this* image, not merely this wallet.
+      // The signature authorises *this* advert — image, caption and link — not merely this wallet.
       const hash = await sha256Hex(bytes);
-      if (!(await verifySignature(owner, challenge(owner, hash, issued), signature))) {
-        return json({ error: 'That signature does not match the wallet.' }, 401, cors);
+      if (!(await verifySignature(owner, challenge(owner, hash, issued, alt, href), signature))) {
+        /* A page from before the caption and link were signed signs the old
+           text. With neither, it says everything the new one would; with
+           either, the words were never signed, so they are not stored, and
+           the holder is told the one thing that fixes it. */
+        const legacy = await verifySignature(owner, legacyChallenge(owner, hash, issued), signature);
+        if (!legacy) return json({ error: 'That signature does not match the wallet.' }, 401, cors);
+        if (alt || href) {
+          return json({ error: 'This page is out of date. Reload it, then publish again.' }, 409, cors);
+        }
       }
 
       const cooldownKey = `cooldown:${owner}`;

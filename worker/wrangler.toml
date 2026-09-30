@@ -26,6 +26,15 @@ binding = "DIRECTORY"
 database_name = "seat-airlines-directory"
 database_id = "a8e4747a-ef46-4689-ac75-c50f7f428b83"
 
+# How often one address may make GET /holding ask the chain for a wallet that
+# is not on the holder list: each is a metered RPC call. Seated wallets are
+# answered from the list and never count. (Cloudflare's rate-limit binding;
+# the namespace is any number unique to this account.)
+[[ratelimits]]
+name = "HOLDING_LIMIT"
+namespace_id = "1001"
+simple = { limit = 20, period = 60 }
+
 [vars]
 # The Worker uses R2 only when this is set as well as the binding above, and
 # falls back to serving images out of KV when it is not. That is deliberate:
