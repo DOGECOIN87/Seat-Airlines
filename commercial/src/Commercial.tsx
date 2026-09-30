@@ -281,9 +281,7 @@ const SceneBody: React.FC<{ scene: Scene; frames: number }> = ({ scene, frames }
     )}
     {scene.id === 'hero' && <Headline lines={['NETWORK BUILD', 'TO THE MOON.']} />}
     {scene.id === 'seats' && <Headline lines={['YOUR BAG', 'IS YOUR SEAT.']} />}
-    {scene.id === 'seats_scroll' && <Caption text="178 seats. One flight." frames={frames} />}
     {scene.id === 'altitudes' && <AltBandHud />}
-    {scene.id === 'advert' && <Caption text="Your ad, on board." frames={frames} />}
     {scene.id === 'climb' && <ClimbHud />}
     {(scene.id === 'endcard' || scene.id === 'brandopen') && <EndCard />}
     {scene.id !== 'intro' && scene.id !== 'endcard' && scene.id !== 'brandopen' && scene.id !== 'hero' && scene.id !== 'seats' && scene.id !== 'seats_scroll' && scene.id !== 'altitudes' && <LogoBug frames={frames} />}
