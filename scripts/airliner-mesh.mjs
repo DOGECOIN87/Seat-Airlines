@@ -92,7 +92,15 @@ for (const face of src.faces) {
     // Wind each triangle to face the way its polygon does.
     const tn = new THREE.Vector3().subVectors(c, a).cross(new THREE.Vector3().subVectors(d, a));
     if (tn.lengthSq() < 1e-14) continue;
-    tris.push(tn.dot(n) >= 0 ? { p: [a, c, d], n, part } : { p: [a, d, c], n, part });
+    const tri = tn.dot(n) >= 0 ? { p: [a, c, d], n, part } : { p: [a, d, c], n, part };
+    // The starboard engine is the port one mirrored, and a mirror turns every
+    // face inside out: its cowl faces into the nacelle, and a one-sided skin
+    // drawn that way is only seen from inside. Turn it back.
+    if (part !== PART.skin && part !== PART.glass && part !== PART.seam && centre.x > 0) {
+      tri.p = [tri.p[0], tri.p[2], tri.p[1]];
+      tri.n = n.clone().negate();
+    }
+    tris.push(tri);
   }
 }
 
