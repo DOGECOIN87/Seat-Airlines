@@ -146,6 +146,22 @@ export function cityTextures(): CityTextures {
     }
   }
 
+  /* The streets themselves glow at night: sodium light pooled on the
+     asphalt, brightest at the crossings, which is most of what a city looks
+     like from the air after dark. */
+  n.fillStyle = 'rgba(255, 158, 74, 0.34)';
+  for (const x of avenues) n.fillRect(x - ave / 2, 0, ave, h);
+  n.fillStyle = 'rgba(255, 158, 74, 0.24)';
+  for (const y of streets) n.fillRect(0, y - st / 2, w, st);
+  for (const x of avenues) {
+    for (const y of streets) {
+      const pool = n.createRadialGradient(x, y, 0, x, y, ave * 0.9);
+      pool.addColorStop(0, 'rgba(255, 196, 120, 0.55)');
+      pool.addColorStop(1, 'rgba(255, 170, 90, 0)');
+      n.fillStyle = pool;
+      n.fillRect(x - ave, y - ave, ave * 2, ave * 2);
+    }
+  }
   // Sodium lamps along both kerbs; the avenues busier and brighter.
   for (const x of avenues) {
     n.fillStyle = 'rgba(255, 180, 96, 0.95)';
@@ -560,11 +576,26 @@ if ( vSkTier > 2.5 && vSkTier < 3.5 ) skCol = vec3( 0.52, 0.54, 0.57 );
 if ( vSkTier > 3.5 ) skCol = vec3( 0.33, 0.24, 0.16 ) * ( 0.85 + 0.15 * step( 0.5, fract( vSkAt.y * 0.8 ) ) );
 bool skPlain = vSkTier > 2.5;
 diffuseColor.rgb = skCol;
-float skLitP = mix( 0.4, 0.8, skS2 );
-float skLit = step( 1.0 - skLitP, skHash2( skId + vec2( vSkSeed * 91.0, floor( vSkSeed * 13.0 ) ) ) );
+/* Offices are lit a floor at a time — whole bands on, whole bands off,
+   with the odd desk lamp on a dark floor — and in cool white; flats are
+   lit room by room, mostly warm. */
+float skFloorOn = step( skCurtain ? 0.3 : 0.55, skHash2( vec2( skId.y * 1.7, vSkSeed * 31.0 ) ) );
+float skWin = skHash2( skId + vec2( vSkSeed * 91.0, floor( vSkSeed * 13.0 ) ) );
+float skLit = skCurtain ? mix( step( 0.93, skWin ), step( 0.1, skWin ), skFloorOn ) : mix( step( 0.72, skWin ), step( 0.35, skWin ), skFloorOn );
+float skLitP = skCurtain ? 0.66 : 0.45;
 float skWarm = skHash2( skId + 5.5 );
-vec3 skLight = mix( vec3( 0.75, 0.85, 1.0 ), vec3( 1.0, 0.78, 0.5 ), step( skCurtain ? 0.6 : 0.2, skWarm ) );
-vec3 skGlow = skLight * mix( skLit * skPane * skShade, skLitP * skMean * 0.7, skBlur ) * ( 1.0 - skPlant ) * ( 1.0 - skPier ) * skWall;
+vec3 skLight = skCurtain
+  ? mix( vec3( 0.78, 0.88, 1.0 ), vec3( 1.0, 0.95, 0.82 ), step( 0.8, skWarm ) )
+  : mix( vec3( 1.0, 0.78, 0.5 ), vec3( 0.95, 0.93, 0.86 ), step( 0.65, skWarm ) );
+skLight *= 0.75 + 0.5 * skHash2( skId + 9.1 );
+vec3 skGlow = skLight * mix( skLit * skPane * skShade, skLitP * skMean * 0.75, skBlur ) * ( 1.0 - skPlant ) * ( 1.0 - skPier ) * skWall;
+// Glass towers glow pale blue all over, their lit interiors seen through the curtain wall.
+if ( skCurtain ) skGlow += vec3( 0.22, 0.32, 0.5 ) * 0.3 * skWall * ( 1.0 - skPlant * 0.5 );
+// Floodlit crowns: the top floors of the tall ones washed with light from the setbacks.
+float skCrownWash = step( 90.0, vSkTop ) * smoothstep( vSkTop - 14.0, vSkTop - 1.0, vSkAt.y ) * skWall;
+skGlow += ( skCurtain ? vec3( 0.7, 0.85, 1.0 ) : vec3( 1.0, 0.86, 0.62 ) ) * skCrownWash * 0.45;
+// Streetlight thrown up the lowest floors, warm, fading within a few storeys.
+skGlow += vec3( 1.0, 0.64, 0.32 ) * exp( -vSkAt.y / 14.0 ) * 0.22 * skWall;
 // The shops stay lit all night.
 skGlow = mix( skGlow, vec3( 1.0, 0.85, 0.62 ) * 0.9 * skWall, skShop );
 if ( skPlain ) skGlow = vec3( 0.0 );
@@ -658,7 +689,8 @@ export function createSkyline(o: { lotsX: number; lotsZ: number; envMap?: THREE.
         .replace(
           '#include <lights_fragment_end>',
           `#include <lights_fragment_end>
-          reflectedLight.indirectDiffuse *= mix( 1.0, 0.04, skNight );
+          // Not black, though: moonlit navy, as a real city's walls read against a night sky.
+          reflectedLight.indirectDiffuse = mix( reflectedLight.indirectDiffuse, diffuseColor.rgb * vec3( 0.1, 0.13, 0.22 ), skNight );
           reflectedLight.indirectSpecular *= mix( 1.0, 0.06, skNight );
           reflectedLight.directDiffuse *= mix( 1.0, 0.15, skNight );
           reflectedLight.directSpecular *= mix( 1.0, 0.15, skNight );`,
