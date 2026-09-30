@@ -187,17 +187,6 @@ export function findSeat(id: string | null): CabinSeat | null {
   return ALL_SEATS.find((s) => s.id === id) ?? null;
 }
 
-/**
- * The seats in one row, left to right across the aircraft.
- *
- * Used to populate the rows ahead of you in the cabin view: who you can see
- * over the seat back is decided by the same occupancy roll as the seat map, so
- * the cabin you are looking at is the cabin you are booking into.
- */
-export function seatsInRow(row: number): CabinSeat[] {
-  return ALL_SEATS.filter((s) => s.row === row);
-}
-
 /** The worst seat on the aircraft, kept free so anyone can always board. */
 export const LAVATORY_SEATS = ['30B', '30E'] as const;
 
@@ -265,53 +254,5 @@ export const SPLASH_BETWEEN: readonly (readonly string[])[] = [
 ];
 export const SPLASH_LAST: readonly string[] = ['NOW', 'BOARDING'];
 
-/* ── Turning your head ────────────────────────────────────────────────────
-   What is beside you is not the same for every seat. From 8A the window is
-   one turn to the left; from 8F the same window is the far side of the
-   aircraft, across two seats, the aisle and three more seats. `lookFrom`
-   walks outward from a seat in one direction and reports what is in the way,
-   in order, so the side view can draw the real thing rather than assuming
-   everyone is sitting by a window. */
-
+/** Which way a seated viewer is looking. */
 export type Facing = 'left' | 'forward' | 'right';
-
-export type SightItem =
-  | { kind: 'seat'; id: string }
-  | { kind: 'aisle' }
-  | { kind: 'window' }
-  | { kind: 'wall' };
-
-/**
- * Everything between a seat and the side of the aircraft, looking one way.
- *
- * The row is modelled as it physically is — left window, left bank, aisle,
- * right bank, right window — and the answer is simply that list read outward
- * from your seat. Doing it this way rather than by seat letter is what keeps
- * 8D and 8C correct: they are the two seats either side of the aisle, and
- * each has three seats and a window on one side and one on the other.
- *
- * Seats come back nearest-first; the last item is what you end at.
- */
-export function lookFrom(seat: CabinSeat, facing: 'left' | 'right'): SightItem[] {
-  if (seat.row === null) return [{ kind: 'window' }];
-
-  const row = seatsInRow(seat.row);
-  const left = row.filter((s) => s.bank === 'left').sort((a, b) => a.index - b.index);
-  const right = row.filter((s) => s.bank === 'right').sort((a, b) => a.index - b.index);
-
-  // The row across the aircraft, port window to starboard window.
-  const ordered: SightItem[] = [
-    { kind: 'window' },
-    ...left.map((s) => ({ kind: 'seat', id: s.id }) as SightItem),
-    { kind: 'aisle' },
-    ...right.map((s) => ({ kind: 'seat', id: s.id }) as SightItem),
-    { kind: 'window' },
-  ];
-
-  const here = ordered.findIndex((item) => item.kind === 'seat' && item.id === seat.id);
-  if (here === -1) return [{ kind: 'wall' }];
-
-  return facing === 'left'
-    ? ordered.slice(0, here).reverse()
-    : ordered.slice(here + 1);
-}
