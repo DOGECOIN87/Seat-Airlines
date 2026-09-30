@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Manifest, ManifestEntry } from '../lib/manifest';
 import { CABIN_ZONES, type ZoneKey } from '../content/cabin';
 import {
@@ -70,6 +70,37 @@ const CARD_FIELDS = [
   type: 'text' | 'email';
 } & Pick<React.InputHTMLAttributes<HTMLInputElement>, 'maxLength' | 'inputMode' | 'autoComplete' | 'autoCapitalize' | 'autoCorrect' | 'spellCheck' | 'placeholder'>)[];
 
+/**
+ * A contact link as somebody types it, made into one.
+ *
+ * "example.com" is what people type, and the card used to refuse it with a
+ * line about http:// that most of them then had to read twice. A bare
+ * domain is completed to https; anything else is left as typed for the
+ * check below it to refuse.
+ */
+function asLink(value: string): string {
+  const raw = value.trim();
+  if (!raw || /^[a-z][a-z0-9+.-]*:/i.test(raw)) return raw;
+  return /^[\w-]+(\.[\w-]+)+(?:[/?#]|$)/.test(raw) ? `https://${raw}` : raw;
+}
+
+/** Where a message about the last thing somebody did is shown: beside it. */
+type StatusAt = 'card' | 'intro' | 'room' | 'pa';
+
+const StatusLine = ({ text, error, onDismiss, className = '' }: {
+  text: string; error: boolean; onDismiss: () => void; className?: string;
+}) => (
+  <p
+    role={error ? 'alert' : 'status'}
+    className={`flex items-start justify-between gap-3 rounded-lg px-3 py-2 text-[11px] font-semibold ${error ? 'bg-[#FDECEC] text-[#96201F]' : 'bg-[#E8F7EF] text-[#17683B]'} ${className}`}
+  >
+    <span className="min-w-0 break-words">{text}</span>
+    <button type="button" onClick={onDismiss} aria-label="Dismiss" className="-my-1.5 -mr-2 grid h-8 w-8 shrink-0 place-items-center text-[16px] leading-none opacity-70">
+      <span aria-hidden>×</span>
+    </button>
+  </p>
+);
+
 function holderName(entry: ManifestEntry): string {
   return `Holder ${entry.address.slice(0, 4)}`;
 }
@@ -121,6 +152,13 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
      read, but they are somebody else's conversation, and opening on all five
      would bury your own section under whichever one is busiest. */
   const [listeningAft, setListeningAft] = useState(false);
+  /* Which of the composers the status line belongs to. `card` is also
+     everything that is not a composer's — signing in, a load — and goes
+     where the line always has. */
+  const [statusAt, setStatusAt] = useState<StatusAt>('card');
+  const cardPanel = useRef<HTMLElement>(null);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const [focusEdit, setFocusEdit] = useState(false);
 
   const published = address ? directory.profiles[address] : undefined;
   const currentEntry = manifest.entries.find((entry) => entry.address === address) ?? null;
@@ -188,8 +226,34 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
 
   const rooms = viewerZone ? [viewerZone, ...(listeningAft ? roomsAft : [])] : [];
 
+  /* After a save the editor goes, and the button that was focused goes with
+     it — focus fell to the page, and a phone scrolled wherever it liked.
+     It lands on the card's own Edit button instead, in the card it saved. */
+  useEffect(() => {
+    if (!focusEdit || editing) return;
+    editButton.current?.focus({ preventScroll: true });
+    editButton.current?.scrollIntoView({ block: 'nearest' });
+    setFocusEdit(false);
+  }, [focusEdit, editing]);
+
+  /* The Edit button on your own seat in the roster opens the editor in the
+     card panel, which on a phone is at the top of the list — a hundred cards
+     above the button that was pressed. Brought into view, or the tap looked
+     like it did nothing. */
+  const openEditor = () => {
+    setEditing(true);
+    setStatusAt('card');
+    requestAnimationFrame(() => cardPanel.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  };
+
+  const dismiss = () => {
+    directory.dismiss();
+    setInvalid(null);
+  };
+
   const postToRoom = async () => {
     if (!viewerZone) return;
+    setStatusAt('room');
     const body = roomDraft.trim();
     if (!body) {
       setInvalid('Write something before posting.');
@@ -200,6 +264,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   };
 
   const announce = async () => {
+    setStatusAt('pa');
     const body = paDraft.trim();
     if (!body) {
       setInvalid('Write an announcement first.');
@@ -210,16 +275,27 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   };
 
   const saveCard = async () => {
-    if (![form.website, form.linkedin].every(isValidExternalUrl)) {
-      setInvalid('Use a full http:// or https:// link for contact URLs.');
+    setStatusAt('card');
+    const card = { ...form, website: asLink(form.website), linkedin: asLink(form.linkedin) };
+    setForm(card);
+    if (![card.website, card.linkedin].every(isValidExternalUrl)) {
+      setInvalid('Those links need to be web addresses, like example.com.');
+      return;
+    }
+    if (card.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(card.email.trim())) {
+      setInvalid('That email address does not look like one.');
       return;
     }
     setInvalid(null);
-    if (await directory.save(form)) setEditing(false);
+    if (await directory.save(card)) {
+      setEditing(false);
+      setFocusEdit(true);
+    }
   };
 
   const submitMessage = async (target: ManifestEntry) => {
     if (!address || !canMessage(viewerZone, target.seat.zone, address, target.address)) return;
+    setStatusAt('intro');
     const body = draft.trim();
     if (!body) {
       setInvalid('Write something first.');
@@ -251,6 +327,14 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
 
   const status = directory.error ?? invalid ?? directory.notice;
   const statusIsError = Boolean(directory.error ?? invalid);
+  /* The line goes beside whatever it is about. It used to be one line at
+     the foot of the card panel — which on a phone is the top of the sheet —
+     so "Introduction sent", or why it was not, appeared a screen away from
+     the box somebody had just pressed Send in. */
+  const statusHere = (at: StatusAt, className?: string) =>
+    status && statusAt === at
+      ? <StatusLine text={status} error={statusIsError} onDismiss={dismiss} className={className} />
+      : null;
 
   return (
     <section className="ui-card" aria-label={part === 'chat' ? 'Cabin chat' : 'Section networking'}>
@@ -317,6 +401,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
               <button type="button" onClick={() => void announce()} disabled={directory.saving} className="sa-cta mt-2 disabled:opacity-60">
                 {directory.saving ? 'Announcing…' : 'Announce'} <span aria-hidden>→</span>
               </button>
+              {statusHere('pa', 'mt-2')}
             </div>
           )}
         </div>
@@ -335,7 +420,15 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                 <button
                   type="button"
                   className="flex w-full items-start justify-between gap-3 text-left"
-                  onClick={() => setSelected(active ? null : entry.address)}
+                  onClick={() => {
+                    setSelected(active ? null : entry.address);
+                    /* The introduction's line belongs to the box it was
+                       sent from; with that box closed it has nowhere to be. */
+                    if (statusAt === 'intro') {
+                      dismiss();
+                      setStatusAt('card');
+                    }
+                  }}
                   aria-expanded={active}
                 >
                   <span className="min-w-0">
@@ -360,7 +453,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                         {entry.address === address ? (
                           <>
                             <p>Seen by {sectionLabel(entry.seat.zone)} and every cabin ahead.</p>
-                            <button type="button" onClick={() => setEditing((value) => !value)} className="sa-cta mt-2">{editing ? 'Close' : 'Edit card'} <span aria-hidden>→</span></button>
+                            <button type="button" onClick={() => (editing ? setEditing(false) : openEditor())} className="sa-cta mt-2">{editing ? 'Close' : 'Edit card'} <span aria-hidden>→</span></button>
                           </>
                         ) : !directory.session ? (
                           <p>Sign in to see contact details.</p>
@@ -396,6 +489,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                             </p>
                             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Introduce yourself…" rows={3} maxLength={1000} className="mt-2 w-full resize-none rounded-lg border border-ui-line bg-white px-3 py-2 text-[12px] text-ui-ink outline-none focus:border-[#FF668F]" />
                             <button type="button" onClick={() => void submitMessage(entry)} disabled={directory.saving} className="sa-cta mt-2 disabled:opacity-60">{directory.saving ? 'Sending…' : 'Send'} <span aria-hidden>→</span></button>
+                            {statusHere('intro', 'mt-2')}
                           </div>
                         )}
                         {/* There is no "you cannot write to this one" line any
@@ -417,7 +511,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
 
         {/* First when there is only room for one column, so signing in is not
             a hundred and seventy-eight cards down. */}
-        <aside className="order-first rounded-2xl border border-ui-line bg-ui-bg p-4 sm:p-5 @4xl:order-none">
+        <aside ref={cardPanel} className="order-first scroll-mt-4 rounded-2xl border border-ui-line bg-ui-bg p-4 sm:p-5 @4xl:order-none">
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep">Your card</p>
 
           {!address ? (
@@ -425,20 +519,29 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
           ) : !directory.session ? (
             <div className="mt-4 space-y-3 text-[12px] leading-relaxed text-ui-soft">
               <p>Sign a message to open the directory. No transaction.</p>
-              <button type="button" onClick={() => void directory.signIn()} disabled={directory.signingIn} className="sa-cta w-full justify-center disabled:opacity-60">
+              <button type="button" onClick={() => { setStatusAt('card'); void directory.signIn(); }} disabled={directory.signingIn} className="sa-cta w-full justify-center disabled:opacity-60">
                 {directory.signingIn ? 'Check your wallet…' : 'Sign in'} <span aria-hidden>→</span>
               </button>
             </div>
           ) : !currentEntry ? (
             <p className="mt-4 text-[12px] leading-relaxed text-ui-soft">Take a seat to publish a card.</p>
           ) : editing ? (
-            <div className="mt-4 space-y-3">
+            /* A form, so the keyboard's Go key publishes as the button does.
+               `noValidate` because the browser's own bubbles would refuse
+               "example.com" in a field the card completes itself. */
+            <form
+              noValidate
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveCard();
+              }}
+              className="mt-4 space-y-3"
+            >
               {CARD_FIELDS.map(({ key, label, ...field }) => (
                 <label key={key} className="block text-[11px] font-bold uppercase tracking-[0.14em] text-ui-faint">
                   {label}
                   <input
                     {...field}
-                    enterKeyHint="next"
                     value={form[key]}
                     onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
                     className="mt-1 w-full rounded-lg border border-ui-line bg-white px-3 py-2.5 text-[12px] font-normal normal-case tracking-normal text-ui-ink outline-none placeholder:text-ui-faint/60 focus:border-ui-blue"
@@ -458,7 +561,6 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                     autoCorrect="off"
                     autoComplete="off"
                     spellCheck={false}
-                    enterKeyHint="next"
                     maxLength={300}
                     onChange={(event) => setForm((current) => ({ ...current, links: { ...current.links, [social.key]: event.target.value } }))}
                     className="mt-1 w-full rounded-lg border border-ui-line bg-white px-3 py-2.5 text-[12px] font-normal normal-case tracking-normal text-ui-ink outline-none placeholder:text-ui-faint/60 focus:border-ui-blue"
@@ -469,10 +571,20 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
               <p className="rounded-lg border border-ui-line bg-white px-3 py-2.5 text-[11px] leading-relaxed text-ui-soft">
                 Holders only: your cabin and every cabin ahead.
               </p>
-              <button type="button" onClick={() => void saveCard()} disabled={directory.saving} className="sa-cta w-full justify-center disabled:opacity-60">
-                {directory.saving ? 'Publishing…' : 'Publish card'} <span aria-hidden>→</span>
+              <button type="submit" disabled={directory.saving} className="sa-cta w-full justify-center disabled:opacity-60">
+                {directory.saving && statusAt === 'card' ? 'Publishing…' : 'Publish card'} <span aria-hidden>→</span>
               </button>
-            </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(false);
+                  setInvalid(null);
+                }}
+                className="block w-full py-2 text-center text-[11px] font-bold uppercase tracking-[0.16em] text-ui-deep underline"
+              >
+                Cancel
+              </button>
+            </form>
           ) : (
             <div className="mt-4 space-y-2 text-[12px] text-ui-soft">
               <p className="font-heading text-xl text-ui-ink">{form.displayName || shortMember(address)}</p>
@@ -480,9 +592,11 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
               <p className="pt-2 text-[11px] leading-relaxed">
                 {published ? `Published ${when(published.updated)}.` : 'Not published yet.'}
               </p>
-              <button type="button" onClick={() => setEditing(true)} className="sa-cta mt-2">{published ? 'Edit card' : 'Publish a card'} <span aria-hidden>→</span></button>
+              <button type="button" ref={editButton} onClick={openEditor} className="sa-cta mt-2">{published ? 'Edit card' : 'Publish a card'} <span aria-hidden>→</span></button>
             </div>
           )}
+
+          {showDirectory && statusHere('card', 'mt-4')}
 
           {directory.session && (
             <div className="mt-5 border-t border-ui-line pt-4">
@@ -531,15 +645,6 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
             </div>
           )}
 
-          {status && (
-            <p
-              role="status"
-              onClick={directory.dismiss}
-              className={`mt-4 rounded-lg px-3 py-2 text-[11px] font-semibold ${statusIsError ? 'bg-[#FDECEC] text-[#96201F]' : 'bg-[#E8F7EF] text-[#17683B]'}`}
-            >
-              {status}
-            </p>
-          )}
         </aside>
       </div>
       )}
@@ -597,6 +702,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
             <button type="button" onClick={() => void postToRoom()} disabled={directory.saving} className="sa-cta mt-2 disabled:opacity-60">
               {directory.saving ? 'Posting…' : 'Post'} <span aria-hidden>→</span>
             </button>
+            {statusHere('room', 'mt-2')}
           </div>
 
           <div className={`mt-5 grid gap-4 ${rooms.length > 1 ? '@3xl:grid-cols-2' : ''}`}>
@@ -645,7 +751,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
           ) : !directory.session ? (
             <div className="space-y-3 text-[12px] leading-relaxed text-ui-soft">
               <p>Sign a message to join. No transaction.</p>
-              <button type="button" onClick={() => void directory.signIn()} disabled={directory.signingIn} className="sa-cta w-full justify-center disabled:opacity-60">
+              <button type="button" onClick={() => { setStatusAt('card'); void directory.signIn(); }} disabled={directory.signingIn} className="sa-cta w-full justify-center disabled:opacity-60">
                 {directory.signingIn ? 'Check your wallet…' : 'Sign in'} <span aria-hidden>→</span>
               </button>
             </div>
@@ -654,15 +760,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
           )}
         </div>
       )}
-      {part === 'chat' && status && (
-        <p
-          role="status"
-          onClick={directory.dismiss}
-          className={`mx-5 mb-5 rounded-lg px-3 py-2 text-[11px] font-semibold sm:mx-7 ${statusIsError ? 'bg-[#FDECEC] text-[#96201F]' : 'bg-[#E8F7EF] text-[#17683B]'}`}
-        >
-          {status}
-        </p>
-      )}
+      {part === 'chat' && statusHere('card', 'mx-5 mb-5 sm:mx-7')}
     </section>
   );
 };

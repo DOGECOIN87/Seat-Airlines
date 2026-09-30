@@ -10,9 +10,9 @@
  * private, so there is nothing to show a visitor who has not signed in, and
  * asking for it anyway would only produce a 401 per page view.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  DirectoryUnreachable, SessionExpired,
+  DirectoryRefused, DirectoryUnreachable, SessionExpired,
   fetchDirectory, fetchMessages, hasDirectory, saveProfile, sendMessage,
   signIn as openSession, signOut as closeSession, storedSession,
   type NetworkingMessage, type NetworkingProfile, type PublishedProfile, type Session,
@@ -58,7 +58,11 @@ export interface DirectoryState {
 
 /** What to tell somebody, from whatever was thrown. */
 function reason(e: unknown): string {
-  if (e instanceof DirectoryUnreachable || e instanceof SessionExpired) return e.message;
+  /* Whatever the directory itself said is always repeated. The quiet case
+     below used to be tested against every error, so a refusal from the
+     server that happened to contain "denied" or "cancel" was dropped on the
+     floor and the button simply stopped spinning. */
+  if (e instanceof DirectoryUnreachable || e instanceof SessionExpired || e instanceof DirectoryRefused) return e.message;
   const message = e instanceof Error ? e.message : String(e);
   // A refused signing prompt is a choice, not a failure worth shouting about.
   return /reject|denied|cancel/i.test(message) ? '' : message;
@@ -80,6 +84,11 @@ export function useDirectory(
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /* One write at a time, decided before React has re-rendered. The buttons
+     are disabled on `saving`, but a double tap lands both taps before that
+     render, and the second one published the card twice or sent the same
+     introduction twice — the second spending one of the hour's twenty. */
+  const writing = useRef(false);
   /* There used to be a "still mounted?" ref here, checked after every await.
   
      It was re-armed on mount rather than only cleared on unmount, because
@@ -164,8 +173,10 @@ export function useDirectory(
   }, [session]);
 
   const save = useCallback(async (profile: NetworkingProfile) => {
-    if (!session) return false;
+    if (!session || writing.current) return false;
+    writing.current = true;
     setSaving(true);
+    setNotice(null);
     setError(null);
     try {
       const published = await saveProfile(session, profile);
@@ -177,13 +188,16 @@ export function useDirectory(
       setError(reason(e) || null);
       return false;
     } finally {
+      writing.current = false;
       setSaving(false);
     }
   }, [session]);
 
   const send = useCallback(async (to: string, body: string) => {
-    if (!session) return false;
+    if (!session || writing.current) return false;
+    writing.current = true;
     setSaving(true);
+    setNotice(null);
     setError(null);
     try {
       const message = await sendMessage(session, to, body);
@@ -207,6 +221,7 @@ export function useDirectory(
       setError(reason(e) || null);
       return false;
     } finally {
+      writing.current = false;
       setSaving(false);
     }
   }, [session]);
