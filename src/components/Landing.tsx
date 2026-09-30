@@ -286,6 +286,23 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     recording.current?.abort();
     timers.current.push(window.setTimeout(onEnter, 450));
   }, [onEnter]);
+  /* After the crash the site takes over on its own, whatever happens on the
+     way: sharing or posting holds the count while it is going on, and
+     starts it again once it is done — sent, cancelled or failed — so the
+     screen is never left waiting on a tap that may not come. */
+  const [counting, setCounting] = useState(false);
+  const holdLeave = useCallback(() => {
+    if (autoLeave.current !== null) window.clearTimeout(autoLeave.current);
+    autoLeave.current = null;
+    setCounting(false);
+  }, []);
+  const armLeave = useCallback(() => {
+    if (gone.current) return;
+    if (autoLeave.current !== null) window.clearTimeout(autoLeave.current);
+    autoLeave.current = window.setTimeout(leave, END_HOLD);
+    timers.current.push(autoLeave.current);
+    setCounting(true);
+  }, [leave]);
 
   /* The game's sounds, made inside the click or key that starts it:
      each is played once, muted, there and then, which is what a browser
@@ -431,18 +448,20 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
      X shows a link's picture, and takes nothing else — and saves the
      video beside it, to be dropped in. */
   const onShare = useCallback(() => {
-    if (autoLeave.current !== null) {
-      window.clearTimeout(autoLeave.current);
-      autoLeave.current = null;
-    }
+    holdLeave();
     const flight = shared.current;
-    if (!flight) return;
+    if (!flight) {
+      armLeave();
+      return;
+    }
     const text = shareText(flight);
     const file = share.video ?? share.still;
     if (file && canShareFile(file)) {
-      void shareFile(file, text);
+      void shareFile(file, text).finally(armLeave);
       return;
     }
+    // Off to X in another tab: the count starts again for when they come back.
+    armLeave();
     if (share.video) {
       saveFile(share.video);
       setShareNote('Video saved · add it to your post');
@@ -467,7 +486,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
         window.location.href = to;
       }
     })();
-  }, [share]);
+  }, [share, holdLeave, armLeave]);
   const onCrash = useCallback((metres: number) => {
     const g = game.current;
     const after = g.failed ? (performance.now() - g.failedAt) / 1000 : null;
@@ -502,9 +521,8 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       if (loss.wait) timers.current.push(window.setTimeout(() => void a.play().catch(() => {}), loss.wait * 1000));
       else void a.play().catch(() => {});
     }
-    autoLeave.current = window.setTimeout(leave, END_HOLD);
-    timers.current.push(autoLeave.current);
-  }, [leave, makeShare]);
+    armLeave();
+  }, [armLeave, makeShare]);
 
   /* The board: read once for the landing, and again after a post. */
   useEffect(() => {
@@ -518,7 +536,10 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
      have seen to that), then asked to sign a short message naming the
      score — never a transaction. */
   const signAndPost = useCallback(async (address: string) => {
-    if (!result || !runId.current) return;
+    if (!result || !runId.current) {
+      armLeave();
+      return;
+    }
     setPost({ state: 'signing' });
     try {
       const posted = await postScore({
@@ -530,21 +551,22 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       const message = e instanceof Error ? e.message : 'That score could not be posted.';
       setPost({ state: 'error', message: /reject|denied|cancel/i.test(message) ? 'Not signed. Nothing posted.' : message });
     }
-  }, [result, wallet.signMessage]);
+    armLeave();
+  }, [result, wallet.signMessage, armLeave]);
   const onPost = useCallback(async () => {
-    if (autoLeave.current !== null) {
-      window.clearTimeout(autoLeave.current);
-      autoLeave.current = null;
-    }
+    holdLeave();
     if (wallet.address) {
       void signAndPost(wallet.address);
       return;
     }
     setPost({ state: 'connecting' });
-    const address = await wallet.connect();
+    const address = await wallet.connect().catch(() => null);
     if (address) void signAndPost(address);
-    else setPost({ state: 'error', message: 'No wallet. Nothing posted.' });
-  }, [wallet, signAndPost]);
+    else {
+      setPost({ state: 'error', message: 'No wallet. Nothing posted.' });
+      armLeave();
+    }
+  }, [wallet, signAndPost, holdLeave, armLeave]);
 
   /* The keys. An arrow on the landing takes the controls straight away —
      the hint says to press one — Escape goes in at any point in the game,
@@ -647,6 +669,9 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
 
   const inGame = phase !== 'idle';
   const km = result ? (result.metres / 1000).toFixed(1) : '0';
+  /** After the crash: whether this flight can still go on the board, and whether there is a wallet to do it with. */
+  const postable = !!result && !practice && hasBoard && board !== null && !!runId.current && result.score > 0 && post.state !== 'done';
+  const noWallet = wallet.unavailable && !wallet.address;
   /** Engines are numbered from the left: 1 is the port one, 2 the starboard. */
   const engineNo = failure?.side === -1 ? 1 : 2;
   const engineState = (side: -1 | 1): EngineState => {
@@ -956,15 +981,19 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             <Wasted className="sa-wasted__word" />
           </div>
           <div className="sa-landing__end-after">
-            <p className="sa-landing__score">
-              {result.score.toLocaleString('en-US')}
-              {result.best && result.score > 0 && <span className="sa-landing__best">New best</span>}
-            </p>
-            <p className="sa-landing__end-note">
-              {result.after !== null
-                ? `${Math.round(result.after)} s ${failure?.both ? '· both engines lost' : 'on one engine'}`
-                : `${km} km flown`}
-            </p>
+            {/* What the flight came to: the points, and what they were made of. */}
+            <div className="sa-landing__tally">
+              <p className="sa-landing__score">
+                {result.score.toLocaleString('en-US')}
+                {result.best && result.score > 0 && <span className="sa-landing__best">New best</span>}
+              </p>
+              <p className="sa-landing__end-note">
+                {result.after !== null
+                  ? `${Math.round(result.after)} s ${failure?.both ? '· both engines lost' : 'on one engine'}`
+                  : `${km} km flown`}
+              </p>
+            </div>
+            {/* Where it stands, one line of it at most: the board's answer, or why there is none. */}
             {post.state === 'done' && (
               <p className="sa-landing__posted" role="status">
                 {post.posted.improved ? 'On the board' : 'Best still stands'}
@@ -972,27 +1001,25 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               </p>
             )}
             {post.state === 'error' && <p className="sa-landing__posted is-error" role="alert">{post.message}</p>}
+            {practice && <p className="sa-landing__posted">Practice run · not posted</p>}
+            {postable && noWallet && <p className="sa-landing__posted">Install a Solana wallet to post</p>}
+            {/* Buttons only: the way onto the board, the way to X, and the way in, last and widest. */}
             <div className="sa-landing__end-actions">
-              {practice && <p className="sa-landing__posted">Practice run · not posted</p>}
-              {!practice && hasBoard && board !== null && runId.current && result.score > 0 && post.state !== 'done' && (
-                wallet.unavailable && !wallet.address ? (
-                  <p className="sa-landing__posted">Install a Solana wallet to post.</p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void onPost()}
-                    disabled={post.state === 'connecting' || post.state === 'signing'}
-                    className="sa-landing__post"
-                  >
-                    {post.state === 'connecting'
-                      ? 'Connecting…'
-                      : post.state === 'signing'
-                        ? 'Check your wallet…'
-                        : wallet.address
-                          ? 'Sign & post'
-                          : 'Connect & post'}
-                  </button>
-                )
+              {postable && !noWallet && (
+                <button
+                  type="button"
+                  onClick={() => void onPost()}
+                  disabled={post.state === 'connecting' || post.state === 'signing'}
+                  className="sa-landing__post"
+                >
+                  {post.state === 'connecting'
+                    ? 'Connecting…'
+                    : post.state === 'signing'
+                      ? 'Check your wallet…'
+                      : wallet.address
+                        ? 'Sign & post'
+                        : 'Connect & post'}
+                </button>
               )}
               {share.still && (
                 <button
@@ -1011,14 +1038,14 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               <button
                 type="button"
                 onClick={leave}
-                className={`sa-landing__enter${autoLeave.current !== null ? ' is-counting' : ''}`}
+                className={`sa-landing__enter${counting ? ' is-counting' : ''}`}
                 style={{ ['--hold' as string]: `${END_HOLD}ms` }}
               >
                 Board now <span aria-hidden>→</span>
               </button>
             </div>
             {shareNote && <p className="sa-landing__posted" role="status">{shareNote}</p>}
-            {!practice && hasBoard && board !== null && post.state === 'idle' && (
+            {postable && !noWallet && post.state === 'idle' && (
               <p className="sa-landing__fine">Signs a message. No transaction.</p>
             )}
           </div>

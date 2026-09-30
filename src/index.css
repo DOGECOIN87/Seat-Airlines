@@ -3764,14 +3764,29 @@ p { text-wrap-style: pretty; }
   background: radial-gradient(ellipse at center, rgba(4, 7, 14, 0.45) 0%, rgba(4, 7, 14, 0.82) 100%);
   animation: sa-landing-fade 0.45s ease both;
 }
-/* WASTED: across the middle of the screen on a dark band, landing with the
-   hit in the crash sound (see WASTED_FROM in Landing). The band holds the
-   centre whatever is under it; the note and the way in sit below it. */
+/* WASTED: across the screen on a dark band, landing with the hit in the
+   crash sound (see WASTED_FROM in Landing), and under it what the flight
+   came to and the ways on.
+
+   The band and what is under it are one group, centred together in the
+   room between the brand and the foot of the screen — pinning the band
+   to the exact middle left an upright phone's top half empty and its
+   buttons crowded at the bottom, and pushed them off a short screen
+   altogether. The group's own auto margins centre it rather than the
+   column's alignment, so on a screen too short for it the column scrolls
+   from the top instead of cutting it off there. */
 .sa-landing__end--crash {
-  display: block;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.75rem, 2.6vh, 1.6rem);
+  padding: max(4.75rem, calc(var(--safe-top) + 4rem)) 0 max(1.25rem, calc(var(--safe-bottom) + 1rem));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: none;
 }
+.sa-landing__end--crash > .sa-wasted { margin-top: auto; }
+.sa-landing__end--crash > .sa-landing__end-after { margin-bottom: auto; }
 /* As WASTED lands, the grey goes red: a red laid over the picture and
    multiplied into it, so the dark stays dark and the light turns crimson. */
 .sa-landing__redout {
@@ -3789,19 +3804,18 @@ p { text-wrap-style: pretty; }
 .sa-landing.is-crashed .sa-hud,
 .sa-landing.is-crashed .sa-landing__live { opacity: 0; transition: opacity 0.5s ease; }
 .sa-wasted {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  transform: translateY(-50%);
+  flex: none;
   display: grid;
   place-items: center;
   padding: clamp(0.9rem, 3vh, 1.8rem) 0;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.66) 24%, rgba(0, 0, 0, 0.66) 76%, rgba(0, 0, 0, 0) 100%);
   animation: sa-landing-fade 0.3s ease-out 1.15s both;
 }
+/* As wide as the screen allows, and no taller than a fifth of it: the word
+   is 0.282 of its width high, so on a phone on its side the height decides. */
 .sa-wasted__word {
-  width: min(80vw, 40rem);
+  width: min(84vw, 40rem, 72vh);
+  width: min(84vw, 40rem, 72svh);
   height: auto;
   fill: #C8221E;
   stroke: #000;
@@ -3812,16 +3826,76 @@ p { text-wrap-style: pretty; }
   animation: sa-wasted-in 0.34s cubic-bezier(0.2, 1.4, 0.4, 1) 1.25s both;
 }
 .sa-landing__end-after {
-  position: absolute;
-  left: 0;
-  right: 0;
-  /* Half the band, the word's height being 0.282 of its width, and some air. */
-  top: calc(50% + min(80vw, 40rem) * 0.141 + clamp(1.2rem, 3vh, 2.2rem));
+  flex: none;
   display: grid;
   justify-items: center;
-  gap: 0.7rem;
-  padding-inline: 1.25rem;
+  gap: clamp(0.65rem, 1.8vh, 0.95rem);
+  padding-inline: max(1.25rem, var(--safe-left, 0px), var(--safe-right, 0px));
   animation: sa-landing-fade 0.45s ease 2s both;
+}
+/* The points first and biggest, what they were made of just under them. */
+.sa-landing__tally {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+}
+.sa-landing__end--crash .sa-landing__end-note {
+  margin: 0;
+  font-size: clamp(0.95rem, 2.6vw, 1.05rem);
+  line-height: 1.4;
+  text-wrap: balance;
+}
+/* Where the flight stands, or why it cannot be posted: one quiet pill,
+   whichever it is, so the column keeps the same shape. */
+.sa-landing__end--crash .sa-landing__posted {
+  max-width: min(100%, 28rem);
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  background: rgba(4, 7, 14, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.28);
+  line-height: 1.45;
+  text-wrap: balance;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.sa-landing__end--crash .sa-landing__posted.is-error {
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgba(255, 176, 168, 0.35);
+}
+/* The buttons: one row where they fit, the way in growing to fill it; on a
+   phone the way in has a row of its own under the rest, full width, where
+   a thumb is. Every button the same height, whatever else is there. */
+.sa-landing__end--crash .sa-landing__end-actions {
+  width: min(100%, 30rem);
+  margin-top: 0.3rem;
+}
+.sa-landing__end--crash .sa-landing__end-actions > * {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 3.5rem;
+}
+.sa-landing__end--crash .sa-landing__end-actions > .sa-landing__enter { flex: 1.6 1 auto; }
+.sa-landing__end--crash .sa-landing__fine { margin-top: -0.2rem; }
+.sa-landing__end--crash .sa-landing__score {
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: clamp(2.2rem, 8vw, 3.2rem);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .sa-landing__end--crash .sa-landing__end-actions > .sa-landing__enter { flex-basis: 100%; }
+}
+/* A short screen — a phone on its side: the same column, tighter, the
+   word sized by the height, so the buttons stay on the screen. */
+@media (max-height: 560px) {
+  .sa-landing__end--crash {
+    gap: 0.55rem;
+    padding-top: max(3.75rem, calc(var(--safe-top) + 3.25rem));
+  }
+  .sa-landing__end--crash .sa-wasted { padding-block: 0.6rem; }
+  .sa-landing__end--crash .sa-wasted__word { width: min(84vw, 40rem, 58vh); width: min(84vw, 40rem, 58svh); }
+  .sa-landing__end--crash .sa-landing__score { font-size: 2rem; }
+  .sa-landing__end--crash .sa-landing__end-actions > * { min-height: 3rem; }
 }
 .sa-landing__end-title {
   font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
