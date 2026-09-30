@@ -168,6 +168,16 @@ await check('an oversized introduction is refused', () => {
   assert(!('error' in readMessageBody('Hello from 3A')), 'a normal message was refused');
 });
 
+await check('invisible text is stripped from cards and messages', () => {
+  const out = readProfileInput({ displayName: '\u202Eeman\u200B\u0007 real\nname', role: 'Pilot \uD83D\uDC68\u200D\u2708\uFE0F' });
+  assert(!('error' in out), 'a card with invisible text was refused rather than cleaned');
+  assert(out.profile.displayName === 'eman real name', `invisible or line-breaking characters were kept: ${JSON.stringify(out.profile.displayName)}`);
+  assert(out.profile.role.includes('\u200D'), 'the zero-width joiner inside an emoji was stripped');
+  assert('error' in readMessageBody('\u200B\u200B \uFEFF'), 'a message of only invisible characters was accepted');
+  const kept = readMessageBody('Line one\r\n\n\n\nLine two\u0000');
+  assert(!('error' in kept) && kept.body === 'Line one\n\nLine two', `a message was not cleaned as expected: ${JSON.stringify(kept.body)}`);
+});
+
 await check('a token is stored only as its hash', async () => {
   const token = mintToken();
   const hash = await tokenHash(token);

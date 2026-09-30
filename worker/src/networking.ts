@@ -210,8 +210,28 @@ export function isValidExternalUrl(value: string): boolean {
   }
 }
 
+/**
+ * Characters nobody types on purpose, and that change what text *looks*
+ * like without being seen: control codes, zero-width spaces, a byte-order
+ * mark, and the bidirectional overrides and isolates — the last of which
+ * turn a display name into somebody else's by drawing it backwards. The
+ * zero-width joiner is left alone; emoji are built out of it.
+ *
+ * Line breaks and tabs are listed separately, because a message may keep
+ * them and a single-line field may not.
+ */
+const INVISIBLE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B\u202A-\u202E\u2066-\u2069\uFEFF]/g;
+
+/** Text as it is kept: nothing invisible, and newlines only where allowed. */
+export function cleanText(value: string, multiline = false): string {
+  const visible = value.replace(INVISIBLE, '');
+  return multiline
+    ? visible.replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+    : visible.replace(/\s+/g, ' ').trim();
+}
+
 function field(value: unknown, limit: number): string {
-  return typeof value === 'string' ? value.trim().slice(0, limit) : '';
+  return typeof value === 'string' ? cleanText(value).slice(0, limit) : '';
 }
 
 /**
@@ -248,7 +268,10 @@ export function readProfileInput(value: unknown): { profile: NetworkingProfile }
 /** An introduction's text, or the reason it is not one. */
 export function readMessageBody(value: unknown): { body: string } | { error: string } {
   if (typeof value !== 'string') return { error: 'That message was not text.' };
-  const body = value.trim();
+  /* Cleaned before the empty check, so a message of nothing but zero-width
+     spaces is the empty message it looks like rather than a blank row in
+     everybody's room. */
+  const body = cleanText(value, true);
   if (!body) return { error: 'Write a short introduction before sending.' };
   if (body.length > MAX_BODY_CHARS) {
     return { error: `An introduction is at most ${MAX_BODY_CHARS} characters.` };
