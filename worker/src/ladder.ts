@@ -239,7 +239,7 @@ export async function readLadder(env: LadderEnv): Promise<Ladder> {
 async function refresh(env: LadderEnv): Promise<Ladder> {
   const ttl = cacheMs(env);
   const size = requestedSize(env);
-  const shared = await readShared(env.DIRECTORY);
+  const shared = await readShared(env.DIRECTORY, env.TOKEN_MINT ?? '');
   // Another copy read it recently enough: take its word, and expire with it.
   if (shared && Date.now() - shared.readAt < ttl) {
     return keep(build(shared.holders, shared.supply, size), shared.readAt + ttl);
@@ -264,7 +264,7 @@ async function refresh(env: LadderEnv): Promise<Ladder> {
   }
 
   const readAt = Date.now();
-  await writeShared(env.DIRECTORY, list.holders, list.supply, readAt);
+  await writeShared(env.DIRECTORY, env.TOKEN_MINT ?? '', list.holders, list.supply, readAt);
   return keep(build(list.holders, list.supply, size), readAt + ttl);
 }
 
@@ -282,12 +282,17 @@ async function refresh(env: LadderEnv): Promise<Ladder> {
    before it existed. */
 interface Shared { holders: Holder[]; supply: number; readAt: number }
 
-async function readShared(db: D1Database | undefined): Promise<Shared | null> {
+/* The row names the mint it was read for. A copy of the Worker deployed
+   with a new mint must not seat the old token's holders from it, for the
+   two minutes it is fresh or the hour it is kept as a fallback; a row from
+   before this carries no mint and is ignored the same way. */
+async function readShared(db: D1Database | undefined, mint: string): Promise<Shared | null> {
   if (!db) return null;
   try {
     const row = await db.prepare('SELECT body, read_at FROM seating_cache WHERE id = 1').first<{ body: string; read_at: number }>();
     if (!row) return null;
-    const body = JSON.parse(row.body) as { holders?: unknown; supply?: unknown };
+    const body = JSON.parse(row.body) as { mint?: unknown; holders?: unknown; supply?: unknown };
+    if (body.mint !== mint) return null;
     if (!Array.isArray(body.holders) || typeof body.supply !== 'number') return null;
     const holders = body.holders.filter(
       (h): h is Holder => !!h && typeof (h as Holder).address === 'string' && Number.isFinite((h as Holder).balance),
@@ -298,9 +303,9 @@ async function readShared(db: D1Database | undefined): Promise<Shared | null> {
   }
 }
 
-async function writeShared(db: D1Database | undefined, holders: readonly Holder[], supply: number, readAt: number): Promise<void> {
+async function writeShared(db: D1Database | undefined, mint: string, holders: readonly Holder[], supply: number, readAt: number): Promise<void> {
   if (!db) return;
-  const body = JSON.stringify({ holders, supply });
+  const body = JSON.stringify({ mint, holders, supply });
   const upsert = () => db
     .prepare(`INSERT INTO seating_cache (id, body, read_at) VALUES (1, ?1, ?2)
       ON CONFLICT(id) DO UPDATE SET body = excluded.body, read_at = excluded.read_at`)

@@ -320,7 +320,7 @@ The full list, and the Worker's bindings and secrets: [Configuration](docs/for-d
 | **The page** | Every push to `main` runs the tests, builds and publishes to GitHub Pages at [seat-airlines.space](https://seat-airlines.space). |
 | **The Worker** | Pushes that touch `worker/` type-check, test and deploy it — when the repository has a `CLOUDFLARE_API_TOKEN` secret. |
 | **The docs** | GitBook Git Sync publishes `docs/`; a push that changes only the docs does not redeploy the site. |
-| **A new token** | `npm run token:update -- <mint>` moves every copy of the address — page, Worker and docs — together. |
+| **A new token** | `npm run token:update -- <new CA>`: checks on-chain that it is a token mint and shows its name, asks you to type yes, writes it everywhere it is printed (page, Worker, index.html, docs), runs the tests and a build, pushes to main, and waits for both deploys to go live. `--no-push` stops before committing. |
 
 Step by step, including DNS for the custom domain: [Deploying](docs/for-developers/deploying.md).
 
