@@ -62,11 +62,15 @@ import { scoreChallenge } from '../../src/lib/scoring';
 import { BOARD_SIZE, RUN_TTL_MS, RUNS_PER_HOUR, implausible, newRunId, readScorePost } from './leaderboard';
 import { CARD_TTL_SECONDS, cardId, cardPage, cardProblem, isCardId } from './cards';
 import {
+  disconnect, finishConnect, isHandle, isNonce, linkedName, mediaMode, postFlight, readPostForm, startConnect, xConfigured,
+  MAX_IMAGE_BYTES as X_MAX_IMAGE_BYTES, MAX_VIDEO_BYTES as X_MAX_VIDEO_BYTES, type XEnv,
+} from './xshare';
+import {
   ANNOUNCEMENT, canAnnounce, canMessage, canPostToChannel, canViewContact,
   channelFor, zoneOfChannel,
 } from '../../src/lib/seating';
 
-export interface Env {
+export interface Env extends XEnv {
   BANNERS: KVNamespace;
   /**
    * The cabin directory: profiles, introductions, sessions. Optional.
@@ -750,7 +754,9 @@ async function handle(request: Request, env: Env): Promise<Response> {
     // above the 512 KiB stored-image limit while still bounding an abuse case.
     const contentLength = Number(request.headers.get('content-length'));
     const writes = request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH' || request.method === 'DELETE';
-    if (writes && Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+    // A flight's video is the one thing bigger than that; its route has its own cap.
+    const limit = url.pathname === '/x/post' ? X_MAX_VIDEO_BYTES + X_MAX_IMAGE_BYTES + 64 * 1024 : MAX_REQUEST_BYTES;
+    if (writes && Number.isFinite(contentLength) && contentLength > limit) {
       return json({ error: 'That request is too large.' }, 413, cors);
     }
 
@@ -1188,6 +1194,57 @@ async function handle(request: Request, env: Env): Promise<Response> {
         return json({ best, rank, improved: best === post.score }, 200, priv);
       }
 
+      return json({ error: 'Not found.' }, 404, priv);
+    }
+
+    /* ── Posting to X for the player ────────────────────────────────────
+       See xshare.ts. The page keeps a handle; the player's X permission is
+       kept here, sealed with it. Every way this cannot post ends with the
+       page opening X's own compose box instead, which costs nothing. */
+    if (url.pathname.startsWith('/x/')) {
+      const priv = { ...cors, 'cache-control': 'no-store' };
+      const site = (env.ALLOWED_ORIGINS ?? '').split(',')[0]?.trim() || 'https://seat-airlines.space';
+      const back = (fragment: Record<string, string>) =>
+        new Response(null, { status: 302, headers: { location: `${site}/x-connected/#${new URLSearchParams(fragment)}`, 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' } });
+      const handle = bearerToken(request.headers.get('authorization'));
+
+      if (request.method === 'GET' && url.pathname === '/x/status') {
+        const available = xConfigured(env) && mediaMode(env) !== 'off';
+        const as = available && isHandle(handle) ? await linkedName(env.BANNERS, handle) : null;
+        return json({ available, media: mediaMode(env), connected: as !== null, username: as || null }, 200, priv);
+      }
+      if (request.method === 'GET' && url.pathname === '/x/connect') {
+        const nonce = url.searchParams.get('n');
+        if (!isNonce(nonce)) return back({ error: 'That link was not from the site.' });
+        if (!xConfigured(env) || mediaMode(env) === 'off') return back({ error: 'Posting through X is not set up here.', n: nonce });
+        return new Response(null, { status: 302, headers: { location: await startConnect(env, env.BANNERS, url.origin, nonce), 'cache-control': 'no-store' } });
+      }
+      if (request.method === 'GET' && url.pathname === '/x/callback') {
+        const state = url.searchParams.get('state');
+        const code = url.searchParams.get('code');
+        if (!state || !code || !xConfigured(env)) {
+          return back({ error: url.searchParams.get('error') === 'access_denied' ? 'You did not allow it. Nothing was connected.' : 'X did not finish connecting.' });
+        }
+        try {
+          const done = await finishConnect(env, env.BANNERS, fetch, url.origin, state, code);
+          return back({ x: done.handle, u: done.username, n: done.nonce });
+        } catch (e) {
+          console.error(e);
+          return back({ error: e instanceof Error ? e.message : 'X did not finish connecting.' });
+        }
+      }
+      if (request.method === 'POST' && url.pathname === '/x/post') {
+        if (!isHandle(handle)) return json({ posted: false, fallback: 'link', reconnect: true, reason: 'Not connected to X.' }, 401, priv);
+        const input = await readPostForm(request);
+        if (typeof input === 'string') return json({ error: input }, 400, priv);
+        const result = await postFlight(env, env.BANNERS, fetch, handle, input);
+        if (!result.posted) console.warn(`x/post fell back: ${result.reason}`);
+        return json(result, 200, priv);
+      }
+      if (request.method === 'DELETE' && url.pathname === '/x/session') {
+        if (isHandle(handle)) await disconnect(env, env.BANNERS, fetch, handle);
+        return new Response(null, { status: 204, headers: priv });
+      }
       return json({ error: 'Not found.' }, 404, priv);
     }
 

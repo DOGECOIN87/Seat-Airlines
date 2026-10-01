@@ -17,11 +17,15 @@ import {
   type SharedFlight,
 } from '../lib/shareCard';
 import { recordVideo, videoType } from '../lib/shareVideo';
+import { connectX, disconnectX, onXLinkChange, postToX, xStatus, type XStatus } from '../lib/xPost';
 import FlightInstruments, { type EngineState } from './FlightInstruments';
 import { UFO } from '../lib/ufo';
 import { fetchBoard, hasBoard, keepBest, postScore, readBest, startRun, type BoardEntry, type Posted } from '../lib/scoresApi';
 import type { WalletState } from '../lib/useWallet';
 import type { LandingHud, LandingSounds } from './LandingScene';
+
+/** What the share button last said, with a link to follow when there is one. */
+interface ShareNote { text: string; href?: string; label?: string; error?: boolean }
 
 /* The scene is the chunk with three.js in it. Everything here — the way in
    above all — is up and working before it arrives. */
@@ -196,7 +200,22 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   /* Sharing the flight: the card as a picture as soon as the flight is
      over, and the video after it, which takes as long as it plays. */
   const [share, setShare] = useState<{ still: Blob | null; video: Blob | null; making: boolean }>({ still: null, video: null, making: false });
-  const [shareNote, setShareNote] = useState<string | null>(null);
+  const [shareNote, setShareNote] = useState<ShareNote | null>(null);
+  /* Posting through the Worker, as the player, once they have connected X
+     (see lib/xPost.ts). Null until the Worker has said whether it can. */
+  const [xs, setXs] = useState<XStatus | null>(null);
+  const [xBusy, setXBusy] = useState(false);
+  useEffect(() => {
+    let live = true;
+    const check = () => void xStatus().then((s) => live && setXs(s));
+    check();
+    const stop = onXLinkChange(check);
+    return () => {
+      live = false;
+      stop();
+    };
+  }, []);
+  const videoReady = useRef<Promise<Blob | null> | null>(null);
   const shared = useRef<SharedFlight | null>(null);
   const hosted = useRef<string | null>(null);
   const recording = useRef<AbortController | null>(null);
@@ -426,6 +445,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   const makeShare = useCallback(async (flight: SharedFlight) => {
     shared.current = flight;
     hosted.current = null;
+    videoReady.current = null;
     const card = await composeCard(shot.current, flight);
     if (!card) return;
     const still = await cardJpeg(card);
@@ -435,10 +455,11 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     const ctl = new AbortController();
     recording.current = ctl;
     const { logo } = await cardAssets();
-    const video = await recordVideo(card, logo, {
+    videoReady.current = recordVideo(card, logo, {
       signal: ctl.signal,
       progress: (p) => shareProgress.current?.style.setProperty('--p', p.toFixed(3)),
     });
+    const video = await videoReady.current;
     if (!ctl.signal.aborted) setShare((s) => ({ ...s, video, making: false }));
   }, []);
 
@@ -455,6 +476,28 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       return;
     }
     const text = shareText(flight);
+    /* Connected to X: the Worker posts it, the video if X takes it and the
+       card if not. Anything it cannot do ends at X's own compose box, one
+       tap away, which is what everybody else gets. */
+    if (xs?.available && xs.username !== null) {
+      setXBusy(true);
+      setShareNote({ text: share.making ? 'Finishing the video, then posting…' : 'Posting to X…' });
+      void (async () => {
+        const video = share.video ?? (share.making && videoReady.current ? await videoReady.current : null);
+        const done = await postToX(`${text}\n${SITE_URL}`, video, share.still);
+        if (done.posted) {
+          setShareNote({ text: done.media === 'video' ? 'Posted the video to X' : 'Posted to X', href: done.url, label: 'View post' });
+        } else {
+          if (done.reconnect) setXs((s) => (s ? { ...s, username: null } : s));
+          const link = hosted.current ?? (share.still ? await hostCard(share.still, runId.current) : null) ?? SITE_URL;
+          hosted.current = link;
+          setShareNote({ text: `Could not post it directly. ${done.reason}`, href: intentUrl(text, link), label: 'Post it on X yourself', error: true });
+        }
+        setXBusy(false);
+        armLeave();
+      })();
+      return;
+    }
     const file = share.video ?? share.still;
     if (file && canShareFile(file)) {
       void shareFile(file, text).finally(armLeave);
@@ -464,7 +507,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     armLeave();
     if (share.video) {
       saveFile(share.video);
-      setShareNote('Video saved · add it to your post');
+      setShareNote({ text: 'Video saved · add it to your post' });
     }
     // Straight to X with the site's link, where the domain cannot serve the card's own page.
     if (!hostsCards) {
@@ -486,7 +529,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
         window.location.href = to;
       }
     })();
-  }, [share, holdLeave, armLeave]);
+  }, [share, xs, holdLeave, armLeave]);
   const onCrash = useCallback((metres: number) => {
     const g = game.current;
     const after = g.failed ? (performance.now() - g.failedAt) / 1000 : null;
@@ -1033,6 +1076,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 <button
                   type="button"
                   onClick={onShare}
+                  disabled={xBusy}
                   aria-label="Post on X"
                   className={`sa-landing__share${share.making ? ' is-making' : ''}`}
                 >
@@ -1052,7 +1096,34 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 Board now <span aria-hidden>→</span>
               </button>
             </div>
-            {shareNote && <p className="sa-landing__posted" role="status">{shareNote}</p>}
+            {shareNote && (
+              <p className={`sa-landing__posted${shareNote.error ? ' is-error' : ''}`} role="status">
+                {shareNote.text}
+                {shareNote.href && (
+                  <>
+                    {' · '}
+                    <a href={shareNote.href} target="_blank" rel="noopener noreferrer">{shareNote.label}</a>
+                  </>
+                )}
+              </p>
+            )}
+            {share.still && xs?.available && (
+              <p className="sa-landing__fine sa-landing__xlink">
+                {xs.username !== null ? (
+                  <>
+                    Posting as {xs.username ? `@${xs.username}` : 'your X account'}{' · '}
+                    <button type="button" onClick={() => void disconnectX().then(() => setXs((s) => (s ? { ...s, username: null } : s)))}>
+                      Disconnect
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => { holdLeave(); connectX(); }}>Connect X</button>
+                    {xs.media === 'video' ? ' to post the video straight from here.' : ' to post straight from here.'}
+                  </>
+                )}
+              </p>
+            )}
             {postable && !noWallet && post.state === 'idle' && (
               <p className="sa-landing__fine">Signs a message. No transaction.</p>
             )}

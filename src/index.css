@@ -4045,6 +4045,18 @@ p { text-wrap-style: pretty; }
   text-align: center;
 }
 .sa-landing__posted.is-error { color: #FFB0A8; text-transform: none; letter-spacing: 0.02em; }
+.sa-landing__posted a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.sa-landing__xlink button {
+  font: inherit;
+  color: #fff;
+  background: none;
+  border: 0;
+  padding: 0.5rem 0.15rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.sa-landing__xlink button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .sa-landing__end-actions {
   display: flex;
   flex-wrap: wrap;

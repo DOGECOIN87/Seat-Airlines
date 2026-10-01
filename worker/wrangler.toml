@@ -56,6 +56,13 @@ PUBLIC_IMAGE_BASE = "https://pub-7bcf6d5d613c464da99814dd49b0f3ff.r2.dev"
 # origin asks, which is fine locally and careless in production.
 ALLOWED_ORIGINS = "https://seat-airlines.space,https://www.seat-airlines.space"
 
+# Posting flights to X for players who connect their account (src/xshare.ts).
+# "video" posts the flight's video, and the card if X will not take it;
+# "image" posts the card only, which costs fewer API calls; "off" stops API
+# posting, and every Post opens X's own compose box with the card's link.
+# The keys are secrets, set by the "Set the Worker's X keys" workflow.
+X_MEDIA = "video"
+
 # The holder list, for the directory's section rules: who may read whose card,
 # and whose conversations carry forward. **Point this at the same feed as the
 # page's VITE_HOLDERS_URL** — one feed is what keeps one seating chart, and
