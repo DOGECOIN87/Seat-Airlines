@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { createWorld, type ViewPose, type WorldHandles } from '../three/WorldScene';
+import type { ViewPose } from '../three/WorldScene';
+import { createRailWorld, type RailHandles } from '../three/RailWorld';
+import { carriagesFor, nextCarriageAt } from '../lib/consist';
 import type { FlightFeed } from '../lib/flightFeed';
 import type { BandState } from '../lib/flightModel';
 import { formatCap, formatChange } from '../lib/flightModel';
@@ -10,17 +12,14 @@ import type { CabinSeat } from '../content/cabin';
 import Mark from './Mark';
 
 /**
- * The whole aircraft, from outside.
+ * The whole train, from outside.
  *
- * Zoom far enough out of the cabin and you end up here: one plane, everyone in
- * it. This was a hand-drawn SVG of an aeroplane in front of a hand-drawn sky,
- * neither of which was the sky or the aeroplane the cabin windows looked out
- * on. It is now the same scene, seen from a camera parked off the wingtip — so
- * the light, the weather, the hour, the cloud deck and the altitude are not
- * merely consistent with the cabin's, they are the cabin's.
- *
- * The windows are still the point: each one is a row, lit if anybody in that
- * row has taken a seat.
+ * One train, everyone on it, running through country that never repeats
+ * (see three/RailWorld.ts). The market cap is the train's length — a
+ * carriage for every 1-2-5 step from $10K — and the world it runs through;
+ * the five-minute move is the grade the line ahead is laid at, so the track
+ * behind it is the chart. Lit carriages are booked seats, front first, and
+ * the billboards by the line carry the holders' adverts.
  */
 
 interface ExteriorViewProps {
@@ -34,11 +33,17 @@ interface ExteriorViewProps {
   viewing: CabinSeat | null;
   /** Hand-flying, if anybody is. Left out, the aeroplane flies the market. */
   controls?: ManualControls;
+  /** The holders' adverts, by seat, for the billboards along the line. */
+  adverts?: Readonly<Record<string, string>>;
 }
 
-const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HANDS_OFF }: ExteriorViewProps) => {
+const NO_ADVERTS: Readonly<Record<string, string>> = {};
+
+const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HANDS_OFF, adverts = NO_ADVERTS }: ExteriorViewProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const world = useRef<WorldHandles | null>(null);
+  const world = useRef<RailHandles | null>(null);
+  const carsRead = useRef<HTMLSpanElement>(null);
+  const nextRead = useRef<HTMLSpanElement>(null);
   const capRead = useRef<HTMLSpanElement>(null);
   const chgRead = useRef<HTMLSpanElement>(null);
   const latest = useRef({ sky, band });
@@ -51,9 +56,9 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    let handles: WorldHandles;
+    let handles: RailHandles;
     try {
-      handles = createWorld(canvas);
+      handles = createRailWorld(canvas);
     } catch {
       setWebgl(false);
       return;
@@ -81,6 +86,10 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
   useEffect(() => {
     world.current?.setOccupancy(taken);
   }, [taken]);
+
+  useEffect(() => {
+    world.current?.setAdverts(adverts);
+  }, [adverts]);
 
   /* Pushed in on change rather than on every frame: the scene holds it, eases
      toward it, and nothing here re-renders to make an aeroplane roll. */
@@ -112,6 +121,12 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
     pose.current.orbit = orbit.current.angle;
     world.current?.render(a, latest.current.sky, latest.current.band, pose.current);
     if (tick) {
+      world.current?.setMarket(tick.marketCap, tick.change5m);
+      if (carsRead.current) carsRead.current.textContent = String(carriagesFor(tick.marketCap));
+      if (nextRead.current) {
+        const next = nextCarriageAt(tick.marketCap);
+        nextRead.current.textContent = next ? formatCap(next) : 'Full';
+      }
       if (capRead.current) capRead.current.textContent = formatCap(tick.marketCap);
       if (chgRead.current) {
         chgRead.current.textContent = formatChange(tick.change5m);
@@ -138,9 +153,9 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
     <div
       className="sd-view sd-frame sd-frame--wide relative w-full cursor-grab overflow-hidden active:cursor-grabbing"
       role="img"
-      aria-label={`SEAT AIRLINES flight SA350 from outside, ${band.label.toLowerCase()}. Each lit window is a row with passengers in it${
-        claimed ? `, and seat ${claimed.id} is yours` : ''
-      }. Drag to walk around the aircraft.`}
+      aria-label={`The SEAT RAILWAY train SR350 from outside, ${band.label.toLowerCase()}. Each carriage is a market-cap milestone, and lit carriages carry booked seats${
+        claimed ? `; seat ${claimed.id} is yours` : ''
+      }. Drag to walk around the train.`}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={endDrag}
@@ -176,7 +191,7 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
           photograph is captioned with: which aeroplane, and who is on it. */}
       <div className="sd-plate pointer-events-none">
         <Mark size={22} />
-        <span className="font-heading text-[15px] leading-none tracking-normal text-white/90">SA350</span>
+        <span className="font-heading text-[15px] leading-none tracking-normal text-white/90">SR350</span>
         <span aria-hidden className="hidden h-3.5 w-px bg-white/25 md:block" />
         <span className="hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.2em] text-white/50 md:inline">
           Souls on board <span className="tabular-nums text-white/80">{taken.size}</span>
@@ -200,6 +215,18 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
             <p className="whitespace-nowrap font-mono text-[11px] uppercase leading-none tracking-[0.16em] text-white/45">Market cap</p>
             <p className="mt-1.5 font-mono text-lg leading-none text-white sm:text-xl">
               <span ref={capRead} />
+            </p>
+          </div>
+          <div>
+            <p className="whitespace-nowrap font-mono text-[11px] uppercase leading-none tracking-[0.16em] text-white/45">Carriages</p>
+            <p className="mt-1.5 font-mono text-lg leading-none text-white sm:text-xl">
+              <span ref={carsRead} />
+            </p>
+          </div>
+          <div className="hidden sm:block">
+            <p className="whitespace-nowrap font-mono text-[11px] uppercase leading-none tracking-[0.16em] text-white/45">Next at</p>
+            <p className="mt-1.5 font-mono text-lg leading-none text-[#00C9F1] sm:text-xl">
+              <span ref={nextRead} />
             </p>
           </div>
           <div>

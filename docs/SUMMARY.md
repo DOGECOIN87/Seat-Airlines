@@ -22,6 +22,11 @@
 * [Views and controls](the-cabin/views-and-controls.md)
 * [Your boarding pass](the-cabin/boarding-pass.md)
 
+## The railway
+
+* [How the train shows the market cap](the-railway/market-cap-on-the-train.md)
+* [Proposal: buy trackside ad space with the token](the-railway/billboards-for-the-token.md)
+
 ## The wall
 
 * [Every seat is a billboard](the-wall/every-seat-is-a-billboard.md)

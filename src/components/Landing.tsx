@@ -26,6 +26,7 @@ import type { LandingHud, LandingSounds } from './LandingScene';
 /* The scene is the chunk with three.js in it. Everything here — the way in
    above all — is up and working before it arrives. */
 const LandingScene = lazy(() => import('./LandingScene'));
+const RailLandingScene = lazy(() => import('./RailLandingScene'));
 /* The same high scores window the site opens from its tab bar, fetched as a
    finger or a pointer reaches the button so it is there by the click. */
 const loadScores = () => import('./ScoresDialog');
@@ -701,6 +702,11 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       <div className="sa-landing__scene">
         {!failed && (
           <Suspense fallback={null}>
+            {/* At rest the hero is the train. The Fly game still flies its
+                aeroplane, built only once somebody takes the controls. */}
+            {!inGame ? (
+              <RailLandingScene feed={feed} sky={sky} band={band} taken={taken} controls={controls} onReady={onReady} onFail={onFail} />
+            ) : (
             <LandingScene
               feed={feed}
               sky={sky}
@@ -721,6 +727,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               onDodge={onDodge}
               onCrash={onCrash}
             />
+            )}
           </Suspense>
         )}
       </div>

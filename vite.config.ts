@@ -38,6 +38,9 @@ function contentSecurityPolicy(env: Record<string, string>): Plugin {
     'https://api.open-meteo.com',
     // Advert artwork when it is served straight from R2 (the Worker's PUBLIC_IMAGE_BASE).
     'https://*.r2.dev',
+    // The railway's models carry their textures inside them, and the GLTF loader
+    // reads each one back through an object URL of its own making.
+    'blob:',
   ].filter((o): o is string => Boolean(o)));
   const policy = [
     "default-src 'self'",

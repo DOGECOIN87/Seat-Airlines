@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Annunciators, FlightBand } from './flightModel';
+import { carriagesFor } from './consist';
+
+/** The railway's sounds, in public/rail. */
+const RAIL = (file: string) => `${import.meta.env.BASE_URL}rail/${file}`;
+const HORN_FILES = ['horn-1.mp3', 'horn-2.mp3', 'horn-long-short.mp3'] as const;
 
 const INTERCOM_FILES = [
   '01_captain_speaking_intercom.mp3',
@@ -38,6 +43,11 @@ interface AudioRig {
   lastIntercomIndex: number | null;
   intercomTimer: number | null;
   occasionalSeatbeltTimer: number | null;
+  /** The horns, once decoded: [short, second, long-and-short]. */
+  horns: AudioBuffer[];
+  /** The level-crossing bell, a short loop. */
+  bell: AudioBuffer | null;
+  hornTimer: number | null;
   activeSources: Set<AudioBufferSourceNode>;
   stopped: boolean;
 }
@@ -121,6 +131,18 @@ const scheduleOccasionalSeatbelt = (rig: AudioRig) => {
   }, delay);
 };
 
+/* Now and then the driver sounds the horn on the move. */
+const scheduleHorn = (rig: AudioRig) => {
+  if (rig.stopped) return;
+  rig.hornTimer = window.setTimeout(() => {
+    if (rig.stopped) return;
+    const pick = rig.horns.slice(0, 2);
+    const horn = pick[Math.floor(Math.random() * pick.length)];
+    if (horn) playBuffer(rig, horn, 0.38, () => scheduleHorn(rig));
+    else scheduleHorn(rig);
+  }, randomBetween(45000, 110000));
+};
+
 /* Sound is on unless the visitor has turned it off, and that choice is
    remembered. Storage can be missing or refuse (a private window), in which
    case it is simply on. */
@@ -146,7 +168,7 @@ const activated = (): boolean => {
   return ua ? ua.isActive : true;
 };
 
-export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: FlightBand) {
+export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: FlightBand, marketCap?: number) {
   const [enabled, setEnabled] = useState(() => typeof window === 'undefined' || soundWanted());
   /* Read by a start already under way, which can outlast a change of mind:
      switched off while the sounds were still loading, it must not go on to
@@ -164,6 +186,7 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
     current.stopped = true;
     if (current.intercomTimer !== null) window.clearTimeout(current.intercomTimer);
     if (current.occasionalSeatbeltTimer !== null) window.clearTimeout(current.occasionalSeatbeltTimer);
+    if (current.hornTimer !== null) window.clearTimeout(current.hornTimer);
     current.recording.stop();
     current.activeSources.forEach(source => source.stop());
     current.master.gain.setTargetAtTime(0.0001, current.ctx.currentTime, 0.12);
@@ -207,8 +230,9 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
     master.gain.value = 0.12;
     master.connect(ctx.destination);
 
-    const recordingResponse = await fetch('/flight-cabin-ambience-loop.mp3');
-    if (!recordingResponse.ok) throw new Error('Flight cabin ambience could not be loaded.');
+    // The train on the rails: the bed everything else plays over.
+    const recordingResponse = await fetch(RAIL('track-loop.mp3'));
+    if (!recordingResponse.ok) throw new Error('The track sound could not be loaded.');
     const recording = ctx.createBufferSource();
     recording.buffer = await ctx.decodeAudioData(await recordingResponse.arrayBuffer());
     recording.loop = true;
@@ -230,6 +254,9 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
       lastIntercomIndex: null,
       intercomTimer: null,
       occasionalSeatbeltTimer: null,
+      horns: [],
+      bell: null,
+      hornTimer: null,
       activeSources: new Set(),
       stopped: false,
     };
@@ -256,6 +283,14 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
         }
         scheduleIntercom(target, true);
         scheduleOccasionalSeatbelt(target);
+        const [horns, bell] = await Promise.all([
+          Promise.all(HORN_FILES.map((f) => decode(RAIL(f)).catch(() => null))),
+          decode(RAIL('crossing-bell.mp3')).catch(() => null),
+        ]);
+        if (target.stopped) return;
+        target.horns = horns.filter((b): b is AudioBuffer => !!b);
+        target.bell = bell;
+        scheduleHorn(target);
       } catch {
         // Secondary audio unavailable — ambient keeps playing.
       }
@@ -297,6 +332,29 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
     }
     previous.current = { seatbelt: lamps.seatbelt, oxygen: lamps.oxygen, brace: lamps.brace, band };
   }, [enabled, lamps, band]);
+
+  /* The market, heard. A carriage coupled on (the market has passed a 1-2-5
+     milestone) is greeted with the long-and-short horn; one uncoupled (it
+     has fallen back under one) rings the crossing bell. The first reading
+     only sets the count. */
+  const cars = marketCap === undefined ? null : carriagesFor(marketCap);
+  const lastCars = useRef<number | null>(null);
+  useEffect(() => {
+    if (cars === null) return;
+    const before = lastCars.current;
+    lastCars.current = cars;
+    const current = rig.current;
+    if (before === null || before === cars || !enabled || !current) return;
+    if (cars > before) {
+      const horn = current.horns[current.horns.length - 1];
+      if (horn) playBuffer(current, horn, 0.5);
+    } else if (current.bell) {
+      const bell = current.bell;
+      let rings = 3;
+      const ring = () => { if (--rings >= 0 && !current.stopped) playBuffer(current, bell, 0.45, ring); };
+      ring();
+    }
+  }, [cars, enabled]);
 
   /* The cabin chime, on demand: a change of seat is announced the way the
      seat-belt sign is. Only with the sound on and running — a chime is never

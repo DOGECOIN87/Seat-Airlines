@@ -230,7 +230,7 @@ export default function App() {
       : { hour: controls.hour },
   );
   const band = useMemo(() => bandFor(tick.marketCap), [tick.marketCap]);
-  const aircraftAudio = useAircraftAudio(lamps, tick.change5m, band.band);
+  const aircraftAudio = useAircraftAudio(lamps, tick.change5m, band.band, tick.marketCap);
 
   /* The page opens outside, on the whole aeroplane. It is the one frame that
      explains the premise without a caption — one plane, everyone in it — and
@@ -846,7 +846,7 @@ export default function App() {
                 </Suspense>
               ) : camera === 'exterior' ? (
                 <Suspense fallback={<SceneLoading exterior />}>
-                  <ExteriorView feed={feed} sky={sky} band={band} taken={taken} claimed={claimedSeat} viewing={viewSeat} controls={controls} />
+                  <ExteriorView feed={feed} sky={sky} band={band} taken={taken} claimed={claimedSeat} viewing={viewSeat} controls={controls} adverts={advertImages} />
                 </Suspense>
               ) : camera === 'deck' ? (
                 <Suspense fallback={<SceneLoading />}>

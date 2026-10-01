@@ -1,0 +1,90 @@
+<!doctype html><html><body>
+<script type="importmap">{"imports":{"three":"./three/build/three.module.js","three/addons/":"./three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+const mtl = await new MTLLoader().setPath('obj/').loadAsync('Train station.mtl');
+const obj = await new OBJLoader().setMaterials(mtl).setPath('obj/').loadAsync('Train station.obj');
+const by = n => obj.children.find(c => c.name === n);
+const SCALE = 1.435 / 5.3, TRACK_Z = 22.26, RAIL_TOP = -4.056;
+/** Model space to ours: forward (model -X) is -Z, the track's centre is x = 0, rail top y = 0, metres. */
+const place = (x, y, z, cx) => [-(z - TRACK_Z) * SCALE, (y - RAIL_TOP) * SCALE, (x - cx) * SCALE];
+function collect(meshes, { keep, cx, clampX, mirrorAt, placer, drop }) {
+  const put = placer ?? ((x, y, z) => place(x, y, z, cx));
+  const buckets = new Map();
+  for (const mesh of meshes) {
+    const g = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
+    const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const groups = g.groups.length ? g.groups : [{ start: 0, count: P.count, materialIndex: 0 }];
+    for (const gr of groups) {
+      const m = mats[gr.materialIndex ?? 0];
+      const key = m.name;
+      if (drop && drop.has(key)) continue;
+      if (!buckets.has(key)) buckets.set(key, { color: m.color.getHex(), pos: [], nor: [], uv: [] });
+      const b = buckets.get(key);
+      for (let i = gr.start; i < gr.start + gr.count; i += 3) {
+        let xs = [P.getX(i), P.getX(i + 1), P.getX(i + 2)];
+        const zs = [P.getZ(i), P.getZ(i + 1), P.getZ(i + 2)];
+        if (!keep(Math.min(...xs), Math.max(...xs), (xs[0] + xs[1] + xs[2]) / 3, (zs[0] + zs[1] + zs[2]) / 3)) continue;
+        if (clampX) { xs = xs.map((x) => Math.min(clampX[1], Math.max(clampX[0], x))); if (Math.abs(xs[0]-xs[1]) + Math.abs(xs[1]-xs[2]) < 1e-6 && new Set(xs).size === 1 && false) continue; }
+        const passes = mirrorAt == null ? [false] : [false, true];
+        for (const mir of passes) {
+          const order = mir ? [0, 2, 1] : [0, 1, 2];
+          for (const k of order) {
+            let x = xs[k];
+            if (mir) x = 2 * mirrorAt - x;
+            const p = put(x, P.getY(i + k), P.getZ(i + k));
+            b.pos.push(...p);
+            const nx = N ? N.getX(i + k) * (mir ? -1 : 1) : 0, ny = N ? N.getY(i + k) : 1, nz = N ? N.getZ(i + k) : 0;
+            b.nor.push(-nz, ny, nx);
+            if (U) b.uv.push(U.getX(i + k), U.getY(i + k)); else b.uv.push(0, 0);
+          }
+        }
+      }
+    }
+  }
+  const group = new THREE.Group();
+  for (const [name, b] of buckets) {
+    if (!b.pos.length) continue;
+    let geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(b.nor, 3));
+
+    geo = mergeVertices(geo, 1e-4);
+    const mat = new THREE.MeshStandardMaterial({ name, color: b.color, roughness: 0.5, metalness: 0.1 });
+    const mesh = new THREE.Mesh(geo, mat); mesh.name = name; group.add(mesh);
+  }
+  return group;
+}
+
+const DROP = new Set(['Sign','Metro_Schedule','metro_Schedule_2','Plates_Material','Material.001','Clock_Face','Man_Hole_cover_','window']);
+const stationParts = obj.children.filter(o => { const b = new THREE.Box3().setFromObject(o); return b.max.z < 3 && b.max.x - b.min.x < 400; });
+// the platform's edge: the floor's furthest reach toward the tracks at platform height
+const fl = by('Plane_Plane.004').geometry.attributes.position; let edge = -1e9;
+for (let i = 0; i < fl.count; i++) if (Math.abs(fl.getY(i) + 1) < 0.05 && fl.getZ(i) < 3) edge = Math.max(edge, fl.getZ(i));
+const STN_X = (-10.9 + 194.4) / 2;
+const stnPlace = (x, y, z) => [-(z - (edge + 1.72 / SCALE)) * SCALE, (y - RAIL_TOP) * SCALE, (x - STN_X) * SCALE];
+const sizes = (g) => { const b = new THREE.Box3().setFromObject(g); return [b.min.toArray().map(v=>+v.toFixed(2)), b.max.toArray().map(v=>+v.toFixed(2))]; };
+const inTrain = (o) => { const b = new THREE.Box3().setFromObject(o); return b.min.z > 15 && b.max.z < 29 && b.min.x > 60 && b.max.x < 142; };
+const trainParts = obj.children.filter(inTrain);
+window.parts = trainParts.map(o => o.name);
+const CX = (64.09 + 138.23) / 2;
+const lead = collect(trainParts, { keep: () => true, cx: CX });
+const MID = 101.2;
+const middle = collect(trainParts, { keep: (lo, hi, c) => c >= MID - 0.05, cx: MID, mirrorAt: MID });
+const P = 2.2737, X0 = 9.828 - P / 2 + P * 4, L = P * 24;
+const track = collect([by('Cube.001_Cube.004'), by('Plane.013_Plane.036')], {
+  keep: (lo, hi, c, z) => z > 16 && z < 28 && hi > X0 && lo < X0 + L, cx: X0 + L / 2, clampX: [X0, X0 + L] });
+
+const station = collect([...stationParts, by('Plane_Plane.004')].filter((v,i,a)=>a.indexOf(v)===i), { keep: (lo, hi, c, z) => z < 3, placer: stnPlace, drop: DROP });
+console.log('station parts', stationParts.map(o=>o.name).join(','), 'edge', edge, JSON.stringify(sizes(station)));
+const exp = new GLTFExporter();
+const bin = async (g) => { const ab = await exp.parseAsync(g, { binary: true }); let s = ''; const u = new Uint8Array(ab); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+
+console.log('parts', window.parts.join(','), 'lead', JSON.stringify(sizes(lead)), 'middle', JSON.stringify(sizes(middle)), 'track', JSON.stringify(sizes(track)), 'tileLen', (L*SCALE).toFixed(4));
+window.out = JSON.stringify({ 'train-lead.glb': await bin(lead), 'train-carriage.glb': await bin(middle), 'track.glb': await bin(track), 'station.glb': await bin(station) });
+</script></body></html>
