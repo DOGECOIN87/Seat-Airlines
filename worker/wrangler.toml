@@ -61,7 +61,7 @@ ALLOWED_ORIGINS = "https://seat-airlines.space,https://www.seat-airlines.space"
 # "image" posts the card only, which costs fewer API calls; "off" stops API
 # posting, and every Post opens X's own compose box with the card's link.
 # The keys are secrets, set by the "Set the Worker's X keys" workflow.
-X_MEDIA = "video"
+X_MEDIA = "image"
 
 # The holder list, for the directory's section rules: who may read whose card,
 # and whose conversations carry forward. **Point this at the same feed as the
