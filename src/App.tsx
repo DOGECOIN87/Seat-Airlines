@@ -961,6 +961,10 @@ export default function App() {
           <div className="sa-footer__docs">
             <DocsLink />
           </div>
+          <nav className="sa-footer__legal" aria-label="Legal">
+            <a href="./terms/">Terms</a>
+            <a href="./privacy/">Privacy</a>
+          </nav>
           <p className="sa-footer__line">Hold more. Fly higher.</p>
         </div>
       </footer>

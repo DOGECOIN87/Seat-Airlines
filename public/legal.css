@@ -1,0 +1,16 @@
+/* The terms and privacy pages: plain, readable, no scripts. */
+:root { color-scheme: light dark; --bg: #f4f5f7; --ink: #0f1725; --soft: #4a5468; --rule: #d9dce3; --accent: #1f6feb; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0f1725; --ink: #e8ebf1; --soft: #a3acbd; --rule: #2a3447; --accent: #6ea8ff; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 Montserrat, ui-sans-serif, system-ui, sans-serif; }
+main { max-width: 44rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+header a { color: var(--soft); text-decoration: none; font-size: 0.9rem; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 1rem 0 0.25rem; }
+h2 { font-size: 1.15rem; margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+p, li { color: var(--ink); }
+.meta { color: var(--soft); font-size: 0.9rem; margin: 0 0 1.5rem; }
+a { color: var(--accent); }
+ul { padding-left: 1.25rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+th, td { text-align: left; vertical-align: top; padding: 0.5rem 0.5rem 0.5rem 0; border-bottom: 1px solid var(--rule); }
+footer { margin-top: 3rem; color: var(--soft); font-size: 0.9rem; }

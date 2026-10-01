@@ -4,4 +4,12 @@
     <loc>https://seat-airlines.space/</loc>
     <changefreq>weekly</changefreq>
   </url>
+  <url>
+    <loc>https://seat-airlines.space/terms/</loc>
+    <changefreq>yearly</changefreq>
+  </url>
+  <url>
+    <loc>https://seat-airlines.space/privacy/</loc>
+    <changefreq>yearly</changefreq>
+  </url>
 </urlset>

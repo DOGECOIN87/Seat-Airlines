@@ -2701,6 +2701,9 @@ p { text-wrap-style: pretty; }
   color: var(--ui-faint);
 }
 .sa-footer__docs { margin-left: auto; }
+.sa-footer__legal { display: flex; gap: 1rem; font-size: var(--t-sm); }
+.sa-footer__legal a { color: var(--ui-faint); text-decoration: none; min-height: 2.75rem; display: inline-flex; align-items: center; }
+.sa-footer__legal a:hover { color: var(--ui-ink); text-decoration: underline; }
 .sa-footer .sa-docs { min-height: 2.5rem; padding-block: 0.45rem; font-size: var(--t-sm); }
 @media (max-width: 1023.98px) {
   .sa-footer__line { flex-basis: 100%; }
