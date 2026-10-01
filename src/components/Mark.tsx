@@ -3,10 +3,10 @@
  *
  * Everywhere the page shows the logo — the top bar, the footer, the boarding
  * pass, the exterior view — it is the supplied vector in
- * public/seat-airlines-logo.svg, the one file. It is minified (whitespace,
- * the embedded C2PA metadata, and exact smooth-curve shorthands) and renders
- * the same drawing to the pixel at every size it is shown. The favicon, the
- * app icons and the house adverts are drawn from that same file too.
+ * public/seat-airlines-logo.svg, the one file: the glossy AIRLINES badge,
+ * embedded as an image on the disc's frame of a 500-square canvas, so it
+ * renders the same at every size it is shown. The favicon, the app icons
+ * (npm run icons) and the house adverts are drawn from that same file too.
  *
  * The aircraft is the exception. The tail fin and the cabin's panels and
  * headrests wear the flat mark below, a single path they can tint, stitch and
