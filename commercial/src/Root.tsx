@@ -5,6 +5,7 @@ import { FPS, HEIGHT, ORDER_A, ORDER_B, WIDTH, totalFrames } from './config/time
 import { IntroFilm } from './intro/Film';
 import { totalOf } from './intro/timing';
 import { ExplainerFilm } from './explainer/Film';
+import { Relaunch, RELAUNCH_FRAMES } from './relaunch/Relaunch';
 import { TOTAL as EXPLAINER_TOTAL } from './explainer/timing';
 
 export const Root: React.FC = () => (
@@ -19,5 +20,8 @@ export const Root: React.FC = () => (
     {/* The looping "How it works" explainer (src/explainer). */}
     <Composition id="Explainer-4K" component={ExplainerFilm} durationInFrames={EXPLAINER_TOTAL} fps={30} width={3840} height={2160} />
     <Composition id="Explainer-1080" component={ExplainerFilm} durationInFrames={EXPLAINER_TOTAL} fps={30} width={1920} height={1080} />
+    {/* The re-launch announcement (src/relaunch), for X. */}
+    <Composition id="Relaunch-4K" component={Relaunch} durationInFrames={RELAUNCH_FRAMES} fps={30} width={3840} height={2160} />
+    <Composition id="Relaunch-1080" component={Relaunch} durationInFrames={RELAUNCH_FRAMES} fps={30} width={1920} height={1080} />
   </>
 );
