@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { CAPTURE } from './capture/flag';
+import ErrorBoundary, { reloadOnce } from './components/ErrorBoundary';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('No #root element to mount into.');
@@ -11,9 +12,18 @@ if (!root) throw new Error('No #root element to mount into.');
    screen for this page (see `--safe-top` and the rest in index.css). */
 if (/Android/i.test(navigator.userAgent)) document.documentElement.classList.add('is-android');
 
+/* A part of the app that loads on demand is gone: the site was deployed
+   again since this page loaded. Vite says so here; the page reloads onto the
+   new version (once — see reloadOnce) instead of failing where it stands. */
+window.addEventListener('vite:preloadError', (event) => {
+  if (reloadOnce()) event.preventDefault();
+});
+
 const mount = () => createRoot(root).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );
 

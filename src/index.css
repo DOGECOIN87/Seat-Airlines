@@ -4947,3 +4947,25 @@ p { text-wrap-style: pretty; }
   .sa-gauges__row { background: linear-gradient(180deg, rgba(12, 18, 34, 0.88), rgba(4, 7, 15, 0.92)); }
   .sd-badge { background: rgba(0, 0, 0, 0.7); }
 }
+
+/* ── The error screen (see ErrorBoundary) ──────────────────────────── */
+.sa-crash {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem 1rem;
+  background: radial-gradient(120% 80% at 50% 0%, #1b2740 0%, #0a0e18 70%);
+}
+.sa-crash__card {
+  width: min(100%, 26rem);
+  border-radius: 1.5rem;
+  padding: 1.75rem 1.5rem;
+  background: #e9eaee;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+.sa-crash__eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #0069c2; }
+.sa-crash__title { margin-top: 0.5rem; font-size: 1.5rem; font-weight: 800; color: #1a1d24; }
+.sa-crash__body { margin-top: 0.5rem; font-size: 14px; line-height: 1.5; color: #4a5468; }
+.sa-crash__button { margin-top: 1.25rem; width: 100%; justify-content: center; }
+.sa-crash__detail { margin-top: 1rem; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; color: #8a90a0; word-break: break-word; }
