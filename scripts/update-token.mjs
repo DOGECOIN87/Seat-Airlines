@@ -137,18 +137,28 @@ await writeFile(tokenPath, tokenText.replace(tokenPattern, `$1${nextMint}$3`));
 await writeFile(workerPath, workerText.replace(workerPattern, `$1${nextMint}$3`));
 /* Anywhere else the old address is printed for a person to read or copy:
    a stale CA in the docs is how somebody ends up buying the wrong token. */
-if (previousMint) {
-  for (const path of ['index.html', 'README.md', ...(await markdownUnder('docs'))]) {
-    let text;
-    try {
-      text = await readFile(path, 'utf8');
-    } catch {
-      continue;
-    }
-    if (!text.includes(previousMint)) continue;
-    await writeFile(path, text.split(previousMint).join(nextMint));
-    changed.push(path);
+/* With no token before this one, those places say so in fixed words instead
+   (see "Announced at launch"), and those are what get replaced. */
+const launchPlaceholders = [
+  ['"https://pump.fun",', `"https://pump.fun/coin/${nextMint}",`],
+  ['<a href="https://pump.fun">see $SEAT on pump.fun</a>', `<a href="https://pump.fun/coin/${nextMint}">see $SEAT on pump.fun</a>`],
+  ['```\nAnnounced at launch\n```', '```\n' + nextMint + '\n```'],
+  ['It trades on pump.fun, and its page is linked here once it launches.',
+    `It trades on pump.fun: [pump.fun/coin/${nextMint}](https://pump.fun/coin/${nextMint}).`],
+];
+for (const path of ['index.html', 'README.md', ...(await markdownUnder('docs'))]) {
+  let text;
+  try {
+    text = await readFile(path, 'utf8');
+  } catch {
+    continue;
   }
+  let next = text;
+  if (previousMint) next = next.split(previousMint).join(nextMint);
+  else for (const [from, to] of launchPlaceholders) next = next.split(from).join(to);
+  if (next === text) continue;
+  await writeFile(path, next);
+  changed.push(path);
 }
 for (const path of changed) say(`   ✓ ${path}`);
 

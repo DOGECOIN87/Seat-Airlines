@@ -17,7 +17,7 @@ import { PUMP_URL, TOKEN_MINT, hasToken } from '../lib/token';
  */
 
 /** Stands in until the deployment is pointed at a token. */
-const PLACEHOLDER = 'XXXXXXXXXXXXXXXXXXXXX';
+const PLACEHOLDER = 'Announced at launch';
 
 const PumpMark = () => (
   <img src="/pump-logomark.svg" alt="" aria-hidden className="sa-pump__mark" />

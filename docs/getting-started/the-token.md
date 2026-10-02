@@ -9,10 +9,10 @@ description: The contract address, where to get it, and what the aircraft reads 
 The token is on **Solana**. Its contract address (CA) is:
 
 ```
-AWJCyg9PrMtYju9yaQmdQLcwrGobHMTv9JU3mo4upump
+Announced at launch
 ```
 
-It trades on pump.fun: [pump.fun/coin/AWJCyg9PrMtYju9yaQmdQLcwrGobHMTv9JU3mo4upump](https://pump.fun/coin/AWJCyg9PrMtYju9yaQmdQLcwrGobHMTv9JU3mo4upump).
+It trades on pump.fun, and its page is linked here once it launches.
 
 {% hint style="warning" %}
 Always check the **whole** address, not just the first and last few characters. The strip marked **CA** across the top of [seat-airlines.space](https://seat-airlines.space) shows the address the site is actually flying, and its **Copy** button copies it exactly. If this page and the site ever disagree, trust the site.

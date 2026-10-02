@@ -93,7 +93,7 @@ X_MEDIA = "image"
 # The token. Together with the RPC_URL secret below, lets the Worker refuse
 # adverts from wallets that do not hold it; without that secret the check is
 # skipped, and adverts from non-holders still never display on the page.
-TOKEN_MINT = "AWJCyg9PrMtYju9yaQmdQLcwrGobHMTv9JU3mo4upump"
+TOKEN_MINT = ""
 # RPC_URL is a secret (paid endpoints carry an API key in the URL):
 #
 #   npx wrangler secret put RPC_URL
