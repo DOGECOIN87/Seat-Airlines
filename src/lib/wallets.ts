@@ -5,13 +5,13 @@
  * they share now: each installed wallet registers itself with the page — its
  * name, its icon, and how to connect and sign — so Phantom, Solflare,
  * Backpack, Nightly and whatever comes next are all found the same way and
- * listed by their own names. Nightly is only found this way; it puts no
- * Phantom-shaped provider on `window` at all.
+ * listed by their own names.
  *
  * The older way is a provider object on `window` (`solana`, `solflare`,
- * `backpack`), kept for a wallet or an in-app browser that has not
- * registered, and dropped for any wallet that has, so nothing is listed
- * twice.
+ * `backpack`, `nightly.solana`), kept for a wallet or an in-app browser that
+ * has not registered, and dropped from the list for any wallet that has, so
+ * nothing is listed twice. It is still the way in when a wallet's Standard
+ * connect fails without saying why, which in-app browsers do (see connect).
  */
 
 /** One wallet, whichever way it was found. */
@@ -90,15 +90,24 @@ export function walletError(e: unknown): Error {
   if (e instanceof Error) return e;
   if (typeof e === 'string') return new Error(e);
   if (e && typeof e === 'object') {
-    const o = e as { message?: unknown; code?: unknown; error?: { message?: unknown; code?: unknown }; reason?: unknown };
+    const o = e as { message?: unknown; code?: unknown; error?: { message?: unknown; code?: unknown }; reason?: unknown; name?: unknown };
     const code = o.code ?? o.error?.code;
     if (code === 4001 || code === 'ACTION_REJECTED') return new Error('User rejected the request.');
     const text = [o.message, o.error?.message, o.reason].find((v) => typeof v === 'string' && v.trim());
     if (typeof text === 'string') return new Error(text);
     if (code !== undefined) return new Error(`The wallet refused (code ${String(code)}).`);
+    /* Nothing readable. Say what it was, so a report of it says something:
+       a named wallet error, or the shape of the object. */
+    const kind = typeof o.name === 'string' && o.name ? o.name : (e as object).constructor?.name;
+    const keys = Object.keys(o).slice(0, 4).join(', ');
+    const what = [kind && kind !== 'Object' ? kind : '', keys ? `{${keys}}` : ''].filter(Boolean).join(' ');
+    return new Error(`The wallet did not respond as expected${what ? ` (${what})` : ''}. Try again.`);
   }
-  return new Error('The wallet did not respond as expected. Try again.');
+  return new Error(`The wallet did not respond as expected${e === undefined ? '' : ` (${String(e)})`}. Try again.`);
 }
+
+/** Whether the person said no, which no fallback should talk them out of. */
+const isRefusal = (e: unknown) => /reject|denied|cancel/i.test(walletError(e).message);
 
 /** Runs a wallet call and rethrows whatever it throws as a readable Error. */
 const readable = async <T>(call: () => Promise<T>): Promise<T> => {
@@ -111,16 +120,35 @@ const readable = async <T>(call: () => Promise<T>): Promise<T> => {
 
 function fromStandard(w: StdWallet): WalletAdapter {
   let account: StdAccount | null = null;
+  /** The wallet's older provider, when connecting through the Standard failed and it answered instead. */
+  let via: WalletAdapter | null = null;
   return {
     id: `std:${w.name}`,
     name: w.name,
     icon: typeof w.icon === 'string' && w.icon.startsWith('data:image/') ? w.icon : null,
     connect: (silent) => readable(async () => {
-      const { accounts } = await (w.features['standard:connect'] as StdConnect).connect(silent ? { silent: true } : undefined);
-      account = solanaAccount(accounts?.length ? accounts : w.accounts);
-      return account?.address ?? null;
+      try {
+        const { accounts } = await (w.features['standard:connect'] as StdConnect).connect(silent ? { silent: true } : undefined);
+        account = solanaAccount(accounts?.length ? accounts : w.accounts);
+        return account?.address ?? null;
+      } catch (e) {
+        if (silent || isRefusal(e)) throw e;
+        /* In-app browsers are the usual reason this fails without saying
+           why. The wallet may already be sharing an account with the page,
+           or it may answer through its older provider on window. */
+        account = solanaAccount(w.accounts);
+        if (account) return account.address;
+        const older = injected().find(([n]) => n.toLowerCase() === w.name.toLowerCase())?.[1];
+        if (!older) throw e;
+        const alt = fromInjected(w.name, older);
+        const key = await alt.connect(false);
+        if (!key) throw e;
+        via = alt;
+        return key;
+      }
     }),
     signMessage: (message) => readable(async () => {
+      if (via) return via.signMessage(message);
       const signer = account ?? solanaAccount(w.accounts);
       if (!signer) throw new Error(`${w.name} is not connected.`);
       const [out] = await (w.features['solana:signMessage'] as StdSignMessage).signMessage({ account: signer, message });
@@ -129,6 +157,12 @@ function fromStandard(w: StdWallet): WalletAdapter {
     }),
     async disconnect() {
       account = null;
+      if (via) {
+        const older = via;
+        via = null;
+        await older.disconnect();
+        return;
+      }
       await (w.features['standard:disconnect'] as StdDisconnect | undefined)?.disconnect();
     },
     onAccountChange(fn) {
@@ -161,6 +195,7 @@ interface InjectedProvider {
 
 type Injected = {
   phantom?: { solana?: InjectedProvider };
+  nightly?: { solana?: InjectedProvider };
   solana?: InjectedProvider;
   solflare?: InjectedProvider;
   backpack?: InjectedProvider;
@@ -172,9 +207,16 @@ function fromInjected(name: string, provider: InjectedProvider): WalletAdapter {
     name,
     icon: null,
     connect: (silent) => readable(async () => {
-      const res = await provider.connect(silent ? { onlyIfTrusted: true } : undefined);
-      const key = res?.publicKey ?? provider.publicKey;
-      return key ? key.toString() : null;
+      try {
+        const res = await provider.connect(silent ? { onlyIfTrusted: true } : undefined);
+        // Solflare resolves `true` and keeps the key on the provider; Phantom resolves { publicKey }.
+        const key = (res && typeof res === 'object' ? res.publicKey : null) ?? provider.publicKey;
+        return key ? key.toString() : null;
+      } catch (e) {
+        // An in-app browser's provider can be connected already and still refuse to connect again.
+        if (!silent && !isRefusal(e) && provider.publicKey) return provider.publicKey.toString();
+        throw e;
+      }
     }),
     signMessage: (message) => readable(async () => {
       if (!provider.signMessage) throw new Error(`${name} cannot sign messages.`);
@@ -215,6 +257,8 @@ function injected(): [string, InjectedProvider][] {
   if (phantom) out.push(['Phantom', phantom]);
   if (w.solflare) out.push(['Solflare', w.solflare]);
   if (w.backpack) out.push(['Backpack', w.backpack]);
+  // Nightly registers through the Standard, and in its own app also puts this here.
+  if (w.nightly?.solana) out.push(['Nightly', w.nightly.solana]);
   // Some in-app browser's own provider, with no name to go by.
   if (w.solana && !w.solana.isPhantom && !out.some(([, p]) => p === w.solana)) out.push(['Wallet', w.solana]);
   return out;
@@ -223,7 +267,10 @@ function injected(): [string, InjectedProvider][] {
 /* ── The registry ─────────────────────────────────────────────────────── */
 
 const standard = new Map<string, StdWallet>();
-const adapters = new Map<string, WalletAdapter>();
+/* Keyed by the wallet object itself, not its name: a wallet that registers
+   again (an in-app browser finishing loading, say) gets an adapter for the
+   object it registered now, rather than the one made for the first. */
+const adapters = new WeakMap<object, WalletAdapter>();
 const listeners = new Set<() => void>();
 let listening = false;
 
@@ -269,18 +316,18 @@ export function listWallets(): WalletAdapter[] {
   listen();
   const out: WalletAdapter[] = [];
   const names = new Set<string>();
-  const adapter = (id: string, make: () => WalletAdapter) => {
-    let a = adapters.get(id);
-    if (!a) adapters.set(id, (a = make()));
+  const adapter = (key: object, make: () => WalletAdapter) => {
+    let a = adapters.get(key);
+    if (!a) adapters.set(key, (a = make()));
     return a;
   };
   for (const w of standard.values()) {
-    out.push(adapter(`std:${w.name}`, () => fromStandard(w)));
+    out.push(adapter(w, () => fromStandard(w)));
     names.add(w.name.toLowerCase());
   }
   for (const [name, provider] of injected()) {
     if (names.has(name.toLowerCase())) continue;
-    out.push(adapter(`legacy:${name}`, () => fromInjected(name, provider)));
+    out.push(adapter(provider, () => fromInjected(name, provider)));
     names.add(name.toLowerCase());
   }
   return out.sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));

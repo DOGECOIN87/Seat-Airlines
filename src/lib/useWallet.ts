@@ -138,6 +138,10 @@ export function useWallet(): WalletState {
   // returning holder is seated without being asked again: the wallet they
   // chose last, or the only one there is.
   const triedQuietly = useRef(false);
+  /* The quiet attempt, while it is still out. Some wallets refuse a second
+     connect while one is pending, without saying why, so a tap on Connect
+     waits for it (briefly) and uses its answer if it brought one. */
+  const quiet = useRef<Promise<string | null> | null>(null);
   useEffect(() => {
     if (triedQuietly.current || address) return;
     const chosen = readChosen();
@@ -146,17 +150,20 @@ export function useWallet(): WalletState {
       : found.length === 1 ? found[0] : undefined;
     if (!wallet) return;
     triedQuietly.current = true;
-    wallet
+    const attempt = wallet
       .connect(true)
       .then((key) => {
-        if (!key) return;
+        if (!key) return null;
         follow(wallet);
         setWalletName(wallet.name);
         setAddress(key);
+        return key;
       })
-      .catch(() => {
-        /* not previously trusted — wait to be asked */
+      .catch(() => null /* not previously trusted — wait to be asked */)
+      .finally(() => {
+        if (quiet.current === attempt) quiet.current = null;
       });
+    quiet.current = attempt;
   }, [found, address, follow]);
 
   const choose = useCallback((id: string | null) => {
@@ -184,6 +191,10 @@ export function useWallet(): WalletState {
     setConnecting(true);
     setError(null);
     try {
+      if (quiet.current) {
+        const already = await Promise.race([quiet.current, new Promise<null>((r) => setTimeout(() => r(null), 2500))]);
+        if (already && active.current === wallet) return already;
+      }
       const key = await wallet.connect(false);
       if (!key) throw new Error('The wallet connected but did not return an address.');
       follow(wallet);

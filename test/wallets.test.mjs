@@ -193,5 +193,64 @@ await check('a wallet that throws a plain object is read, never "[object Object]
   const e = new Error('kept'); assert(walletError(e) === e, 'Error kept');
 });
 
+/** A Standard wallet whose connect fails the way in-app browsers' do: an object with nothing to say. */
+const sulking = (name, { accounts = [], throws = {} } = {}) => {
+  const w = standardWallet(name);
+  w.accounts = accounts;
+  w.features['standard:connect'].connect = async () => { throw throws; };
+  return w;
+};
+const registerNow = (w) =>
+  window.dispatchEvent(new CustomEvent('wallet-standard:register-wallet', { detail: ({ register }) => register(w) }));
+
+await check('a Standard connect that fails silently uses the account the wallet already shares', async () => {
+  const w = sulking('Shared', { accounts: [{ address: 'SharedAddress1111', chains: ['solana:mainnet'] }] });
+  registerNow(w);
+  const a = listWallets().find((x) => x.name === 'Shared');
+  assert((await a.connect(false)) === 'SharedAddress1111', 'used the shared account');
+});
+
+await check("Nightly's in-app browser: the Standard connect fails, its window provider connects and signs", async () => {
+  const w = sulking('Nightly');
+  registerNow(w);
+  let signedWith = null;
+  window.nightly = { solana: {
+    connect: async () => ({ publicKey: { toString: () => 'NightlyLegacy1111' } }),
+    signMessage: async (m) => { signedWith = m; return { signature: new Uint8Array([5]) }; },
+  } };
+  const a = listWallets().find((x) => x.name === 'Nightly');
+  assert(a.id === 'std:Nightly', `listed once, by the Standard (${a.id})`);
+  assert(listWallets().filter((x) => x.name === 'Nightly').length === 1, 'not listed twice');
+  assert((await a.connect(false)) === 'NightlyLegacy1111', 'connected through window.nightly.solana');
+  const sig = await a.signMessage(new Uint8Array([1, 2]));
+  assert(sig[0] === 5 && signedWith, 'signed through the same provider');
+  delete window.nightly;
+});
+
+await check('saying no is never talked round by a fallback', async () => {
+  const w = sulking('Refuser', { accounts: [{ address: 'RefuserAddress1111', chains: ['solana:mainnet'] }], throws: { code: 4001 } });
+  registerNow(w);
+  const a = listWallets().find((x) => x.name === 'Refuser');
+  let caught;
+  try { await a.connect(false); } catch (e) { caught = e; }
+  assert(caught instanceof Error && /rejected/i.test(caught.message), `refused (${caught?.message})`);
+});
+
+await check('a failure with nothing readable says what it was', async () => {
+  const w = sulking('Mute', { throws: { name: 'WalletConnectionError' } });
+  registerNow(w);
+  let caught;
+  try { await listWallets().find((x) => x.name === 'Mute').connect(false); } catch (e) { caught = e; }
+  assert(/WalletConnectionError/.test(caught?.message) && !/object Object/.test(caught.message), caught?.message);
+});
+
+await check('a wallet that registers again is connected through what it registered now', async () => {
+  const first = standardWallet('Again', { address: 'FirstAddress1111' });
+  registerNow(first);
+  const second = standardWallet('Again', { address: 'SecondAddress1111' });
+  registerNow(second);
+  assert((await listWallets().find((x) => x.name === 'Again').connect(false)) === 'SecondAddress1111', 'the new registration');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
