@@ -179,15 +179,25 @@ export default function SeatDialog({
             </div>
           )}
           {shared && (
-            <p className={`sa-seatwin__shared${shared.error ? ' is-error' : ''}`} role="status">
-              {shared.text}
-              {shared.href && (
-                <>
-                  {' · '}
-                  <a href={shared.href} target="_blank" rel="noopener noreferrer">{shared.label}</a>
-                </>
+            <div className={`sa-seatwin__shared${shared.error ? ' is-error' : ''}`} role="status">
+              <p>
+                {shared.text}
+                {shared.href && !shared.button && (
+                  <>
+                    {' · '}
+                    <a href={shared.href} target="_blank" rel="noopener noreferrer">{shared.label}</a>
+                  </>
+                )}
+              </p>
+              {shared.href && shared.button && (
+                <a href={shared.href} target="_blank" rel="noopener noreferrer" className="sa-seatwin__advertise sa-seatwin__share sa-seatwin__open-x">
+                  <svg viewBox="0 0 24 24" aria-hidden className="sa-seatwin__x">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  {shared.label}
+                </a>
               )}
-            </p>
+            </div>
           )}
         </div>
       </div>

@@ -31,7 +31,7 @@ export interface SeatShare {
   sign: (message: string) => Promise<string>;
 }
 
-export interface ShareOutcome { text: string; href?: string; label?: string; error?: boolean }
+export interface ShareOutcome { text: string; href?: string; label?: string; error?: boolean; /** Show the link as the main button. */ button?: boolean }
 
 const loadBlobImage = async (blob: Blob): Promise<HTMLImageElement> => {
   const url = URL.createObjectURL(blob);
@@ -168,8 +168,12 @@ export async function shareSeatCard(o: SeatShare): Promise<ShareOutcome | null> 
   const text = seatShareText(o);
   const viaX = Boolean(xLink());
   const viaSheet = !viaX && canShareFile(new Blob([], { type: 'image/jpeg' }));
-  // A desktop's tab to X, opened now, inside the click, or the browser blocks it.
-  const tab = !viaX && !viaSheet ? window.open('about:blank', '_blank') : null;
+  /* A desktop's tab to X, opened now, inside the click, or the browser blocks
+     it. Not on a phone: wallets' in-app browsers (Backpack, Nightly) swallow a
+     tab opened from script without a word, so there the holder gets a button
+     to tap instead, and a tapped x.com link opens the X app. */
+  const touch = window.matchMedia('(pointer: coarse)').matches;
+  const tab = !viaX && !viaSheet && !touch ? window.open('about:blank', '_blank') : null;
   try {
     const card = await composeSeatCard(o);
     if (!card) throw new Error('Your advert could not be read. Try again in a moment.');
@@ -189,9 +193,9 @@ export async function shareSeatCard(o: SeatShare): Promise<ShareOutcome | null> 
     if (tab && !tab.closed) {
       tab.opener = null;
       tab.location.href = to;
-      return { text: 'Opened X with your seat card' };
+      return { text: 'Opened X with your seat card.', href: to, label: 'Open X again' };
     }
-    return { text: 'Your seat card is ready', href: to, label: 'Post it on X' };
+    return { text: 'Your seat card is ready.', href: to, label: 'Open X to post', button: true };
   } catch (e) {
     tab?.close();
     if (refused(e)) return null;

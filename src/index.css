@@ -5002,3 +5002,5 @@ p { text-wrap-style: pretty; }
 .sa-seatwin__shared { margin-top: 0.75rem; font-size: 12px; line-height: 1.5; color: var(--ui-soft); }
 .sa-seatwin__shared.is-error { color: #B3261E; }
 .sa-seatwin__shared a { color: var(--accent-deep, #0069c2); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.sa-seatwin__open-x { margin-top: 0.6rem; text-decoration: none; }
+.sa-seatwin__shared .sa-seatwin__open-x { color: #fff; text-decoration: none; }
