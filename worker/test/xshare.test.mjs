@@ -7,7 +7,7 @@
  * X refuses the video, the fall back to the compose box when X refuses the
  * post, a token refresh, a revoked token, and disconnecting.
  */
-import { createHash } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 import { createServer } from 'node:http';
 
 const BASE = process.env.WORKER_URL || 'http://127.0.0.1:8787';
@@ -61,7 +61,9 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/2/oauth2/revoke') return send(res, 200, { revoked: true });
   const token = (req.headers.authorization ?? '').replace(/^Bearer /, '');
   if (!fakeX.tokens.get(token)) return send(res, 401, { title: 'Unauthorized' });
-  if (url.pathname === '/2/users/me') return send(res, 200, { data: { id: '1', username: 'testpilot' } });
+  if (url.pathname === '/2/users/me') {
+    return send(res, 200, { data: { id: '1', username: 'testpilot', ...(url.searchParams.get('user.fields') === 'profile_image_url' ? { profile_image_url: 'https://pbs.twimg.com/profile_images/1/pilot_normal.jpg' } : {}) } });
+  }
   if (url.pathname === '/2/media/upload/initialize') {
     const j = JSON.parse(body.toString());
     return send(res, 200, { data: { id: `m${++seq}`, media_key: `7_${seq}`, expires_after_secs: 86400, _category: j.media_category } });
@@ -254,6 +256,60 @@ await check('a connect link not from the site is refused', async () => {
   const r = await w('/x/connect?n=<script>');
   const frag = new URLSearchParams(new URL(r.headers.get('location')).hash.slice(1));
   assert(frag.get('error'), frag.toString());
+});
+
+/* The high scores show the X account of a pilot who posts while connected. */
+const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const toBase58 = (bytes) => {
+  let n = BigInt('0x' + (Buffer.from(bytes).toString('hex') || '0'));
+  let out = '';
+  while (n > 0n) { out = ALPHABET[Number(n % 58n)] + out; n /= 58n; }
+  for (const b of bytes) { if (b) break; out = '1' + out; }
+  return out;
+};
+const scoreChallenge = (address, run, score, issued) => ['SEAT AIRLINES', 'Post my score to the landing leaderboard.', '',
+  `Score: ${score}`, `Run: ${run}`, `Wallet: ${address}`, `Issued: ${issued}`, '',
+  'This is a message, not a transaction: it moves nothing and approves nothing.'].join('\n');
+async function flyAndPost(handle) {
+  const pair = await webcrypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']);
+  const address = toBase58(new Uint8Array(await webcrypto.subtle.exportKey('raw', pair.publicKey)));
+  const { run } = await (await w('/runs', { method: 'POST' })).json();
+  const issued = new Date().toISOString();
+  const signature = toBase58(new Uint8Array(await webcrypto.subtle.sign({ name: 'Ed25519' }, pair.privateKey, new TextEncoder().encode(scoreChallenge(address, run, 0, issued)))));
+  const res = await w('/scores', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(handle ? { authorization: `Bearer ${handle}` } : {}) },
+    body: JSON.stringify({ address, run, score: 0, survived: 0, climb: 0, issued, signature }),
+  });
+  assert(res.ok, `post: ${res.status} ${await res.text()}`);
+  return address;
+}
+const onBoard = async (address) => ((await (await w('/scores')).json()).scores ?? []).find((r) => r.address === address);
+
+let pilot, pilotLink;
+await check('a score posted while connected shows the X name and picture on the board', async () => {
+  pilotLink = await connect();
+  pilot = await flyAndPost(pilotLink.handle);
+  const row = await onBoard(pilot);
+  assert(row?.x?.username === 'testpilot', JSON.stringify(row));
+  assert(row.x.avatar === 'https://pbs.twimg.com/profile_images/1/pilot_bigger.jpg', row.x.avatar);
+});
+
+await check('a score posted without X shows the wallet only', async () => {
+  const row = await onBoard(await flyAndPost(null));
+  assert(row && !row.x, JSON.stringify(row));
+});
+
+await check('a made-up handle attaches nothing', async () => {
+  const row = await onBoard(await flyAndPost('f'.repeat(64)));
+  assert(row && !row.x, JSON.stringify(row));
+});
+
+await check('disconnecting X takes the account off the board', async () => {
+  const r = await w('/x/session', { method: 'DELETE', headers: { authorization: `Bearer ${pilotLink.handle}` } });
+  assert(r.status === 204, `${r.status}`);
+  const row = await onBoard(pilot);
+  assert(row && !row.x, JSON.stringify(row));
 });
 
 await check('disconnecting revokes at X and forgets the handle', async () => {

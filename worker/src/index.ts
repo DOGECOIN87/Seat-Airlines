@@ -62,7 +62,7 @@ import { scoreChallenge } from '../../src/lib/scoring';
 import { BOARD_SIZE, RUN_TTL_MS, RUNS_PER_HOUR, implausible, newRunId, readScorePost } from './leaderboard';
 import { CARD_TTL_SECONDS, cardId, cardPage, cardProblem, isCardId } from './cards';
 import {
-  disconnect, finishConnect, isHandle, isNonce, linkedName, mediaMode, postFlight, readPostForm, startConnect, xConfigured,
+  avatarUrl, disconnect, finishConnect, isHandle, isNonce, linkId, linkedName, linkedProfile, mediaMode, postFlight, readPostForm, startConnect, xConfigured,
   MAX_IMAGE_BYTES as X_MAX_IMAGE_BYTES, MAX_VIDEO_BYTES as X_MAX_VIDEO_BYTES, type XEnv,
 } from './xshare';
 import {
@@ -562,6 +562,16 @@ function ensureLeaderboard(db: D1Database): Promise<unknown> {
       posted_at INTEGER NOT NULL
     )`),
     db.prepare('CREATE INDEX IF NOT EXISTS game_scores_by_score ON game_scores (score DESC)'),
+    /* The X account a pilot was connected to when they last posted, shown
+       beside their score. Its own table, like profile_links, so no column
+       migration; `link` is the hash the link is forgotten by on disconnect. */
+    db.prepare(`CREATE TABLE IF NOT EXISTS score_x (
+      address  TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      avatar   TEXT,
+      link     TEXT NOT NULL
+    )`),
+    db.prepare('CREATE INDEX IF NOT EXISTS score_x_by_link ON score_x (link)'),
   ]).catch((e) => {
     leaderboardTables = null;
     throw e;
@@ -1119,12 +1129,17 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const priv = { ...cors, 'cache-control': 'no-store' };
 
       if (request.method === 'GET' && url.pathname === '/scores') {
+        type Row = { address: string; score: number; survived: number; climb: number; posted_at: number; x_username?: string | null; x_avatar?: string | null };
+        const read = (sql: string) => db.prepare(sql).bind(BOARD_SIZE).all<Row>();
         try {
-          const { results } = await db
-            .prepare('SELECT address, score, survived, climb, posted_at FROM game_scores ORDER BY score DESC, posted_at ASC LIMIT ?')
-            .bind(BOARD_SIZE)
-            .all<{ address: string; score: number; survived: number; climb: number; posted_at: number }>();
-          const scores = results.map((r) => ({ address: r.address, score: r.score, survived: r.survived, climb: r.climb, postedAt: r.posted_at }));
+          // With each pilot's X account where they have one; a board from before score_x existed reads without.
+          const { results } = await read(`SELECT s.address, s.score, s.survived, s.climb, s.posted_at, x.username AS x_username, x.avatar AS x_avatar
+              FROM game_scores s LEFT JOIN score_x x ON x.address = s.address ORDER BY s.score DESC, s.posted_at ASC LIMIT ?`)
+            .catch(() => read('SELECT address, score, survived, climb, posted_at FROM game_scores ORDER BY score DESC, posted_at ASC LIMIT ?'));
+          const scores = results.map((r) => ({
+            address: r.address, score: r.score, survived: r.survived, climb: r.climb, postedAt: r.posted_at,
+            ...(r.x_username ? { x: { username: r.x_username, avatar: avatarUrl(r.x_avatar) } } : {}),
+          }));
           return json({ scores }, 200, { ...cors, 'cache-control': 'public, max-age=15' });
         } catch {
           // No table yet: nobody has flown. Reading makes no schema.
@@ -1189,6 +1204,20 @@ async function handle(request: Request, env: Env): Promise<Response> {
             WHERE excluded.score > game_scores.score`)
           .bind(post.address, post.score, post.survived, post.climb, now)
           .run();
+        // The X account this player is connected to, if the page sent its handle: shown beside the score.
+        const xHandle = bearerToken(request.headers.get('authorization'));
+        if (isHandle(xHandle)) {
+          try {
+            const profile = await linkedProfile(env, env.BANNERS, fetch, xHandle);
+            if (profile) {
+              await db.prepare(`INSERT INTO score_x (address, username, avatar, link) VALUES (?, ?, ?, ?)
+                  ON CONFLICT(address) DO UPDATE SET username = excluded.username, avatar = excluded.avatar, link = excluded.link`)
+                .bind(post.address, profile.username, profile.avatar, await linkId(xHandle)).run();
+            }
+          } catch (e) {
+            console.warn('score_x', e); // The score stands either way.
+          }
+        }
         const best = (await db.prepare('SELECT score FROM game_scores WHERE address = ?').bind(post.address).first<{ score: number }>())?.score ?? post.score;
         const rank = (await db.prepare('SELECT COUNT(*) + 1 AS rank FROM game_scores WHERE score > ?').bind(best).first<{ rank: number }>())?.rank ?? null;
         return json({ best, rank, improved: best === post.score }, 200, priv);
@@ -1242,7 +1271,11 @@ async function handle(request: Request, env: Env): Promise<Response> {
         return json(result, 200, priv);
       }
       if (request.method === 'DELETE' && url.pathname === '/x/session') {
-        if (isHandle(handle)) await disconnect(env, env.BANNERS, fetch, handle);
+        if (isHandle(handle)) {
+          await disconnect(env, env.BANNERS, fetch, handle);
+          // Off the high scores too: disconnecting takes the account off the board.
+          if (env.DIRECTORY) await env.DIRECTORY.prepare('DELETE FROM score_x WHERE link = ?').bind(await linkId(handle)).run().catch(() => {});
+        }
         return new Response(null, { status: 204, headers: priv });
       }
       return json({ error: 'Not found.' }, 404, priv);
