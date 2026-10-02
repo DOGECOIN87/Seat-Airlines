@@ -726,7 +726,12 @@ export function createCargoHold(canvasEl: HTMLCanvasElement): CargoHoldHandles {
     camera.updateProjectionMatrix();
   };
 
+  /* Never more than 60 frames a second, as in the cabin (see WorldScene): a
+     120 Hz phone otherwise draws the hold twice as often for nothing. */
+  let lastDrawn = 0;
   const render: CargoHoldHandles['render'] = (a, frost, look, nowMs) => {
+    if (nowMs - lastDrawn < 1000 / 60 - 4) return;
+    lastDrawn = nowMs;
     const t = nowMs / 1000;
     /* The aeroplane's lean, felt down here more than in the cabin: half the
        bank — that lean is turbulence — and all of a hand-flown roll. The

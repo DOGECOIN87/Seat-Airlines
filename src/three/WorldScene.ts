@@ -143,6 +143,12 @@ export interface ViewPose {
   chaseLift?: number;
   /** Stop the world where it is: nothing moves, ages or turns, but the camera. */
   freeze?: boolean;
+  /**
+   * Draw this frame even if the pacing would skip it: the caller is about
+   * to read the canvas back (the game's share card), which is only possible
+   * straight after a frame was drawn into it.
+   */
+  mustDraw?: boolean;
   /** How fast the world's time runs: 1, or less in slow motion. */
   timeScale?: number;
   /**
@@ -216,14 +222,17 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     logarithmicDepthBuffer: true,
   });
   const maxPixelRatio = Math.min(window.devicePixelRatio, lowPower ? 1.25 : 1.5);
-  const minPixelRatio = lowPower ? 0.8 : 1;
+  /* A phone can go further down before it looks wrong: its pixels are tiny,
+     and a smooth picture reads better than a sharp, stuttering one. */
+  const minPixelRatio = lowPower ? 0.6 : 1;
   let pixelRatio = maxPixelRatio;
   renderer.setPixelRatio(pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.85;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // Soft shadows take several times the samples; a phone gets the plain filter.
+  renderer.shadowMap.type = lowPower ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   /* The first frame waits for the shaders, compiled in parallel (see precompile.ts). */
   const canDraw = precompiler(renderer);
 
@@ -1049,9 +1058,22 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   let cloudDeckY = 2400;
   let cloudCount = 0;
   let cloudUpdateClock = 0;
-  let frameClock = 0;
-  let frameSamples = 0;
-  let frameTimeTotal = 0;
+  /* ── Frame pacing ─────────────────────────────────────────────────────
+     Measured by the time between frames actually drawn, not by how long
+     `renderer.render` takes to return: on a phone the CPU hands the frame
+     to the GPU and returns at once, and the GPU's work only shows up as the
+     next frame arriving late. Timing the call saw every phone as fast, so
+     the resolution never came down where it was needed most.
+
+     Never more than 60 a second: a 120 Hz phone drawing this scene 120
+     times a second is twice the heat for motion nobody can tell apart. A
+     low-power device that cannot hold 60 settles at a steady 30, which
+     reads smoother than a jittery 40, and then gives up resolution if even
+     that is too much. A desktop that cannot hold 60 gives up resolution. */
+  let minInterval = 1000 / 60 - 4;
+  let lastDrawn = 0;
+  let paceTotal = 0;
+  let paceFrames = 0;
 
   const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -1088,6 +1110,13 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   const wrap = (v: number) => ((((v + CLOUD_SPAN / 2) % CLOUD_SPAN) + CLOUD_SPAN) % CLOUD_SPAN) - CLOUD_SPAN / 2;
 
   const render = (a: Attitude, skyState: SkyState, band: BandState, pose: ViewPose) => {
+    /* Too soon since the last frame: skip it whole. Everything below eases
+       by the time since the last frame drawn, so the next one simply moves
+       further. */
+    const tick = performance.now();
+    if (tick - lastDrawn < minInterval && !pose.mustDraw) return;
+    const interval = lastDrawn ? tick - lastDrawn : 0;
+    lastDrawn = tick;
     const inSpace = band.band === 'space';
     const onMoon = band.band === 'moon';
     const onMars = band.band === 'mars';
@@ -1933,23 +1962,26 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     /* Posed, lit and dressed for this frame: exactly the state the shaders
        have to be compiled for. Until they are, the canvas waits. */
     if (!canDraw(scene, camera)) return;
-    const frameStart = performance.now();
     renderer.render(scene, camera);
-    frameTimeTotal += performance.now() - frameStart;
-    frameSamples += 1;
-    frameClock += dt;
-    if (frameClock >= 1 && frameSamples >= 20) {
-      const averageMs = frameTimeTotal / frameSamples;
-      if (averageMs > 24 && pixelRatio > minPixelRatio) {
+    // A gap of a quarter of a second is a hidden tab or a stall, not the pace.
+    if (interval > 0 && interval < 250) {
+      paceTotal += interval;
+      paceFrames += 1;
+    }
+    if (paceFrames >= 30) {
+      const averageMs = paceTotal / paceFrames;
+      const target = minInterval + 4;
+      if (lowPower && target < 20 && averageMs > 24) {
+        minInterval = 1000 / 30 - 4;
+      } else if (averageMs > target * 1.25 && pixelRatio > minPixelRatio) {
         pixelRatio = Math.max(minPixelRatio, pixelRatio - 0.1);
         renderer.setPixelRatio(pixelRatio);
-      } else if (averageMs < 15 && pixelRatio < maxPixelRatio) {
-        pixelRatio = Math.min(maxPixelRatio, pixelRatio + 0.1);
+      } else if (averageMs < target * 1.08 && pixelRatio < maxPixelRatio) {
+        pixelRatio = Math.min(maxPixelRatio, pixelRatio + 0.05);
         renderer.setPixelRatio(pixelRatio);
       }
-      frameClock = 0;
-      frameSamples = 0;
-      frameTimeTotal = 0;
+      paceFrames = 0;
+      paceTotal = 0;
     }
   };
 

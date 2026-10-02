@@ -544,6 +544,10 @@ const LandingScene = ({
     const side = g.slow < 0.9 && g.ufo?.strike ? g.ufo.strike * 30 : g.failed ? g.failed * 38 : 0;
     p.chaseSide = (p.chaseSide ?? 0) + (side - (p.chaseSide ?? 0)) * (1 - Math.exp(-1.2 * dt));
     p.chaseLift = (p.chaseLift ?? 0) + ((g.failed ? 9 : 0) - (p.chaseLift ?? 0)) * (1 - Math.exp(-1.2 * dt));
+    /* The card's picture is read off the canvas straight after a frame, so
+       while one is still to be taken — the engine has gone, or the ground is
+       close — every frame is drawn rather than paced (see WorldScene). */
+    p.mustDraw = !shot.current && (g.failed !== 0 || (g.phase === 'flying' && g.agl < 400));
     w.render(f, skyState, lowRef.current, p);
 
     /* The picture for the card, straight after the frame it is of: the

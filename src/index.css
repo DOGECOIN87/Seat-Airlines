@@ -4918,3 +4918,32 @@ p { text-wrap-style: pretty; }
 @media print {
   .sa-flyover { display: none; }
 }
+
+/* ============================================================
+   Phones: no glass over the moving scene
+   ============================================================
+   Frosted glass over a WebGL canvas that redraws every frame has to be
+   re-blurred every frame, and on a phone that is one of the costliest
+   things a page can ask of the compositor: it was a large part of why the
+   site ran slowly on mobile. On a touch screen or a narrow one, every pane
+   that sat over the scene gets a plain tint instead, a little more opaque
+   so it reads as well as the glass did. */
+@media (pointer: coarse), (max-width: 768px) {
+  .sa-topbar, .sa-docs--night, .sa-dock, .sa-frost, .sa-ticker,
+  .sa-landing__fly, .sa-preflight__card, .sa-hud__panel, .sa-hud__skip,
+  .sa-landing__end--crash .sa-landing__posted, .sa-pilots, .sa-landing__post,
+  .sa-gauges__row, .sd-badge {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .sa-topbar { background: rgba(233, 234, 238, 0.97); }
+  .sa-dock { background: rgb(221, 222, 227); }
+  .sa-frost { background-color: rgba(28, 33, 42, 0.72); }
+  .sa-ticker { background: rgba(10, 14, 24, 0.95); }
+  .sa-landing__fly, .sa-landing__post, .sa-docs--night { background: rgba(8, 12, 22, 0.5); }
+  .sa-pilots { background: rgba(8, 12, 22, 0.45); }
+  .sa-preflight__card { background: rgba(8, 12, 22, 0.92); }
+  .sa-hud__panel, .sa-hud__skip, .sa-landing__end--crash .sa-landing__posted { background: rgba(5, 7, 15, 0.78); }
+  .sa-gauges__row { background: linear-gradient(180deg, rgba(12, 18, 34, 0.88), rgba(4, 7, 15, 0.92)); }
+  .sd-badge { background: rgba(0, 0, 0, 0.7); }
+}
