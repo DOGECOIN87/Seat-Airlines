@@ -17,6 +17,11 @@
  *
  * Nothing is written until the checks in 1 pass and you say yes; nothing is
  * pushed unless the tests and the build pass. `--no-push` stops after 4.
+ *
+ * For the "Switch token" workflow, which runs this on GitHub where nobody can
+ * type: `--yes` skips the question, `--fast` skips step 4 (the address is
+ * the only change, and the deploy rebuilds the site anyway) and `--no-wait`
+ * skips step 6, since the workflow starts the deploys itself.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
@@ -33,6 +38,9 @@ const TOKEN_PROGRAMS = new Set(['spl-token', 'spl-token-2022']);
 
 const args = process.argv.slice(2);
 const push = !args.includes('--no-push');
+const assumeYes = args.includes('--yes');
+const fast = args.includes('--fast');
+const wait = !args.includes('--no-wait');
 const nextMint = args.find((a) => !a.startsWith('--'))?.trim() ?? '';
 
 const say = (line = '') => console.log(line);
@@ -99,10 +107,12 @@ say(`   New CA: ${nextMint}   ← ${named}`);
 say(push
   ? '\n   This switches the live site and the Worker to the new token. Seats, the market feed\n   and the holder checks all follow it. Adverts stay with their wallets.'
   : '\n   --no-push: files and checks only; nothing is committed or deployed.');
-const rl = createInterface({ input: process.stdin, output: process.stdout });
-const answer = (await rl.question('\n   Type yes to continue: ')).trim().toLowerCase();
-rl.close();
-if (answer !== 'yes') fail('Stopped. Nothing was changed.');
+if (!assumeYes) {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = (await rl.question('\n   Type yes to continue: ')).trim().toLowerCase();
+  rl.close();
+  if (answer !== 'yes') fail('Stopped. Nothing was changed.');
+}
 
 /* ── 3. Write it everywhere ───────────────────────────────────────────── */
 step(3, 'Writing the new address…');
@@ -153,10 +163,14 @@ const run = (label, cmd, cmdArgs, cwd = '.') => {
   }
   say(`   ✓ ${label}`);
 };
-run('Site tests', 'npm', ['test']);
-run('Site build', 'npm', ['run', 'build']);
-run('Worker typecheck', 'npm', ['run', 'typecheck'], 'worker');
-run('Worker tests', 'npm', ['test'], 'worker');
+if (fast) {
+  say('   (--fast: skipped; the deploy builds the site again anyway.)');
+} else {
+  run('Site tests', 'npm', ['test']);
+  run('Site build', 'npm', ['run', 'build']);
+  run('Worker typecheck', 'npm', ['run', 'typecheck'], 'worker');
+  run('Worker tests', 'npm', ['test'], 'worker');
+}
 
 if (!push) {
   say('\nDone (--no-push). Review with git diff; to ship it, commit and push, or run again without --no-push.');
@@ -171,6 +185,11 @@ const pushed = spawnSync('git', ['push', '-q', 'origin', 'main'], { stdio: 'inhe
 if (pushed.status !== 0) fail('The push failed. The change is committed locally; run: git push origin main');
 const sha = git('rev-parse', 'HEAD');
 say(`   ✓ Pushed ${sha.slice(0, 7)}.`);
+
+if (!wait) {
+  say('\nPushed (--no-wait): the deploys still have to run.');
+  process.exit(0);
+}
 
 /* ── 6. Wait for the deploys and check the live site ───────────────────── */
 step(6, 'Waiting for the site and the Worker to deploy (usually 2–4 minutes)…');

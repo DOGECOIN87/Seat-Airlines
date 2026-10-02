@@ -1,0 +1,96 @@
+name: Switch token
+
+# The whole token switch, in one tap, from GitHub: checks the new address is
+# a token mint on Solana mainnet, writes it everywhere (scripts/update-token.mjs),
+# commits it to main, and starts both deploys straight away.
+#
+# Run it from Actions → Switch token → Run workflow, and paste the CA.
+# "rehearse" does everything but the commit, to check the address first.
+#
+# A push made with the workflow's own token does not start other workflows,
+# so this starts the site and Worker deploys itself rather than waiting on
+# the push to.
+on:
+  workflow_dispatch:
+    inputs:
+      mint:
+        description: The new token's contract address (CA)
+        required: true
+        type: string
+      rehearse:
+        description: Rehearse only (check and show the change, commit nothing)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: switch-token
+  cancel-in-progress: false
+
+jobs:
+  switch:
+    runs-on: ubuntu-latest
+    steps:
+      # A repository variable overrides the committed address at build time,
+      # and would quietly keep the old token live.
+      - name: Refuse if a variable would override it
+        env:
+          OVERRIDE: ${{ vars.VITE_TOKEN_MINT }}
+        run: |
+          if [ -n "$OVERRIDE" ]; then
+            echo "::error::The repository variable VITE_TOKEN_MINT is set and would override the new address. Delete it under Settings → Secrets and variables → Actions → Variables, then run this again."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Switch
+        env:
+          MINT: ${{ inputs.mint }}
+          REHEARSE: ${{ inputs.rehearse }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          MINT="$(printf '%s' "$MINT" | tr -d '[:space:]')"
+          if [ "$REHEARSE" = "true" ]; then
+            node scripts/update-token.mjs "$MINT" --yes --fast --no-push
+            git diff --stat
+          else
+            node scripts/update-token.mjs "$MINT" --yes --fast --no-wait
+          fi
+
+      - name: Deploy the site and the Worker
+        if: ${{ !inputs.rehearse }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy.yml --ref main -R "$GITHUB_REPOSITORY"
+          gh workflow run worker.yml --ref main -R "$GITHUB_REPOSITORY"
+
+      - name: Report
+        env:
+          MINT: ${{ inputs.mint }}
+          REHEARSE: ${{ inputs.rehearse }}
+        run: |
+          {
+            if [ "$REHEARSE" = "true" ]; then
+              echo "### Rehearsal passed"
+              echo
+              echo "\`$MINT\` is a token mint, and the change was written and thrown away. Nothing was committed."
+            else
+              echo "### Switched to \`$MINT\`"
+              echo
+              echo "Committed to main, and the site and Worker deploys have started (about a minute each)."
+              echo "Seats fill from the new token's holders within two minutes of the Worker going live."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
