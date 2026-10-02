@@ -4969,3 +4969,12 @@ p { text-wrap-style: pretty; }
 .sa-crash__body { margin-top: 0.5rem; font-size: 14px; line-height: 1.5; color: #4a5468; }
 .sa-crash__button { margin-top: 1.25rem; width: 100%; justify-content: center; }
 .sa-crash__detail { margin-top: 1rem; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; color: #8a90a0; word-break: break-word; }
+
+/* ── X, Telegram and the lock (see SocialLinks) ──────────────────── */
+.sa-social { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.sa-social__chip { min-height: 2.5rem; padding: 0.45rem 1rem 0.45rem 0.75rem; font-size: 0.85rem; }
+.sa-landing__social { pointer-events: auto; }
+.sa-footer__docs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+@media (max-width: 639px) {
+  .sa-social__on { display: none; }
+}

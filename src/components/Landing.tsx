@@ -1,6 +1,7 @@
 import { createRef, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CAPTURE, captureState } from '../capture/flag';
 import DocsLink from './DocsLink';
+import SocialLinks from './SocialLinks';
 import { DeckIcon } from './InstrumentDeck';
 import Wordmark from './Wordmark';
 import Flyover from './Flyover';
@@ -841,6 +842,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 : `${!wallet.address ? 'Solana wallet required' : touch ? 'Drag to fly' : 'Arrow keys to fly'}\u00a0· climb to ${goalFeet.toLocaleString('en-US')}\u00a0ft`}
             </p>
           )}
+          <SocialLinks night className="sa-landing__social" />
         </main>
       )}
       {!inGame && preflight !== 'off' && (

@@ -14,6 +14,19 @@ Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump
 
 It trades on pump.fun: [pump.fun/coin/Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump](https://pump.fun/coin/Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump).
 
+## Team tokens are locked
+
+The team's tokens from the launch buy are locked on **Jupiter Lock**. The lock is public: anybody can check how many tokens it holds, when they unlock, and who, if anyone, can cancel it.
+
+[View the lock on Jupiter Lock](https://lock.jup.ag/escrow/AtiAAu8kAtmwqQ8yiNakpsg3Rxg7UrFWUazCvhHXteFU)
+
+Locked tokens sit in the lock's contract, not in a wallet, so they are never given a seat on the aircraft.
+
+## Where to find us
+
+* X: [@SeatAirlines](https://x.com/SeatAirlines)
+* Telegram: [t.me/SEATAIRLINES](https://t.me/SEATAIRLINES)
+
 {% hint style="warning" %}
 Always check the **whole** address, not just the first and last few characters. The strip marked **CA** across the top of [seat-airlines.space](https://seat-airlines.space) shows the address the site is actually flying, and its **Copy** button copies it exactly. If this page and the site ever disagree, trust the site.
 {% endhint %}

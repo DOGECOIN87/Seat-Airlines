@@ -10,6 +10,7 @@ import AdvertDialog from './components/AdvertDialog';
 import DocsLink from './components/DocsLink';
 import Wordmark from './components/Wordmark';
 import WalletPicker from './components/WalletPicker';
+import SocialLinks from './components/SocialLinks';
 import SeatChange from './components/SeatChange';
 import SeatTicker, { type TickerItem } from './components/SeatTicker';
 import Landing from './components/Landing';
@@ -978,6 +979,7 @@ export default function App() {
             <Wordmark />
           </a>
           <div className="sa-footer__docs">
+            <SocialLinks />
             <DocsLink />
           </div>
           <nav className="sa-footer__legal" aria-label="Legal">
