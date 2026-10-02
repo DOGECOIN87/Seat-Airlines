@@ -377,7 +377,7 @@ export function createCargoHold(canvasEl: HTMLCanvasElement): CargoHoldHandles {
     antialias: !lowPower,
     powerPreference: lowPower ? 'low-power' : 'high-performance',
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1.25 : 1.75));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1.5 : 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;

@@ -221,10 +221,12 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     // livery from z-fighting at that range.
     logarithmicDepthBuffer: true,
   });
-  const maxPixelRatio = Math.min(window.devicePixelRatio, lowPower ? 1.25 : 1.5);
-  /* A phone can go further down before it looks wrong: its pixels are tiny,
-     and a smooth picture reads better than a sharp, stuttering one. */
-  const minPixelRatio = lowPower ? 0.6 : 1;
+  /* Sharp on a phone too: up to one and a half device pixels to a CSS pixel,
+     and never below one. Going under one to save work made the landing and
+     the cabin visibly soft in wallet browsers, which is worse than a few
+     frames a second fewer; frame rate gives way first (see the pacing). */
+  const maxPixelRatio = Math.min(window.devicePixelRatio, 1.5);
+  const minPixelRatio = Math.min(window.devicePixelRatio, 1);
   let pixelRatio = maxPixelRatio;
   renderer.setPixelRatio(pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1973,7 +1975,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       const target = minInterval + 4;
       if (lowPower && target < 20 && averageMs > 24) {
         minInterval = 1000 / 30 - 4;
-      } else if (averageMs > target * 1.25 && pixelRatio > minPixelRatio) {
+      } else if (averageMs > target * 1.4 && pixelRatio > minPixelRatio) {
         pixelRatio = Math.max(minPixelRatio, pixelRatio - 0.1);
         renderer.setPixelRatio(pixelRatio);
       } else if (averageMs < target * 1.08 && pixelRatio < maxPixelRatio) {
