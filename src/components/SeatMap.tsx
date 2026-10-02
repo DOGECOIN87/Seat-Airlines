@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { CABIN_ZONES, CARGO_HOLD, LAVATORY_SEATS, findSeat, seatCount, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner, type BannerSet } from '../lib/banners';
 import { shortAddress, type Manifest, type ManifestEntry } from '../lib/manifest';
@@ -33,11 +33,13 @@ interface SeatProps {
   entry: ManifestEntry | null;
   banner: Banner | null;
   mine: boolean;
+  /** Just found: pulsed while the map brings it into view. */
+  found?: boolean;
   onOpen: (id: string) => void;
   onInspect: (id: string | null) => void;
 }
 
-const Seat = ({ id, zone, entry, banner, mine, onOpen, onInspect }: SeatProps) => {
+const Seat = ({ id, zone, entry, banner, mine, found = false, onOpen, onInspect }: SeatProps) => {
   const lavatory = (LAVATORY_SEATS as readonly string[]).includes(id);
   const sold = entry !== null;
   /* An advert whose picture will not load is drawn as a held seat without
@@ -75,7 +77,8 @@ const Seat = ({ id, zone, entry, banner, mine, onOpen, onInspect }: SeatProps) =
       onMouseLeave={() => onInspect(null)}
       onBlur={() => onInspect(null)}
       style={{ width: 'var(--seat)', height: 'var(--seat)' }}
-      className={`sa-seat ${state}`}
+      data-seat={id}
+      className={`sa-seat ${state}${found ? ' sa-seat--found' : ''}`}
     >
       {picture ? (
         <img
@@ -140,6 +143,36 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
   }, []);
   const closeSeat = useCallback(() => setOpen(null), []);
 
+  /* Your seat, found for you. Every cabin starts folded, so a holder used to
+     have to know which cabin to open before their seat was even drawn. Now
+     the map opens yours, brings the seat to the middle of the view and
+     pulses it for a few seconds — when the map opens, and again when a seat
+     arrives (checking in, or out-holding someone into a new one). */
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [found, setFound] = useState<string | null>(null);
+  useEffect(() => {
+    if (!mine) return;
+    const seat = findSeat(mine);
+    if (!seat) return;
+    setOpenZones((current) => (current.has(seat.zone) ? current : new Set(current).add(seat.zone)));
+    setFound(mine);
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // The cabin is drawn on the next render; look for the seat until it is there.
+    let tries = 0;
+    let raf = 0;
+    const bring = () => {
+      const el = mapRef.current?.querySelector<HTMLElement>(`[data-seat="${mine}"]`);
+      if (el) el.scrollIntoView({ block: 'center', inline: 'center', behavior: calm ? 'auto' : 'smooth' });
+      else if (++tries < 30) raf = requestAnimationFrame(bring);
+    };
+    raf = requestAnimationFrame(bring);
+    const done = window.setTimeout(() => setFound(null), 4200);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(done);
+    };
+  }, [mine]);
+
   /* How big a seat is drawn, by class.
 
      Every seat is the same square in the ladder's arithmetic, but they are
@@ -161,6 +194,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
 
   return (
     <div
+      ref={mapRef}
       className="sa-map"
       /* One knob sets the whole grid: the seat is a square and everything is
          measured off it, so the map scales from a phone to a desktop without
@@ -251,6 +285,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                                   entry={manifest.bySeat.get(id) ?? null}
                                   banner={banners[id] ?? null}
                                   mine={mine === id}
+                                  found={found === id}
                                   onOpen={openSeat}
                                   onInspect={setInspecting}
                                 />

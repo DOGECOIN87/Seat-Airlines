@@ -588,8 +588,17 @@ export default function App() {
   const openScores = useCallback(() => setScoresOpen(true), []);
   const closeScores = useCallback(() => setScoresOpen(false), []);
   if (CAPTURE) Object.assign(captureState.app, { enter, openPanel, closePanel, openScores, closeScores });
+  /* The top bar's button does what Check in's does: a visitor who has not
+     connected is checked in first — in the Check in panel, where the wallet's
+     answer and any problem with it are shown — and then taken to the seat
+     map, where their seat is lit and brought into view (see SeatMap). */
   const claimSeat = (e: { preventDefault(): void }) => {
     e.preventDefault();
+    if (!wallet.address && !wallet.unavailable) {
+      openPanel('check-in');
+      if (!wallet.connecting) void wallet.connect().then((key) => { if (key) openPanel('wall'); });
+      return;
+    }
     openPanel('wall');
   };
 
@@ -708,7 +717,7 @@ export default function App() {
         <div className="sa-ground__pattern absolute inset-0" />
       </div>
 
-      <a href="#wall" onClick={claimSeat} className="sa-skip">Skip to the seat map</a>
+      <a href="#wall" onClick={(e) => { e.preventDefault(); openPanel('wall'); }} className="sa-skip">Skip to the seat map</a>
 
       <ContractBar />
 
@@ -739,7 +748,8 @@ export default function App() {
             onFocus={prefetchSeatMap}
             className="sa-cta sa-cta--bar sa-shine ml-auto shrink-0 lg:order-last lg:ml-0"
           >
-            Claim a seat <span aria-hidden>→</span>
+            {wallet.connecting ? 'Checking in…' : claimed ? `My seat · ${claimed}` : 'Claim a seat'}
+            {!wallet.connecting && <span aria-hidden>→</span>}
           </a>
 
           <dl className="sd-chrome flex w-full min-w-0 items-center justify-between gap-x-7 overflow-x-auto lg:ml-auto lg:w-auto lg:max-w-[62%] lg:justify-start">
