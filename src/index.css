@@ -4994,3 +4994,11 @@ p { text-wrap-style: pretty; }
 @media (max-width: 359px) {
   .sa-social__chip .sa-docs__label { font-size: 0.78rem; }
 }
+
+/* ── Sharing your seat's card to X (see SeatDialog, lib/seatCard) ── */
+.sa-seatwin__share { background: #0b0f17; box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+.sa-seatwin__share:disabled { opacity: 0.7; cursor: progress; }
+.sa-seatwin__x { width: 0.9rem; height: 0.9rem; fill: currentColor; }
+.sa-seatwin__shared { margin-top: 0.75rem; font-size: 12px; line-height: 1.5; color: var(--ui-soft); }
+.sa-seatwin__shared.is-error { color: #B3261E; }
+.sa-seatwin__shared a { color: var(--accent-deep, #0069c2); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }

@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { shareSeatCard, type ShareOutcome } from '../lib/seatCard';
 import { CABIN_ZONES, LAVATORY_NOTE, LAVATORY_SEATS, findSeat, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner } from '../lib/banners';
 import type { ManifestEntry } from '../lib/manifest';
@@ -18,6 +19,9 @@ interface SeatDialogProps {
   seated: number;
   onAdvertise: () => void;
   onClose: () => void;
+  /** The connected wallet and its signer, for sharing this seat's card to X. */
+  owner?: string | null;
+  sign?: (message: string) => Promise<string>;
 }
 
 const WHERE: Record<string, string> = { window: 'Window seat', middle: 'Middle seat', aisle: 'Aisle seat' };
@@ -37,8 +41,10 @@ const WHERE: Record<string, string> = { window: 'Window seat', middle: 'Middle s
  * seat the pointer crossed; that is gone.
  */
 export default function SeatDialog({
-  id, zone, entry, banner, mine, canAdvertise, seated, onAdvertise, onClose,
+  id, zone, entry, banner, mine, canAdvertise, seated, onAdvertise, onClose, owner, sign,
 }: SeatDialogProps) {
+  const [sharing, setSharing] = useState(false);
+  const [shared, setShared] = useState<ShareOutcome | null>(null);
   const title = useId();
   const [copied, setCopied] = useState(false);
   const cabin = CABIN_ZONES.find((z) => z.key === zone) ?? CABIN_ZONES[0];
@@ -47,6 +53,19 @@ export default function SeatDialog({
   const lavatory = (LAVATORY_SEATS as readonly string[]).includes(id);
   const link = safeHref(banner?.href);
   const own = banner && !banner.house ? banner : null;
+  // Your own advert, on your own seat: yours to put on X.
+  const canShare = Boolean(mine && own && owner && sign && entry?.address === owner);
+  const share = () => {
+    if (!canShare || sharing) return;
+    setSharing(true);
+    setShared(null);
+    void shareSeatCard({
+      owner: owner!, seat: id, cabin: cabin.name, rank: entry?.rank ?? null, alt: own!.alt, sign: sign!,
+    }).then((outcome) => {
+      setShared(outcome);
+      setSharing(false);
+    });
+  };
 
   const copy = async () => {
     if (!entry) return;
@@ -149,7 +168,26 @@ export default function SeatDialog({
               <button type="button" onClick={onAdvertise} className="sa-seatwin__advertise">
                 {own ? 'Change your advert' : 'Advertise here'}
               </button>
+              {canShare && (
+                <button type="button" onClick={share} disabled={sharing} className="sa-seatwin__advertise sa-seatwin__share">
+                  <svg viewBox="0 0 24 24" aria-hidden className="sa-seatwin__x">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  {sharing ? 'Making your card…' : 'Post on X'}
+                </button>
+              )}
             </div>
+          )}
+          {shared && (
+            <p className={`sa-seatwin__shared${shared.error ? ' is-error' : ''}`} role="status">
+              {shared.text}
+              {shared.href && (
+                <>
+                  {' · '}
+                  <a href={shared.href} target="_blank" rel="noopener noreferrer">{shared.label}</a>
+                </>
+              )}
+            </p>
           )}
         </div>
       </div>

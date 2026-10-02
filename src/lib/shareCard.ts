@@ -527,7 +527,7 @@ export function cardJpeg(card: CardLayers): Promise<Blob | null> {
  * address — nobody should see that. `VITE_SHARE_ORIGIN` points a fork at
  * its own.
  */
-const SHARE_ORIGIN = ((import.meta.env.VITE_SHARE_ORIGIN as string | undefined) || 'https://share.seat-airlines.space')
+export const SHARE_ORIGIN = ((import.meta.env.VITE_SHARE_ORIGIN as string | undefined) || 'https://share.seat-airlines.space')
   .replace(/\/+$/, '');
 
 /**

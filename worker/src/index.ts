@@ -60,7 +60,7 @@ import { cabinSize, canSeat, readLadder, rpcUrl } from './ladder';
 import { HANDS_OFF, clamped, handsOff, type ManualControls } from '../../src/lib/manualControls';
 import { scoreChallenge } from '../../src/lib/scoring';
 import { BOARD_SIZE, RUN_TTL_MS, RUNS_PER_HOUR, implausible, newRunId, readScorePost } from './leaderboard';
-import { CARD_TTL_SECONDS, cardId, cardPage, cardProblem, isCardId } from './cards';
+import { CARD_TTL_SECONDS, cardId, cardPage, cardProblem, isCardId, seatCardChallenge, seatCardId } from './cards';
 import {
   disconnect, finishConnect, isHandle, isNonce, linkedName, mediaMode, postFlight, readPostForm, startConnect, xConfigured,
   MAX_IMAGE_BYTES as X_MAX_IMAGE_BYTES, MAX_VIDEO_BYTES as X_MAX_VIDEO_BYTES, type XEnv,
@@ -296,7 +296,7 @@ function corsHeaders(env: Env, origin: string | null): Record<string, string> {
   return {
     'access-control-allow-origin': ok && origin ? origin : allowed[0] ?? '*',
     'access-control-allow-methods': 'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS',
-    'access-control-allow-headers': 'content-type,authorization',
+    'access-control-allow-headers': 'content-type,authorization,x-sa-issued,x-sa-signature',
     'access-control-max-age': '86400',
     vary: 'Origin',
   };
@@ -1300,6 +1300,98 @@ async function handle(request: Request, env: Env): Promise<Response> {
         headers: {
           'content-type': 'text/html; charset=utf-8',
           'cache-control': 'public, max-age=3600',
+          'x-content-type-options': 'nosniff',
+          'content-security-policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
+          'referrer-policy': 'no-referrer',
+        },
+      });
+    }
+
+    /* ── Seat cards ─────────────────────────────────────────────────────
+       A holder shares their advert to X on a card the page draws (see
+       src/lib/seatCard.ts). The page reads the advert's bytes from here,
+       with CORS, because the bucket it lives in sends none and a canvas
+       drawn from it could not be read back. The card is left signed by the
+       wallet whose seat it is, and only while that wallet has an advert up;
+       it is served, like a flight's, as a picture and as a page X reads. */
+    const advertOf = url.pathname.match(/^\/advert\/([1-9A-HJ-NP-Za-km-z]{32,44})$/);
+    if ((request.method === 'GET' || request.method === 'HEAD') && advertOf) {
+      const stored = (await readWall(env))[advertOf[1]];
+      if (!stored) return json({ error: 'That wallet has no advert up.' }, 404, cors);
+      let bytes: ArrayBuffer | null = null;
+      let type = 'image/jpeg';
+      if (usingR2(env)) {
+        const obj = await env.IMAGES!.get(stored.key);
+        if (obj) {
+          bytes = await obj.arrayBuffer();
+          type = obj.httpMetadata?.contentType ?? type;
+        }
+      }
+      if (!bytes) {
+        const hit = await env.BANNERS.getWithMetadata<{ type: string }>(`image:${stored.key}`, 'arrayBuffer');
+        if (hit.value) {
+          bytes = hit.value;
+          type = hit.metadata?.type ?? type;
+        }
+      }
+      if (!bytes) return json({ error: 'That advert\'s image is missing.' }, 404, cors);
+      return new Response(request.method === 'HEAD' ? null : bytes, {
+        headers: {
+          'content-type': /^image\/(png|webp|jpeg)$/.test(type) ? type : 'image/jpeg',
+          'cache-control': 'public, max-age=300',
+          'x-content-type-options': 'nosniff',
+          'access-control-allow-origin': '*',
+        },
+      });
+    }
+    const seatUpload = url.pathname.match(/^\/seatcards\/([1-9A-HJ-NP-Za-km-z]{32,44})$/);
+    if (request.method === 'PUT' && seatUpload) {
+      const priv = { ...cors, 'cache-control': 'no-store' };
+      const owner = seatUpload[1];
+      const issued = request.headers.get('x-sa-issued') ?? '';
+      const signature = request.headers.get('x-sa-signature') ?? '';
+      const at = Date.parse(issued);
+      if (!Number.isFinite(at) || Math.abs(Date.now() - at) > MAX_AGE_MS) {
+        return json({ error: 'That signature has expired. Try again.' }, 400, priv);
+      }
+      const bytes = new Uint8Array(await request.arrayBuffer());
+      const wrong = cardProblem(bytes);
+      if (wrong) return json({ error: wrong }, wrong.includes('large') ? 413 : 400, priv);
+      const hash = await sha256Hex(bytes);
+      if (!(await verifySignature(owner, seatCardChallenge(owner, hash, issued), signature))) {
+        return json({ error: 'That signature does not match the wallet.' }, 401, priv);
+      }
+      if (!(await readWall(env))[owner]) return json({ error: 'Put an advert on your seat first.' }, 403, priv);
+      const id = await seatCardId(owner);
+      const version = hash.slice(0, 10);
+      await env.BANNERS.put(`seatcard:${id}`, bytes, { expirationTtl: CARD_TTL_SECONDS, metadata: { v: version } });
+      // Versioned, so X reads a changed card afresh rather than from its own cache of the last.
+      return json({ id, url: `${url.origin}/s/${id}?v=${version}` }, 200, priv);
+    }
+    const seatShared = url.pathname.match(/^\/s\/([0-9a-f]+)(\.jpg)?$/);
+    if ((request.method === 'GET' || request.method === 'HEAD') && seatShared && isCardId(seatShared[1])) {
+      const [, id, jpg] = seatShared;
+      const hit = await env.BANNERS.getWithMetadata<{ v?: string }>(`seatcard:${id}`, 'arrayBuffer');
+      const site = (env.ALLOWED_ORIGINS ?? '').split(',')[0]?.trim() || 'https://seat-airlines.space';
+      if (!hit.value) return new Response(null, { status: 302, headers: { location: site } });
+      if (jpg) {
+        return new Response(request.method === 'HEAD' ? null : hit.value, {
+          headers: {
+            'content-type': 'image/jpeg',
+            'content-length': String(hit.value.byteLength),
+            // A holder can share again with a new advert, so not immutable: the page names a version.
+            'cache-control': url.searchParams.has('v') ? 'public, max-age=31536000, immutable' : 'public, max-age=300',
+            'x-content-type-options': 'nosniff',
+            'access-control-allow-origin': '*',
+          },
+        });
+      }
+      const page = `${url.origin}/s/${id}`;
+      const v = hit.metadata?.v ? `?v=${hit.metadata.v}` : '';
+      return new Response(request.method === 'HEAD' ? null : cardPage({ image: `${page}.jpg${v}`, page, site: `${site}/#wall`, kind: 'seat' }), {
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'public, max-age=300',
           'x-content-type-options': 'nosniff',
           'content-security-policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
           'referrer-policy': 'no-referrer',

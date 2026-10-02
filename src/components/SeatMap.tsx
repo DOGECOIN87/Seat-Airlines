@@ -113,9 +113,12 @@ interface SeatMapProps {
   /** The seat this visitor may advertise on, if any. */
   canAdvertise: string | null;
   onAdvertise: (seat: string) => void;
+  /** The connected wallet and its signer, for sharing your seat's card to X. */
+  owner?: string | null;
+  sign?: (message: string) => Promise<string>;
 }
 
-const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, onAdvertise }: SeatMapProps) {
+const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, onAdvertise, owner, sign }: SeatMapProps) {
   const [inspecting, setInspecting] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   /** The seat open in its own window, over the page. */
@@ -429,6 +432,8 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
           seated={manifest.entries.length}
           onAdvertise={() => { setOpen(null); onAdvertise(open.id); }}
           onClose={closeSeat}
+          owner={owner}
+          sign={sign}
         />
       )}
     </div>

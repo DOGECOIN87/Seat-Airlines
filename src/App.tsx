@@ -629,6 +629,8 @@ export default function App() {
                 mine={CAPTURE && captureState.seat !== undefined ? captureState.seat : claimed}
                 canAdvertise={claimed}
                 onAdvertise={setAdvertising}
+                owner={wallet.address}
+                sign={wallet.signMessage}
               />
             </Loaded>
             <h3 className="sa-panel__sub">How seating works</h3>

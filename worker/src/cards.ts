@@ -70,12 +70,14 @@ const escapeHtml = (s: string) =>
  * The page a shared flight's link opens: meta tags for X (and anything
  * else that unfurls links) naming the card, and for a person, the site.
  */
-export function cardPage({ image, page, site }: { image: string; page: string; site: string }): string {
+export function cardPage({ image, page, site, kind = 'flight' }: { image: string; page: string; site: string; kind?: 'flight' | 'seat' }): string {
   const img = escapeHtml(image);
   const here = escapeHtml(page);
   const to = escapeHtml(site);
-  const title = 'Seat Airlines — can you beat my score?';
-  const description = 'One engine gone at altitude. How long can you keep her in the air?';
+  const title = kind === 'seat' ? 'My seat on Seat Airlines' : 'Seat Airlines — can you beat my score?';
+  const description = kind === 'seat'
+    ? 'One plane. Everyone\'s in it. Your bag is your seat, and every seat is a billboard.'
+    : 'One engine gone at altitude. How long can you keep her in the air?';
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -99,7 +101,24 @@ export function cardPage({ image, page, site }: { image: string; page: string; s
 <meta http-equiv="refresh" content="0; url=${to}">
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#030610;color:#fff;font:600 16px/1.4 system-ui,sans-serif}a{color:#7FE3F7}img{max-width:min(92vw,600px);border-radius:12px;display:block;margin:0 auto 16px}</style>
 </head>
-<body><main><img src="${img}" alt="A flight on Seat Airlines" width="${CARD_WIDTH}" height="${CARD_HEIGHT}"><a href="${to}">Fly Seat Airlines →</a></main></body>
+<body><main><img src="${img}" alt="${kind === 'seat' ? 'A seat on Seat Airlines' : 'A flight on Seat Airlines'}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}"><a href="${to}">Fly Seat Airlines →</a></main></body>
 </html>
 `;
+}
+
+/* ── Seat cards ──────────────────────────────────────────────────────────
+   A holder's advert, on a card of the same size as a flight's, shared to X.
+   Unlike a flight's card it is not tied to a run this server started, so it
+   is tied to the wallet instead: the holder signs for the exact card, and
+   only a wallet with an advert up may leave one. One card per wallet, the
+   latest. */
+
+/** What a holder signs to share a card of their seat. A message, never a transaction. */
+export function seatCardChallenge(owner: string, cardHash: string, issued: string): string {
+  return ['SEAT AIRLINES', 'Share my seat card.', '', `wallet: ${owner}`, `card:   sha256:${cardHash}`, `issued: ${issued}`].join('\n');
+}
+
+/** A wallet's seat card id: one per wallet, one-way, the same 24 hex as a flight's. */
+export async function seatCardId(owner: string): Promise<string> {
+  return (await sha256Hex(new TextEncoder().encode(`seatcard:${owner}`))).slice(0, 24);
 }
