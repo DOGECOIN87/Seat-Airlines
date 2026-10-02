@@ -536,7 +536,7 @@ export const EndCard: React.FC<SceneProps> = ({ frames }) => {
 /* ── The site's own look, for the scenes that show its interface ──────
    src/index.css: one light grey ground, panels pressed out of it by
    light (white up-left, grey down-right), wells pressed in, one blue. */
-const UI = {
+export const UI = {
   bg: '#DFE0E4', surface: '#EDEEF1', ink: '#24282F', soft: '#4F545C', faint: '#585D66',
   face: 'linear-gradient(145deg, #F4F5F8 0%, #E2E3E8 100%)',
   e: '-6px -6px 16px rgba(255,255,255,0.95), 7px 7px 18px rgba(170,174,187,0.48)',
@@ -548,13 +548,13 @@ const UI = {
   accentText: 'linear-gradient(160deg, #007ACC 0%, #005FB8 100%)',
   deep: '#005CAD',
 };
-const Panel: React.FC<{ style?: React.CSSProperties; children?: React.ReactNode }> = ({ style, children }) => (
+export const Panel: React.FC<{ style?: React.CSSProperties; children?: React.ReactNode }> = ({ style, children }) => (
   <div style={{ position: 'absolute', background: UI.face, borderRadius: 28, boxShadow: UI.eLg, ...style }}>{children}</div>
 );
-const Kicker: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (
+export const Kicker: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (
   <div style={{ fontFamily: MONO, fontWeight: 600, fontSize: 20, letterSpacing: '0.24em', color: UI.deep, ...style }}>{children}</div>
 );
-const popIn = (f: number, at: number) => (f < at ? 0 : interpolate(f - at, [0, 5, 11], [0, 1.06, 1], clamp));
+export const popIn = (f: number, at: number) => (f < at ? 0 : interpolate(f - at, [0, 5, 11], [0, 1.06, 1], clamp));
 
 /* ── 0. Landing: the real site, as a desktop visitor first sees it ── */
 
