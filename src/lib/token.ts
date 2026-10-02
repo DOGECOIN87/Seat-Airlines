@@ -15,7 +15,7 @@
  */
 
 /** The mint, as committed. Empty until the token exists. */
-const COMMITTED_MINT = '';
+const COMMITTED_MINT = 'Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump';
 
 const ENV_MINT = (import.meta.env.VITE_TOKEN_MINT as string | undefined)?.trim();
 
