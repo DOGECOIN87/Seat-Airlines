@@ -2714,7 +2714,6 @@ p { text-wrap-style: pretty; }
   white-space: nowrap;
   color: var(--ui-faint);
 }
-.sa-footer__docs { margin-left: auto; }
 .sa-footer__legal { display: flex; gap: 1rem; font-size: var(--t-sm); }
 .sa-footer__legal a { color: var(--ui-faint); text-decoration: none; min-height: 2.75rem; display: inline-flex; align-items: center; }
 .sa-footer__legal a:hover { color: var(--ui-ink); text-decoration: underline; }
@@ -2724,7 +2723,6 @@ p { text-wrap-style: pretty; }
 }
 @media (max-width: 639px) {
   .sa-footer__inner { justify-content: space-between; column-gap: 1rem; }
-  .sa-footer__docs { margin-left: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4970,11 +4968,29 @@ p { text-wrap-style: pretty; }
 .sa-crash__button { margin-top: 1.25rem; width: 100%; justify-content: center; }
 .sa-crash__detail { margin-top: 1rem; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; color: #8a90a0; word-break: break-word; }
 
-/* ── X, Telegram and the lock (see SocialLinks) ──────────────────── */
-.sa-social { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
-.sa-social__chip { min-height: 2.5rem; padding: 0.45rem 1rem 0.45rem 0.75rem; font-size: 0.85rem; }
+/* ── X, Telegram and the lock (see SocialLinks) ────────────────────
+   One row everywhere: two round marks and a short chip, sized like the
+   docs link beside them so the row reads as one set. */
+.sa-social { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.5rem; }
+.sa-social__chip { min-height: 2.5rem; padding: 0.45rem 1rem 0.45rem 0.8rem; font-size: 0.85rem; white-space: nowrap; }
+.sa-social__icon { width: 2.5rem; padding: 0; justify-content: center; gap: 0; }
+.sa-social__icon .sa-docs__mark { width: 1.05rem; height: 1.05rem; }
 .sa-landing__social { pointer-events: auto; }
-.sa-footer__docs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+
+/* The footer: brand, then the links row at the far end; the legal links and
+   the line underneath. On a phone the links take a row of their own. */
+.sa-footer__links { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; flex-wrap: nowrap; }
+.sa-footer__links .sa-docs { min-height: 2.5rem; padding-block: 0.45rem; font-size: 0.85rem; }
+.sa-footer__links .sa-social__icon { padding: 0; }
+/* Below a desk the links take a row of their own, from the brand's edge,
+   and wrap rather than run off a narrow phone. */
+@media (max-width: 1023.98px) {
+  .sa-footer__links { margin-left: 0; flex-basis: 100%; flex-wrap: wrap; }
+}
 @media (max-width: 639px) {
-  .sa-social__on { display: none; }
+  .sa-footer__links .sa-docs__on, .sa-social__on { display: none; }
+  .sa-social { flex-wrap: wrap; }
+}
+@media (max-width: 359px) {
+  .sa-social__chip .sa-docs__label { font-size: 0.78rem; }
 }

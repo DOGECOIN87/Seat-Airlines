@@ -22,20 +22,20 @@ const Mark = ({ d }: { d: string }) => (
 
 const SocialLinks = ({ night = false, className = '' }: { night?: boolean; className?: string }) => {
   const chip = night ? 'sa-docs sa-docs--night sa-social__chip' : 'sa-docs sa-social__chip';
+  /* X and Telegram are their marks alone, round, so the row stays one row on
+     a phone; the lock is the one that needs words. */
   return (
     <nav className={`sa-social ${className}`} aria-label="Seat Airlines elsewhere">
-      <a href={X_URL} target="_blank" rel="noopener noreferrer" className={chip} aria-label="Seat Airlines on X">
+      <a href={X_URL} target="_blank" rel="noopener noreferrer" className={`${chip} sa-social__icon`} aria-label="Seat Airlines on X" title="X">
         <Mark d={X_MARK} />
-        <span className="sa-docs__label">X</span>
       </a>
-      <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className={chip} aria-label="Seat Airlines on Telegram">
+      <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className={`${chip} sa-social__icon`} aria-label="Seat Airlines on Telegram" title="Telegram">
         <Mark d={TELEGRAM_MARK} />
-        <span className="sa-docs__label">Telegram</span>
       </a>
-      <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" className={`${chip} sa-social__lock`}>
+      <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" className={chip} title="The team's tokens, locked on Jupiter Lock">
         <Mark d={LOCK_MARK} />
         <span className="sa-docs__label">
-          Team tokens locked <span className="sa-social__on">· view on Jupiter Lock</span>
+          Tokens locked<span className="sa-social__on"> · Jupiter Lock</span>
         </span>
       </a>
     </nav>

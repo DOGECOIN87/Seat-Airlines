@@ -978,7 +978,7 @@ export default function App() {
           <a href="#top" className="sa-footer__brand">
             <Wordmark />
           </a>
-          <div className="sa-footer__docs">
+          <div className="sa-footer__links">
             <SocialLinks />
             <DocsLink />
           </div>
