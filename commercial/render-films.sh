@@ -20,5 +20,7 @@ for name in ${@:-Intro Short Explainer}; do
   rm "out/raw-$slug.mp4"
   # A 1080p copy for the web and for socials.
   ffmpeg -y -loglevel error -i "out/seat-airlines-$slug-4k.mp4" -vf scale=1920:1080:flags=lanczos -c:v libx264 -crf 20 -preset slow -pix_fmt yuv420p -c:a copy -movflags +faststart "out/seat-airlines-$slug-1080p.mp4"
+  # A compact 4K (HEVC) for sharing; the H.264 master above plays everywhere.
+  ffmpeg -y -loglevel error -i "out/seat-airlines-$slug-4k.mp4" -c:v libx265 -crf 23 -preset medium -tag:v hvc1 -pix_fmt yuv420p -x265-params log-level=error -c:a copy -movflags +faststart "out/seat-airlines-$slug-4k-hevc.mp4"
   ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height -of compact "out/seat-airlines-$slug-4k.mp4"
 done
