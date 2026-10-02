@@ -61,7 +61,7 @@ window.solflare = {
 };
 window.backpack = { connect: async () => ({ publicKey: { toString: () => 'LegacyBackpack1111' } }) };
 
-const { listWallets, onWalletsChange } = await import('../dist-test/wallets.js');
+const { listWallets, onWalletsChange, walletError } = await import('../dist-test/wallets.js');
 
 console.log('\nfinding the wallets');
 
@@ -181,6 +181,16 @@ await check('a wallet with no events is followed by nothing, and nothing breaks'
   const wallet = listWallets().find((w) => w.name === 'Nightly');
   const stop = wallet.onAccountChange(() => { throw new Error('called'); });
   stop();
+});
+
+await check('a wallet that throws a plain object is read, never "[object Object]"', async () => {
+  assert(walletError({ code: 4001, message: 'x' }).message === 'User rejected the request.', 'code 4001');
+  assert(walletError({ message: 'Wallet is locked' }).message === 'Wallet is locked', 'message');
+  assert(walletError({ error: { code: -32603, message: 'Internal error' } }).message === 'Internal error', 'nested');
+  assert(walletError({ code: -32000 }).message.includes('-32000'), 'code only');
+  assert(!walletError({}).message.includes('[object'), 'empty object');
+  assert(walletError('nope').message === 'nope', 'string');
+  const e = new Error('kept'); assert(walletError(e) === e, 'Error kept');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

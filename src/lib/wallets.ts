@@ -76,24 +76,57 @@ const isSolana = (w: StdWallet) =>
 const solanaAccount = (accounts: readonly StdAccount[]) =>
   accounts.find((a) => !a.chains || a.chains.some((c) => c.startsWith('solana:'))) ?? null;
 
+/**
+ * What a wallet threw, as an Error a person can read.
+ *
+ * Wallets do not all throw Errors. Some reject with a plain object —
+ * `{ code: 4001, message: 'User rejected the request.' }`, or a JSON-RPC
+ * error nested under `error` — and `String()` of that is "[object Object]",
+ * which is what a Solflare in-app browser showed under Connect wallet. So
+ * the message is dug out wherever it is, and the standard "the person said
+ * no" code becomes the words every caller already treats as a choice.
+ */
+export function walletError(e: unknown): Error {
+  if (e instanceof Error) return e;
+  if (typeof e === 'string') return new Error(e);
+  if (e && typeof e === 'object') {
+    const o = e as { message?: unknown; code?: unknown; error?: { message?: unknown; code?: unknown }; reason?: unknown };
+    const code = o.code ?? o.error?.code;
+    if (code === 4001 || code === 'ACTION_REJECTED') return new Error('User rejected the request.');
+    const text = [o.message, o.error?.message, o.reason].find((v) => typeof v === 'string' && v.trim());
+    if (typeof text === 'string') return new Error(text);
+    if (code !== undefined) return new Error(`The wallet refused (code ${String(code)}).`);
+  }
+  return new Error('The wallet did not respond as expected. Try again.');
+}
+
+/** Runs a wallet call and rethrows whatever it throws as a readable Error. */
+const readable = async <T>(call: () => Promise<T>): Promise<T> => {
+  try {
+    return await call();
+  } catch (e) {
+    throw walletError(e);
+  }
+};
+
 function fromStandard(w: StdWallet): WalletAdapter {
   let account: StdAccount | null = null;
   return {
     id: `std:${w.name}`,
     name: w.name,
     icon: typeof w.icon === 'string' && w.icon.startsWith('data:image/') ? w.icon : null,
-    async connect(silent) {
+    connect: (silent) => readable(async () => {
       const { accounts } = await (w.features['standard:connect'] as StdConnect).connect(silent ? { silent: true } : undefined);
       account = solanaAccount(accounts?.length ? accounts : w.accounts);
       return account?.address ?? null;
-    },
-    async signMessage(message) {
+    }),
+    signMessage: (message) => readable(async () => {
       const signer = account ?? solanaAccount(w.accounts);
       if (!signer) throw new Error(`${w.name} is not connected.`);
       const [out] = await (w.features['solana:signMessage'] as StdSignMessage).signMessage({ account: signer, message });
       if (!out?.signature?.length) throw new Error('The wallet returned no signature.');
       return out.signature;
-    },
+    }),
     async disconnect() {
       account = null;
       await (w.features['standard:disconnect'] as StdDisconnect | undefined)?.disconnect();
@@ -138,19 +171,19 @@ function fromInjected(name: string, provider: InjectedProvider): WalletAdapter {
     id: `legacy:${name}`,
     name,
     icon: null,
-    async connect(silent) {
+    connect: (silent) => readable(async () => {
       const res = await provider.connect(silent ? { onlyIfTrusted: true } : undefined);
       const key = res?.publicKey ?? provider.publicKey;
       return key ? key.toString() : null;
-    },
-    async signMessage(message) {
+    }),
+    signMessage: (message) => readable(async () => {
       if (!provider.signMessage) throw new Error(`${name} cannot sign messages.`);
       const res = await provider.signMessage(message, 'utf8');
       // Phantom returns { signature }; some others return the bytes themselves.
       const sig = res instanceof Uint8Array ? res : res?.signature;
       if (!sig?.length) throw new Error('The wallet returned no signature.');
       return sig;
-    },
+    }),
     async disconnect() {
       await provider.disconnect?.();
     },

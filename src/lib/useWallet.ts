@@ -16,7 +16,7 @@
  * failing silently, and the page stays fully usable without one.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { listWallets, onWalletsChange, type WalletAdapter } from './wallets';
+import { listWallets, onWalletsChange, walletError, type WalletAdapter } from './wallets';
 
 /** The wallet a person chose last, by name, so a return visit reconnects to it. */
 const CHOSEN_KEY = 'sa.wallet';
@@ -192,7 +192,7 @@ export function useWallet(): WalletState {
       setAddress(key);
       return key;
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
+      const message = walletError(e).message;
       // A refused prompt is a choice, not a failure worth shouting about.
       setError(/reject|denied|cancel/i.test(message) ? null : message);
       return null;
