@@ -8,5 +8,4 @@ const t0 = Date.now();
 renderIntro(out);
 const explainer = new URL('./explainer.mjs', import.meta.url);
 if (fs.existsSync(explainer)) (await import(explainer)).renderExplainer(out);
-(await import('./relaunch.mjs')).renderRelaunch(out);
 console.log(`done in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
