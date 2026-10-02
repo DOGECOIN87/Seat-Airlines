@@ -454,7 +454,6 @@ export default function App() {
     if (!id || id === lastSeat.current) return;
     const first = lastSeat.current === null;
     lastSeat.current = id;
-    if (boardedAt === null) setBoardedAt(tick.marketCap);
     setViewZone(berth.seat!.zone);
     setViewPosition(berth.seat!.position);
     setCamera(berth.seat!.zone === 'deck' ? 'deck' : 'seat');
@@ -465,7 +464,17 @@ export default function App() {
         : `Passenger reseated to ${id}. ${berth.rung}.`,
       'pa',
     );
-  }, [berth.seat?.id, berth.hold, berth.rung, wallet.address, boardedAt, tick.marketCap, say]);
+  }, [berth.seat?.id, berth.hold, berth.rung, wallet.address, say]);
+
+  /* The boarding pass's "Boarded at": the market when the seat was first
+     given, from a real reading. A returning holder's wallet reconnects on
+     page load, before the market has answered, and the pass used to record
+     the placeholder the instruments start on (163,000 ft) as where they got
+     on. So it waits for the first real tick, which is any tick other than
+     the placeholder itself. */
+  useEffect(() => {
+    if (boardedAt === null && berth.seat && tick !== INITIAL_TICK) setBoardedAt(tick.marketCap);
+  }, [boardedAt, berth.seat, tick]);
 
   /* ── Seats changing hands ─────────────────────────────────────────────
      Each new reading of the manifest is set against the last. Whoever climbed
