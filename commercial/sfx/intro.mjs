@@ -215,7 +215,52 @@ function end(cut, frames) {
   return st.fadeOut(0.45);
 }
 
-const SCENES = { ignition, sky, seats, climb, board, end };
+
+/* ── 0. Landing page: the room, then the dive into the window ── */
+function landing(cut, frames) {
+  const Fs = frames / FPS;
+  const st = new Stem(Fs + 1.5);
+  const n = S(Fs + 0.2);
+  // Cabin ambience under the real page, and the plane's distant engines.
+  st.putStereo(0, env(filt(pink(n, 'ld-l'), 'lp', 700), (t) => clamp01(t / 0.4)), env(filt(pink(n, 'ld-r'), 'lp', 700), (t) => clamp01(t / 0.4)), 0.35);
+  st.put(0, env(filt(brown(n, 'ld-jet'), 'lp', 500), (t) => clamp01(t / 0.6) * (0.6 + 0.4 * clamp01((t - Fs + 0.8) / 0.8))), 0.5, 0);
+  st.put(0.25, bell(2, 1174.66), 0.2, 0).put(0.67, bell(2, 880), 0.2, 0);
+  st.put(Fs - 0.75, whoosh(1.4, 0.75, { seed: 'ld-dive', lo: 200, hi: 3600 }), 1.2, 0);
+  return st.reverb({ wet: 0.18 });
+}
+
+/* ── Billboard: drop, type, put it on the seat, move up ── */
+function billboard(cut, frames) {
+  const Fs = frames / FPS, drop = 34 / FPS, moved = 78 / FPS;
+  const st = new Stem(Fs + 1.5);
+  for (let i = 0; i < 12; i++) st.put((4 + i) / FPS, pip(note(880, i % 10), 0.06, 0.02), 0.07, 0.1 + i * 0.05);
+  st.put(drop, boom(0.5, { from: 170, to: 90, seed: 'bb-drop', click: 0.3 }), 0.4, 0.4);
+  sparkle(st, drop, 0.35, 5, 'bb-sp', 0.1, 0.2, 0.6);
+  for (let k = 0; k < 18; k++) st.put(drop + 0.07 + k * 0.035, flapClick(`bb-key${k}`), 0.08, 0.5);
+  st.put((34 + 8) / FPS, flapClick('bb-btn', { land: true }), 0.4, 0.5);
+  st.put((34 + 10) / FPS, pip(1318.5, 0.3, 0.08), 0.15, 0.5).put((34 + 13) / FPS, pip(1760, 0.4, 0.1), 0.15, 0.5);
+  st.put((34 + 10) / FPS, whoosh(0.7, 0.3, { seed: 'bb-fly', lo: 600, hi: 4000 }), 0.35, 0.5);
+  st.put(moved - 0.1, whoosh(0.9, 0.4, { seed: 'bb-move', lo: 400, hi: 3200 }), 0.45, 0.3);
+  st.put(moved + 0.6, boom(0.4, { from: 140, to: 80, seed: 'bb-land', click: 0.25 }), 0.3, 0.3);
+  st.put(Fs - 0.45, whoosh(0.9, 0.45, { seed: 'bb-out', lo: 300, hi: 2500 }), 0.3, 0);
+  return st.reverb({ wet: 0.16 });
+}
+
+/* ── Network: messages arrive in the room, then the PA ── */
+function network(cut, frames) {
+  const Fs = frames / FPS;
+  const st = new Stem(Fs + 2);
+  for (let i = 0; i < 4; i++) {
+    const at = (14 + i * 14) / FPS;
+    st.put(at, pip(i === 0 ? 1046.5 : 1318.5, 0.18, 0.05), 0.16, i === 0 ? 0.6 : 0.1).put(at + 0.06, pip(i === 0 ? 1568 : 1760, 0.22, 0.06), 0.13, i === 0 ? 0.6 : 0.1);
+  }
+  const pa = 84 / FPS;
+  st.put(pa, bell(2.2, 1174.66), 0.3, 0).put(pa + 0.45, bell(2.2, 880), 0.3, 0);
+  st.put(Fs - 0.45, whoosh(0.9, 0.45, { seed: 'nw-out', lo: 300, hi: 2500 }), 0.3, 0);
+  return st.reverb({ wet: 0.2 });
+}
+
+const SCENES = { landing, ignition, sky, seats, billboard, network, climb, board, end };
 
 export function renderIntro(outDir) {
   for (const [cut, c] of Object.entries(cfg.cuts)) {

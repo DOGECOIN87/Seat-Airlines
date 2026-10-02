@@ -7,7 +7,7 @@ import { Audio, Sequence, staticFile } from 'remotion';
 import { scenesOf, type CutId, type SceneId, type VoCue } from './timing';
 
 /** Stem levels, set by ear against the VO at -18 LUFS. */
-const GAIN: Record<SceneId, number> = { ignition: 0.85, sky: 0.8, seats: 0.7, climb: 0.9, board: 0.75, end: 0.85 };
+const GAIN: Record<SceneId, number> = { landing: 0.7, billboard: 0.75, network: 0.75, ignition: 0.85, sky: 0.8, seats: 0.7, climb: 0.9, board: 0.75, end: 0.85 };
 const DUCK = 0.5; // gain while a line is being spoken
 const RAMP = 6; // frames to duck and to recover
 

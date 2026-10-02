@@ -4,9 +4,12 @@
   "cuts": {
     "intro": {
       "scenes": [
+        { "id": "landing", "frames": 105 },
         { "id": "ignition", "frames": 120 },
         { "id": "sky", "frames": 135 },
         { "id": "seats", "frames": 200 },
+        { "id": "billboard", "frames": 120 },
+        { "id": "network", "frames": 120 },
         { "id": "climb", "frames": 315 },
         { "id": "board", "frames": 105 },
         { "id": "end", "frames": 120 }

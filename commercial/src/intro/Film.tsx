@@ -18,6 +18,7 @@ const DIP = 7; // each half of a dip through black
 const transitionFor = (prev: SceneId | undefined, cur: SceneId): Kind => {
   if (!prev) return 'cut';
   if (prev === 'ignition') return 'white'; // the camera dived through the badge into white
+  if (prev === 'landing') return 'dip'; // the camera dived into the browser window
   if (cur === 'board') return 'dip';
   if (cur === 'end') return 'flash';
   return 'fade';

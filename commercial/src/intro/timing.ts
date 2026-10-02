@@ -9,7 +9,7 @@ import voFiles from '../../config/vo-intro.json';
 
 export const FPS = cfg.fps;
 export type CutId = keyof typeof cfg.cuts;
-export type SceneId = 'ignition' | 'sky' | 'seats' | 'climb' | 'board' | 'end';
+export type SceneId = 'landing' | 'ignition' | 'sky' | 'seats' | 'billboard' | 'network' | 'climb' | 'board' | 'end';
 
 export interface CutScene { id: SceneId; frames: number; from: number }
 

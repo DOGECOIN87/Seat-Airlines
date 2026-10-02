@@ -4,7 +4,7 @@
  * frame from timing.ts (config/intro.json), which the synth reads too.
  */
 import React from 'react';
-import { Easing, Img, interpolate, interpolateColors, random, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { Easing, Img, OffthreadVideo, interpolate, interpolateColors, random, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { CABIN_ZONES } from '../../../src/content/cabin';
 import { SEAT_ORDER } from '../../../src/lib/seating';
 import { Badge, C, Cloud, FlapTile, H, Layer, MONO, Motes, PlaneTop, Rays, Rise, SANS, W, clamp } from './kit';
@@ -532,4 +532,182 @@ export const EndCard: React.FC<SceneProps> = ({ frames }) => {
   );
 };
 
-export const SCENES = { ignition: Ignition, sky: Sky, seats: Seats, climb: Climb, board: Board, end: EndCard } as const;
+
+/* ── The site's own look, for the scenes that show its interface ──────
+   src/index.css: one light grey ground, panels pressed out of it by
+   light (white up-left, grey down-right), wells pressed in, one blue. */
+const UI = {
+  bg: '#DFE0E4', surface: '#EDEEF1', ink: '#24282F', soft: '#4F545C', faint: '#585D66',
+  face: 'linear-gradient(145deg, #F4F5F8 0%, #E2E3E8 100%)',
+  e: '-6px -6px 16px rgba(255,255,255,0.95), 7px 7px 18px rgba(170,174,187,0.48)',
+  eLg: '-12px -12px 30px rgba(255,255,255,0.95), 14px 14px 34px rgba(170,174,187,0.48)',
+  eSm: '-3px -3px 8px rgba(255,255,255,0.95), 3px 3px 8px rgba(170,174,187,0.48)',
+  well: 'inset -7px -7px 16px rgba(255,255,255,0.72), inset 8px 8px 20px rgba(154,158,172,0.62)',
+  press: 'inset -3px -3px 7px rgba(255,255,255,0.85), inset 3px 3px 7px rgba(166,170,183,0.6)',
+  accent: 'linear-gradient(160deg, #00C9F1 0%, #0087EA 100%)',
+  accentText: 'linear-gradient(160deg, #007ACC 0%, #005FB8 100%)',
+  deep: '#005CAD',
+};
+const Panel: React.FC<{ style?: React.CSSProperties; children?: React.ReactNode }> = ({ style, children }) => (
+  <div style={{ position: 'absolute', background: UI.face, borderRadius: 28, boxShadow: UI.eLg, ...style }}>{children}</div>
+);
+const Kicker: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (
+  <div style={{ fontFamily: MONO, fontWeight: 600, fontSize: 20, letterSpacing: '0.24em', color: UI.deep, ...style }}>{children}</div>
+);
+const popIn = (f: number, at: number) => (f < at ? 0 : interpolate(f - at, [0, 5, 11], [0, 1.06, 1], clamp));
+
+/* ── 0. Landing: the real site, as a desktop visitor first sees it ── */
+
+export const Landing: React.FC<SceneProps> = ({ frames }) => {
+  const f = useCurrentFrame();
+  const push = interpolate(f, [0, frames], [0.94, 1.0], { easing: Easing.inOut(Easing.sin) });
+  const dive = interpolate(f, [frames - 16, frames], [0, 1], { ...clamp, easing: Easing.in(Easing.quad) });
+  const bw = 1640, bh = 922 + 52;
+  return (
+    <Layer style={{ background: `radial-gradient(ellipse at 50% 40%, #EDEEF1 0%, ${UI.bg} 60%, #CFD1D6 100%)` }}>
+      <div style={{ position: 'absolute', left: (W - bw) / 2, top: (H - bh) / 2 + 10, width: bw, height: bh, transform: `scale(${push * (1 + dive * 0.25)})`, borderRadius: 18, overflow: 'hidden', boxShadow: UI.eLg + ', 0 30px 80px rgba(36,40,47,0.25)', background: UI.surface }}>
+        <div style={{ height: 52, display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px', background: UI.face, borderBottom: '1px solid #C7C9D1' }}>
+          {['#FF5F57', '#FEBC2E', '#28C840'].map((c) => <div key={c} style={{ width: 14, height: 14, borderRadius: 7, background: c }} />)}
+          <div style={{ marginLeft: 24, width: 560, height: 32, borderRadius: 10, boxShadow: UI.press, display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px', fontFamily: SANS, fontWeight: 600, fontSize: 17, color: UI.soft }}>
+            <span style={{ color: '#28A745' }}>●</span> seat-airlines.space
+          </div>
+        </div>
+        <div style={{ position: 'relative', width: bw, height: bh - 52, overflow: 'hidden', background: '#9fc6ea' }}>
+          <OffthreadVideo src={staticFile('clips/landing.mp4')} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      </div>
+      <Layer style={{ background: '#050A14', opacity: dive }} />
+    </Layer>
+  );
+};
+
+/* ── Billboard: an image on your seat, and it moves with you ── */
+
+const WALL = ['3A', '3F', '5C', '7D', '9A', '10F', '12B', '14E', '15A', '16A', '17F', '19C'];
+const HOUSE = ['#0087EA', '#7C5CC4', '#00A3A3', '#D9457A', '#2F6FD6', '#F2994A'];
+
+export const Billboard: React.FC<SceneProps> = ({ frames }) => {
+  const f = useCurrentFrame();
+  const drop = 34, moved = 78;
+  const img = staticFile('brand/advert-nimbus.png');
+  const tile = 116, gap = 20, gx = 1010, gy = 560;
+  const pos = (i: number) => ({ x: gx + (i % 6) * (tile + gap), y: gy + Math.floor(i / 6) * (tile + gap) });
+  const mine = 9, to = 4;
+  const m = interpolate(f, [moved, moved + 18], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+  const a = pos(mine), b = pos(to);
+  const fly = interpolate(f, [drop + 10, drop + 24], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+  return (
+    <Layer style={{ background: UI.bg }}>
+      <div style={{ position: 'absolute', left: 120, top: 300, width: 760 }}>
+        <Kicker>THE WALL</Kicker>
+        <div style={{ marginTop: 18 }}><Rise text="EVERY SEAT IS A BILLBOARD." from={4} size={86} color={UI.ink} /></div>
+        <div style={{ marginTop: 22, fontFamily: SANS, fontWeight: 600, fontSize: 34, lineHeight: 1.4, color: UI.soft, opacity: interpolate(f, [14, 26], [0, 1], clamp) }}>
+          Put a square image on your seat. It belongs to your wallet, so it moves up with you.
+        </div>
+      </div>
+      {/* Your billboard (AdvertDialog). */}
+      <Panel style={{ left: 1010, top: 110, width: 796, height: 380, opacity: interpolate(f, [0, 10], [0, 1], clamp), transform: `translateY(${interpolate(f, [0, 12], [30, 0], { ...clamp, easing: Easing.out(Easing.cubic) })}px)` }}>
+        <div style={{ position: 'absolute', left: 36, top: 30, fontFamily: SANS, fontWeight: 800, fontSize: 30, color: UI.ink }}>Your billboard</div>
+        <div style={{ position: 'absolute', left: 36, top: 84, width: 270, height: 270, borderRadius: 20, boxShadow: UI.well, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24, boxSizing: 'border-box', fontFamily: SANS, fontWeight: 600, fontSize: 19, color: UI.faint, overflow: 'hidden' }}>
+          {f < drop ? 'Drop, paste, or choose an image' : <Img src={img} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: `scale(${popIn(f, drop)})`, opacity: 1 - fly }} />}
+        </div>
+        <div style={{ position: 'absolute', left: 340, top: 96, right: 36 }}>
+          <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: 18, color: UI.faint }}>Description</div>
+          <div style={{ marginTop: 8, height: 50, borderRadius: 12, boxShadow: UI.press, fontFamily: SANS, fontWeight: 600, fontSize: 20, color: UI.ink, display: 'flex', alignItems: 'center', padding: '0 16px' }}>
+            {'Nimbus cold brew. Smooth at altitude.'.slice(0, Math.max(0, Math.floor((f - drop - 2) * 1.6)))}
+          </div>
+          <div style={{ marginTop: 18, fontFamily: SANS, fontWeight: 700, fontSize: 18, color: UI.faint }}>Link (optional)</div>
+          <div style={{ marginTop: 8, height: 50, borderRadius: 12, boxShadow: UI.press }} />
+          <div style={{ marginTop: 22, height: 58, width: 240, borderRadius: 14, background: UI.accentText, color: '#fff', fontFamily: SANS, fontWeight: 800, fontSize: 21, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: UI.eSm, transform: `scale(${f >= drop + 8 && f < drop + 12 ? 0.95 : 1})` }}>
+            {f >= drop + 10 ? 'On your seat ✓' : 'Put it on my seat'}
+          </div>
+        </div>
+      </Panel>
+      {/* The wall (SeatMap): one square per seat. */}
+      {WALL.map((id, i) => {
+        const shift = i >= to && i < mine ? m : 0;
+        const p = pos(i), q = i >= to && i < mine ? pos(i + 1) : p;
+        const me = i === mine;
+        return (
+          <div key={id} style={{
+            position: 'absolute', left: p.x + (q.x - p.x) * shift, top: p.y + (q.y - p.y) * shift, width: tile, height: tile, borderRadius: 18,
+            background: me ? UI.bg : `linear-gradient(145deg, ${HOUSE[i % 6]}, ${HOUSE[(i + 2) % 6]})`, boxShadow: me ? UI.well : UI.e,
+            opacity: interpolate(f, [4 + i, 12 + i], [0, 1], clamp) * (me ? 1 - m : 1),
+          }}>
+            <div style={{ position: 'absolute', left: 10, bottom: 8, fontFamily: MONO, fontWeight: 600, fontSize: 16, color: me ? UI.faint : '#fff' }}>{me ? 'YOU' : id}</div>
+          </div>
+        );
+      })}
+      {f >= drop + 10 && (
+        <div style={{
+          position: 'absolute', left: 1046 + (a.x - 1046) * fly + (b.x - a.x) * m, top: 194 + (a.y - 194) * fly + (b.y - a.y) * m - Math.sin(m * Math.PI) * 70,
+          width: 270 + (tile - 270) * fly, height: 270 + (tile - 270) * fly, borderRadius: 18, overflow: 'hidden', boxShadow: `0 0 0 4px #00C9F1, ${UI.e}`,
+          transform: `scale(${1 + 0.06 * popIn(f, drop + 24) * (f < drop + 35 ? 1 : 0)})`,
+        }}>
+          <Img src={img} style={{ width: '100%', height: '100%' }} />
+        </div>
+      )}
+      <div style={{ position: 'absolute', left: 1010, top: 880, fontFamily: MONO, fontWeight: 600, fontSize: 22, letterSpacing: '0.12em', color: UI.deep, opacity: interpolate(f, [moved, moved + 10], [0, 1], clamp) }}>
+        YOU MOVED UP · YOUR AD CAME WITH YOU
+      </div>
+    </Layer>
+  );
+};
+
+/* ── Network: your seat is your room ── */
+
+const ROOM = [
+  { who: 'FAKE…0041', seat: '16A', text: 'Exit row checking in.' },
+  { who: 'FAKE…0044', seat: '16F', text: 'Window seat. Wings look great from here.' },
+  { who: 'FAKE…0052', seat: '17C', text: 'Two more rows and we are in business class.' },
+  { who: 'FAKE…0039', seat: '16C', text: 'Holding. Next stop: the Moon.' },
+];
+
+export const Network: React.FC<SceneProps> = ({ frames }) => {
+  const f = useCurrentFrame();
+  const pa = 84;
+  return (
+    <Layer style={{ background: UI.bg }}>
+      <div style={{ position: 'absolute', left: 120, top: 300, width: 760 }}>
+        <Kicker>SECTION NETWORK</Kicker>
+        <div style={{ marginTop: 18 }}><Rise text="TALK TO YOUR SECTION." from={4} size={86} color={UI.ink} /></div>
+        <div style={{ marginTop: 22, fontFamily: SANS, fontWeight: 600, fontSize: 34, lineHeight: 1.4, color: UI.soft, opacity: interpolate(f, [14, 26], [0, 1], clamp) }}>
+          Your seat is your room. Publish a card, meet your cabin, and talk with the people seated around you.
+        </div>
+      </div>
+      <Panel style={{ left: 1000, top: 90, width: 820, height: 900, opacity: interpolate(f, [0, 10], [0, 1], clamp), transform: `translateY(${interpolate(f, [0, 12], [30, 0], { ...clamp, easing: Easing.out(Easing.cubic) })}px)` }}>
+        <div style={{ position: 'absolute', left: 40, top: 34, fontFamily: SANS, fontWeight: 800, fontSize: 32, color: UI.ink }}>The rooms</div>
+        <div style={{ position: 'absolute', left: 40, top: 96, display: 'flex', gap: 14 }}>
+          {[['FIRST', false, true], ['BUSINESS', false, true], ['EXIT ROW', true, false], ['ECONOMY', false, true]].map(([n, on, locked]) => (
+            <div key={n as string} style={{ padding: '12px 20px', borderRadius: 14, fontFamily: SANS, fontWeight: 800, fontSize: 18, letterSpacing: '0.06em', color: on ? '#fff' : UI.faint, background: on ? UI.accentText : UI.face, boxShadow: on ? UI.eSm : UI.e, opacity: locked ? 0.7 : 1 }}>
+              {n}
+            </div>
+          ))}
+        </div>
+        <div style={{ position: 'absolute', left: 40, right: 40, top: 176, bottom: 150, borderRadius: 22, boxShadow: UI.well, padding: '26px 28px', boxSizing: 'border-box' }}>
+          {ROOM.map((r, i) => {
+            const at = 14 + i * 14;
+            const k = interpolate(f, [at, at + 8], [0, 1], { ...clamp, easing: Easing.out(Easing.back(1.6)) });
+            const me = i === 0;
+            return (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: me ? 'flex-end' : 'flex-start', marginBottom: 22, opacity: Math.min(1, k * 1.5), transform: `translateY(${(1 - k) * 20}px) scale(${0.9 + 0.1 * k})`, transformOrigin: me ? '100% 100%' : '0% 100%' }}>
+                <div style={{ fontFamily: MONO, fontWeight: 600, fontSize: 16, color: UI.faint, marginBottom: 6 }}>{me ? 'YOU · 16A' : `${r.who} · ${r.seat}`}</div>
+                <div style={{ maxWidth: 520, padding: '16px 22px', borderRadius: 18, fontFamily: SANS, fontWeight: 600, fontSize: 24, lineHeight: 1.35, color: me ? '#fff' : UI.ink, background: me ? UI.accentText : UI.face, boxShadow: me ? UI.eSm : UI.e }}>{r.text}</div>
+              </div>
+            );
+          })}
+        </div>
+        {/* The PA. */}
+        <div style={{ position: 'absolute', left: 40, right: 40, bottom: 34, height: 92, borderRadius: 20, background: UI.face, boxShadow: UI.e, display: 'flex', alignItems: 'center', gap: 20, padding: '0 26px', opacity: interpolate(f, [pa, pa + 8], [0, 1], clamp), transform: `scale(${f >= pa ? popIn(f, pa) : 0.9})` }}>
+          <div style={{ padding: '8px 14px', borderRadius: 10, background: UI.accentText, color: '#fff', fontFamily: SANS, fontWeight: 900, fontSize: 20 }}>THE PA</div>
+          <div>
+            <div style={{ fontFamily: SANS, fontWeight: 800, fontSize: 22, color: UI.ink }}>Captain speaking: we just passed $1M. Above the clouds.</div>
+            <div style={{ fontFamily: SANS, fontWeight: 600, fontSize: 17, color: UI.faint }}>From the flight deck · One a day. Everyone hears it.</div>
+          </div>
+        </div>
+      </Panel>
+    </Layer>
+  );
+};
+
+export const SCENES = { landing: Landing, ignition: Ignition, sky: Sky, seats: Seats, billboard: Billboard, network: Network, climb: Climb, board: Board, end: EndCard } as const;
