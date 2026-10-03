@@ -9,6 +9,7 @@
  */
 import { WORKER_API } from './networkingApi';
 import { scoreChallenge } from './scoring';
+import { xLink } from './xPost';
 
 export interface BoardEntry {
   address: string;
@@ -16,6 +17,8 @@ export interface BoardEntry {
   survived: number;
   climb: number;
   postedAt: number;
+  /** The X account the pilot was connected to when they posted, if any. */
+  x?: { username: string; avatar: string | null };
 }
 
 export interface Posted {
@@ -83,9 +86,11 @@ export async function postScore(p: {
 }): Promise<Posted> {
   const issued = new Date().toISOString();
   const signature = await p.sign(scoreChallenge(p.address, p.run, p.score, issued));
+  // Connected to X? Its handle goes along, and the board shows the account beside the score.
+  const x = xLink();
   const res = await fetch(`${WORKER_API}/scores`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(x ? { authorization: `Bearer ${x.handle}` } : {}) },
     body: JSON.stringify({
       address: p.address, run: p.run, score: p.score, survived: p.survived, climb: p.climb, issued, signature,
     }),

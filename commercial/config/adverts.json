@@ -1,0 +1,21 @@
+{
+  "comment": "The adverts explainer: scene lengths (frames at 30 fps), the captions over the recording (frames within it), and the frames sfx/adverts.mjs puts its sounds on.",
+  "fps": 30,
+  "scenes": [
+    { "id": "title", "frames": 90 },
+    { "id": "recording", "frames": 400 },
+    { "id": "steps", "frames": 330 },
+    { "id": "follows", "frames": 165 },
+    { "id": "end", "frames": 120 }
+  ],
+  "captions": [
+    { "from": 0, "to": 112, "kicker": "THE WALL", "text": "Every seat on the plane, front to back. Open a cabin to see its seats." },
+    { "from": 116, "to": 200, "kicker": "EVERY SEAT IS A SQUARE", "text": "Each holder can put an image on their seat. No advert yet? It carries Seat Airlines' house ads." },
+    { "from": 204, "to": 288, "kicker": "EARNED, NOT BOUGHT", "text": "The best spots are at the front, and you get them by holding. Row 1 isn't for sale." },
+    { "from": 294, "to": 400, "kicker": "TAP ANY SEAT", "text": "See its advert, description and link, with the holder, their rank and their bag." }
+  ],
+  "dialogAt": 292,
+  "stepAt": [24, 84, 144, 204],
+  "moveAt": 60,
+  "urlAt": 30
+}

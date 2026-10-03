@@ -82,7 +82,7 @@ const tokenKey = async (handle: string) =>
   crypto.subtle.importKey('raw', await sha256(`x-token:${handle}`), 'AES-GCM', false, ['encrypt', 'decrypt']);
 
 export interface Tokens { access: string; refresh: string | null; expires: number }
-interface StoredLink { u: string; iv: string; ct: string; posts: number[] }
+interface StoredLink { u: string; iv: string; ct: string; posts: number[]; /** The profile picture's URL, once asked for. */ p?: string }
 
 async function seal(handle: string, t: Tokens): Promise<{ iv: string; ct: string }> {
   const iv = random(12);
@@ -171,11 +171,12 @@ export async function finishConnect(
   const tokens = await tokenRequest(env, f, {
     grant_type: 'authorization_code', code, redirect_uri: callbackUrl(origin), code_verifier: verifier,
   });
-  const me = await f(`${apiBase(env)}/2/users/me`, { headers: { authorization: `Bearer ${tokens.access}` } });
+  const me = await f(`${apiBase(env)}/2/users/me?user.fields=profile_image_url`, { headers: { authorization: `Bearer ${tokens.access}` } });
   if (!me.ok) await xFail(me, 'X would not say who you are');
-  const username = ((await me.json()) as { data?: { username?: string } }).data?.username ?? '';
+  const data = ((await me.json()) as { data?: { username?: string; profile_image_url?: string } }).data;
+  const username = data?.username ?? '';
   const handle = hex(random(32));
-  const link: StoredLink = { u: username, ...(await seal(handle, tokens)), posts: [] };
+  const link: StoredLink = { u: username, p: avatarUrl(data?.profile_image_url) ?? '', ...(await seal(handle, tokens)), posts: [] };
   await kv.put(await linkKey(handle), JSON.stringify(link), { expirationTtl: LINK_TTL_SECONDS });
   return { handle, username, nonce };
 }
@@ -363,6 +364,55 @@ export async function postFlight(env: XEnv, kv: KVNamespace, f: Fetch, handle: s
 async function gone(kv: KVNamespace, handle: string): Promise<PostResult> {
   await kv.delete(await linkKey(handle));
   return { posted: false, fallback: 'link', reconnect: true, reason: 'X has ended this connection. Connect again to post directly.' };
+}
+
+/**
+ * A profile picture X serves, at the size the board shows it, or null. Only
+ * X's own image host: the board puts this URL in an <img>, so it must never
+ * be anything a player could point somewhere else.
+ */
+export function avatarUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || url.hostname !== 'pbs.twimg.com' || url.username || url.password || url.port) return null;
+  // X hands out the 48 px "_normal" picture; "_bigger" is 73 px, sharp at the board's size on a dense screen.
+  url.pathname = url.pathname.replace(/_normal(\.\w+)$/, '_bigger$1');
+  url.search = '';
+  url.hash = '';
+  return url.toString();
+}
+
+/** What the board keys a link's rows by: never the handle itself, which can post. */
+export const linkId = async (handle: string) => hex(await sha256(`x-board:${handle}`));
+
+/**
+ * Who this handle is on X, for the high scores: the username and picture.
+ * A link made before pictures were kept asks X once, then keeps the answer.
+ * Null when there is no link; the picture is null when X will not say.
+ */
+export async function linkedProfile(env: XEnv, kv: KVNamespace, f: Fetch, handle: string): Promise<{ username: string; avatar: string | null } | null> {
+  const raw = await kv.get(await linkKey(handle));
+  if (!raw) return null;
+  const stored = JSON.parse(raw) as StoredLink;
+  if (!stored.u) return null;
+  if (stored.p !== undefined || !xConfigured(env)) return { username: stored.u, avatar: stored.p || null };
+  try {
+    const read = await readLink(env, kv, f, handle);
+    if (!read) return { username: stored.u, avatar: null };
+    const me = await f(`${apiBase(env)}/2/users/me?user.fields=profile_image_url`, { headers: { authorization: `Bearer ${read.tokens.access}` } });
+    if (!me.ok) return { username: stored.u, avatar: null };
+    const p = avatarUrl(((await me.json()) as { data?: { profile_image_url?: string } }).data?.profile_image_url) ?? '';
+    read.link.p = p;
+    await kv.put(await linkKey(handle), JSON.stringify(read.link), { expirationTtl: LINK_TTL_SECONDS });
+    return { username: stored.u, avatar: p || null };
+  } catch {
+    return { username: stored.u, avatar: null };
+  }
 }
 
 /** Is there a permission behind this handle? For the page to show who it posts as. */
