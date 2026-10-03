@@ -4910,9 +4910,8 @@ p { text-wrap-style: pretty; }
   14.3%,
   100% { transform: translateY(-50%) scaleX(1); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .sa-flyover { display: none; }
-}
+/* The flyover stays under reduced motion: it is the brand's one signature
+   movement, a single slow pass with long pauses, not a shake or a flash. */
 @media print {
   .sa-flyover { display: none; }
 }

@@ -127,12 +127,9 @@ export function useAttitude(
        banking, no eased bobbing of the horizon. It does not ask for a parked
        aeroplane, any more than it asks a video to freeze.
 
-       So under reduced motion the loop still runs, at half rate: attitude
-       values snap to their targets instead of easing (no sway), bank is
-       pinned level and the hand-flown roll jumps rather than rolls, and the
-       only thing that moves is the world going calmly past — steady,
-       constant-rate, and the entire point of the scene. */
-    let skip = false;
+       So under reduced motion the loop still runs at full rate, but
+       gently: half the bank and pitch, and a slower settle, so the aeroplane
+       still turns and the world still goes past without the sway. */
     /* The market's bank and the autopilot's are kept apart: the market's is
        eased, the autopilot's is already smooth, and each turns the heading
        at its own rate. */
@@ -142,23 +139,21 @@ export function useAttitude(
     const frame = (now: number) => {
       if (document.visibilityState === 'hidden') return;
       raf = requestAnimationFrame(frame);
-      if (reduced && (skip = !skip)) return;
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const auto = autopilotBank(Date.now());
       autoHeading += auto * TURN_RATE * dt;
-      if (reduced) {
-        /* The turns still happen — the flight still goes somewhere — but
-           flat: the heading swings round with no roll at all. */
-        Object.assign(shown, target, { bank: 0, roll: rollTo.current });
-        shown.heading = (target.heading + autoHeading + 3600) % 360;
-      } else {
+      {
+        /* Under reduced motion the aeroplane still banks and eases, but
+           gently: half the bank, and a slower, softer settle, so it reads as
+           flying without the sway. Shakes and flashes stay off elsewhere. */
+        const soft = reduced ? 0.5 : 1;
         // Frame-rate independent easing, so 60Hz and 120Hz settle alike and a
         // backgrounded tab does not snap when it returns.
-        const k = 1 - Math.exp(-4.5 * dt);
-        shown.pitch += (target.pitch - shown.pitch) * k;
+        const k = 1 - Math.exp(-(reduced ? 2.5 : 4.5) * dt);
+        shown.pitch += (target.pitch * soft - shown.pitch) * k;
         marketBank += (target.bank - marketBank) * k;
-        shown.bank = marketBank + auto;
+        shown.bank = (marketBank + auto) * soft;
         shown.speed += (target.speed - shown.speed) * k;
         shown.alt += (target.alt - shown.alt) * k;
         shown.vs += (target.vs - shown.vs) * k;

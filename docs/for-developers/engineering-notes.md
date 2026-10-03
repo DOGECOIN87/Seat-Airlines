@@ -101,4 +101,4 @@ Avoid a blanket `localStorage.clear()` in production — it removes unrelated vi
 
 * The drawn and rendered views are `aria-hidden`; every value they show is also published as text in the annunciator strip and the readouts beneath them.
 * Seats are real buttons with pressed state, the radio log is a polite live region, and zoom and pan are fully keyboard-driven.
-* **Reduced motion calms the flight rather than parking it.** Attitude values snap instead of easing, the aircraft stops swaying and banking, turns go flat, and the strobes and beacons swell and fade rather than flash — but the ground keeps going past, because an aircraft that is not moving is not an aircraft.
+* **Reduced motion calms the flight rather than parking it.** Attitude eases more slowly, the aircraft banks and pitches half as far, the exterior camera trails a turn a little more slowly, the logo flyover still plays, and the strobes and beacons swell and fade rather than flash — but the ground keeps going past, because an aircraft that is not moving is not an aircraft.

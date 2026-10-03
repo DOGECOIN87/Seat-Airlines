@@ -49,7 +49,7 @@ The flight deck's mode line names what the aircraft is doing:
 
 ## Smooth, but never invented
 
-The market is read every 20 seconds; the instruments ease towards each new reading at the screen's frame rate, so the horizon moves smoothly between readings. If you have asked your device for **reduced motion**, values snap to each reading instead of easing, and the view is redrawn on a slow, steady cadence — you still see every reading, just without the animation.
+The market is read every 20 seconds; the instruments ease towards each new reading at the screen's frame rate, so the horizon moves smoothly between readings. If you have asked your device for **reduced motion**, the instruments ease more slowly and the aircraft banks and pitches half as far, so it still flies without the sway.
 
 {% hint style="info" %}
 The flight crew can occasionally take the controls for show — a roll, the flaps, the time of day or the weather — and every visitor sees it at once. They cannot change the altitude or the attitude: those always come from the market.

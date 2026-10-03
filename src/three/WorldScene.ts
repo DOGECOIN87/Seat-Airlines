@@ -1656,8 +1656,9 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
     const chase = pose.exterior ? THREE.MathUtils.clamp(pose.chase ?? 0, 0, 1) : 0;
     underfoot.heading = a.heading;
-    if (camHeading === null || calm) camHeading = a.heading;
-    else camHeading += wrap180(a.heading - camHeading) * (1 - Math.exp(-lerp(0.3, 1.8, chase) * dt));
+    // The camera trails the turn under reduced motion too, a touch more slowly.
+    if (camHeading === null) camHeading = a.heading;
+    else camHeading += wrap180(a.heading - camHeading) * (1 - Math.exp(-lerp(calm ? 0.22 : 0.3, 1.8, chase) * dt));
     const yawLag = pose.exterior ? wrap180(a.heading - camHeading) : 0;
     const turnPitch = pose.exterior ? Math.abs(a.bank) * 0.18 : 0;
     airframe.group.rotation.set(
