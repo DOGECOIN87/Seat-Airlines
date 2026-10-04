@@ -7,6 +7,8 @@ import Wordmark from './Wordmark';
 import Flyover from './Flyover';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
+import SeatOverview from './SeatOverview';
+import type { Manifest } from '../lib/manifest';
 import { SPLASH_BETWEEN, SPLASH_FIRST, SPLASH_LAST } from '../content/cabin';
 import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
@@ -71,6 +73,11 @@ interface LandingProps {
   wallet: WalletState;
   /** Go through to the site. */
   onEnter: () => void;
+  /** Who is in which seat, and the advert on each, for the seat overview. */
+  manifest: Manifest;
+  adverts: Readonly<Record<string, string>>;
+  /** Claim your Seat: connect, then the seats. Called as the landing goes. */
+  onClaim: () => void;
   soundEnabled: boolean;
   onSoundToggle: () => void;
 }
@@ -150,10 +157,14 @@ const SPLASH_HOLD = 900;
 const SPLASH_WAIT = 6000;
 /** Past this it goes whatever the board is doing: a background tab, a board that never started. */
 const SPLASH_GIVE_UP = 15000;
+/** How long the plane flies alone, after the splash, before the seat overview comes in. */
+const OVERVIEW_AFTER = 3000;
 /** The fade onto the landing; `.sa-splash` times its transition to it. */
 const SPLASH_FADE = 800;
 
-export default function Landing({ feed, sky, band, marketCap, controls, taken, wallet, onEnter, soundEnabled, onSoundToggle }: LandingProps) {
+export default function Landing({
+  feed, sky, band, marketCap, controls, taken, wallet, onEnter, manifest, adverts, onClaim, soundEnabled, onSoundToggle,
+}: LandingProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -326,6 +337,19 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     recording.current?.abort();
     timers.current.push(window.setTimeout(onEnter, 450));
   }, [onEnter]);
+  /* The seat overview: once the splash has gone and the plane has had a
+     few seconds of the screen to itself. */
+  const [overview, setOverview] = useState(false);
+  useEffect(() => {
+    if (splash !== 'off' || overview) return;
+    const id = window.setTimeout(() => setOverview(true), OVERVIEW_AFTER);
+    return () => window.clearTimeout(id);
+  }, [splash, overview]);
+  const claim = useCallback(() => {
+    onClaim();
+    leave();
+  }, [onClaim, leave]);
+
   /* After the crash the site takes over on its own, whatever happens on the
      way: sharing or posting holds the count while it is going on, and
      starts it again once it is done — sent, cancelled or failed — so the
@@ -892,6 +916,9 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
             </p>
           )}
         </main>
+      )}
+      {overview && !inGame && preflight === 'off' && !scoresOpen && (
+        <SeatOverview manifest={manifest} adverts={adverts} onClaim={claim} onBrowse={leave} />
       )}
       {/* The airline elsewhere: one even row along the foot of the screen. */}
       {!inGame && preflight === 'off' && <SocialLinks night className="sa-landing__social" />}

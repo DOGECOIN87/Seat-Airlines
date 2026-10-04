@@ -633,14 +633,17 @@ export default function App() {
      connected is checked in first — in the Check in panel, where the wallet's
      answer and any problem with it are shown — and then taken to the seat
      map, where their seat is lit and brought into view (see SeatMap). */
-  const claimSeat = (e: { preventDefault(): void }) => {
-    e.preventDefault();
+  const startClaim = () => {
     if (!wallet.address && !wallet.unavailable) {
       openPanel('check-in');
       if (!wallet.connecting) void wallet.connect().then((key) => { if (key) openPanel('wall'); });
       return;
     }
     openPanel('wall');
+  };
+  const claimSeat = (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    startClaim();
   };
 
 
@@ -744,6 +747,9 @@ export default function App() {
           taken={taken}
           wallet={wallet}
           onEnter={enter}
+          manifest={manifest}
+          adverts={advertImages}
+          onClaim={() => (wallet.unavailable && !wallet.address ? openPanel('check-in') : startClaim())}
           soundEnabled={aircraftAudio.enabled}
           onSoundToggle={aircraftAudio.toggle}
         />
