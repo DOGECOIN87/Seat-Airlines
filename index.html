@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>Seat Airlines ($SEAT) — the flight simulator flown by market cap</title>
-    <meta name="description" content="Seat Airlines ($SEAT) is a Solana token with a 3D airliner flown by its market cap: $1M is above the clouds, $10M is space, $50M is the moon, $100M is Mars. Your bag is your seat — and anyone with a wallet can take the controls in a free flight game with a daily leaderboard." />
+    <meta name="description" content="Seat Airlines ($SEAT) is a Solana token with a 3D airliner flown by market cap: $1M is above the clouds, $10M is space, $50M is the moon, $100M is Mars." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="application-name" content="Seat Airlines" />
     <link rel="icon" href="./favicon.ico?v=3" sizes="16x16 32x32 48x48" />
@@ -38,6 +38,12 @@
     <meta name="twitter:image" content="https://seat-airlines.space/og-card.jpg" />
     <meta name="twitter:image:alt" content="Seat Airlines: lightning strikes an airliner's engine. Hold more. Fly higher." />
     <link rel="canonical" href="https://seat-airlines.space/" />
+    <!-- The page's single heading: visually hidden (the site is a full-screen
+         game) but present in the HTML for search engines and assistive
+         technology, which only counted the <noscript> heading before. -->
+    <style>
+      .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}
+    </style>
     <!-- What search engines read about the site. Data, not a script: the
          Content-Security-Policy does not run it and does not need to. -->
     <script type="application/ld+json">
@@ -85,9 +91,10 @@
     </script>
   </head>
   <body>
+    <h1 class="sr-only">Seat Airlines ($SEAT) — the flight simulator flown by market cap</h1>
     <div id="root"></div>
     <noscript>
-      <h1>Seat Airlines ($SEAT)</h1>
+      <p><strong>Seat Airlines ($SEAT)</strong></p>
       <p>A flight simulator flown by one number: the token's market cap is the airliner's altitude. The cabin has 178 seats, ranked by holder balance, and holders can put an advert on their own seat.</p>
       <p>Anyone with a Solana wallet can take the controls in a free flight game: climb to 10,000 ft, ride the updrafts, boost, collect the spinning logos and top the daily leaderboard.</p>
       <p>Seat Airlines needs JavaScript and WebGL to fly. <a href="https://seat-airlines.gitbook.io/seat-airlines-docs/">Read the docs</a> or <a href="https://pump.fun/coin/Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump">see $SEAT on pump.fun</a>.</p>
