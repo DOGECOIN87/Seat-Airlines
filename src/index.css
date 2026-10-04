@@ -5547,7 +5547,7 @@ p { text-wrap-style: pretty; }
    aft edge. Lined up with CABIN in SeatOverview. */
 .sa-ov__cabin {
   position: absolute;
-  left: 20%;
+  left: 25.5%;
   right: 8.6%;
   top: 33%;
   bottom: 33%;

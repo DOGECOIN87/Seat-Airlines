@@ -77,34 +77,35 @@ function useCountUp(target: number, ms = 1400, delay = 900): number {
   return shown;
 }
 
-/* The airframe, nose to the right, in a 1000 × 420 box. One wing, tailplane
-   and engine are drawn; the other side is the same mirrored about y = 210.
+/* The airframe, nose to the right, in a 1000 × 420 box, traced off a
+   Boeing 737-700's three-view and scaled off its length. One wing,
+   tailplane and engine are drawn; the other side is the same mirrored
+   about y = 210.
 
-   The fuselage is drawn wider than an airliner's, to fit six seats abreast
-   that can be seen; everything else is to scale off its length, as on an
-   A320 — the wingspan about the length of the aeroplane, swept 25°, and
-   the tailplane a third of that. So the wings run off the top and bottom
-   of the picture, which crops them. */
-/* The tail cone tapers the last fifth of the fuselage down to a blunt
-   end, where the APU exhausts — not to a point. */
+   The fuselage is drawn wider than a 737's, to fit six seats abreast
+   that can be seen. The wings and tailplanes are moved out by the same
+   amount rather than stretched, so everything outside the fuselage keeps
+   the drawing's true shape: the wingspan a little over the length of the
+   aeroplane, so the wings run off the top and bottom of the picture,
+   which crops them. */
 const BODY =
-  'M205 122 L830 122 C905 122 960 168 974 210 C960 252 905 298 830 298 L205 298 '
-  + 'C140 298 78 262 24 222 L24 198 C78 158 140 122 205 122 Z';
-/** The cabin, seen through the roof: the body inset, stopping short of the cockpit. */
+  'M290 122 L832 122 C910 122 960 170 974 210 C960 250 910 298 832 298 L290 298 '
+  + 'C220 298 110 250 24 216 L24 204 C110 170 220 122 290 122 Z';
+/** The cabin, seen through the roof: the body inset, short of the cockpit and the tail cone. */
 const CABIN =
-  'M206 134 L832 134 C884 134 918 168 926 210 C918 252 884 286 832 286 L206 286 '
-  + 'C196 286 190 280 190 270 L190 150 C190 140 196 134 206 134 Z';
-const WING = 'M600 124 L431 -241 L395 -241 L438 30 L455 124 Z';
+  'M261 134 L834 134 C886 134 918 168 926 210 C918 252 886 286 834 286 L261 286 '
+  + 'C251 286 245 280 245 270 L245 150 C245 140 251 134 261 134 Z';
+const WING = 'M646 122 L428 -315 L366 -315 L445 46 L450 122 Z';
 /** The wing's leading edge, picked out darker. */
-const LEADING = 'M600 124 L431 -241';
-/** The flaps and spoilers along the trailing edge. */
-const FLAPS = 'M455 124 L438 30 L395 -241 M470 110 L455 30 L420 -160 M452 70 L478 70 M444 -10 L468 -10';
-/* The tailplane: rooted on the tail cone, swept back about 30° on its
-   leading edge, its tip a third of its root's chord. */
-const TAILPLANE = 'M168 126 L116 46 L86 46 L64 166 Z';
+const LEADING = 'M646 122 L428 -315';
+/** The flaps along the trailing edge, and the spoilers ahead of them. */
+const FLAPS = 'M450 122 L445 46 L366 -315 M476 112 L470 46 L404 -260 M445 46 L470 46 M424 -60 L450 -60 M400 -170 L424 -170';
+/** The tailplane: rooted on the tail cone, its square tip just past the tail. */
+const TAILPLANE = 'M136 160 L47 4 L2 4 L26 206 Z';
 /** The elevator's hinge, along the tailplane's trailing edge. */
-const ELEVATOR = 'M98 52 L84 150';
-const NACELLE = { x: 520, y: 12, w: 112, h: 38 };
+const ELEVATOR = 'M19 10 L58 176';
+/** The engine, hung forward of the wing a quarter of the way out. */
+const NACELLE = { x: 579, y: 15, w: 100, h: 54 };
 const MIRROR = 'matrix(1 0 0 -1 0 420)';
 
 /** Where the peek tile sits, in the card's own pixels. */
@@ -237,8 +238,8 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
             </defs>
 
             {/* Contrails from the engines, streaming aft. */}
-            <path className="sa-ov__trail" d="M512 31 L-60 31" />
-            <path className="sa-ov__trail" d="M512 389 L-60 389" />
+            <path className="sa-ov__trail" d="M572 42 L-60 42" />
+            <path className="sa-ov__trail" d="M572 378 L-60 378" />
 
             {/* Its shadow, cast on the cloud below. */}
             <g className="sa-ov__shadow" filter="url(#sa-ov-soft)">
@@ -270,17 +271,17 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
             <path className="sa-ov__draw sa-ov__body" pathLength={1} d={BODY} />
             <path className="sa-ov__cabinfloor" d={CABIN} />
             {/* A blue cheatline along each side, the airline's colour. */}
-            <path className="sa-ov__cheat" d="M150 128 L840 128 M150 292 L840 292" />
+            <path className="sa-ov__cheat" d="M290 128 L840 128 M290 292 L840 292" />
             {/* The window rows. */}
-            <path className="sa-ov__windows" d="M206 129 L850 129 M206 291 L850 291" />
+            <path className="sa-ov__windows" d="M262 129 L850 129 M262 291 L850 291" />
             {/* The fin, seen edge-on from above, in the tail's navy. */}
-            <path className="sa-ov__fin" d="M34 210 C70 205 150 204 206 206 L206 214 C150 216 70 215 34 210 Z" />
+            <path className="sa-ov__fin" d="M28 210 C80 201 190 199 250 203 C258 205 258 215 250 217 C190 221 80 219 28 210 Z" />
             {/* The APU's exhaust, in the blunt end of the cone. */}
-            <rect className="sa-ov__apu" x="20" y="203" width="8" height="14" rx="3" />
+            <rect className="sa-ov__apu" x="20" y="205" width="8" height="10" rx="3" />
             {/* The cockpit glazing. */}
             <path className="sa-ov__glass" d="M936 180 C950 190 957 200 959 210 C957 220 950 230 936 240 L929 226 C936 221 940 216 941 210 C940 204 936 199 929 194 Z" />
             {/* Doors: forward, over the wing, aft. */}
-            {[862, 545, 178].map((x) => (
+            {[843, 545, 262].map((x) => (
               <g key={x} className="sa-ov__door">
                 <rect x={x} y="119" width="16" height="6" rx="2" />
                 <rect x={x} y="295" width="16" height="6" rx="2" />
