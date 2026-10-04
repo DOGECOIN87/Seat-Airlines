@@ -63,6 +63,12 @@ ALLOWED_ORIGINS = "https://seat-airlines.space,https://www.seat-airlines.space"
 # The keys are secrets, set by the "Set the Worker's X keys" workflow.
 X_MEDIA = "image"
 
+# The airline's own X account, without the @. The daily post of the day's
+# top pilots goes out from it, and it is the only account that can be
+# connected for that (visit /x/airline/connect on the Worker once, signed in
+# to X as it). See src/daily.ts.
+X_AIRLINE_USERNAME = "SeatAirlines"
+
 # The holder list, for the directory's section rules: who may read whose card,
 # and whose conversations carry forward. **Point this at the same feed as the
 # page's VITE_HOLDERS_URL** — one feed is what keeps one seating chart, and
@@ -130,3 +136,8 @@ TOKEN_MINT = "Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump"
 # Move it to `wrangler secret put ADMIN_WALLET` if you would rather it were
 # not in the repository; the code reads it the same either way.
 ADMIN_WALLET = "Hn1i7bLb7oHpAL5AoyGvkn7YgwmWrVTbVsjXA1LYnELo"
+
+# The day's top pilots, posted to X as the airline at 23:50 UTC each day,
+# covering the UTC day then ending (see src/daily.ts).
+[triggers]
+crons = ["50 23 * * *"]

@@ -3,7 +3,8 @@
  *
  * From the moment the controls are handed over, spinning AIRLINES badges
  * turn up ahead of the nose, at the height the aeroplane will be at when it
- * gets there. Fly through one and it pays points and tops the boost back up.
+ * gets there. Fly through or near one — the aeroplane pulls it in — and it
+ * pays points and tops the boost back up.
  *
  * Positions are relative to the aeroplane, like the thermals: x across the
  * world, z along it, y metres above the ground's datum. The scene draws them
@@ -20,6 +21,8 @@ export interface Logo {
   age: number;
   /** Seconds since it was flown through, or -1 while it is still there. */
   taken: number;
+  /** 0–1: how hard the aeroplane is pulling it in. */
+  pull?: number;
 }
 
 export interface LogoField {
@@ -39,6 +42,15 @@ export const LOGOS = {
   spread: 14,
   /** How close the aeroplane has to come to collect one, metres. */
   reach: 42,
+  /**
+   * The aeroplane's pull: inside this many metres a logo is drawn in toward
+   * it, slowly at the edge and faster and faster as it closes, until it is
+   * taken. A near miss still counts; a wide one does not.
+   */
+  magnet: 190,
+  /** Metres a second it is drawn in at the edge of the pull, and at the aeroplane. */
+  pullSlow: 70,
+  pullFast: 520,
   /** Points for each. */
   points: SCORING.logo,
   /** No more than this many about at once. */
@@ -55,9 +67,9 @@ export const newLogos = (): LogoField => ({ list: [], next: LOGOS.first, count: 
 /**
  * One step: the logos go by as the aeroplane flies at `speed` on `heading`,
  * a new one turns up ahead when it is due — placed where the aeroplane's
- * climb rate `vs` will have taken it, and never below `floor` — and any the
- * aeroplane at `alt` is close enough to are taken. Returns how many were
- * taken this step.
+ * climb rate `vs` will have taken it, and never below `floor` — any the
+ * aeroplane at `alt` passes near are pulled in to it, and those that reach
+ * it are taken. Returns how many were taken this step.
  */
 export function stepLogos(
   field: LogoField, dt: number, speed: number, heading: number, alt: number, vs: number, floor: number,
@@ -71,10 +83,27 @@ export function stepLogos(
     l.z -= dz;
     l.age += dt;
     if (l.taken >= 0) {
+      // Taken: it stays with the aeroplane while it bursts.
       l.taken += dt;
+      const k = 1 - Math.exp(-14 * dt);
+      l.x -= l.x * k;
+      l.z -= l.z * k;
+      l.y += (alt - l.y) * k;
       continue;
     }
-    if (Math.hypot(l.x, l.y - alt, l.z) < LOGOS.reach) {
+    let d = Math.hypot(l.x, l.y - alt, l.z);
+    if (d < LOGOS.magnet && d > 0) {
+      // Drawn in: faster the closer it gets, never past the aeroplane.
+      const near = 1 - d / LOGOS.magnet;
+      const step = Math.min(d, (LOGOS.pullSlow + (LOGOS.pullFast - LOGOS.pullSlow) * near * near) * dt);
+      const k = step / d;
+      l.x -= l.x * k;
+      l.z -= l.z * k;
+      l.y += (alt - l.y) * k;
+      l.pull = Math.max(l.pull ?? 0, near);
+      d -= step;
+    }
+    if (d < LOGOS.reach) {
       l.taken = 0;
       got++;
     }
@@ -88,7 +117,7 @@ export function stepLogos(
       const d = between(...LOGOS.ahead);
       const eta = d / Math.max(60, speed);
       const y = Math.max(floor, alt + Math.max(-40, Math.min(90, vs)) * eta * 0.85 + between(-35, 55));
-      field.list.push({ x: d * Math.sin(b), y, z: -d * Math.cos(b), age: 0, taken: -1 });
+      field.list.push({ x: d * Math.sin(b), y, z: -d * Math.cos(b), age: 0, taken: -1, pull: 0 });
     }
     field.next = between(...LOGOS.gap);
   }

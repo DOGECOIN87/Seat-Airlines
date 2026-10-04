@@ -370,3 +370,81 @@ export async function linkedName(kv: KVNamespace, handle: string): Promise<strin
   const raw = await kv.get(await linkKey(handle));
   return raw ? (JSON.parse(raw) as StoredLink).u : null;
 }
+
+/* ── The airline's own account ─────────────────────────────────────────────
+   For the daily post of the day's top pilots (see daily.ts). Connected once,
+   by whoever runs the airline's X account, through the same app and the
+   same consent page as a player; only the account named in
+   `X_AIRLINE_USERNAME` is kept, so nobody else's permission can end up
+   posting as the airline. Its tokens are kept in KV under one key and the
+   refresh token is rotated on every use, as X requires. */
+
+const AIRLINE_KEY = 'xairline';
+export const airlineCallbackUrl = (origin: string) => `${origin}/x/airline/callback`;
+const sameName = (a: string, b: string) => a.replace(/^@/, '').toLowerCase() === b.replace(/^@/, '').toLowerCase();
+
+export async function startAirlineConnect(env: XEnv, kv: KVNamespace, origin: string): Promise<string> {
+  const state = b64url(random(24));
+  const verifier = b64url(random(48));
+  await kv.put(`xairstate:${state}`, verifier, { expirationTtl: CONNECT_TTL_SECONDS });
+  const to = new URL(authorizeUrl(env));
+  to.search = new URLSearchParams({
+    response_type: 'code',
+    client_id: env.X_CLIENT_ID!.trim(),
+    redirect_uri: airlineCallbackUrl(origin),
+    scope: 'tweet.read tweet.write users.read offline.access',
+    state,
+    code_challenge: b64url(await sha256(verifier)),
+    code_challenge_method: 'S256',
+  }).toString();
+  return to.toString();
+}
+
+/** Back from X: keep the permission if it is the airline's account. Returns the username kept. */
+export async function finishAirlineConnect(
+  env: XEnv, kv: KVNamespace, f: Fetch, origin: string, state: string, code: string, airline: string,
+): Promise<string> {
+  const verifier = await kv.get(`xairstate:${state}`);
+  if (!verifier) throw new XError('That trip to X has expired. Start again.', 400);
+  await kv.delete(`xairstate:${state}`);
+  const tokens = await tokenRequest(env, f, {
+    grant_type: 'authorization_code', code, redirect_uri: airlineCallbackUrl(origin), code_verifier: verifier,
+  });
+  const me = await f(`${apiBase(env)}/2/users/me`, { headers: { authorization: `Bearer ${tokens.access}` } });
+  if (!me.ok) await xFail(me, 'X would not say who you are');
+  const username = ((await me.json()) as { data?: { username?: string } }).data?.username ?? '';
+  if (!sameName(username, airline)) throw new XError(`That was @${username || '?'}, not @${airline.replace(/^@/, '')}. Nothing was kept.`, 403);
+  if (!tokens.refresh) throw new XError('X gave no lasting permission (offline access). Nothing was kept.', 502);
+  await kv.put(AIRLINE_KEY, JSON.stringify({ u: username, ...tokens }));
+  return username;
+}
+
+/** Whether the airline's account is connected, and as whom. */
+export async function airlineName(kv: KVNamespace): Promise<string | null> {
+  const raw = await kv.get(AIRLINE_KEY);
+  return raw ? (JSON.parse(raw) as { u?: string }).u ?? '' : null;
+}
+
+/** A post as the airline. Returns its URL. */
+export async function postAsAirline(env: XEnv, kv: KVNamespace, f: Fetch, text: string): Promise<string> {
+  if (!xConfigured(env)) throw new XError('The X app is not set up on this Worker.', 503);
+  const raw = await kv.get(AIRLINE_KEY);
+  if (!raw) throw new XError('The airline\'s X account is not connected. Visit /x/airline/connect.', 409);
+  let held = JSON.parse(raw) as Tokens & { u: string };
+  if (held.expires - Date.now() < 60_000) {
+    if (!held.refresh) throw new XError('The airline\'s X permission has lapsed. Connect it again.', 401);
+    const fresh = await tokenRequest(env, f, { grant_type: 'refresh_token', refresh_token: held.refresh });
+    // X rotates the refresh token: keep the new one, or the next refresh fails.
+    held = { ...held, ...fresh, refresh: fresh.refresh ?? held.refresh };
+    await kv.put(AIRLINE_KEY, JSON.stringify(held));
+  }
+  const res = await f(`${apiBase(env)}/2/tweets`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${held.access}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) await xFail(res, 'X would not make the post');
+  const id = ((await res.json()) as { data?: { id?: string } }).data?.id;
+  if (!id) throw new XError('X gave the post no id', 502);
+  return `https://x.com/${held.u}/status/${id}`;
+}

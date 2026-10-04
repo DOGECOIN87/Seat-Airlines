@@ -876,11 +876,12 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               type="button"
               onClick={onSoundToggle}
               aria-pressed={soundEnabled}
-              className="sa-pilots"
+              className="sa-pilots sa-pilots--sound"
               title={soundEnabled ? 'Sound on' : 'Sound off'}
+              aria-label={soundEnabled ? 'Sound on' : 'Sound off'}
             >
               <DeckIcon name={soundEnabled ? 'sound' : 'mute'} className="sa-pilots__icon" />
-              {soundEnabled ? 'Sound' : 'Muted'}
+              <span className="sa-pilots__label">{soundEnabled ? 'Sound' : 'Muted'}</span>
             </button>
           </div>
           {!failed && (

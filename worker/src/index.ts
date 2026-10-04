@@ -65,6 +65,8 @@ import {
   disconnect, finishConnect, isHandle, isNonce, linkedName, mediaMode, postFlight, readPostForm, startConnect, xConfigured,
   MAX_IMAGE_BYTES as X_MAX_IMAGE_BYTES, MAX_VIDEO_BYTES as X_MAX_VIDEO_BYTES, type XEnv,
 } from './xshare';
+import { airlineName, finishAirlineConnect, postAsAirline, startAirlineConnect, XError } from './xshare';
+import { dailyText, dayTop, utcDay } from './daily';
 import {
   ANNOUNCEMENT, canAnnounce, canMessage, canPostToChannel, canViewContact,
   channelFor, zoneOfChannel,
@@ -72,6 +74,8 @@ import {
 
 export interface Env extends XEnv {
   BANNERS: KVNamespace;
+  /** The airline's own X account, without the @: the only one the daily post may be connected as. */
+  X_AIRLINE_USERNAME?: string;
   /**
    * The cabin directory: profiles, introductions, sessions. Optional.
    *
@@ -562,6 +566,13 @@ function ensureLeaderboard(db: D1Database): Promise<unknown> {
       posted_at INTEGER NOT NULL
     )`),
     db.prepare('CREATE INDEX IF NOT EXISTS game_scores_by_score ON game_scores (score DESC)'),
+    // Every score posted, not only bests: what the day's top pilots are read from.
+    db.prepare(`CREATE TABLE IF NOT EXISTS game_posts (
+      address   TEXT NOT NULL,
+      score     INTEGER NOT NULL,
+      posted_at INTEGER NOT NULL
+    )`),
+    db.prepare('CREATE INDEX IF NOT EXISTS game_posts_by_time ON game_posts (posted_at)'),
   ]).catch((e) => {
     leaderboardTables = null;
     throw e;
@@ -741,7 +752,34 @@ export default {
       return json({ error: 'Something went wrong on our side.' }, 500, corsHeaders(env, request.headers.get('origin')));
     }
   },
+  /* The cron (wrangler.toml): the day's top pilots, posted as the airline. */
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(postDailyTop(env, event.scheduledTime));
+  },
 };
+
+/** Post the top pilots of the UTC day `at` falls in, once. */
+async function postDailyTop(env: Env, at: number): Promise<void> {
+  const db = env.DIRECTORY;
+  if (!db || !xConfigured(env)) return;
+  const day = utcDay(at);
+  const done = `xdaily:${day.key}`;
+  if (await env.BANNERS.get(done)) return;
+  await ensureLeaderboard(db);
+  const site = ((env.ALLOWED_ORIGINS ?? '').split(',')[0]?.trim() || 'https://seat-airlines.space').replace(/^https?:\/\//, '');
+  const text = dailyText(await dayTop(db, day.start, day.end), day.start, site);
+  if (!text) {
+    console.log(`daily post ${day.key}: nobody flew`);
+    return;
+  }
+  try {
+    const url = await postAsAirline(env, env.BANNERS, fetch, text);
+    await env.BANNERS.put(done, url, { expirationTtl: 60 * 60 * 24 * 30 });
+    console.log(`daily post ${day.key}: ${url}`);
+  } catch (e) {
+    console.error(`daily post ${day.key} failed:`, e);
+  }
+}
 
 async function handle(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -1189,6 +1227,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
             WHERE excluded.score > game_scores.score`)
           .bind(post.address, post.score, post.survived, post.climb, now)
           .run();
+        await db.prepare('INSERT INTO game_posts (address, score, posted_at) VALUES (?, ?, ?)').bind(post.address, post.score, now).run();
         const best = (await db.prepare('SELECT score FROM game_scores WHERE address = ?').bind(post.address).first<{ score: number }>())?.score ?? post.score;
         const rank = (await db.prepare('SELECT COUNT(*) + 1 AS rank FROM game_scores WHERE score > ?').bind(best).first<{ rank: number }>())?.rank ?? null;
         return json({ best, rank, improved: best === post.score }, 200, priv);
@@ -1208,6 +1247,39 @@ async function handle(request: Request, env: Env): Promise<Response> {
         new Response(null, { status: 302, headers: { location: `${site}/x-connected/#${new URLSearchParams(fragment)}`, 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' } });
       const handle = bearerToken(request.headers.get('authorization'));
 
+      /* The airline's own account, for the daily post of the day's top
+         pilots: connected once, by whoever runs it; and what today's post
+         would say, to look at before it goes. */
+      if (request.method === 'GET' && url.pathname === '/x/airline/connect') {
+        const airline = env.X_AIRLINE_USERNAME?.trim();
+        if (!xConfigured(env) || !airline) return json({ error: 'The X app or X_AIRLINE_USERNAME is not set on this Worker.' }, 503, priv);
+        return new Response(null, { status: 302, headers: { location: await startAirlineConnect(env, env.BANNERS, url.origin), 'cache-control': 'no-store' } });
+      }
+      if (request.method === 'GET' && url.pathname === '/x/airline/callback') {
+        const state = url.searchParams.get('state');
+        const code = url.searchParams.get('code');
+        const airline = env.X_AIRLINE_USERNAME?.trim();
+        const page = (msg: string, status: number) => new Response(msg, { status, headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
+        if (!state || !code || !airline || !xConfigured(env)) return page('X did not finish connecting. Nothing was kept.', 400);
+        try {
+          const as = await finishAirlineConnect(env, env.BANNERS, fetch, url.origin, state, code, airline);
+          return page(`Connected as @${as}. The day's top pilots will be posted from this account each day.`, 200);
+        } catch (e) {
+          console.error(e);
+          return page(e instanceof Error ? e.message : 'X did not finish connecting.', e instanceof XError ? e.status : 500);
+        }
+      }
+      if (request.method === 'GET' && url.pathname === '/x/daily') {
+        const db = env.DIRECTORY;
+        if (!db) return json({ error: 'This deployment has no leaderboard configured.' }, 503, priv);
+        const day = utcDay(Date.now());
+        await ensureLeaderboard(db);
+        const rows = await dayTop(db, day.start, day.end);
+        return json({
+          day: day.key, connectedAs: await airlineName(env.BANNERS), alreadyPosted: await env.BANNERS.get(`xdaily:${day.key}`),
+          text: dailyText(rows, day.start, site.replace(/^https?:\/\//, '')),
+        }, 200, priv);
+      }
       if (request.method === 'GET' && url.pathname === '/x/status') {
         const available = xConfigured(env) && mediaMode(env) !== 'off';
         const as = available && isHandle(handle) ? await linkedName(env.BANNERS, handle) : null;

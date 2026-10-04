@@ -6,7 +6,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "test": "esbuild src/verify.ts --outfile=dist-test/verify.js --format=esm --platform=node && esbuild src/leaderboard.ts --bundle --outfile=dist-test/leaderboard.js --format=esm --platform=node && esbuild src/cards.ts --bundle --outfile=dist-test/cards.js --format=esm --platform=node && node test/verify.test.mjs && node test/leaderboard.test.mjs && node test/cards.test.mjs",
+    "test": "esbuild src/verify.ts --outfile=dist-test/verify.js --format=esm --platform=node && esbuild src/leaderboard.ts --bundle --outfile=dist-test/leaderboard.js --format=esm --platform=node && esbuild src/cards.ts --bundle --outfile=dist-test/cards.js --format=esm --platform=node && esbuild src/daily.ts --bundle --outfile=dist-test/daily.js --format=esm --platform=node && esbuild src/xshare.ts --bundle --outfile=dist-test/xshare.js --format=esm --platform=node && node test/verify.test.mjs && node test/leaderboard.test.mjs && node test/cards.test.mjs && node test/daily.test.mjs",
     "dev:local": "wrangler dev --local --config wrangler.local.toml --port 8787",
     "dev:local:r2": "wrangler dev --local --config wrangler.local-r2.toml --port 8787",
     "test:e2e": "node test/e2e.test.mjs",

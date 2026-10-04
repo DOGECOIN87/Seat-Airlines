@@ -21,6 +21,8 @@ const MOST = LOGOS.most;
 /** Metres across the coin's face. */
 const RADIUS = 13;
 const SPARKS = 48;
+/** Points in the golden trail a coin leaves as the aeroplane pulls it in. */
+const TRAIL = 14;
 
 export function createLogoCraft(url: string, envMap: THREE.Texture | null): LogoCraft {
   const group = new THREE.Group();
@@ -75,8 +77,22 @@ export function createLogoCraft(url: string, envMap: THREE.Texture | null): Logo
     const sparks = new THREE.Points(sparkGeo, sparkMat);
     sparks.frustumCulled = false;
     slot.add(sparks);
-    owned.push(glowMat, sparkGeo, sparkMat);
-    return { slot, mesh, glow, glowMat, positions, dirs, sparkGeo, sparkMat, phase: i * 1.3 };
+    // The trail: where the coin has been, relative to the aeroplane, as it is drawn in.
+    const trailPos = new Float32Array(TRAIL * 3);
+    const trailGeo = new THREE.BufferGeometry();
+    trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3).setUsage(THREE.DynamicDrawUsage));
+    const trailMat = new THREE.PointsMaterial({
+      map: spark, color: 0xffd36b, size: 9, sizeAttenuation: true, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, opacity: 0,
+    });
+    const trail = new THREE.Points(trailGeo, trailMat);
+    trail.frustumCulled = false;
+    group.add(trail);
+    owned.push(glowMat, sparkGeo, sparkMat, trailGeo, trailMat);
+    return {
+      slot, mesh, glow, glowMat, positions, dirs, sparkGeo, sparkMat, phase: i * 1.3,
+      trailPos, trailGeo, trailMat, trailFill: 0, owner: null as unknown,
+    };
   });
 
   let clock = 0;
@@ -85,26 +101,46 @@ export function createLogoCraft(url: string, envMap: THREE.Texture | null): Logo
     slots.forEach((s, i) => {
       const l = list?.[i];
       s.slot.visible = !!l;
-      if (!l) return;
+      // A new coin in this slot starts its trail afresh.
+      if (s.owner !== l) {
+        s.owner = l ?? null;
+        s.trailFill = 0;
+      }
+      if (!l) {
+        s.trailMat.opacity = 0;
+        return;
+      }
+      const pull = l.pull ?? 0;
       const appear = Math.min(1, l.age / 0.5);
-      const bob = Math.sin(clock * 1.8 + s.phase) * 2.5;
+      // Held steady once the aeroplane has hold of it.
+      const bob = Math.sin(clock * 1.8 + s.phase) * 2.5 * (1 - pull);
       s.slot.position.set(l.x, l.y + bob, l.z);
+      // Its path in, as a fading string of light behind it.
+      if (pull > 0.02 && l.taken < 0.15) {
+        s.trailPos.copyWithin(3, 0, (TRAIL - 1) * 3);
+        s.trailPos.set([s.slot.position.x, s.slot.position.y, s.slot.position.z], 0);
+        if (s.trailFill === 0) for (let k = 1; k < TRAIL; k++) s.trailPos.set([s.slot.position.x, s.slot.position.y, s.slot.position.z], k * 3);
+        s.trailFill = Math.min(TRAIL, s.trailFill + 1);
+        (s.trailGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+      }
+      s.trailMat.opacity = Math.max(0, s.trailMat.opacity + ((pull > 0.02 && l.taken < 0 ? 0.9 * pull + 0.3 : 0) - s.trailMat.opacity) * Math.min(1, dt * 10));
       if (l.taken < 0) {
         s.mesh.visible = true;
-        s.mesh.rotation.y = clock * 3.2 + s.phase;
-        s.mesh.scale.setScalar(RADIUS * (0.3 + 0.7 * appear));
-        s.glowMat.opacity = (0.6 + 0.25 * Math.sin(clock * 4 + s.phase)) * appear * (0.8 + 0.4 * night);
-        s.glow.scale.setScalar(RADIUS * 5.5);
+        // It spins up and brightens as it is drawn in.
+        s.mesh.rotation.y = clock * 3.2 + s.phase + (s.mesh.userData.spin = ((s.mesh.userData.spin as number | undefined) ?? 0) + dt * 22 * pull);
+        s.mesh.scale.setScalar(RADIUS * (0.3 + 0.7 * appear) * (1 - 0.35 * pull));
+        s.glowMat.opacity = Math.min(1.3, (0.6 + 0.25 * Math.sin(clock * 4 + s.phase)) * appear * (0.8 + 0.4 * night) + pull * 0.6);
+        s.glow.scale.setScalar(RADIUS * (5.5 - 1.5 * pull));
         s.sparkMat.opacity = 0;
         return;
       }
-      // Taken: it swells, spins up and flashes out, throwing sparks.
+      // Taken: drawn into the aeroplane in a flash, throwing sparks.
       const t = Math.min(1, l.taken / LOGOS.burst);
-      s.mesh.visible = t < 0.55;
-      s.mesh.rotation.y += dt * 25;
-      s.mesh.scale.setScalar(RADIUS * (1 + 1.6 * t));
-      s.glowMat.opacity = (1 - t) * 1.2;
-      s.glow.scale.setScalar(RADIUS * (5.5 + 10 * t));
+      s.mesh.visible = t < 0.3;
+      s.mesh.rotation.y += dt * 30;
+      s.mesh.scale.setScalar(RADIUS * 0.65 * Math.max(0, 1 - t / 0.3));
+      s.glowMat.opacity = (1 - t) * 1.3;
+      s.glow.scale.setScalar(RADIUS * (3 + 6 * t));
       for (let k = 0; k < SPARKS; k++) {
         s.positions[k * 3] = s.dirs[k * 3] * t;
         s.positions[k * 3 + 1] = s.dirs[k * 3 + 1] * t;

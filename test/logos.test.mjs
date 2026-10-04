@@ -39,6 +39,21 @@ check('they turn up ahead of the nose, and never too many at once', () => {
   }
 });
 
+check('one passed near is pulled in and taken; one passed wide is left', () => {
+  const f = newLogos();
+  f.next = Infinity;
+  f.list.push({ x: 120, y: 1040, z: -700, age: 0, taken: -1 }, { x: 320, y: 1000, z: -700, age: 0, taken: -1 });
+  let got = 0;
+  let pulled = false;
+  for (let t = 0; t < 6; t += 1 / 60) {
+    got += stepLogos(f, 1 / 60, 150, 0, 1000, 0, 0);
+    if (f.list.some((l) => (l.pull ?? 0) > 0.3)) pulled = true;
+  }
+  assert(pulled, 'the near one was never drawn in');
+  assert(got === 1 && f.count === 1, `${got} taken`);
+  assert(LOGOS.magnet < 320, 'the wide one should be out of reach of the pull');
+});
+
 check('flown straight at, one is taken; flown past, it is not', () => {
   const f = newLogos();
   f.next = Infinity;

@@ -4915,9 +4915,37 @@ p { text-wrap-style: pretty; }
   pointer-events: auto;
   animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.sa-social.sa-landing__social { width: min(34rem, calc(100% - 2 * clamp(1rem, 3vw, 2.25rem))); }
+.sa-social.sa-landing__social {
+  width: auto;
+  grid-template-columns: repeat(3, 7.25rem);
+  justify-content: center;
+  gap: 0.5rem;
+  padding-inline: 1rem;
+  box-sizing: border-box;
+}
+/* Small on the landing: they are the way out, not the way in. */
+.sa-landing__social .sa-social__chip { min-height: 2.1rem; padding: 0.3rem 0.6rem; gap: 0.4rem; font-size: 0.78rem; }
+.sa-landing__social .sa-docs__mark { width: 0.95rem; height: 0.95rem; inline-size: 0.95rem; block-size: 0.95rem; }
+@media (max-width: 400px) {
+  .sa-social.sa-landing__social { grid-template-columns: repeat(3, minmax(0, 6.75rem)); }
+}
 .sa-landing.is-splash .sa-landing__social { animation-play-state: paused; }
-.sa-landing__hero { padding-bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.75rem)) + 2.5rem + max(1.25rem, 3vh)); }
+.sa-landing__hero { padding-bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.75rem)) + 2.1rem + max(1.25rem, 3vh)); }
+/* The board and the sound together at the row's far end, wherever it wraps. */
+.sa-pilots + .sa-pilots { margin-left: 0; }
+/* On a phone: the way in across the width, then the controls, the board
+   and the sound on one row under it — the sound as its icon alone. */
+@media (max-width: 640px) {
+  .sa-landing__actions { grid-template-columns: minmax(0, 1fr) auto auto; gap: 0.6rem; }
+  .sa-landing__actions .sa-landing__enter { grid-column: 1 / -1; }
+  .sa-landing__actions .sa-pilots { padding-inline: 0.95rem; }
+  .sa-pilots--sound { width: 3rem; padding: 0; justify-content: center; }
+  .sa-landing__actions .sa-pilots--sound { padding: 0; }
+  .sa-pilots--sound .sa-pilots__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+}
+@media (max-width: 400px) {
+  .sa-landing__actions .sa-landing__fly { padding-inline: 0.9rem; letter-spacing: 0.14em; font-size: 0.85rem; }
+}
 
 /* The footer: brand, then the links row at the far end; the legal links and
    the line underneath. On a phone the links take a row of their own. */
