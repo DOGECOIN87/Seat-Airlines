@@ -37,6 +37,7 @@ import {
 } from './lib/flightModel';
 import { useFlightState } from './lib/useFlightState';
 import { useAircraftAudio } from './lib/useAircraftAudio';
+import { usePressFeedback } from './lib/usePressFeedback';
 import { useSky } from './lib/useSky';
 import { coverFor } from './lib/manualControls';
 import { useFlight } from './lib/useFlight';
@@ -240,6 +241,7 @@ export default function App() {
   /* Boosts running on DexScreener: while there are any, the plane is on afterburner. */
   const boosts = useDexBoost();
   const aircraftAudio = useAircraftAudio(lamps, tick.change5m, band.band);
+  usePressFeedback(aircraftAudio.enabled);
 
   /* The page opens outside, on the whole aeroplane. It is the one frame that
      explains the premise without a caption — one plane, everyone in it — and

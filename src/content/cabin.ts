@@ -125,6 +125,25 @@ export const CABIN_ZONES: readonly CabinZone[] = [
   },
 ];
 
+/** Display order follows the airframe; boarding priority stays in CABIN_ZONES. */
+export const CABIN_SECTIONS = CABIN_ZONES
+  .flatMap((zone) => {
+    const runs: CabinRow[][] = [];
+    for (const row of zone.rows) {
+      const previous = runs[runs.length - 1];
+      const last = previous?.[previous.length - 1];
+      if (previous && last?.n !== null && row.n !== null && row.n === last.n + 1) previous.push(row);
+      else runs.push([row]);
+    }
+    return runs.map((rows) => ({
+      zone,
+      rows,
+      id: `${zone.key}-${rows[0].n ?? 'deck'}`,
+      note: zone.key === 'economy' ? `Rows ${rows[0].n}–${rows[rows.length - 1].n}` : zone.note,
+    }));
+  })
+  .sort((a, b) => (a.rows[0].n ?? 0) - (b.rows[0].n ?? 0));
+
 export interface CabinSeat {
   id: string;
   zone: ZoneKey;

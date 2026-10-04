@@ -1936,17 +1936,64 @@ html {
   margin-bottom: 0.7rem;
   color: var(--ui-ink);
 }
-.sa-adwall__cabin-count { color: var(--ui-faint); }
-.sa-adwall__grid {
+.sa-adwall__cabin-name { color: var(--accent-deep); }
+.sa-adwall__cabin-count { color: var(--ui-faint); letter-spacing: 0.04em; }
+/* Both maps use physical rows. Only the seating well can scroll sideways. */
+.sa-aircraft-row {
+  --aisle: clamp(1.25rem, 3vw, 2.5rem);
   display: grid;
-  /* The cabin's own seats to a row (see COLUMNS in AdvertWall). */
-  grid-template-columns: repeat(var(--cols, 6), minmax(0, 1fr));
-  gap: 0.85rem;
-  max-width: var(--row-max, 100%);
+  grid-template-columns: 1.5rem minmax(0, 1fr) var(--aisle) minmax(0, 1fr) 1.5rem;
+  align-items: start;
+  column-gap: 0.4rem;
 }
-@media (max-width: 639.98px) {
-  .sa-adwall__grid { grid-template-columns: repeat(var(--cols-narrow, 3), minmax(0, 1fr)); gap: 0.6rem; }
+.sa-aircraft-row__number {
+  padding-top: 0.65rem;
+  text-align: center;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ui-faint);
 }
+.sa-aircraft-row__number:last-child { grid-column: 5; }
+.sa-aircraft-row__bank {
+  display: grid;
+  grid-template-columns: repeat(var(--bank-cols), minmax(0, 1fr));
+  gap: clamp(0.4rem, 1.2vw, 0.85rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.sa-aircraft-row__bank:nth-of-type(2) { grid-column: 4; }
+.sa-adwall__scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 135, 234, 0.35) transparent;
+  padding: 0.5rem;
+  border-radius: var(--r-lg);
+  background: linear-gradient(145deg, #E4E6EB, #EEF0F4);
+  box-shadow: inset 2px 2px 6px rgba(154, 158, 172, 0.25), inset -2px -2px 6px rgba(255, 255, 255, 0.7);
+}
+.sa-adwall__scroll:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+.sa-adwall__rows {
+  display: grid;
+  gap: 1.15rem;
+  width: min(100%, var(--row-max));
+  min-width: var(--row-min);
+  margin-inline: auto;
+  padding: 0.5rem 0.2rem;
+}
+.sa-adwall__cabin-rows { margin-left: auto; color: var(--ui-faint); letter-spacing: 0.04em; }
+.sa-zone__scroll { overflow-x: auto; overscroll-behavior-x: contain; padding: 0.9rem 0.75rem; }
+.sa-zone__rows { display: grid; gap: 5px; width: max-content; min-width: 100%; }
+.sa-zone__rows .sa-aircraft-row {
+  grid-template-columns: 1.5rem max-content 1.25rem max-content 1.5rem;
+  column-gap: 5px;
+  align-items: center;
+  margin-inline: auto;
+}
+.sa-zone__rows .sa-aircraft-row__bank { grid-template-columns: repeat(var(--bank-cols), var(--seat)); gap: 5px; }
+.sa-zone__rows .sa-aircraft-row__number { padding: 0; }
 .sa-adwall__tile { min-width: 0; }
 .sa-adwall__art {
   position: relative;
@@ -1964,12 +2011,21 @@ html {
 .sa-adwall__art:hover { transform: translateY(-2px); box-shadow: var(--e-sm); }
 .sa-adwall__art:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
 .sa-adwall__art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-/* A held seat with no advert of its own: the space, quietly, so the real
-   adverts beside it are what the eye goes to. */
-.sa-adwall__art.is-space {
-  background:
-    repeating-linear-gradient(135deg, rgba(0, 92, 173, 0.05) 0 10px, transparent 10px 20px),
-    var(--ui-sink);
+/* Empty seats keep the original recessed surface and a raised headrest. */
+.sa-adwall__art.is-open {
+  background: linear-gradient(145deg, #DDE0E6, #D1D5DD);
+  box-shadow: inset 3px 3px 8px rgba(154, 158, 172, 0.5), inset -3px -3px 8px rgba(255, 255, 255, 0.85);
+}
+.sa-adwall__art.is-open::before {
+  content: '';
+  position: absolute;
+  top: 9%;
+  left: 14%;
+  right: 14%;
+  height: 8%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #F0F2F6, #C4CBD5);
+  box-shadow: 0 2px 3px rgba(130, 140, 154, 0.25);
 }
 .sa-adwall__space {
   position: absolute;
@@ -1978,56 +2034,18 @@ html {
   place-content: center;
   justify-items: center;
   gap: 0.2em;
-  padding: 0.5rem;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  padding: 0.35rem;
   text-align: center;
-  container-type: inline-size;
 }
-.sa-adwall__space-id {
-  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(1rem, 26cqi, 2.6rem);
-  font-weight: 800;
-  line-height: 1;
-  color: var(--ui-ink);
-}
-.sa-adwall__space-rank { font-size: clamp(10px, 9cqi, 13px); font-weight: 600; color: var(--accent-deep); }
-.sa-adwall__space-note {
-  margin-top: 0.3em;
-  font-size: clamp(9px, 7.5cqi, 11px);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ui-faint);
-}
-.sa-adwall__tile.is-mine .sa-adwall__space-note { color: var(--accent-deep); font-weight: 700; }
+.sa-adwall__space-id { font: 700 clamp(13px, 1.5vw, 24px) / 1 'IBM Plex Mono', monospace; color: var(--ui-soft); }
+.sa-adwall__space-rank { font-size: 11px; color: var(--accent-deep); }
+.sa-adwall__space-note { font-size: 10px; color: var(--ui-faint); }
+.sa-adwall__art.has-ad { box-shadow: 2px 3px 8px rgba(130, 140, 154, 0.3), -2px -2px 6px rgba(255, 255, 255, 0.9); }
+.sa-adwall__position { display: flex; gap: 0.25rem; align-items: baseline; margin-top: 0.35rem; font: 600 11px / 1.3 'IBM Plex Mono', monospace; color: var(--ui-ink); white-space: nowrap; }
 .sa-adwall__tile.is-mine .sa-adwall__art { outline: 3px solid var(--accent); outline-offset: 2px; }
-.sa-adwall__blank {
-  padding: 0 0.5rem;
-  font-size: 10px;
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ui-faint);
-}
-/* The seat number rides on the advert, like a placard on a seat back. */
-.sa-adwall__seat {
-  position: absolute;
-  left: 0.4rem;
-  top: 0.4rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border-radius: 999px;
-  padding: 0.12rem 0.5rem;
-  background: rgba(20, 24, 31, 0.72);
-  color: #fff;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-.sa-adwall__rank { color: #7FE3F7; }
+.sa-adwall__rank { font-size: 10px; color: var(--accent-deep); }
 .sa-adwall__caption {
-  margin-top: 0.45rem;
+  margin-top: 0.15rem;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
