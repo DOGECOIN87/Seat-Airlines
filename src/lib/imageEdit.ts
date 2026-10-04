@@ -1,4 +1,4 @@
-import { BANNER_SIZE, MAX_UPLOAD_BYTES } from './banners';
+import { BANNER_SIZE, MAX_SOURCE_PIXELS, MAX_UPLOAD_BYTES, TARGET_BYTES } from './banners';
 
 export interface FilterState {
   brightness: number;
@@ -27,8 +27,12 @@ export const filterCss = (f: FilterState) =>
   `brightness(${f.brightness}) contrast(${f.contrast}) saturate(${f.saturate}) grayscale(${f.grayscale}) sepia(${f.sepia})`;
 
 export async function loadImage(file: File): Promise<HTMLImageElement> {
+  if (/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name)) {
+    throw new Error('HEIC photos cannot be read here. Export it as JPEG or PNG first (on an iPhone, share it as "Most Compatible").');
+  }
   if (!file.type.startsWith('image/')) throw new Error('That file is not an image.');
-  if (file.size > MAX_UPLOAD_BYTES) throw new Error('That image is over 8 MB.');
+  if (/svg/i.test(file.type)) throw new Error('SVG cannot be used as an advert. Use a JPEG, PNG or WebP.');
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error('That image is over 8 MB. Use a smaller one.');
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
@@ -39,6 +43,9 @@ export async function loadImage(file: File): Promise<HTMLImageElement> {
       img.src = url;
     });
     if (!img.naturalWidth || !img.naturalHeight) throw new Error('That image has no pixels.');
+    if (img.naturalWidth * img.naturalHeight > MAX_SOURCE_PIXELS) {
+      throw new Error(`That image is ${img.naturalWidth} × ${img.naturalHeight}, too large to process. Use one under 6000 × 6000.`);
+    }
     return img;
   } finally { URL.revokeObjectURL(url); }
 }
@@ -79,6 +86,16 @@ export function panBy(img: HTMLImageElement, edit: EditState, dx: number, dy: nu
 const estimatedBytes = (url: string) => Math.ceil((url.length - url.indexOf(',') - 1) * 0.75);
 export interface RenderedBanner { dataUrl: string; bytes: number; type: string; }
 
+/**
+ * The advert as it is stored: square, `size` pixels, and as small as it can
+ * be made without going soft.
+ *
+ * Re-encoding drops whatever the original carried besides its pixels (EXIF,
+ * location, colour profiles, animation). WebP is tried first, at falling
+ * quality, until it is under TARGET_BYTES; a browser that cannot make WebP
+ * gets JPEG the same way. If nothing reaches the target the smallest try is
+ * kept, which is still well inside the server's 512 KB.
+ */
 export function renderBanner(img: HTMLImageElement, edit: EditState, size = BANNER_SIZE): RenderedBanner {
   const { cx, cy, crop } = cropCenter(img, edit);
   const canvas = document.createElement('canvas');
@@ -91,11 +108,24 @@ export function renderBanner(img: HTMLImageElement, edit: EditState, size = BANN
   ctx.translate(size / 2, size / 2);
   ctx.rotate(edit.rotate * Math.PI / 180);
   ctx.scale(edit.flip ? -1 : 1, 1);
-  ctx.drawImage(img, cx - crop / 2, cy - crop / 2, crop, crop, -size / 2, -size / 2, size, size);
+  /* A big source is halved in steps on the way down rather than squeezed
+     in one draw, which keeps fine detail and text from going jagged. */
+  let src: CanvasImageSource = img;
+  let sx = cx - crop / 2, sy = cy - crop / 2, sSide = crop;
+  while (sSide > size * 2) {
+    const half = document.createElement('canvas');
+    half.width = half.height = Math.round(sSide / 2);
+    const h = half.getContext('2d');
+    if (!h) break;
+    h.imageSmoothingQuality = 'high';
+    h.drawImage(src, sx, sy, sSide, sSide, 0, 0, half.width, half.height);
+    src = half; sx = 0; sy = 0; sSide = half.width;
+  }
+  ctx.drawImage(src, sx, sy, sSide, sSide, -size / 2, -size / 2, size, size);
   ctx.restore();
   const attempts: Array<[string, number]> = [
-    ['image/webp', .9], ['image/webp', .75], ['image/webp', .6],
-    ['image/jpeg', .85], ['image/jpeg', .7], ['image/jpeg', .55],
+    ['image/webp', .86], ['image/webp', .78], ['image/webp', .7], ['image/webp', .6], ['image/webp', .5],
+    ['image/jpeg', .84], ['image/jpeg', .74], ['image/jpeg', .64], ['image/jpeg', .54],
   ];
   let best: RenderedBanner | null = null;
   for (const [type, quality] of attempts) {
@@ -103,7 +133,7 @@ export function renderBanner(img: HTMLImageElement, edit: EditState, size = BANN
     if (!dataUrl.startsWith(`data:${type}`)) continue;
     const out = { dataUrl, bytes: estimatedBytes(dataUrl), type };
     if (!best || out.bytes < best.bytes) best = out;
-    if (out.bytes <= 512 * 1024) return out;
+    if (out.bytes <= TARGET_BYTES) return out;
   }
   if (best) return best;
   throw new Error('Could not encode the image. Try a smaller or simpler one.');

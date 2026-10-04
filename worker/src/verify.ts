@@ -42,7 +42,7 @@ export const MAX_AGE_MS = 5 * 60 * 1000;
  * limiting anything.
  */
 export const COOLDOWN_SECONDS = 60;
-/** A 384px square JPEG is tens of kilobytes. This is generous. */
+/** A 512px square WebP or JPEG from the site is under 80 KB. This is generous. */
 export const MAX_IMAGE_BYTES = 512 * 1024;
 /** The longest caption and link kept. Refused beyond these, never cut: cutting would change what was signed. */
 export const MAX_ALT_CHARS = 280;

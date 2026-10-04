@@ -40,7 +40,7 @@ Because the signature names the exact image, it cannot be reused to put up a dif
 
 ## What is stored
 
-Your image is cropped to a square and re-encoded as a **384 × 384** picture of at most **512 KB**, so no upload can stretch the grid or bloat the page. The server accepts only real JPEG, PNG or WebP files, checked from the file's own bytes. SVG is refused, because an SVG can carry script.
+Your image is cropped to a square and re-encoded as a **512 × 512** WebP (JPEG on browsers that cannot make WebP), squeezed to about **80 KB** where it can be and never more than **512 KB**, so no upload can stretch the grid or slow the page down. Re-encoding also strips the photo's metadata, such as its location. Files up to 8 MB and 40 megapixels are accepted; HEIC photos need exporting as JPEG first. The server accepts only real JPEG, PNG or WebP files, checked from the file's own bytes. SVG is refused, because an SVG can carry script.
 
 ## The rules
 
