@@ -14,6 +14,11 @@ import {
 } from '../lib/sectionAccess';
 import { EMPTY_PROFILE, SOCIALS, type NetworkingProfile, type SocialLinks } from '../lib/networkingApi';
 import { useDirectory } from '../lib/useDirectory';
+import { OFFERINGS, MAX_OFFERINGS, type Offering } from '../content/offerings';
+import OfferingTags from './OfferingTags';
+import AccountIcon from './AccountIcon';
+import PassengerFilters from './PassengerFilters';
+import { matchesPassenger } from '../lib/passengerSearch';
 
 interface NetworkingHubProps {
   manifest: Manifest;
@@ -193,8 +198,8 @@ const SocialList = ({ links }: { links: SocialLinks | undefined }) => (
       const href = social.href(value);
       const text = `${social.label} ${social.show(value)}`;
       return href
-        ? <a key={social.key} className="underline" href={href} target="_blank" rel="noreferrer">{text}</a>
-        : <span key={social.key}>{text}</span>;
+        ? <a key={social.key} className="inline-flex items-center gap-1.5 underline" href={href} target="_blank" rel="noreferrer"><AccountIcon account={social.key} />{text}</a>
+        : <span key={social.key} className="inline-flex items-center gap-1.5"><AccountIcon account={social.key} />{text}</span>;
     })}
   </>
 );
@@ -208,6 +213,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
      you to the next one you opened, addressed to somebody else. */
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState(false);
+  const [offeringFilter, setOfferingFilter] = useState<Offering | ''>('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [form, setForm] = useState<NetworkingProfile>(EMPTY_PROFILE);
   const [invalid, setInvalid] = useState<string | null>(null);
   const [roomDraft, setRoomDraft] = useState('');
@@ -236,6 +243,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
         linkedin: published.linkedin,
         /* A Worker from before the links has none to send. */
         links: published.links ?? {},
+        publicLinks: published.publicLinks ?? false,
+        categories: published.categories ?? [],
       }
       : EMPTY_PROFILE);
   }, [published, editing]);
@@ -365,6 +374,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   }
 
   const status = directory.error ?? invalid ?? directory.notice;
+  const filteredEntries = manifest.entries.filter((entry) => matchesPassenger(entry, directory.profiles[entry.address], searchQuery, offeringFilter));
   const statusIsError = Boolean(directory.error ?? invalid);
   /* The line goes beside whatever it is about. It used to be one line at
      the foot of the card panel — which on a phone is the top of the sheet —
@@ -455,7 +465,12 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
       {showDirectory && (
       <div className="grid gap-5 p-5 sm:p-7 @4xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
         <div className="space-y-3">
-          {manifest.entries.map((entry) => {
+          <PassengerFilters query={searchQuery} offering={offeringFilter} onQuery={setSearchQuery} onOffering={setOfferingFilter}
+            offeringsDisabled={!directory.session || directory.loading} />
+          {!directory.session && <p className="text-[11px] text-ui-soft">Sign in to filter passengers by their offerings.</p>}
+          <p className="text-[11px] text-ui-soft" role="status">{filteredEntries.length} {filteredEntries.length === 1 ? 'passenger' : 'passengers'}</p>
+          {filteredEntries.length === 0 && <p className="py-4 text-[12px] text-ui-soft">No matching passengers. Try another search or clear the filters.</p>}
+          {filteredEntries.map((entry) => {
             const sameSection = canViewContact(viewerZone, entry.seat.zone);
             const messageable = canMessage(viewerZone, entry.seat.zone, address, entry.address);
             const active = selected === entry.address;
@@ -487,6 +502,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                   </span>
                   <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-ui-deep">{active ? 'Close' : 'Open'}</span>
                 </button>
+                <OfferingTags categories={card?.categories} />
 
                 {active && (
                   <div className="mt-4 border-t border-black/10 pt-4">
@@ -507,8 +523,8 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                         ) : card.readable ? (
                           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
                             <span>Email: {card.email || 'Not given'}</span>
-                            {card.website && <a className="underline" href={card.website} target="_blank" rel="noreferrer">Website</a>}
-                            {card.linkedin && <a className="underline" href={card.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>}
+                            {card.website && <a className="inline-flex items-center gap-1.5 underline" href={card.website} target="_blank" rel="noreferrer"><AccountIcon account="website" />Website</a>}
+                            {card.linkedin && <a className="inline-flex items-center gap-1.5 underline" href={card.linkedin} target="_blank" rel="noreferrer"><AccountIcon account="linkedin" />LinkedIn</a>}
                             <SocialList links={card.links} />
                           </div>
                         ) : (
@@ -598,6 +614,23 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
               }}
               className="mt-4 space-y-3"
             >
+              <fieldset className="rounded-xl border border-ui-line bg-white p-3">
+                <legend className="px-1 text-[12px] font-semibold text-ui-ink">What do you offer?</legend>
+                <p className="mb-3 text-[11px] text-ui-soft">Choose up to {MAX_OFFERINGS}. These tags appear publicly on your seat card.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {OFFERINGS.map((option) => {
+                    const chosen = form.categories ?? [];
+                    const checked = chosen.includes(option.key);
+                    return <label key={option.key} className="flex items-center gap-2 text-[12px] text-ui-ink">
+                      <input type="checkbox" checked={checked} disabled={!checked && chosen.length >= MAX_OFFERINGS}
+                        onChange={(event) => setForm((current) => ({ ...current, categories: event.target.checked
+                          ? [...(current.categories ?? []), option.key]
+                          : (current.categories ?? []).filter((key) => key !== option.key) }))}
+                        className="accent-ui-blue" />{option.label}
+                    </label>;
+                  })}
+                </div>
+              </fieldset>
               {CARD_FIELDS.map(({ key, label, ...field }) => (
                 <label key={key} className="block text-[11px] font-bold uppercase tracking-[0.14em] text-ui-faint">
                   {label}
@@ -629,9 +662,14 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                 </label>
               ))}
 
-              <p className="rounded-lg border border-ui-line bg-white px-3 py-2.5 text-[11px] leading-relaxed text-ui-soft">
-                Holders only: seen by your own cabin and nobody else.
-              </p>
+              <label className="flex items-start gap-3 rounded-lg border border-ui-line bg-white px-3 py-2.5 text-[12px] leading-relaxed text-ui-ink">
+                <input type="checkbox" checked={form.publicLinks ?? false}
+                  onChange={(event) => setForm((current) => ({ ...current, publicLinks: event.target.checked }))}
+                  className="mt-1 accent-ui-blue" />
+                <span>Show my links on my public seat card
+                  <span className="mt-1 block text-[11px] text-ui-soft">Anyone can see your display name, website, LinkedIn and social accounts when enabled. Your email stays private to your cabin.</span>
+                </span>
+              </label>
               <button type="submit" disabled={directory.saving} className="sa-cta w-full justify-center disabled:opacity-60">
                 {directory.saving && statusAt === 'card' ? 'Publishing…' : 'Publish card'} <span aria-hidden>→</span>
               </button>
@@ -650,6 +688,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
             <div className="mt-4 space-y-2 text-[12px] text-ui-soft">
               <p className="font-heading text-xl text-ui-ink">{form.displayName || shortMember(address)}</p>
               <p>{form.role || defaultRole(currentEntry.seat.zone)} · {sectionLabel(currentEntry.seat.zone)}</p>
+              <OfferingTags categories={form.categories} />
               <p className="pt-2 text-[11px] leading-relaxed">
                 {published ? `Published ${when(published.updated)}.` : 'Not published yet.'}
               </p>

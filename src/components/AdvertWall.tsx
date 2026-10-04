@@ -1,9 +1,13 @@
-import { memo, useCallback, useMemo, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { CABIN_SECTIONS, findSeat, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner, type BannerSet } from '../lib/banners';
 import { shortAddress, type Manifest, type ManifestEntry } from '../lib/manifest';
 import SeatDialog from './SeatDialog';
 import AircraftRow from './AircraftRow';
+import PassengerFilters from './PassengerFilters';
+import { fetchSeatProfiles, type PublicSeatProfile } from '../lib/networkingApi';
+import { matchesPassenger } from '../lib/passengerSearch';
+import type { Offering } from '../content/offerings';
 
 /**
  * Who is on board: every seat in its physical row, and the advert on it.
@@ -31,9 +35,10 @@ interface TileProps {
   banner: Banner | null;
   mine: boolean;
   onOpen: (id: string) => void;
+  dimmed: boolean;
 }
 
-const Tile = ({ id, entry, banner, mine, onOpen }: TileProps) => {
+const Tile = ({ id, entry, banner, mine, onOpen, dimmed }: TileProps) => {
   /* A picture that will not load is drawn as the seat without one, rather
      than as the browser's broken-image icon. Keyed to the URL, so a replaced
      advert gets a fresh try. */
@@ -44,7 +49,7 @@ const Tile = ({ id, entry, banner, mine, onOpen }: TileProps) => {
   const picture = own;
   const link = safeHref(own?.href);
   return (
-    <li className={`sa-adwall__tile${mine ? ' is-mine' : ''}`}>
+    <li className={`sa-adwall__tile${mine ? ' is-mine' : ''}${dimmed ? ' is-filtered' : ''}`}>
       <button
         type="button"
         onClick={() => onOpen(id)}
@@ -97,6 +102,33 @@ interface AdvertWallProps {
 
 const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvertise, onAdvertise, owner, sign }: AdvertWallProps) {
   const [open, setOpen] = useState<{ id: string; zone: ZoneKey } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [offeringFilter, setOfferingFilter] = useState<Offering | ''>('');
+  const [profiles, setProfiles] = useState<Record<string, PublicSeatProfile>>({});
+  const [profileSearch, setProfileSearch] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+  const holderKey = manifest.entries.map((entry) => entry.address).join(',');
+  useEffect(() => {
+    if (!holderKey) return;
+    let controller: AbortController;
+    const refresh = () => {
+      controller?.abort();
+      controller = new AbortController();
+      const signal = controller.signal;
+      void fetchSeatProfiles(signal).then((next) => {
+        if (!signal.aborted) { setProfiles(next); setProfileSearch('ready'); }
+      }).catch(() => { if (!signal.aborted) setProfileSearch('unavailable'); });
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('seat-airlines:profile-saved', refresh);
+    return () => {
+      controller?.abort();
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('seat-airlines:profile-saved', refresh);
+    };
+  }, [holderKey]);
+  const filtering = Boolean(searchQuery.trim() || offeringFilter);
+  const matchingSeats = new Set(manifest.entries.filter((entry) => matchesPassenger(entry, profiles[entry.address], searchQuery, offeringFilter)).map((entry) => entry.seat.id));
   const openSeat = useCallback((id: string) => {
     const seat = findSeat(id);
     if (seat) setOpen({ id, zone: seat.zone });
@@ -124,6 +156,10 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
           <strong>{manifest.entries.length}</strong> seated · {manifest.open} open
         </p>
       </header>
+      <PassengerFilters query={searchQuery} offering={offeringFilter} onQuery={setSearchQuery} onOffering={setOfferingFilter}
+        offeringsDisabled={profileSearch !== 'ready'} />
+      {filtering && <p className="sa-passenger-results" role="status">{matchingSeats.size} matching {matchingSeats.size === 1 ? 'holder' : 'holders'}. {matchingSeats.size ? 'Matching seats are highlighted.' : 'Try another search or clear the filters.'}</p>}
+      {profileSearch === 'unavailable' && <p className="sa-passenger-results">Profile search is unavailable. You can still search by wallet or seat.</p>}
 
       {manifest.entries.length === 0 ? (
         <p className="sa-adwall__empty" role="status">
@@ -154,6 +190,7 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
                       banner={banners[seat] ?? null}
                       mine={mine === seat}
                       onOpen={openSeat}
+                      dimmed={filtering && !matchingSeats.has(seat)}
                     />
                   )} />
                 ))}

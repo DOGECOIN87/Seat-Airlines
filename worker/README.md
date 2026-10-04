@@ -139,6 +139,25 @@ They are rows in D1 now — `migrations/0001_networking.sql` is the schema:
 one card per wallet, messages indexed both by recipient and by sender, plus
 the sessions table and the spent sign-in signatures.
 
+Profiles can select up to three public offering tags from the shared options
+in `src/content/offerings.ts`. The directory and public seat wall search by
+name, wallet, seat and offering, with an additional tag filter. The wall
+highlights matches without moving seats. Public name search only uses names
+holders have opted to display. Holders
+can also opt in to showing their display name, website, LinkedIn and social
+links on the public seat detail card. This is disabled for existing profiles;
+email and role are never returned by the public `GET /seat-profile?address=…`
+route. Turning the setting off removes those links on subsequent reads.
+The route uses `Cache-Control: no-store`. `GET /seat-profiles` returns the same
+public fields, keyed by wallet, for holders currently seated on the aircraft.
+
+`profile_categories` stores the offering tags and `public_seat_profiles`
+records explicit link visibility. Both tables are created on the first
+authenticated directory/profile request, alongside `profile_links`, so the
+deploy does not require a separate migration step. Manual schema setups can
+apply `migrations/0007_public_seat_profiles.sql`. Older clients that omit
+these new fields preserve the saved choices.
+
 ### Signing in, rather than signing everything
 
 The wall signs every publish, because a publish is rare and pins one exact
