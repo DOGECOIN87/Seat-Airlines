@@ -144,6 +144,8 @@ export interface ViewPose {
   weather?: WeatherKind;
   /** 0–1: how hard the air is throwing the aeroplane about, for the camera riding alongside. */
   shake?: number;
+  /** Trailing-edge flaps, 0–1, as the game sets them: out as it slows, in for a burn. */
+  flaps?: number;
   /** Degrees the nose is yawed right of the path it is flying: the sideslip a dead engine drags it into. */
   slip?: number;
   /**
@@ -1622,7 +1624,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     // Keep the control-surface cue visible but restrained; pitch and speed
     // should not make the exterior look as though the aircraft is landing.
     airframe.setFlapDeployment(
-      manual.flaps ?? Math.max(lowSpeed, descent, climb) * 0.28,
+      manual.flaps ?? pose.flaps ?? Math.max(lowSpeed, descent, climb) * 0.28,
     );
 
     /* Roll it by hand — and where that roll goes depends on where the camera
@@ -1713,6 +1715,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       contrail,
       stream: groundSpeed,
       bank: a.bank - a.roll,
+      pitch: a.pitch,
+      slip: pose.exterior ? pose.slip ?? 0 : 0,
       night,
       cabin: cabinLit,
       mood: cabinNight,

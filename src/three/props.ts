@@ -57,9 +57,19 @@ export interface BoatSpot {
   paint: number;
 }
 
+/** A transmission tower, on the tile: its place, and the way its line runs (radians, from +s towards +t). */
+export interface PylonSpot {
+  s: number;
+  t: number;
+  angle: number;
+}
+
 export interface LandProps {
   trees: TreeSpot[];
   buildings: BuildingSpot[];
+  pylons: PylonSpot[];
+  /** The wires: each a pair of pylons, by index, strung from the first to the second. */
+  spans: [number, number][];
 }
 
 /** A seeded xorshift, the same generator the painters use, for draws kept apart from theirs. */

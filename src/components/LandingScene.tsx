@@ -563,6 +563,12 @@ const LandingScene = ({
     const relit = g.failed === 0 || g.both;
     p.boost = [relit || g.failed !== -1 ? burn : 0, relit || g.failed !== 1 ? burn : 0];
     p.shake = g.phase === 'flying' ? TURBULENCE[g.weather] * 0.55 + burn * 0.5 : 0;
+    /* The flaps, as a crew would set them: a notch for the climb out of the
+       dive, out further as the speed bleeds away on a dead engine — lift for
+       less airspeed — and all the way in for a burn. */
+    const slowing = g.failed ? Math.min(1, Math.max(0, (GAME.stallSpeed + 45 - g.speed) / 40)) : 0;
+    const climbing = !g.failed && g.pitch > 6 ? 0.3 : 0;
+    p.flaps = g.phase === 'intro' ? 0.35 : Math.max(slowing * 0.85, climbing) * (1 - burn);
     if (g.phase === 'flying') {
       const saucer = ufoAt(g.ufo, g.clock);
       // Off the line it was aimed along: while it closes, and as it goes past.

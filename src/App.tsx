@@ -536,6 +536,9 @@ export default function App() {
       || LOGBOOK_HASH.test(window.location.hash)
       || panelFromHash(window.location.hash) !== null,
   );
+  /* The sound follows the camera: the engines outside, the cabin within. The landing is outside. */
+  const { setOutside } = aircraftAudio;
+  useEffect(() => setOutside(!entered || camera === 'exterior'), [setOutside, entered, camera]);
   const enter = useCallback(() => {
     setEntered(true);
     window.scrollTo(0, 0);

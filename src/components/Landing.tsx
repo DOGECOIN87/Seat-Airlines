@@ -968,65 +968,64 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       {inGame && (
         <div className="sa-hud">
           <div className="sa-hud__top">
-            <div className="sa-hud__stack">
-              <div className="sa-hud__panel">
-                <span className="sa-hud__label">Altitude</span>
-                <span className="sa-hud__value">
+            {/* One slim strip: the height, the brief (or what has gone wrong), and the points. */}
+            <div
+              className={`sa-strip${failure || wingHit ? ` is-alert${
+                failure ? (failure.cause === 'lightning' && !failure.both ? ' is-struck' : '') : ' is-ufo'}` : ''}`}
+            >
+              <div className="sa-strip__cell">
+                <span className="sa-strip__key">Alt</span>
+                <span className="sa-strip__val">
                   <span ref={hud.alt}>—</span>
-                  <small> ft</small>
+                  <small>ft</small>
                 </span>
               </div>
-              <div className="sa-hud__panel sa-hud__score">
-                <span className="sa-hud__label">
-                  Score <span ref={hud.rate} className="sa-hud__rate" />
-                </span>
-                <span ref={hud.score} className="sa-hud__value">0</span>
-              </div>
-              <div className="sa-hud__chips">
-                <span className="sa-hud__chip sa-hud__chip--logos" title="Logos flown through">
-                  <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" className="sa-hud__chip-logo" />
-                  <span ref={hud.logos}>0</span>
-                </span>
-                {weather && weather !== 'clear' && (
-                  <span className={`sa-hud__chip sa-hud__chip--${weather}`}>
-                    {weather === 'storm' ? 'Thunderstorm' : 'Rain'}
+              <div className="sa-strip__mid">
+                {failure || wingHit ? (
+                  <span className="sa-strip__alert" role="alert">
+                    <span className="sa-strip__key">
+                      {!failure
+                        ? 'UFO strike'
+                        : failure.both ? 'Both engines' : failure.cause === 'lightning' ? 'Lightning strike' : 'Master warning'}
+                    </span>
+                    <span className="sa-strip__alarm">
+                      {!failure ? 'Wing damage' : failure.both ? 'ENG 1 · 2 fire' : `ENG ${engineNo} fire`}
+                    </span>
                   </span>
+                ) : (
+                  <>
+                    <span className="sa-strip__track" aria-hidden>
+                      <span ref={hud.bar} className="sa-strip__bar" />
+                    </span>
+                    <span className="sa-strip__goal">
+                      {goalFeet.toLocaleString('en-US')}
+                      <small>ft</small>
+                    </span>
+                  </>
                 )}
               </div>
+              <div className="sa-strip__cell sa-strip__cell--score">
+                <span className="sa-strip__key">
+                  Score <span ref={hud.rate} className="sa-hud__rate" />
+                </span>
+                <span ref={hud.score} className="sa-strip__val sa-strip__val--score">0</span>
+              </div>
             </div>
-            {failure || wingHit ? (
-              /* Once an engine is gone the brief is over: the master warning
-                 takes its place, and the flight lasts until the ground ends it. */
-              <div
-                className={`sa-hud__panel sa-hud__clock sa-hud__master${
-                  failure ? (failure.cause === 'lightning' && !failure.both ? ' is-struck' : '') : ' is-ufo'}`}
-                role="alert"
-              >
-                <span className="sa-hud__label">
-                  {!failure
-                    ? 'UFO strike'
-                    : failure.both ? 'Both engines' : failure.cause === 'lightning' ? 'Lightning strike' : 'Master warning'}
+            <div className="sa-hud__chips">
+              <span className="sa-hud__chip sa-hud__chip--logos" title="Logos flown through">
+                <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" className="sa-hud__chip-logo" />
+                <span ref={hud.logos}>0</span>
+              </span>
+              {weather && weather !== 'clear' && (
+                <span className={`sa-hud__chip sa-hud__chip--${weather}`}>
+                  {weather === 'storm' ? 'Thunderstorm' : 'Rain'}
                 </span>
-                <span className="sa-hud__value">
-                  {!failure ? 'WING DAMAGE' : failure.both ? 'ENG 1 · 2 FIRE' : `ENG ${engineNo} FIRE`}
-                </span>
-              </div>
-            ) : (
-              <div className="sa-hud__panel sa-hud__clock">
-                <span className="sa-hud__label">Climb to</span>
-                <span className="sa-hud__value">
-                  {goalFeet.toLocaleString('en-US')}
-                  <small> ft</small>
-                </span>
-                <span className="sa-hud__track" aria-hidden>
-                  <span ref={hud.bar} className="sa-hud__bar" />
-                </span>
-              </div>
-            )}
-            <button type="button" onClick={leave} className="sa-hud__skip">
-              Enter <span aria-hidden>→</span>
-            </button>
+              )}
+            </div>
           </div>
+          <button type="button" onClick={leave} className="sa-hud__skip">
+            Enter <span aria-hidden>→</span>
+          </button>
           <p ref={hud.warn} className="sa-hud__warn" aria-hidden>
             Pull up
           </p>

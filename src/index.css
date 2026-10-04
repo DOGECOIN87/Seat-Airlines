@@ -3577,75 +3577,18 @@ p { text-wrap-style: pretty; }
 
 /* ── The instruments, while somebody flies it ───────────────── */
 .sa-hud { position: absolute; inset: 0; pointer-events: none; }
-.sa-hud__top {
-  position: absolute;
-  top: calc(max(1rem, var(--safe-top)) + 3.4rem);
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0 clamp(1rem, 3vw, 2.25rem);
-}
-.sa-hud__panel {
-  display: grid;
-  gap: 0.2rem;
-  min-width: 7.5rem;
-  padding: 0.55rem 0.95rem 0.65rem;
-  border-radius: 14px;
-  background: rgba(5, 7, 15, 0.62);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-}
-.sa-hud__clock {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  justify-items: center;
-}
-.sa-hud__label {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
-}
-.sa-hud__value {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 1.45rem;
-  font-weight: 600;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  color: #fff;
-}
-.sa-hud__value small { font-size: 0.7rem; letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.6); }
-.sa-hud__track {
-  display: block;
-  width: 100%;
-  height: 3px;
-  margin-top: 0.3rem;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.18);
-  overflow: hidden;
-}
-.sa-hud__bar {
-  display: block;
-  height: 100%;
-  background: var(--g-accent);
-  transform-origin: left center;
-}
 .sa-hud__skip {
+  position: absolute;
+  top: max(1rem, var(--safe-top));
+  right: clamp(1rem, 3vw, 2.25rem);
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0 1.1rem;
+  min-height: 2.5rem;
+  padding: 0 1rem;
   border-radius: 999px;
-  background: rgba(5, 7, 15, 0.62);
+  background: rgba(5, 7, 15, 0.45);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 11px;
@@ -3942,8 +3885,6 @@ p { text-wrap-style: pretty; }
    Under the altimeter, the points; beside them, what they are building at
    once an engine is gone: cyan for wings level, amber for low, both for
    both. The climb bonus rises out of the middle as it is paid. */
-.sa-hud__stack { display: grid; gap: 0.5rem; justify-items: start; }
-.sa-hud__score .sa-hud__value { color: #7FE3F7; }
 .sa-hud__rate {
   display: inline-block;
   margin-left: 0.35rem;
@@ -4131,16 +4072,6 @@ p { text-wrap-style: pretty; }
   background: radial-gradient(circle at 50% 58%, rgba(255, 244, 214, 0.85) 0%, rgba(255, 150, 50, 0.4) 34%, rgba(255, 90, 20, 0) 70%);
   animation: sa-landing-flash 0.6s ease-out forwards;
 }
-.sa-hud__master {
-  background: rgba(120, 8, 8, 0.78);
-  box-shadow: inset 0 0 0 1px rgba(255, 96, 86, 0.7), 0 0 28px rgba(255, 40, 30, 0.35);
-}
-.sa-hud__master .sa-hud__label { color: rgba(255, 214, 210, 0.85); }
-.sa-hud__master .sa-hud__value {
-  color: #fff;
-  letter-spacing: 0.06em;
-  animation: sa-hud-warn 0.9s steps(1, end) infinite;
-}
 .sa-hud__warn--stall {
   top: 52%;
   color: #FFB22E;
@@ -4296,16 +4227,6 @@ p { text-wrap-style: pretty; }
   35% { opacity: 0.15; }
   100% { opacity: 0; }
 }
-.sa-hud__master.is-struck {
-  background: rgba(36, 44, 130, 0.82);
-  box-shadow: inset 0 0 0 1px rgba(170, 185, 255, 0.75), 0 0 28px rgba(120, 140, 255, 0.4);
-}
-.sa-hud__master.is-struck .sa-hud__label { color: rgba(222, 228, 255, 0.9); }
-.sa-hud__master.is-ufo {
-  background: rgba(10, 92, 60, 0.84);
-  box-shadow: inset 0 0 0 1px rgba(110, 250, 180, 0.75), 0 0 28px rgba(55, 214, 122, 0.4);
-}
-.sa-hud__master.is-ufo .sa-hud__label { color: rgba(214, 255, 232, 0.9); }
 .sa-hud__bonus--ufo { color: #8BFFC4; text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* Post: the flight to X, in X's own black. While the video is still being
@@ -4408,11 +4329,6 @@ p { text-wrap-style: pretty; }
   .sa-landing__actions > :last-child:nth-child(2) { grid-column: 1 / -1; }
   .sa-pilots { margin-left: 0; justify-content: center; }
   .sa-landing__hint { text-align: center; }
-  .sa-hud__panel { min-width: 0; padding: 0.45rem 0.7rem 0.55rem; }
-  .sa-hud__value { font-size: 1.15rem; }
-  /* Under the way in, on the right: in the middle it met the score panel,
-     and the warnings are wider than the brief it replaces. */
-  .sa-hud__clock { top: 3.6rem; left: auto; right: clamp(1rem, 3vw, 2.25rem); transform: none; justify-items: end; }
   .sa-hud__help { width: calc(100% - 2rem); border-radius: 14px; }
 }
 
@@ -4927,7 +4843,7 @@ p { text-wrap-style: pretty; }
    so it reads as well as the glass did. */
 @media (pointer: coarse), (max-width: 768px) {
   .sa-topbar, .sa-docs--night, .sa-dock, .sa-frost, .sa-ticker,
-  .sa-landing__fly, .sa-preflight__card, .sa-hud__panel, .sa-hud__skip,
+  .sa-landing__fly, .sa-preflight__card, .sa-strip, .sa-hud__skip,
   .sa-landing__end--crash .sa-landing__posted, .sa-pilots, .sa-landing__post,
   .sa-gauges__row, .sd-badge {
     -webkit-backdrop-filter: none;
@@ -4940,7 +4856,7 @@ p { text-wrap-style: pretty; }
   .sa-landing__fly, .sa-landing__post, .sa-docs--night { background: rgba(8, 12, 22, 0.5); }
   .sa-pilots { background: rgba(8, 12, 22, 0.45); }
   .sa-preflight__card { background: rgba(8, 12, 22, 0.92); }
-  .sa-hud__panel, .sa-hud__skip, .sa-landing__end--crash .sa-landing__posted { background: rgba(5, 7, 15, 0.78); }
+  .sa-strip, .sa-hud__skip, .sa-landing__end--crash .sa-landing__posted { background: rgba(5, 7, 15, 0.6); }
   .sa-gauges__row { background: linear-gradient(180deg, rgba(12, 18, 34, 0.88), rgba(4, 7, 15, 0.92)); }
   .sd-badge { background: rgba(0, 0, 0, 0.7); }
 }
@@ -5128,4 +5044,124 @@ p { text-wrap-style: pretty; }
 }
 @media (prefers-reduced-motion: reduce) {
   .sa-boost.is-burning { animation: none; box-shadow: 0 0 34px 10px rgba(255, 160, 60, 0.85); }
+}
+
+/* ── The flight strip (see Landing's HUD) ─────────────────────────────
+   Height, brief and points in one slim pane of smoked glass across the
+   top, rather than three boxes stacked down the corner of the view. Under
+   the brand on a phone; on a wide screen it sits in the brand's own row,
+   so the whole sky under it is clear. */
+.sa-hud__top {
+  position: absolute;
+  top: calc(max(1rem, var(--safe-top)) + 3.2rem);
+  left: 0;
+  right: 0;
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 0 clamp(1rem, 3vw, 2.25rem);
+}
+.sa-strip {
+  display: grid;
+  grid-template-columns: auto minmax(6rem, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  width: min(38rem, 100%);
+  min-height: 2.75rem;
+  padding: 0.3rem 0.5rem 0.3rem 1rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(10, 14, 26, 0.5), rgba(4, 6, 14, 0.38));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.13), 0 6px 24px rgba(0, 0, 0, 0.18);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+}
+.sa-strip__cell { display: flex; align-items: baseline; gap: 0.5rem; white-space: nowrap; }
+.sa-strip__cell--score { justify-content: flex-end; padding: 0.15rem 0.75rem; border-radius: 999px; background: rgba(127, 227, 247, 0.1); }
+.sa-strip__key {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.sa-strip__val {
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sa-strip__val small, .sa-strip__goal small { margin-left: 0.2rem; font-size: 0.62rem; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.55); }
+.sa-strip__val--score { color: #7FE3F7; }
+.sa-strip__mid { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+/* The climb: a thin glowing line toward the brief, with a plane-bright head. */
+.sa-strip__track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.sa-strip__bar {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(0, 170, 235, 0.55), #7FE3F7 85%, #fff);
+  box-shadow: 0 0 10px rgba(127, 227, 247, 0.8);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.sa-strip__goal { flex: none; font-size: 0.8rem; font-weight: 600; color: rgba(255, 255, 255, 0.8); font-variant-numeric: tabular-nums; }
+/* Once something has gone: the middle is the warning, and the glass takes its colour. */
+.sa-strip.is-alert {
+  background: linear-gradient(180deg, rgba(120, 10, 10, 0.62), rgba(70, 4, 4, 0.5));
+  box-shadow: inset 0 0 0 1px rgba(255, 96, 86, 0.7), 0 0 26px rgba(255, 40, 30, 0.3);
+}
+.sa-strip.is-alert.is-struck {
+  background: linear-gradient(180deg, rgba(40, 50, 140, 0.62), rgba(20, 26, 90, 0.5));
+  box-shadow: inset 0 0 0 1px rgba(170, 185, 255, 0.75), 0 0 26px rgba(120, 140, 255, 0.35);
+}
+.sa-strip.is-alert.is-ufo {
+  background: linear-gradient(180deg, rgba(10, 92, 60, 0.62), rgba(4, 56, 36, 0.5));
+  box-shadow: inset 0 0 0 1px rgba(110, 250, 180, 0.75), 0 0 26px rgba(55, 214, 122, 0.35);
+}
+.sa-strip__alert { display: flex; align-items: baseline; justify-content: center; gap: 0.6rem; width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; }
+.sa-strip__alert .sa-strip__key { color: rgba(255, 220, 214, 0.85); }
+.sa-strip__alarm {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  animation: sa-hud-warn 0.9s steps(1, end) infinite;
+}
+.sa-hud__chips { justify-content: center; opacity: 0.92; }
+.sa-hud__chips .sa-hud__chip { min-height: 1.6rem; font-size: 11px; background: rgba(5, 7, 15, 0.42); }
+.sa-hud__chips .sa-hud__chip-logo { width: 1.15rem; height: 1.15rem; }
+/* In the game the market line gives way, and the brand steps back. */
+.sa-landing:not(.is-idle) .sa-landing__live { display: none; }
+.sa-landing:not(.is-idle) .sa-landing__brand { --mark: 32px; opacity: 0.85; }
+@media (min-width: 1180px) {
+  .sa-hud__top { top: max(1rem, var(--safe-top)); }
+}
+@media (max-width: 640px) {
+  .sa-strip { gap: 0.6rem; padding-left: 0.85rem; min-height: 2.5rem; }
+  .sa-strip__val { font-size: 1.02rem; }
+  .sa-strip__key { font-size: 9px; letter-spacing: 0.14em; }
+  .sa-strip__cell--score { padding-inline: 0.55rem; }
+  .sa-strip__goal { font-size: 0.7rem; }
+  .sa-strip__alert .sa-strip__key { display: none; }
+  .sa-strip__alarm { font-size: 0.8rem; }
+  /* The help line goes over the boost button, not under it. */
+  .sa-landing.is-intro .sa-hud__help,
+  .sa-landing.is-flying .sa-hud__help { bottom: calc(max(7.5rem, calc(var(--safe-bottom) + 7rem)) + 5.4rem); }
+}
+@media (max-width: 380px) {
+  .sa-strip__goal { display: none; }
+  .sa-strip__cell .sa-strip__key { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sa-strip__alarm { animation: none; }
 }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { periodicNoise } from './noise';
-import { insidePolygon, seededRandom, type BoatKind, type BoatSpot, type BuildingSpot, type LandProps, type TreeKind, type TreeSpot } from './props';
+import { insidePolygon, seededRandom, type BoatKind, type BoatSpot, type BuildingSpot, type LandProps, type PylonSpot, type TreeKind, type TreeSpot } from './props';
 
 /**
  * The ground, as a texture rather than geometry.
@@ -145,34 +145,93 @@ export function farmlandTextures(size = 2048): GroundTextures {
   };
 
   /* Lakes settle where water would: in the hollows, clear of the river and
-     of each other. Each gets a flat basin carved well past its shore — wide
-     enough that a mesh sampling the ground every hundred metres still lays
-     the lake bed flat, so the water painted on it lies level rather than
-     up a slope. */
-  interface Lake { u: number; v: number; r: number; aspect: number }
+     of each other. No two alike: farm ponds a few dozen metres across,
+     round lakes, long ribbon lakes curving down a valley, and lobed ones
+     with bays and headlands — each turned its own way, with a shore made of
+     several waves of different lengths, so it reads as water that found its
+     level rather than a stamp. Each gets a flat basin carved well past its
+     shore, following that shore — wide enough that a mesh sampling the
+     ground every hundred metres still lays the lake bed flat, so the water
+     painted on it lies level rather than up a slope. */
+  interface Lake {
+    u: number; v: number; r: number; aspect: number; rot: number; bend: number;
+    waves: [number, number, number][];
+  }
   const lakes: Lake[] = [];
   const wrapped = (a: number) => Math.min(Math.abs(a), 1 - Math.abs(a));
-  for (let tries = 0; tries < 600 && lakes.length < 9; tries++) {
+  /** The shore's distance from the middle at angle `a`, before stretching: tile units. */
+  const shoreR = (l: Lake, a: number) => {
+    let k = 1;
+    for (const [n, amp, phase] of l.waves) k += amp * Math.cos(n * a + phase);
+    return l.r * Math.max(0.35, k);
+  };
+  /** A point of the shore at angle `a`, in tile units. */
+  const shoreAt = (l: Lake, a: number): [number, number] => {
+    const rr = shoreR(l, a);
+    const x = Math.cos(a) * rr;
+    const y = Math.sin(a) * rr * l.aspect + (l.bend * x * x) / l.r;
+    const c = Math.cos(l.rot);
+    const sn = Math.sin(l.rot);
+    return [l.u + x * c - y * sn, l.v + x * sn + y * c];
+  };
+  /** How far outside the shore a point is, roughly, in tile units: negative inside. */
+  const outside = (l: Lake, du: number, dv: number) => {
+    const c = Math.cos(-l.rot);
+    const sn = Math.sin(-l.rot);
+    const x = du * c - dv * sn;
+    let y = du * sn + dv * c;
+    y -= (l.bend * x * x) / l.r;
+    const ys = y / l.aspect;
+    const a = Math.atan2(ys, x);
+    return (Math.hypot(x, ys) - shoreR(l, a)) * THREE.MathUtils.lerp(1, l.aspect, Math.abs(Math.sin(a)));
+  };
+  const KINDS = ['pond', 'pond', 'pond', 'round', 'round', 'ribbon', 'ribbon', 'lobed', 'lobed'] as const;
+  for (let tries = 0; tries < 1400 && lakes.length < 14; tries++) {
     const u = rand();
     const v = rand();
-    if (heightAt(u, v) > 0.2) continue;
-    if (wrapped(v - riverAt(u)) < 0.08) continue;
-    if (lakes.some((l) => Math.hypot(wrapped(l.u - u), wrapped(l.v - v)) < 0.16)) continue;
-    lakes.push({ u, v, r: 0.012 + rand() * 0.03, aspect: 0.42 + rand() * 0.92 });
+    const kind = KINDS[Math.floor(rand() * KINDS.length)];
+    const waves: [number, number, number][] = [];
+    // Fine wobble on every shore: the coves and points.
+    for (let n = 6; n <= 11; n += 1 + Math.floor(rand() * 2)) waves.push([n, 0.015 + rand() * 0.035, rand() * 6.283]);
+    let r: number, aspect: number, bend = 0;
+    if (kind === 'pond') {
+      r = 0.004 + rand() * 0.006;
+      aspect = 0.6 + rand() * 0.4;
+      waves.push([2, rand() * 0.12, rand() * 6.283]);
+    } else if (kind === 'round') {
+      r = 0.016 + rand() * 0.022;
+      aspect = 0.62 + rand() * 0.38;
+      for (const n of [2, 3, 4, 5]) waves.push([n, 0.04 + rand() * 0.1, rand() * 6.283]);
+    } else if (kind === 'ribbon') {
+      r = 0.035 + rand() * 0.035;
+      aspect = 0.16 + rand() * 0.16;
+      bend = (rand() - 0.5) * 1.2;
+      for (const n of [2, 3]) waves.push([n, 0.05 + rand() * 0.08, rand() * 6.283]);
+    } else {
+      r = 0.026 + rand() * 0.026;
+      aspect = 0.7 + rand() * 0.3;
+      waves.push([2 + Math.floor(rand() * 2), 0.24 + rand() * 0.16, rand() * 6.283]);
+      waves.push([4 + Math.floor(rand() * 2), 0.08 + rand() * 0.08, rand() * 6.283]);
+    }
+    const reach = r * 1.5;
+    if (heightAt(u, v) > (kind === 'pond' ? 0.3 : 0.2)) continue;
+    if (wrapped(v - riverAt(u)) < reach + 0.05) continue;
+    if (lakes.some((l) => Math.hypot(wrapped(l.u - u), wrapped(l.v - v)) < (l.r + r) * 1.5 + 0.09)) continue;
+    lakes.push({ u, v, r, aspect, rot: rand() * Math.PI, bend, waves });
   }
   for (const lake of lakes) {
-    const flat = lake.r + 0.05;
-    const reach = flat + 0.1;
+    const margin = 0.05;
+    const reach = lake.r * 1.6 + margin + 0.1;
     const span = Math.ceil(reach * HR);
     const cx = lake.u * HR;
     const cy = lake.v * HR;
     for (let dy = -span; dy <= span; dy++) {
       for (let dx = -span; dx <= span; dx++) {
-        const dist = Math.hypot(dx, dy) / HR;
-        if (dist > reach) continue;
+        const out = outside(lake, dx / HR, dy / HR);
+        if (out > margin + 0.1) continue;
         const x = ((Math.round(cx + dx) % HR) + HR) % HR;
         const y = ((Math.round(cy + dy) % HR) + HR) % HR;
-        const k = smooth01((dist - flat) / 0.1);
+        const k = smooth01((out - margin) / 0.1);
         heights[y * HR + x] *= k;
         detail[y * HR + x] *= k;
       }
@@ -356,36 +415,46 @@ export function farmlandTextures(size = 2048): GroundTextures {
   w.lineJoin = 'round';
   w.lineCap = 'round';
   for (const [i, lake] of lakes.entries()) {
-    const x = size * lake.u;
-    const y = size * lake.v;
-    const rx = size * lake.r;
-    const ry = rx * lake.aspect;
-    const points = 13;
-    const shore: [number, number][] = [];
-    w.beginPath();
+    // Fine enough that a crenellated shore stays a curve; ponds need few.
+    const points = lake.r < 0.012 ? 28 : 72;
+    const base: [number, number][] = [];
     for (let p = 0; p < points; p++) {
-      const a = (p / points) * Math.PI * 2;
-      const wobble = 0.78 + rand() * 0.42;
-      const px = x + Math.cos(a) * rx * wobble;
-      const py = y + Math.sin(a) * ry * wobble;
-      if (p === 0) w.moveTo(px, py); else w.lineTo(px, py);
-      shore.push([px, py]);
+      const [u, v] = shoreAt(lake, (p / points) * Math.PI * 2);
+      base.push([u * size, v * size]);
     }
-    lakeShores.push(shore);
-    w.closePath();
-    w.fillStyle = water[i % water.length];
-    w.globalAlpha = 0.78;
-    w.fill();
-    w.globalAlpha = 1;
-    w.strokeStyle = 'rgba(171,224,228,0.62)';
-    w.lineWidth = Math.max(1.5, size / 900);
-    w.stroke();
-    w.strokeStyle = 'rgba(205,242,241,0.38)';
-    w.lineWidth = Math.max(1, size / 1500);
-    w.beginPath();
-    w.moveTo(x - rx * 0.45, y - ry * 0.12);
-    w.quadraticCurveTo(x, y - ry * 0.32, x + rx * 0.46, y - ry * 0.08);
-    w.stroke();
+    const reach = lake.r * 1.8 * size;
+    // Drawn again across any edge of the tile it reaches over, so the tiling never cuts a lake in half.
+    for (const ox of [-size, 0, size]) {
+      for (const oy of [-size, 0, size]) {
+        const x = size * lake.u + ox;
+        const y = size * lake.v + oy;
+        if (x + reach < 0 || x - reach > size || y + reach < 0 || y - reach > size) continue;
+        const shore = base.map(([px, py]): [number, number] => [px + ox, py + oy]);
+        w.beginPath();
+        shore.forEach(([px, py], p) => (p === 0 ? w.moveTo(px, py) : w.lineTo(px, py)));
+        lakeShores.push(shore);
+        w.closePath();
+        w.fillStyle = water[i % water.length];
+        w.globalAlpha = 0.78;
+        w.fill();
+        w.globalAlpha = 1;
+        w.strokeStyle = 'rgba(171,224,228,0.62)';
+        w.lineWidth = Math.max(1.5, size / 900) * (lake.r < 0.012 ? 0.6 : 1);
+        w.stroke();
+        // A light ripple down the lake's long axis.
+        if (lake.r >= 0.012) {
+          const along = lake.r * size * 0.45;
+          const c = Math.cos(lake.rot);
+          const sn = Math.sin(lake.rot);
+          w.strokeStyle = 'rgba(205,242,241,0.38)';
+          w.lineWidth = Math.max(1, size / 1500);
+          w.beginPath();
+          w.moveTo(x - c * along, y - sn * along);
+          w.quadraticCurveTo(x - sn * along * lake.aspect * 0.4, y + c * along * lake.aspect * 0.4, x + c * along, y + sn * along);
+          w.stroke();
+        }
+      }
+    }
   }
 
   // Woodland, in the corners the plough cannot reach.
@@ -672,7 +741,57 @@ function landProps(p: {
   const blocked = (x: number, y: number) => at(x, y, 2) > 64;
   const wooded = (x: number, y: number) => at(x, y, 0) > 127 || at(x, y, 1) > 127;
 
+  /* ── The power lines ──────────────────────────────────────────────────
+     Three high-voltage lines march across the country in straight runs, as
+     the real ones do: one along the tile, one across it and one on the
+     diagonal, each spaced so it carries on seamlessly into the next copy of
+     the tile. A tower that would stand in water, on a road or in a town
+     steps along its line until it is clear, so the spans vary the way real
+     ones do; and the woods are kept cut back along each corridor. */
+  const lineRand = seededRandom(0x9a71e5);
+  const pylons: PylonSpot[] = [];
+  const spans: [number, number][] = [];
+  const wrap01 = (a: number) => ((a % 1) + 1) % 1;
+  const routes = [
+    { from: [0, 0.18 + lineRand() * 0.14], dir: [1, 0], towers: 9 },
+    { from: [0.2 + lineRand() * 0.15, 0], dir: [0, 1], towers: 9 },
+    { from: [0, 0.7 + lineRand() * 0.2], dir: [1, 1], towers: 12 },
+  ] as const;
+  /** How far a point (tile units) is from each line's centre, for clearing the corridor. */
+  const corridor: ((s: number, t: number) => number)[] = [];
+  for (const route of routes) {
+    const first = pylons.length;
+    const [ds, dt] = route.dir;
+    const angle = Math.atan2(dt, ds);
+    for (let k = 0; k < route.towers; k++) {
+      let f = k / route.towers;
+      // Step along the line, either way, until clear of water, roads and towns.
+      for (let tries = 0; tries < 12; tries++) {
+        const sx = wrap01(route.from[0] + ds * f) * size;
+        const ty = wrap01(route.from[1] + dt * f) * size;
+        if (!blocked(sx, ty)) break;
+        f += ((tries % 2 ? 1 : -1) * (tries + 1) * 0.006) / route.towers * 3;
+      }
+      f += (lineRand() - 0.5) * 0.008;
+      pylons.push({ s: wrap01(route.from[0] + ds * f), t: wrap01(route.from[1] + dt * f), angle });
+      if (k > 0) spans.push([pylons.length - 2, pylons.length - 1]);
+    }
+    // The last tower strings on to the first one's copy in the next tile.
+    spans.push([pylons.length - 1, first]);
+    const [s0, t0] = route.from;
+    const len = Math.hypot(ds, dt);
+    corridor.push((s, t) => {
+      // Across the line: |(p - p0) × dir|, wrapped to the nearest copy.
+      const cross = (s - s0) * dt - (t - t0) * ds;
+      const w = ((cross % 1) + 1.5) % 1 - 0.5;
+      return Math.abs(w) / len;
+    });
+  }
+  const CLEARED = 22 / TILE_METRES;
+  const underLines = (x: number, y: number) => corridor.some((d) => d(x / size, y / size) < CLEARED);
+
   const tree = (x: number, y: number, kind: TreeKind, height: number, width: number) => {
+    if (underLines(x, y)) return;
     trees.push({ s: x / size, t: y / size, kind, height, width, shade: rand() });
   };
   const between = (lo: number, hi: number) => lo + rand() * (hi - lo);
@@ -854,7 +973,7 @@ function landProps(p: {
     }
   }
 
-  return { trees, buildings };
+  return { trees, buildings, pylons, spans };
 }
 
 /**
