@@ -12,7 +12,11 @@ import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import type { ManualControls } from '../lib/manualControls';
-import { blastAltitude, clampUnit, FEET, newGame, type Cause, type Phase } from '../lib/landingGame';
+import {
+  blastAltitude, BOOST, clampUnit, dealWeather, FEET, fireBoost, newGame, type Cause, type GameWeather, type Phase,
+} from '../lib/landingGame';
+import { LOGOS } from '../lib/logos';
+import { createSfx, type Sfx } from '../lib/sfx';
 import {
   canShareFile, cardAssets, cardJpeg, composeCard, hostCard, hostsCards, intentUrl, saveFile, shareFile, shareText, SITE_URL,
   type SharedFlight,
@@ -89,6 +93,11 @@ const KEYS: Record<string, readonly [number, number]> = {
   ArrowRight: [1, 0],
   KeyD: [1, 0],
 };
+
+/** Keys that light the afterburners. */
+const BOOST_KEYS = new Set(['Space', 'KeyB', 'ShiftLeft', 'ShiftRight']);
+/** Seconds between two logos for the second to count as a run. */
+const LOGO_RUN = 4;
 
 /** Pixels of drag for full stick. */
 const STICK_REACH = 64;
@@ -194,8 +203,19 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
   const [hud] = useState<LandingHud>(() => ({
     bar: createRef(), alt: createRef(), warn: createRef(), stall: createRef(), score: createRef(), rate: createRef(),
     speedNeedle: createRef(), speedText: createRef(), varioNeedle: createRef(), varioText: createRef(), horizon: createRef(),
-    lift: createRef(),
+    lift: createRef(), boost: createRef(), logos: createRef(),
   }));
+  /** The weather this flight was dealt, for the HUD's tag. */
+  const [weather, setWeather] = useState<GameWeather | null>(null);
+  /** A logo just flown through: the pop, and how many in a run. */
+  const [logoPop, setLogoPop] = useState<{ n: number; run: number } | null>(null);
+  const logoRun = useRef({ at: 0, run: 0 });
+  /** The synthesised sounds: the burn, the chime and the thunder. */
+  const sfx = useRef<Sfx | null>(null);
+  const soundOn = useRef(soundEnabled);
+  soundOn.current = soundEnabled;
+  useEffect(() => sfx.current?.setEnabled(soundEnabled), [soundEnabled]);
+  useEffect(() => () => sfx.current?.close(), []);
   /** The scene's picture of the moment the engine went, for the card. */
   const shot = useRef<HTMLCanvasElement | null>(null);
   /* Sharing the flight: the card as a picture as soon as the flight is
@@ -358,6 +378,8 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       wow: load('wow.mp3', 0.9),
       crowd: load('crash-crowd.mp3', 0.9),
     };
+    sfx.current = createSfx();
+    sfx.current?.setEnabled(soundOn.current);
   };
 
   const takeOff = useCallback(() => {
@@ -367,8 +389,14 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     setPreflight('off');
     g.phase = 'intro';
     g.phaseAt = performance.now();
+    dealWeather(g);
+    setWeather(g.weather);
     setPhase('intro');
   }, [ready]);
+  /* The afterburners: a key, or the button. */
+  const boost = useCallback(() => {
+    if (fireBoost(game.current)) sfx.current?.boost(BOOST.seconds);
+  }, []);
   /* An arrow key, or Fly with no wallet installed: the card. */
   const start = useCallback(() => {
     if (!ready || game.current.phase !== 'idle' || gone.current) return;
@@ -422,6 +450,19 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       timers.current.push(window.setTimeout(() => setBonusPop(null), 2800));
     }
   }, []);
+
+  const onLogo = useCallback((n: number) => {
+    const now = performance.now();
+    const r = logoRun.current;
+    r.run = now - r.at < LOGO_RUN * 1000 ? r.run + 1 : 1;
+    r.at = now;
+    sfx.current?.chime(r.run - 1);
+    if (hud.logos.current) hud.logos.current.textContent = String(n);
+    setLogoPop({ n, run: r.run });
+    const id = window.setTimeout(() => setLogoPop((p) => (p && p.n === n ? null : p)), 1100);
+    timers.current.push(id);
+  }, [hud]);
+  const onThunder = useCallback((metres: number) => sfx.current?.thunder(metres), []);
 
   const onUfoWarn = useCallback(() => sayUfo('warn', undefined, 4000), [sayUfo]);
   const onStrike = useCallback((side: -1 | 1) => {
@@ -641,6 +682,11 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       }
       // The high scores window closes itself on Escape; everything else is its own.
       if (scoresUp.current) return;
+      if (BOOST_KEYS.has(e.code) && game.current.phase !== 'idle') {
+        e.preventDefault();
+        if (!e.repeat) boost();
+        return;
+      }
       if (KEYS[e.code]) {
         e.preventDefault();
         held.add(e.code);
@@ -666,7 +712,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', drop);
     };
-  }, [start, leave, clearSplash]);
+  }, [start, leave, clearSplash, boost]);
 
   /* The stick, for a touch screen (or a mouse): press anywhere and drag.
      Up climbs, down dives, sideways banks, measured from where the press
@@ -764,6 +810,8 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               onStrike={onStrike}
               onDodge={onDodge}
               onCrash={onCrash}
+              onLogo={onLogo}
+              onThunder={onThunder}
             />
           </Suspense>
         )}
@@ -934,6 +982,17 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 </span>
                 <span ref={hud.score} className="sa-hud__value">0</span>
               </div>
+              <div className="sa-hud__chips">
+                <span className="sa-hud__chip sa-hud__chip--logos" title="Logos flown through">
+                  <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" className="sa-hud__chip-logo" />
+                  <span ref={hud.logos}>0</span>
+                </span>
+                {weather && weather !== 'clear' && (
+                  <span className={`sa-hud__chip sa-hud__chip--${weather}`}>
+                    {weather === 'storm' ? 'Thunderstorm' : 'Rain'}
+                  </span>
+                )}
+              </div>
             </div>
             {failure || wingHit ? (
               /* Once an engine is gone the brief is over: the master warning
@@ -991,6 +1050,12 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               </small>
             </p>
           )}
+          {logoPop && !ufoCaption && (
+            <p key={`logo-${logoPop.n}`} className="sa-hud__logo-pop" aria-live="polite">
+              +{LOGOS.points.toLocaleString('en-US')}
+              <small>{logoPop.run > 1 ? `${logoPop.run} in a row · boost +` : 'logo · boost +'}</small>
+            </p>
+          )}
           {bonusPop !== null && !ufoCaption && (
             <p className="sa-hud__bonus" aria-live="polite">
               +{bonusPop.toLocaleString('en-US')}
@@ -1003,18 +1068,18 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
           )}
           {failure && phase === 'flying' && (
             <p key="mayday" className="sa-hud__help sa-hud__help--mayday">
-              Wings level ×1.5 · under 500 ft ×2 · nose down for speed
+              {touch ? 'Tap boost to climb out' : 'Space to boost'} · ride updrafts ×1.5 · wings level ×1.5 · under 500 ft ×2
             </p>
           )}
           {!failure && (phase === 'intro' || phase === 'flying') && (
             <p className="sa-hud__help">
               {touch ? (
-                'Drag up to climb · sideways to turn'
+                'Drag up to climb · sideways to turn · fly through logos'
               ) : (
                 <>
                   <kbd>↑</kbd>
                   <kbd>↓</kbd> climb and dive · <kbd>←</kbd>
-                  <kbd>→</kbd> turn · <kbd>Esc</kbd> to board
+                  <kbd>→</kbd> turn · <kbd>Space</kbd> boost · fly through logos
                 </>
               )}
             </p>
@@ -1023,6 +1088,33 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       )}
 
       {inGame && phase !== 'crashed' && <FlightInstruments hud={hud} engines={engines} />}
+      {inGame && phase !== 'crashed' && (
+        <button
+          ref={hud.boost}
+          type="button"
+          className="sa-boost"
+          aria-label="Boost"
+          title="Boost (Space)"
+          disabled={phase !== 'flying'}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            boost();
+          }}
+          onClick={(e) => {
+            // A key on the focused button: a pointer has already fired it on the way down.
+            if (e.detail === 0) boost();
+          }}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden className="sa-boost__icon">
+            <path d="M13.5 1.5s1 3.2-1.6 6.1C9.6 10.2 7 12 7 15.6A5 5 0 0 0 12 21a5 5 0 0 0 5-5.3c0-2.4-1.3-4-1.3-4s-.4 2.1-2 2.7c0 0 1.4-4.5-.2-9.4zM12 19.2a2.6 2.6 0 0 1-2.6-2.7c0-1.8 1.6-2.7 2.3-4.4.9 1.4 2.9 2.5 2.9 4.4a2.6 2.6 0 0 1-2.6 2.7z" />
+          </svg>
+          <span className="sa-boost__label">Boost</span>
+          <span className="sa-boost__tank" aria-hidden>
+            {Array.from({ length: BOOST.charges }, (_, i) => <span key={i} className="sa-boost__pip" style={{ ['--i' as string]: i }} />)}
+          </span>
+        </button>
+      )}
       {blasted && !struck && <div className="sa-landing__blast" aria-hidden />}
       {struck && <div className="sa-landing__strike" aria-hidden />}
       {phase === 'crashed' && <div className="sa-landing__flash" aria-hidden />}

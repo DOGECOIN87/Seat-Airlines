@@ -4970,28 +4970,40 @@ p { text-wrap-style: pretty; }
 /* ── X, Telegram and the lock (see SocialLinks) ────────────────────
    One row everywhere: two round marks and a short chip, sized like the
    docs link beside them so the row reads as one set. */
-.sa-social { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.5rem; }
-.sa-social__chip { min-height: 2.5rem; padding: 0.45rem 1rem 0.45rem 0.8rem; font-size: 0.85rem; white-space: nowrap; }
-.sa-social__icon { width: 2.5rem; padding: 0; justify-content: center; gap: 0; }
-.sa-social__icon .sa-docs__mark { width: 1.05rem; height: 1.05rem; }
+.sa-social {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 9.5rem));
+  align-items: stretch;
+  gap: 0.5rem;
+}
+.sa-social .sa-social__chip {
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.sa-social .sa-docs__mark { width: 1.05rem; height: 1.05rem; inline-size: 1.05rem; block-size: 1.05rem; }
 .sa-landing__social { pointer-events: auto; }
 
 /* The footer: brand, then the links row at the far end; the legal links and
    the line underneath. On a phone the links take a row of their own. */
 .sa-footer__links { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; flex-wrap: nowrap; }
 .sa-footer__links .sa-docs { min-height: 2.5rem; padding-block: 0.45rem; font-size: 0.85rem; }
-.sa-footer__links .sa-social__icon { padding: 0; }
 /* Below a desk the links take a row of their own, from the brand's edge,
    and wrap rather than run off a narrow phone. */
 @media (max-width: 1023.98px) {
   .sa-footer__links { margin-left: 0; flex-basis: 100%; flex-wrap: wrap; }
 }
 @media (max-width: 639px) {
-  .sa-footer__links .sa-docs__on, .sa-social__on { display: none; }
-  .sa-social { flex-wrap: wrap; }
+  .sa-footer__links .sa-docs__on { display: none; }
+  .sa-social { grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .sa-social__long { display: none; }
 }
 @media (max-width: 359px) {
-  .sa-social__chip .sa-docs__label { font-size: 0.78rem; }
+  .sa-social .sa-social__chip { padding-inline: 0.5rem; gap: 0.35rem; font-size: 0.78rem; }
 }
 
 /* ── Sharing your seat's card to X (see SeatDialog, lib/seatCard) ── */
@@ -5003,3 +5015,117 @@ p { text-wrap-style: pretty; }
 .sa-seatwin__shared a { color: var(--accent-deep, #0069c2); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .sa-seatwin__open-x { margin-top: 0.6rem; text-decoration: none; }
 .sa-seatwin__shared .sa-seatwin__open-x { color: #fff; text-decoration: none; }
+
+/* ── The game's boost, logos and weather (see Landing, landingGame) ──
+   The boost is a big round button at the thumb's corner: a flame, its
+   name, and the tank as three pips that fill as it recharges. Lit orange
+   and pulsing while a burn is going; dimmed when the tank is dry. */
+.sa-boost {
+  --charge: 1;
+  position: absolute;
+  right: clamp(1rem, 3vw, 2.25rem);
+  bottom: max(1.25rem, calc(var(--safe-bottom) + 1rem));
+  z-index: 3;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.2rem;
+  width: 5.75rem;
+  height: 5.75rem;
+  border-radius: 50%;
+  border: 0;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 168, 64, 0.95), rgba(214, 64, 18, 0.92) 62%, rgba(120, 24, 6, 0.95));
+  box-shadow: 0 8px 28px rgba(255, 110, 30, 0.45), inset 0 0 0 2px rgba(255, 230, 190, 0.55), inset 0 -6px 14px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.2s ease, opacity 0.2s ease;
+}
+.sa-boost:active { transform: scale(0.94); }
+.sa-boost:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+.sa-boost:disabled { opacity: 0.45; cursor: default; }
+.sa-boost.is-empty { filter: grayscale(0.85) brightness(0.7); }
+.sa-boost.is-burning { animation: sa-boost-burn 0.18s ease-in-out infinite alternate; }
+.sa-boost__icon { width: 1.9rem; height: 1.9rem; fill: #fff4d6; filter: drop-shadow(0 0 6px rgba(255, 220, 140, 0.9)); }
+.sa-boost__tank { display: flex; gap: 0.22rem; }
+.sa-boost__pip {
+  width: 0.7rem;
+  height: 0.28rem;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #fff 0 calc(clamp(0, var(--charge) * 3 - var(--i), 1) * 100%), rgba(255, 255, 255, 0.28) 0);
+}
+@keyframes sa-boost-burn {
+  from { box-shadow: 0 0 26px 6px rgba(255, 140, 40, 0.75), inset 0 0 0 2px rgba(255, 240, 200, 0.8); }
+  to { box-shadow: 0 0 42px 14px rgba(255, 190, 80, 0.9), inset 0 0 0 2px rgba(255, 255, 255, 1); }
+}
+@media (max-width: 640px) {
+  .sa-boost { width: 4.9rem; height: 4.9rem; bottom: max(7.5rem, calc(var(--safe-bottom) + 7rem)); }
+}
+
+.sa-hud__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.sa-hud__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.9rem;
+  padding: 0.25rem 0.7rem 0.25rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(5, 7, 15, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #ffe08a;
+  text-transform: uppercase;
+}
+.sa-hud__chip-logo { width: 1.35rem; height: 1.35rem; border-radius: 50%; }
+.sa-hud__chip--storm, .sa-hud__chip--rain { padding-left: 0.7rem; }
+.sa-hud__chip--storm { color: #c9d2ff; box-shadow: inset 0 0 0 1px rgba(170, 185, 255, 0.45); }
+.sa-hud__chip--rain { color: #a9d8f5; }
+
+.sa-hud__logo-pop {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  transform: translateX(-50%);
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1;
+  color: #ffd36b;
+  text-shadow: 0 0 18px rgba(255, 190, 60, 0.7), 0 4px 18px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: sa-logo-pop 1.1s ease-out forwards;
+}
+.sa-hud__logo-pop small {
+  margin-top: 0.3rem;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #fff;
+}
+@keyframes sa-logo-pop {
+  0% { opacity: 0; transform: translate(-50%, 12px) scale(0.7); }
+  18% { opacity: 1; transform: translate(-50%, 0) scale(1.08); }
+  70% { opacity: 1; transform: translate(-50%, -14px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -30px) scale(0.96); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sa-boost.is-burning { animation: none; box-shadow: 0 0 34px 10px rgba(255, 160, 60, 0.85); }
+}

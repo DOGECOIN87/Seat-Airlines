@@ -15,7 +15,8 @@
  * hundred a second, and more for doing it well or dangerously: half again
  * with the wings within twenty degrees of level (which, on one engine, is
  * the skill), and double with the ground under five hundred feet (which is
- * the nerve). Both at once is two and a half times.
+ * the nerve). Both at once is two and a half times; riding a thermal adds
+ * half again on top. Every logo flown through, at any point, is worth 500.
  *
  * ── What can be believed ──────────────────────────────────────────────────
  * The game runs in the visitor's browser, so a score is a claim. The Worker
@@ -58,10 +59,15 @@ export const SCORING = {
   maxSurvival: 900,
   /** For getting out of a UFO's way. */
   ufoDodge: 2500,
+  /** Added to the rate on one engine while riding rising air. */
+  lift: 0.5,
+  /** For each logo flown through, and the least time between two turning up. */
+  logo: 500,
+  logoGap: 1.6,
 } as const;
 
 /** The best rate there is: level and low at once. */
-export const MAX_RATE = SCORING.perSecond * (1 + SCORING.level + SCORING.low);
+export const MAX_RATE = SCORING.perSecond * (1 + SCORING.level + SCORING.low + SCORING.lift);
 
 /**
  * The bonus for reaching the blast altitude in this many seconds, when it
@@ -73,11 +79,12 @@ export function climbBonus(seconds: number, share = 1): number {
   return Math.max(0, Math.round((SCORING.climbPar * s - t) * SCORING.climbPerSecond));
 }
 
-/** The rate points build at on one engine: wings level and ground close both pay. */
-export function survivalRate(bankDegrees: number, feetAboveGround: number): number {
+/** The rate points build at on one engine: wings level, ground close and riding a thermal all pay. */
+export function survivalRate(bankDegrees: number, feetAboveGround: number, lifting = false): number {
   let rate = 1;
   if (Math.abs(bankDegrees) < SCORING.levelWithin) rate += SCORING.level;
   if (feetAboveGround < SCORING.lowFeet) rate += SCORING.low;
+  if (lifting) rate += SCORING.lift;
   return SCORING.perSecond * rate;
 }
 
@@ -91,9 +98,11 @@ export function survivalRate(bankDegrees: number, feetAboveGround: number): numb
 export function scoreCeiling(elapsedMs: number): number {
   const seconds = Math.max(0, elapsedMs / 1000);
   const slack = (points: number) => Math.round(points * 1.1 + 300);
-  if (seconds < SCORING.firstFailure) return slack(SCORING.maxHeightPoints);
+  // Every logo there could have been, flown through.
+  const logos = (Math.floor(seconds / SCORING.logoGap) + 1) * SCORING.logo;
+  if (seconds < SCORING.firstFailure) return slack(SCORING.maxHeightPoints + logos);
   const flying = Math.min(SCORING.maxSurvival, seconds - SCORING.firstFailure);
-  return slack(SCORING.maxHeightPoints + SCORING.reached + climbBonus(SCORING.climbFloor) + SCORING.ufoDodge + flying * MAX_RATE);
+  return slack(SCORING.maxHeightPoints + SCORING.reached + climbBonus(SCORING.climbFloor) + SCORING.ufoDodge + logos + flying * MAX_RATE);
 }
 
 /** What the wallet signs to post a score. Readable on purpose: it is what the wallet shows. */

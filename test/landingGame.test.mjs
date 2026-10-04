@@ -12,7 +12,7 @@
  *
  *   npm test
  */
-import { FEET, GAME, dealFailures, fly, newGame } from '../dist-test/landingGame.js';
+import { BOOST, FEET, GAME, dealFailures, fireBoost, fly, groundSpeed, newGame, stepBoost } from '../dist-test/landingGame.js';
 import { bearingTo, presence, startAir } from '../dist-test/thermals.js';
 
 let pass = 0, fail = 0;
@@ -110,8 +110,9 @@ check(`left to itself it is down inside half a minute (${show(nobody)})`, () => 
   assert(nobody[nobody.length - 1] < 30, 'an untouched aeroplane stayed up too long');
 });
 
-check(`holding the nose up no longer keeps it flying (${show(holdingUp)})`, () => {
-  assert(holdingUp[holdingUp.length - 1] < 40, 'the nose-up trick still works');
+check(`holding the nose up no longer keeps it flying (${show(holdingUpStill)} in still air, ${show(holdingUp)} with updrafts)`, () => {
+  assert(holdingUpStill[holdingUpStill.length - 1] < 40, 'the nose-up trick still works');
+  assert(holdingUp[holdingUp.length - 1] < 70, 'the updrafts carry a nose-up pilot too far');
 });
 
 check(`flown about as well as it can be, in still air, it lasts about a minute (${show(greatStill)})`, () => {
@@ -124,8 +125,8 @@ check(`riding the updrafts well buys a good deal more (${show(great)})`, () => {
     'they should be worth more to a pilot who flies well than to one who does not');
 });
 
-check('nobody can glide it for minutes', () => {
-  for (const xs of [nobody, holdingUp, great]) assert(xs[xs.length - 1] < 100, `a flight lasted ${xs[xs.length - 1].toFixed(0)} s`);
+check('nobody can glide it for minutes on end', () => {
+  for (const xs of [nobody, holdingUp, great]) assert(xs[xs.length - 1] < 150, `a flight lasted ${xs[xs.length - 1].toFixed(0)} s`);
 });
 
 check('skill is worth something', () => {
@@ -192,6 +193,64 @@ check('with both engines, up still climbs', () => {
   let vs = 0;
   for (let i = 0; i < 120; i++) vs = fly(g, 0, 1, 1 / 60).vs;
   assert(vs > 20, `climbing at ${vs.toFixed(1)} m/s`);
+});
+
+console.log('\nthe afterburners');
+
+/** Ten seconds on one engine, from the blast, with or without a burn lit at the start. */
+const burnRun = (burn) => {
+  seed = 77;
+  const g = newGame();
+  Object.assign(g, { phase: 'flying', failed: 1, damage: 0.5, speed: GAME.failSpeed, alt: 1500, pitch: -5, rollRate: 0 });
+  if (burn) fireBoost(g);
+  const start = g.alt;
+  const dt = 1 / 60;
+  for (let t = 0; t < BOOST.seconds; t += dt) {
+    stepBoost(g, dt);
+    const { vs } = fly(g, clamp(-0.1 * g.bank - 0.04 * g.rollRate, -1, 1), 0, dt);
+    g.alt += vs * dt;
+  }
+  return { gained: g.alt - start, speed: g.speed };
+};
+
+check('a burn on one engine climbs it and drives it on, where without one it sinks', () => {
+  const off = burnRun(false);
+  const on = burnRun(true);
+  assert(on.gained > 150, `a burn gained only ${on.gained.toFixed(0)} m`);
+  assert(on.gained > off.gained + 250, `a burn bought only ${(on.gained - off.gained).toFixed(0)} m over none`);
+  assert(on.speed > off.speed + 40, `a burn added only ${(on.speed - off.speed).toFixed(0)} m/s`);
+});
+
+check('with both engines, a burn rushes the ground past and climbs harder', () => {
+  const g = newGame();
+  g.phase = 'flying';
+  g.alt = 800;
+  g.agl = 800;
+  const before = groundSpeed(g);
+  fireBoost(g);
+  let vs = 0;
+  for (let i = 0; i < 60; i++) {
+    stepBoost(g, 1 / 60);
+    vs = fly(g, 0, 1, 1 / 60).vs;
+  }
+  assert(groundSpeed(g) > before + BOOST.dash * 0.8, `the ground went by at ${groundSpeed(g).toFixed(0)} m/s`);
+  assert(vs > GAME.maxClimb, `climbing at only ${vs.toFixed(0)} m/s`);
+});
+
+check('the tank: three burns, one at a time, refilling on its own', () => {
+  const g = newGame();
+  g.phase = 'flying';
+  const wait = (seconds) => { for (let t = 0; t < seconds; t += 0.05) stepBoost(g, 0.05); };
+  assert(fireBoost(g), 'the first burn did not light');
+  assert(!fireBoost(g), 'a second lit on top of the first');
+  wait(BOOST.seconds + 0.1);
+  assert(fireBoost(g), 'the second burn did not light');
+  wait(BOOST.seconds + 0.1);
+  assert(fireBoost(g), 'the third burn did not light');
+  wait(BOOST.seconds + 0.1);
+  assert(!fireBoost(g), 'a fourth burn lit from a tank that had barely begun to refill');
+  wait(BOOST.recharge);
+  assert(fireBoost(g), 'the tank did not refill');
 });
 
 console.log(`\n  ${pass} passed, ${fail} failed\n`);

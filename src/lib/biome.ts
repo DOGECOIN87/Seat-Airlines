@@ -1,9 +1,8 @@
 /**
  * What kind of country is under the aircraft.
  *
- * The flight leaves the farmland every few minutes: for open water, for a
- * city of nothing but skyscrapers that runs to the horizon, and for snow,
- * and back to the fields between each. The rhythm is read off the wall
+ * The flight leaves the farmland every few minutes: for open water and for
+ * snow, and back to the fields between each. The rhythm is read off the wall
  * clock rather than off any one view's own timer, so the cockpit, the cabin
  * windows and the exterior camera all cross the same coastline at the same
  * moment — and so does a second tab.
@@ -13,15 +12,13 @@
  * far fewer), so the sea is an event, not the default.
  */
 
-export type Biome = 'land' | 'ocean' | 'city' | 'snow';
+export type Biome = 'land' | 'ocean' | 'snow';
 
 export interface BiomeState {
   /** What the ground mostly is right now. */
   biome: Biome;
   /** 0 over land, 1 over open water, in between while crossing the coast. */
   ocean: number;
-  /** 0 over land, 1 over the endless city, in between on its edge. */
-  city: number;
   /** 0 over land, 1 over the snowfields, in between as the snow comes in. */
   snow: number;
   /** When the next change of any kind begins or completes, in ms epoch. */
@@ -34,8 +31,6 @@ const FADE_S = 14;
 const LEGS: readonly { biome: Biome; s: number }[] = [
   { biome: 'land', s: 150 },
   { biome: 'ocean', s: 90 },
-  { biome: 'land', s: 110 },
-  { biome: 'city', s: 100 },
   { biome: 'land', s: 110 },
   { biome: 'snow', s: 100 },
 ];
@@ -50,7 +45,6 @@ const state = (biome: Biome, from: Biome, t: number, changesAt: number): BiomeSt
   return {
     biome: t < 0.5 ? from : biome,
     ocean: share('ocean'),
-    city: share('city'),
     snow: share('snow'),
     changesAt,
   };

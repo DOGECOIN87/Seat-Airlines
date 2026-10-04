@@ -25,12 +25,16 @@
  */
 
 import { planUfo, UFO, type DodgeLock, type UfoPlan } from './ufo';
-import { newAir, stepAir, type Air } from './thermals';
+import { newAir, startAir, stepAir, type Air } from './thermals';
+import { newLogos, type LogoField } from './logos';
 
 export type Phase = 'idle' | 'intro' | 'flying' | 'crashed';
 
 /** What takes an engine: it lets go on its own, or lightning hits it. */
 export type Cause = 'blast' | 'lightning';
+
+/** The weather a flight is dealt: it decides how rough the air is, and how often lightning takes an engine. */
+export type GameWeather = 'clear' | 'rain' | 'storm';
 
 /** -1 to 1 on each axis: x banks right, y climbs. */
 export interface Stick {
@@ -113,6 +117,19 @@ export interface FlightGame {
   buffetRoll: number;
   buffetPitch: number;
   surge: number;
+  /** Seconds of afterburner left in the burn under way: 0 when there is none. */
+  boost: number;
+  /** 0–1: how hard the afterburners are lit, eased in and out. */
+  boostPower: number;
+  /** Burns in the tank, up to BOOST.charges: it refills on its own, and with every logo. */
+  boosts: number;
+  /** The logos about (see logos.ts). */
+  logos: LogoField;
+  /** The weather this flight is flown in. */
+  weather: GameWeather;
+  /** Band-limited noise, -1 to 1: the gusts the weather throws at it. */
+  gustRoll: number;
+  gustLift: number;
   /** Points so far (see scoring.ts), and what they are building at. */
   score: number;
   rate: number;
@@ -156,7 +173,14 @@ export const GAME = {
   secondFrom: 12,
   secondTo: 30,
   /** Metres a second a thermal at full strength lifts a wings-level aeroplane. */
-  draftLift: 60,
+  draftLift: 90,
+  /** And how much of that it gives before anything has gone wrong, when it only helps the climb. */
+  draftClimb: 0.6,
+  /** How often the weather is a storm, or rain; clear the rest of the time. */
+  stormOdds: 0.4,
+  rainOdds: 0.25,
+  /** In a storm, lightning takes the engine this often. */
+  stormLightningOdds: 0.65,
   /**
    * Seconds into the warning clip that the bang lands. The engine goes on
    * the clip's own clock, so the fireball and the bang are the same moment.
@@ -178,8 +202,31 @@ export const GAME = {
   crowdLead: 14.5,
 } as const;
 
+/** The afterburners: what one press buys. */
+export const BOOST = {
+  /** Seconds a burn lasts. */
+  seconds: 4.5,
+  /** Burns in a full tank, and seconds to put one back on its own. */
+  charges: 3,
+  recharge: 9,
+  /** What a logo puts back. */
+  perLogo: 0.5,
+  /** Metres a second the climb gains at full burn, with both engines and after. */
+  climb: 85,
+  lift: 95,
+  /** Metres a second of ground speed added with both engines; m/s² of airspeed after. */
+  dash: 140,
+  accel: 55,
+  /** The climb a burn allows past the usual limit. */
+  extraClimb: 110,
+} as const;
+
+/** How rough the air is, 0–1, in each weather. */
+export const TURBULENCE: Record<GameWeather, number> = { clear: 0.12, rain: 0.5, storm: 1 };
+
 const between = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
-const cause = (): Cause => (Math.random() < GAME.lightningOdds ? 'lightning' : 'blast');
+const cause = (w: GameWeather = 'clear'): Cause =>
+  Math.random() < (w === 'storm' ? GAME.stormLightningOdds : GAME.lightningOdds) ? 'lightning' : 'blast';
 
 export const newGame = (): FlightGame => ({
   phase: 'idle',
@@ -223,6 +270,13 @@ export const newGame = (): FlightGame => ({
   buffetRoll: 0,
   buffetPitch: 0,
   surge: 0,
+  boost: 0,
+  boostPower: 0,
+  boosts: BOOST.charges,
+  logos: newLogos(),
+  weather: 'clear',
+  gustRoll: 0,
+  gustLift: 0,
   score: 0,
   rate: 0,
   bestFeet: 0,
@@ -263,9 +317,17 @@ export function dealFailures(g: FlightGame): void {
   const earliest = Math.min(brief, GAME.earliestFeet / FEET);
   g.blastAlt = Math.random() < GAME.earlyOdds ? between(earliest, brief - 500 / FEET) : brief;
   if (g.blastAlt < earliest) g.blastAlt = brief;
-  g.causes = [asked('strike') ? 'lightning' : cause(), cause()];
+  g.causes = [asked('strike') ? 'lightning' : cause(g.weather), cause(g.weather)];
   g.secondAfter = asked('dual') || Math.random() < GAME.secondOdds ? between(GAME.secondFrom, GAME.secondTo) : Infinity;
   g.air = newAir();
+  // Rising air from the start: it helps the climb, and it is worth more once it matters.
+  startAir(g.air);
+  g.logos = newLogos();
+  g.boost = 0;
+  g.boostPower = 0;
+  g.boosts = BOOST.charges;
+  g.gustRoll = 0;
+  g.gustLift = 0;
   g.clock = 0;
   g.wingLost = 0;
   g.dodgeLock = null;
@@ -273,6 +335,17 @@ export function dealFailures(g: FlightGame): void {
   g.dodged = false;
   g.extra = 0;
   g.ufo = asked('noufo') ? null : planUfo(asked('ufohit') ? 'hit' : asked('ufo') ? 'seen' : 'none');
+}
+
+/**
+ * The weather the flight is flown in, dealt as the controls are taken so the
+ * dive is already in it: a storm, rain, or clear air. `?storm`, `?rain` and
+ * `?clear` pick one.
+ */
+export function dealWeather(g: FlightGame): void {
+  const roll = Math.random();
+  g.weather = asked('storm') ? 'storm' : asked('rain') ? 'rain' : asked('clear')
+    ? 'clear' : roll < GAME.stormOdds ? 'storm' : roll < GAME.stormOdds + GAME.rainOdds ? 'rain' : 'clear';
 }
 
 /** Seconds into its warning clip that an engine goes, for what takes it. */
@@ -295,6 +368,26 @@ export const speedAt = (height: number): number => Math.min(2200, Math.max(120, 
 export const airspeedAt = (agl: number): number => Math.min(150, 122 + Math.max(0, agl) * 0.012);
 
 export const clampUnit = (v: number): number => Math.max(-1, Math.min(1, v));
+
+/** What the ground goes by at: the airspeed, and with both engines whatever a burn adds to it. */
+export const groundSpeed = (g: FlightGame): number =>
+  g.failed ? g.speed : airspeedAt(g.agl) + BOOST.dash * g.boostPower;
+
+/** Light the afterburners, if there is a burn in the tank and one is not already going. */
+export function fireBoost(g: FlightGame): boolean {
+  if (g.phase !== 'flying' || g.boost > 0 || g.boosts < 1) return false;
+  g.boosts -= 1;
+  g.boost = BOOST.seconds;
+  return true;
+}
+
+/** The burn running down, the tank filling, and the flames easing in fast and out slower. */
+export function stepBoost(g: FlightGame, dt: number): void {
+  g.boost = Math.max(0, g.boost - dt);
+  if (g.boost === 0) g.boosts = Math.min(BOOST.charges, g.boosts + dt / BOOST.recharge);
+  const want = g.boost > 0 ? 1 : 0;
+  g.boostPower += (want - g.boostPower) * (1 - Math.exp(-(want ? 7 : 2.2) * dt));
+}
 
 const DEG = Math.PI / 180;
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -350,17 +443,28 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   const lost = g.wingLost;
   // In the UFO's slow motion the aeroplane answers the stick sharply and steadily: 0 normally, 1 in it.
   const assist = Math.min(1, Math.max(0, (1 - g.slow) / (1 - UFO.slow)));
+  const power = g.boostPower;
+  // The weather's gusts: rougher in rain, and a storm throws it about.
+  const rough = TURBULENCE[g.weather];
+  g.gustRoll = drift(g.gustRoll, 1.8, dt);
+  g.gustLift = drift(g.gustLift, 0.9, dt);
   if (g.failed === 0) {
+    const u0 = stepAir(g.air, dt, groundSpeed(g), g.heading, g.alt);
+    g.updraft = u0;
     g.pitch += (iy * GAME.maxPitch - g.pitch) * (1 - Math.exp(-3.2 * (1 + 1.5 * assist) * dt));
     // At the ceiling the nose will not come up any further.
     if (g.alt >= GAME.ceiling && g.pitch > 0) g.pitch *= 1 - Math.min(1, dt * 6);
     // A wing short: it banks toward the short side unless the stick holds it off.
-    g.bank += (ix * GAME.maxBank + lost * 18 - g.bank) * (1 - Math.exp(-3.5 * (1 + 1.5 * assist) * dt));
+    g.bank += (ix * GAME.maxBank + lost * 18 + g.gustRoll * 9 * rough - g.bank) * (1 - Math.exp(-3.5 * (1 + 1.5 * assist) * dt));
     g.heading = (g.heading + g.bank * GAME.turnRate * dt + 360) % 360;
     g.speed = speedAt(g.alt);
     g.rollRate = 0;
-    const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain - Math.abs(lost) * 6;
-    return { vs: Math.max(-GAME.maxClimb, Math.min(GAME.maxClimb, vs)), stall: 0 };
+    const level0 = Math.max(0, Math.cos(g.bank * DEG)) ** 2;
+    const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain - Math.abs(lost) * 6
+      + u0 * GAME.draftLift * GAME.draftClimb * level0
+      + g.gustLift * 14 * rough;
+    const top = GAME.maxClimb + BOOST.extraClimb * power;
+    return { vs: Math.max(-GAME.maxClimb, Math.min(top, vs + power * BOOST.climb)), stall: 0 };
   }
 
   const dead = g.failed;
@@ -372,7 +476,8 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // The fire takes twenty seconds to do its worst, then fifty more to take
   // the wing — and while a level wing rides rising air, the cool air over it
   // holds the fire back, and that clock all but stops.
-  const burn = dt * (1 - 0.85 * u * caught);
+  // A burn blows the fire back too.
+  const burn = dt * Math.max(0, 1 - 0.85 * u * caught) * (1 - 0.85 * power);
   g.damage = Math.min(1, g.damage + burn / 40);
   const k = g.damage;
   g.decay = k >= 1 ? Math.min(1, g.decay + burn / 50) : 0;
@@ -383,24 +488,26 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // The other engine gone as well: its thrust spools down over three seconds.
   if (g.both) g.thrust = Math.max(0, g.thrust - dt / 3);
   const t = g.thrust;
-  const glide = 1 - t;
+  // A burn relights whatever will light: the glide goes while it lasts.
+  const glide = 1 - Math.max(t, power);
 
   const stall = smoothstep(GAME.stallSpeed + 6, GAME.stallSpeed - 4, g.speed);
   // Roll: the stick drives the roll rate, with less to drive it as the fire
   // spreads and the wing goes; the dead engine, the spiral, the buffet and a
   // stall push it. Full stick outruns the push to begin with, only just
   // outruns it once the fire is at its worst, and loses to it as the wing goes.
-  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.5 * u) * (lost ? 0.88 : 1) * (1 + 0.8 * assist);
+  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.9 * u) * (lost ? 0.88 : 1) * (1 + 0.8 * assist) * (1 + 1.2 * power);
   const commanded = ix * 80 * authority;
   // The good engine's pull goes with its thrust; the burning wing's does not; nor does a missing wingtip's.
-  const push = dead * ((32 + 10 * k) * t + 30 * w) * (1 + 0.5 * g.surge) + lost * 24;
+  const push = (dead * ((32 + 10 * k) * t + 30 * w) * (1 + 0.5 * g.surge) + lost * 24) * (1 - 0.6 * power) * (1 - 0.4 * u * caught)
+    + g.gustRoll * 26 * rough;
   g.rollRate += ((commanded - g.rollRate) * 2.6 + push + Math.sin(g.bank * DEG) * 55
     + g.buffetRoll * (40 + 60 * k + 20 * glide) * (1 - 0.35 * u) * (1 - 0.6 * assist) + dead * stall * 80) * dt;
   g.bank = wrap180(g.bank + g.rollRate * dt);
   const lift = Math.cos(g.bank * DEG);
   // Pitch: softer elevator, heavier nose; it falls in a bank, and drops outright in a stall.
-  const aim = iy * GAME.maxPitch * (0.8 - 0.3 * k) - (1 - lift) * 18 - stall * 20 - 4 * k - 10 * w
-    + g.buffetPitch * (2 + 4 * k);
+  const aim = iy * GAME.maxPitch * (0.8 - 0.3 * k + 0.4 * power) - (1 - lift) * 18 - stall * 20 - 4 * k - 10 * w
+    + g.buffetPitch * (2 + 4 * k) + power * 7;
   g.pitch += (aim - g.pitch) * (1 - Math.exp(-2.4 * dt));
   g.pitch = Math.max(-60, Math.min(20, g.pitch));
   // Heading: the bank turns it while the wing still lifts, and the good engine yaws it toward the dead one.
@@ -410,12 +517,16 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // none) and a burning wing cannot hold — a stalled one holds nothing —
   // less what a bank spills, plus whatever rising air a level wing catches.
   const sink = 10 + 18 * k + 24 * w + 22 * glide + stall * 40 + Math.abs(lost) * 5;
-  const vs = v * Math.sin(g.pitch * DEG) - sink - (1 - lift) * v * 0.4
-    + u * GAME.draftLift * Math.max(0, lift) ** 3 * (1 - 0.4 * w);
+  const vs = v * Math.sin(g.pitch * DEG) - sink * (1 - 0.5 * power) - (1 - lift) * v * 0.4
+    + u * GAME.draftLift * Math.max(0, lift) ** 3 * (1 - 0.3 * w) * (1 - 0.75 * glide)
+    + power * BOOST.lift * Math.max(0, lift) ** 2
+    + g.gustLift * 16 * rough;
   // Speed: gravity along the flight path — the nose down is the only way to
   // buy it — against drag that grows with speed and with bank, and that no
   // thrust is left to cancel.
   const drag = (0.5 + 0.4 * k + 0.6 * w + 1.6 * glide) * (0.6 + 0.4 * (v / 130) ** 2) + Math.abs(Math.sin(g.bank * DEG)) * 3.5;
-  g.speed = Math.max(45, Math.min(260, v + (-9.81 * Math.sin(g.pitch * DEG) - drag) * dt));
+  // A burn drives it on, and rising air carries a little speed in with it.
+  const shove = power * BOOST.accel + u * caught * 6;
+  g.speed = Math.max(45, Math.min(280, v + (-9.81 * Math.sin(g.pitch * DEG) - drag * (1 - 0.7 * power) + shove) * dt));
   return { vs, stall };
 }

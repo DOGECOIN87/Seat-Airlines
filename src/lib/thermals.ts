@@ -1,7 +1,7 @@
 /**
  * Rising air you can see, and fly to.
  *
- * Once an engine has gone, thermals turn up ahead: columns of warm air most of a
+ * From the moment the controls are handed over, thermals turn up ahead: columns of warm air most of a
  * kilometre across, each marked the way real ones are — by the
  * cumulus cloud that forms on top of it — and by a faint shimmer rising
  * under it. Fly under one with the wings level and it lifts the aeroplane,
@@ -35,19 +35,19 @@ export interface Air {
 }
 
 export const AIR = {
-  /** The first after the engine goes, and between them after. */
-  first: [3, 6] as readonly [number, number],
-  gap: [7, 12] as readonly [number, number],
+  /** The first after the air starts, and between them after. */
+  first: [2, 4] as readonly [number, number],
+  gap: [6, 10] as readonly [number, number],
   /** Where they turn up: this far ahead, this far either side of the nose. */
   ahead: [600, 1300] as readonly [number, number],
   spread: 25,
-  radius: [400, 650] as readonly [number, number],
-  peak: [0.8, 1.15] as readonly [number, number],
+  radius: [450, 720] as readonly [number, number],
+  peak: [0.9, 1.25] as readonly [number, number],
   life: [26, 36] as readonly [number, number],
   /** Seconds to build, and to fade. */
   fade: 3,
   /** No more than this many at once. */
-  most: 3,
+  most: 4,
 } as const;
 
 const DEG = Math.PI / 180;

@@ -21,8 +21,12 @@ export interface Lightning {
   group: THREE.Group;
   /** Which engine the bolt is in, while there is one: -1 port, 1 starboard, 0 none. */
   readonly side: -1 | 0 | 1;
-  /** A bolt into `to`, a point in the world: the top of the engine on `side`. */
-  strike(to: THREE.Vector3, side: -1 | 1): void;
+  /**
+   * A bolt into `to`, a point in the world: the top of the engine on `side`.
+   * Or, given `from`, a bolt from there — a cloud base kilometres off — down
+   * to `to`, its channel `width` times as thick.
+   */
+  strike(to: THREE.Vector3, side: -1 | 1, from?: THREE.Vector3, width?: number): void;
   /** Every frame: where that engine is now, and the camera the ribbons face. Returns how bright it is, 0–1. */
   update(dt: number, to: THREE.Vector3, camera: THREE.Camera): number;
   reset(): void;
@@ -166,26 +170,27 @@ export function createLightning(): Lightning {
     geo.setDrawRange(0, n);
   };
 
-  const strike = (to: THREE.Vector3, at: -1 | 1) => {
+  const strike = (to: THREE.Vector3, at: -1 | 1, from?: THREE.Vector3, scale = 1) => {
     side = at;
     age = 0;
     restruck = 0;
     struckAt.copy(to);
     /* From high up in the cloud, ahead of the aeroplane and out to the side
        it hits, so a camera astern sees it come down across the sky. */
-    const top = new THREE.Vector3(to.x + at * rnd(60, 190), to.y + rnd(430, 560), to.z - rnd(120, 300));
+    const top = from?.clone() ?? new THREE.Vector3(to.x + at * rnd(60, 190), to.y + rnd(430, 560), to.z - rnd(120, 300));
     const main = channel(top, to, 7, 0.11);
-    strands = [{ pts: main, width: 7, bright: 1, root: 1, fork: false }];
+    const span = top.distanceTo(to) / 500;
+    strands = [{ pts: main, width: 7 * scale, bright: 1, root: 1, fork: false }];
     for (let f = 0; f < 6; f++) {
       const i = Math.floor(rnd(8, 96));
       const from = main[i];
-      const reach = rnd(50, 170) * (1 - (i / main.length) * 0.6);
+      const reach = rnd(50, 170) * span * (1 - (i / main.length) * 0.6);
       const end = new THREE.Vector3(
         from.x + rnd(-1, 1) * reach * 0.8,
         from.y - reach * rnd(0.45, 0.95),
         from.z + rnd(-1, 1) * reach * 0.8,
       );
-      strands.push({ pts: channel(from, end, 5, 0.16), width: rnd(2.2, 3.6), bright: rnd(0.35, 0.7), root: i / (main.length - 1), fork: true });
+      strands.push({ pts: channel(from, end, 5, 0.16), width: rnd(2.2, 3.6) * scale, bright: rnd(0.35, 0.7), root: i / (main.length - 1), fork: true });
     }
     link();
     mesh.visible = true;

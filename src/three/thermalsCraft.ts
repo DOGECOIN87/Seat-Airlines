@@ -23,7 +23,7 @@ export interface ThermalsCraft {
   dispose(): void;
 }
 
-const MOST = 3;
+const MOST = 4;
 const PUFFS = 9;
 const MOTES = 90;
 

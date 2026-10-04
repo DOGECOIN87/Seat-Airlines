@@ -15,13 +15,17 @@ import { createAirframe, ENGINE_AT, WING_CUT } from './airframe';
 import { createScenery } from './scenery';
 import { createRanges } from './ranges';
 import { precompiler } from './precompile';
-import { CITY_TILE_X, CITY_TILE_Z, cityTextures, createSkyline, towerTopAt } from './skyline';
 import { createSnowfall, snowShader, type SnowParams } from './snow';
 import { createEngineFire } from './engineFire';
 import { createLightning } from './lightning';
 import { createUfoCraft, createWingBreak, type UfoPose, type WingBreak } from './ufoCraft';
 import { createThermalsCraft } from './thermalsCraft';
 import type { Thermal } from '../lib/thermals';
+import type { Logo } from '../lib/logos';
+import type { WeatherKind } from '../lib/sky';
+import { createBoostFlame } from './boostFlame';
+import { createLogoCraft } from './logoCraft';
+import { createStorm } from './storm';
 
 /**
  * The world outside, rendered.
@@ -132,6 +136,14 @@ export interface ViewPose {
   wingLost?: -1 | 0 | 1;
   /** The thermals about, relative to the aeroplane (see lib/thermals.ts). */
   thermals?: readonly Thermal[];
+  /** The logos hung in the sky to be flown through (see lib/logos.ts). */
+  logos?: readonly Logo[];
+  /** How hard each engine's afterburner is lit, 0–1: port and starboard. */
+  boost?: readonly [number, number];
+  /** The weather, overriding the sky's: the game deals its own. */
+  weather?: WeatherKind;
+  /** 0–1: how hard the air is throwing the aeroplane about, for the camera riding alongside. */
+  shake?: number;
   /** Degrees the nose is yawed right of the path it is flying: the sideslip a dead engine drags it into. */
   slip?: number;
   /**
@@ -184,7 +196,7 @@ export interface WorldHandles {
   /**
    * The highest ground under the aeroplane as of the last frame, in metres
    * on the same datum as `ViewPose.height`: the hills where they are drawn,
-   * the city's towers, or the sea's surface. Read under the nose, the wing box and the tail,
+   * or the sea's surface. Read under the nose, the wing box and the tail,
    * so flying into a slope counts when the nose meets it — or, given
    * `ahead`, that many metres further along the way it is pointing.
    */
@@ -196,6 +208,10 @@ export interface WorldHandles {
   planeOnScreen: () => { x: number; y: number };
   /** What the flight deck's screens and cabin signs show, beyond the attitude. */
   setDeckReadout: (r: DeckReadout) => void;
+  /** The last lightning flash in a storm, for the thunder: when, on `performance.now()`, and metres off. */
+  lastFlash: () => { at: number; distance: number } | null;
+  /** Call lightning down now, `distance` metres off, or somewhere out to the horizon. */
+  flash: (distance?: number) => void;
   dispose: () => void;
 }
 
@@ -291,6 +307,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   let failedSide: -1 | 0 | 1 = 0;
   const ufo = options.damage ? createUfoCraft(`${import.meta.env.BASE_URL}ufo.glb`) : null;
   const thermals = options.damage ? createThermalsCraft() : null;
+  const boostFlame = options.damage ? createBoostFlame() : null;
   let wingBreak: WingBreak | null = null;
   let wingLost: -1 | 0 | 1 = 0;
   const ufoBase = new THREE.Vector3();
@@ -336,6 +353,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       }
     }
   });
+  const logoCraft = options.damage ? createLogoCraft(`${import.meta.env.BASE_URL}icon-512.png`, envRT.texture) : null;
   if (fires && bolt) {
     /* The wing that can come away: its clip goes on the airframe's own
        materials, so it is built before anything else rides on the airframe. */
@@ -348,6 +366,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     scene.add(bolt.group);
     if (ufo) scene.add(ufo.group);
     if (thermals) scene.add(thermals.group);
+    if (logoCraft) scene.add(logoCraft.group);
+    if (boostFlame) airframe.group.add(boostFlame.group);
   }
 
   /* Cabin lighting. A tube blocks the sun, and there is no bounce in here. */
@@ -390,8 +410,11 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      up to 1 over the cloud sea by day. See the shader below. */
   const deckBlend = { value: 0 };
   (skyU as typeof skyU & { deckBlend: typeof deckBlend }).deckBlend = deckBlend;
+  /* How far the dome is washed to grey: rain cloud and storm cloud are not blue. */
+  const skyGrey = { value: 0 };
+  (skyU as typeof skyU & { skyGrey: typeof skyGrey }).skyGrey = skyGrey;
   sky.material.fragmentShader = sky.material.fragmentShader
-    .replace('uniform float mieDirectionalG;', 'uniform float mieDirectionalG;\n\t\tuniform float skyFade;\n\t\tuniform vec3 skyTint;\n\t\tuniform float deckBlend;')
+    .replace('uniform float mieDirectionalG;', 'uniform float mieDirectionalG;\n\t\tuniform float skyFade;\n\t\tuniform vec3 skyTint;\n\t\tuniform float deckBlend;\n\t\tuniform float skyGrey;')
     .replace(
       'gl_FragColor = vec4( texColor, 1.0 );',
       `// A fifth power, not a fraction. This sky runs to hundreds of units in
@@ -416,6 +439,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
 			deckSky *= mix( 1.0, pow( skyFade, 4.0 ), smoothstep( 0.05, 0.7, deckUp ) );
 			float deckSun = smoothstep( 0.965, 0.9995, cosTheta );
 			skyOut = mix( skyOut, deckSky, deckBlend * ( 1.0 - deckSun ) );
+			skyOut = mix( skyOut, vec3( dot( skyOut, vec3( 0.3, 0.55, 0.15 ) ) ) * vec3( 0.95, 0.98, 1.05 ), skyGrey );
 			gl_FragColor = vec4( skyOut, 1.0 );`,
     );
   sky.material.needsUpdate = true;
@@ -809,36 +833,6 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   // The incoming sea shuffles with the ground it comes in over.
   seaMat.onBeforeCompile = (shader) => noTileShader(shader, waterNoTile, false);
 
-  /* ── The city ─────────────────────────────────────────────────────────
-     Every so often the fields give way to a city of nothing but towers, as
-     far as the eye goes (see `skyline.ts`). It comes in the way the sea
-     does: the hills sink, a painted street grid dissolves in over them on
-     an overlay of its own, and once it is all city the plate takes the
-     city's maps and the overlay stands down. The towers rise out of the
-     streets as it comes in and sink back into them as it goes. */
-  const city = cityTextures();
-  city.day.repeat.set(GROUND / CITY_TILE_X, GROUND / CITY_TILE_Z);
-  city.night.repeat.copy(city.day.repeat);
-  const streetMat = new THREE.MeshStandardMaterial({
-    map: city.day,
-    emissive: new THREE.Color(0xffffff),
-    emissiveMap: city.night,
-    emissiveIntensity: 0,
-    roughness: 0.85,
-    metalness: 0,
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-  });
-  const streets = new THREE.Mesh(groundGeometry, streetMat);
-  streets.rotation.x = -Math.PI / 2;
-  streets.position.y = OVERLAY_LIFT;
-  streets.renderOrder = OVERLAY_ORDER;
-  streets.visible = false;
-  scene.add(streets);
-  const skyline = createSkyline({ lotsX: lowPower ? 80 : 120, lotsZ: lowPower ? 100 : 150, envMap: envRT.texture });
-  scene.add(skyline.group);
-
   /* ── Snowfall ─────────────────────────────────────────────────────────
      Over the snowfields it is snowing, in the air round whichever camera
      is looking (see `snow.ts`). */
@@ -849,6 +843,20 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   const SNOW_HAZE = new THREE.Color(0xd9e0e8);
   const SNOW_BOUNCE = new THREE.Color(0xe8eef5);
   const snowHaze = new THREE.Color();
+
+  /* ── Rain and thunderstorms ──────────────────────────────────────────
+     Rain in the air round the camera outside, and in a storm, lightning to
+     the horizon that lights the whole sky (see `storm.ts`). */
+  const storm = createStorm({ drops: lowPower ? 6000 : 12000 });
+  scene.add(storm.group);
+  /** How bright the sky is from lightning, as of the last frame drawn. */
+  let stormFlash = 0;
+  const STORM_SKY = new THREE.Color(0.26, 0.28, 0.34);
+  const RAIN_SKY = new THREE.Color(0.58, 0.61, 0.67);
+  const STORM_HAZE = new THREE.Color(0x3c434f);
+  const STORM_CLOUD = new THREE.Color(0x454b57);
+  const FLASH_TINT = new THREE.Color(0xc9d2ff);
+  const shakeAt = new THREE.Vector3();
 
   /* ── The mountains ────────────────────────────────────────────────────
      Ranges and hill country on the horizon, laid over the farmland's plate
@@ -1092,7 +1100,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      eye reads as speed. */
   const shift = { x: 0, z: 0 };
   /** What `groundAt` reads: set each frame as the ground is chosen. */
-  const underfoot = { relief: 0, floor: -2, heading: 0, towers: 0 };
+  const underfoot = { relief: 0, floor: -2, heading: 0 };
   let last = performance.now();
   const CLOUD_SPAN = 44000;
   /* What the eye reads as speed is v/h: the ground's speed over the
@@ -1158,8 +1166,12 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     /* Weather thickens the air. Altitude does not thin it — it takes it away;
        see the note on `skyFade` where the dome is built. The coefficients
        stay at the values the model is valid for at every band. */
-    const overcast = skyState.weather === 'overcast' || skyState.weather === 'fog';
-    const rain = skyState.weather === 'rain' || skyState.weather === 'storm';
+    const weather = pose.weather ?? skyState.weather;
+    const thunder = weather === 'storm' && !elsewhere && !inSpace;
+    const overcast = weather === 'overcast' || weather === 'fog' || thunder;
+    const rain = weather === 'rain' || weather === 'storm';
+    /* Under rain cloud the sun is a glow through it; under a storm, barely that. */
+    if (!elsewhere && !inSpace && !aboveClouds) sun.intensity *= thunder ? 0.14 : rain ? 0.45 : 1;
     /* Above the cloud deck the air overhead is genuinely thinner and cleaner:
        less Mie haze, deeper blue. That is the whole look of that band. */
     const high = aboveClouds ? band.progress : 0;
@@ -1185,6 +1197,10 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
         : 0;
     skyU.skyFade.value = 1 - airless;
     skyShade.value.setRGB(1, 1, 1).lerp(ABOVE_DECK_SKY, aboveClouds && !overcast ? 0.75 + 0.25 * band.progress : 0);
+    // Rain greys the dome and a storm darkens it to slate — until the lightning lights it up.
+    if (!aboveClouds && rain) skyShade.value.multiply(thunder ? STORM_SKY : RAIN_SKY);
+    skyGrey.value = !aboveClouds && rain ? (thunder ? 0.85 : 0.55) : 0;
+    if (stormFlash > 0) skyShade.value.multiplyScalar(1 + stormFlash * 2.6).lerp(FLASH_TINT, stormFlash * 0.3);
     /* Over the deck by day the dome gives way to a designed blue (see the
        shader); toward dusk it hands back, since the model's own sunset is the
        better one. Its stock cirrus goes too: above the deck the weather is
@@ -1251,30 +1267,29 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     /* Which country is under the aircraft. Another world overrules the coast. */
     const biome = biomeAt(Date.now());
     const seaBlend = elsewhere ? 0 : biome.ocean;
-    const cityBlend = elsewhere ? 0 : biome.city;
     const snowBlend = elsewhere ? 0 : biome.snow;
-    // Lakes lie under snow, and there are none in the city.
+    // Lakes lie under snow.
     const waterFade = band.band === 'atmosphere'
-      ? (1 - THREE.MathUtils.smoothstep(height, 1450, 2150)) * (1 - seaBlend) * (1 - snowBlend) * (1 - cityBlend)
+      ? (1 - THREE.MathUtils.smoothstep(height, 1450, 2150)) * (1 - seaBlend) * (1 - snowBlend)
       : 0;
     // Zero skips the lake layer in the ground's shader altogether.
     lakes.fade.value = waterFade > 0.01 ? waterFade : 0;
     /* The plate takes whichever map the moment calls for; the crossfade mesh
        only exists while the coast is actually going by. */
     const body = surfaceFor(band.band);
-    const plateMap = body ? body.day : seaBlend >= 0.999 ? ocean.day : cityBlend >= 0.999 ? city.day : farmland.day;
+    const plateMap = body ? body.day : seaBlend >= 0.999 ? ocean.day : farmland.day;
     if (groundMat.map !== plateMap) {
       groundMat.map = plateMap;
       // Nobody is home on the moon or Mars; ships are, at sea.
-      groundMat.emissiveMap = body ? null : seaBlend >= 0.999 ? ocean.night : cityBlend >= 0.999 ? city.night : farmland.night;
-      groundMat.roughness = plateMap === ocean.day ? 0.62 : plateMap === city.day ? 0.85 : 1;
+      groundMat.emissiveMap = body ? null : seaBlend >= 0.999 ? ocean.night : farmland.night;
+      groundMat.roughness = plateMap === ocean.day ? 0.62 : 1;
       groundMat.needsUpdate = true;
     }
     /* The relief: the farmland's hills, sinking as the coast arrives so the
        sea has somewhere flat to come in over — or another world's craters,
        mesas and dunes, whole. Normal map and displacement go together. */
-    const farmRelief = plateMap === farmland.day ? 1 - THREE.MathUtils.smoothstep(Math.max(seaBlend, cityBlend), 0, 0.6) : 0;
-    /* Over open water and the city the farmland's normal map stays bound, at
+    const farmRelief = plateMap === farmland.day ? 1 - THREE.MathUtils.smoothstep(seaBlend, 0, 0.6) : 0;
+    /* Over open water the farmland's normal map stays bound, at
        zero strength (farmRelief is 0 there), which shades exactly as no
        normal map does. Unbinding it would change the ground's shader, and
        compiling the new one mid-flight is a hitch at every first crossing. */
@@ -1301,8 +1316,6 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     ground.position.y = (body ? body.level * body.relief : 0) - 2;
     sea.visible = !elsewhere && !inSpace && seaBlend > 0.001 && seaBlend < 0.999;
     underfoot.relief = !body && !inSpace && !aboveClouds ? HILL_HEIGHT * farmRelief : 0;
-    streets.visible = !elsewhere && !inSpace && cityBlend > 0.001 && cityBlend < 0.999;
-    streetMat.opacity = cityBlend;
     snowCover.value = snowBlend;
     underfoot.floor = sea.visible ? OVERLAY_LIFT : ground.position.y;
     seaMat.opacity = seaBlend;
@@ -1314,7 +1327,6 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       ? 0
       : 1 - THREE.MathUtils.smoothstep(skyState.elevation, -8, 3);
     seaMat.emissiveIntensity = groundMat.emissiveIntensity;
-    streetMat.emissiveIntensity = groundMat.emissiveIntensity;
     nearMat.emissiveIntensity = groundMat.emissiveIntensity;
     ground.visible = !inSpace;
     // Above the deck the hills are three kilometres down and mostly under
@@ -1433,7 +1445,11 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       if (snowBlend > 0) groundTint.lerp(SNOW_BOUNCE, snowBlend * 0.55);
       ambient.color.copy(skyTint);
       ambient.groundColor.copy(groundTint);
-      ambient.intensity = overcast ? 0.95 : lerp(0.8, 0.46, day);
+      ambient.intensity = thunder ? 0.5 : overcast ? 0.95 : lerp(0.8, 0.46, day);
+      if (stormFlash > 0) {
+        ambient.intensity += stormFlash * 2.4;
+        ambient.color.lerp(FLASH_TINT, stormFlash * 0.7);
+      }
     }
 
     /* The exterior background moves as one slow, continuous diagonal toward
@@ -1458,7 +1474,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     /* The ground is one repeating plane, so flying over it is an offset. */
     const map = groundMat.map;
     if (map) {
-      // Each axis by its own repeat: the city's tile is not square.
+      // Each axis by its own repeat.
       map.offset.set((shift.x * map.repeat.x) / GROUND, (shift.z * map.repeat.y) / GROUND);
       /* The emissive map has to travel with the diffuse one to the pixel.
          Drifting them apart slides every town's lights off the town. */
@@ -1474,9 +1490,6 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
          fields while both are on screen mid-crossfade. */
       ocean.day.offset.copy(map.offset);
       ocean.night.offset.copy(map.offset);
-      // The city's tile is its own size, streets on the buildings' lot lines.
-      city.day.offset.set(shift.x / CITY_TILE_X, shift.z / CITY_TILE_Z);
-      city.night.offset.copy(city.day.offset);
       /* The glint slides a touch faster than the water it rides — two layers
          at two rates being the whole recipe for "liquid" — plus a slow
          breathing wobble so the sparkle lives even when the camera holds
@@ -1511,11 +1524,6 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
        does. They stand on farmland, in the weather or above the cloud. */
     ranges.update(shift.x, shift.z, inSpace || elsewhere ? 0 : farmRelief, snowBlend);
 
-    /* The towers, below the cloud deck: above it they are specks under it. */
-    const rise = inWeather ? THREE.MathUtils.smoothstep(cityBlend, 0.25, 1) : 0;
-    skyline.update({ shiftX: shift.x, shiftZ: shift.z, rise, night: groundMat.emissiveIntensity, height });
-    // Hand-flown, a tower is as solid as a hill.
-    underfoot.towers = rise;
     /* Snow falling round the camera, in the weather. */
     camera.getWorldPosition(eyeAt);
     toAircraft.copy(aircraft.matrixWorld).invert();
@@ -1532,6 +1540,12 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     if (snowBlend > 0 && !elsewhere && !inSpace) {
       fog.color.lerp(snowHaze.copy(SNOW_HAZE).multiplyScalar(0.22 + 0.78 * day), snowBlend * 0.65);
       fog.density = lerp(fog.density, Math.max(fog.density, 0.00005), snowBlend);
+    }
+    /* And in rain, the air closes in grey; in a storm, dark — lit pale for a moment by every flash. */
+    if (rain && inWeather) {
+      fog.color.lerp(STORM_HAZE, thunder ? 0.6 : 0.3);
+      fog.density = Math.max(fog.density, thunder ? 0.000085 : 0.00006);
+      if (stormFlash > 0) fog.color.lerp(FLASH_TINT, stormFlash * 0.55);
     }
 
     /* The cloud deck sits at a fixed altitude; the aircraft climbs past it. */
@@ -1551,6 +1565,9 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     cloudLit.multiplyScalar(THREE.MathUtils.lerp(0.22, 1, daylight));
     // Overcast is its own flat grey, not a tinted cumulus deck.
     if (overcast) cloudLit.lerp(NEUTRAL_CLOUD, 0.55);
+    // Storm cloud is dark and heavy, until a flash lights it from inside.
+    if (rain) cloudLit.lerp(STORM_CLOUD, thunder ? 0.62 : 0.3);
+    if (stormFlash > 0) cloudLit.lerp(FLASH_TINT, stormFlash * 0.8).multiplyScalar(1 + stormFlash * 0.9);
 
     /* On top of the deck, the sea of cloud. It travels with the ground but,
        being nearer, sweeps past faster than the land showing through its
@@ -1586,7 +1603,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     }
 
     /* Below the deck, the deck itself: billboarded cumulus you fly among. */
-    const cover = elsewhere || inSpace || cloudSea ? 0 : Math.max(skyState.cloudCover, overcast ? 0.95 : 0.27);
+    const cover = elsewhere || inSpace || cloudSea ? 0 : Math.max(skyState.cloudCover, thunder ? 1 : overcast || rain ? 0.95 : 0.27);
     clouds.visible = cover > 0.05;
     if (clouds.visible) {
       cloudMat.opacity = 0.35 + cover * 0.55;
@@ -1745,6 +1762,12 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
         extPos.addScaledVector(extDir.clone().normalize(), -(pull - 1) * toPlane);
       }
       camera.position.copy(extPos);
+      /* Rough air, or the afterburners: the camera alongside cannot hold station perfectly. */
+      const shake = pose.shake ?? 0;
+      if (shake > 0 && !calm) {
+        shakeAt.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.7);
+        camera.position.add(shakeAt);
+      }
       camera.rotation.set(
         Math.atan2(extDir.y, Math.hypot(extDir.x, extDir.z)),
         Math.atan2(-extDir.x, -extDir.z),
@@ -1756,9 +1779,11 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
          at the same field the aeroplane ran off both sides of it; so a
          narrower frame opens the field upward instead, far enough to keep a
          4:3 frame's width across, within reason. */
-      const lens = camera.aspect >= 4 / 3
+      /* A burn widens the lens a little, so the ground rushes in from the edges. */
+      const kick = 1 + 0.14 * Math.max(pose.boost?.[0] ?? 0, pose.boost?.[1] ?? 0) * chase;
+      const lens = (camera.aspect >= 4 / 3
         ? 46
-        : Math.min(92, THREE.MathUtils.radToDeg(2 * Math.atan((Math.tan(THREE.MathUtils.degToRad(23)) * 4) / 3 / camera.aspect)));
+        : Math.min(92, THREE.MathUtils.radToDeg(2 * Math.atan((Math.tan(THREE.MathUtils.degToRad(23)) * 4) / 3 / camera.aspect)))) * kick;
       const fov = pull > 1
         ? THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(lens / 2)) / pull))
         : lens;
@@ -1767,7 +1792,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
         camera.near = EXTERIOR_NEAR;
         camera.updateProjectionMatrix();
       }
-      renderer.toneMappingExposure = onMoon || inSpace ? 1.0 : 1.06;
+      // Under rain cloud the day is dimmer; under a storm, dim as dusk.
+      renderer.toneMappingExposure = (onMoon || inSpace ? 1.0 : 1.06) * (thunder ? 0.8 : rain ? 0.92 : 1);
       /* Moving the aeroplane in the frame moves the frame, not the camera:
          the view is offset, so the light, the horizon and the angle on the
          airframe are all exactly the standard view's. */
@@ -1786,7 +1812,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       // a sticker rather than a solid.
       // After dark there is no sunlight to throw back up — only the towns'
       // own, warm and faint, and nothing at all off the sea.
-      bounce.intensity = (onMoon || inSpace ? 0.08 : onMars ? 0.38 : overcast ? 0.85 : 0.5) * THREE.MathUtils.lerp(1, 0.12, night);
+      bounce.intensity = (onMoon || inSpace ? 0.08 : onMars ? 0.38 : overcast ? 0.85 : 0.5) * THREE.MathUtils.lerp(1, 0.12, night) + stormFlash * 1.5;
       if (onMars) bounce.color.copy(RUST_BOUNCE);
       else bounce.color.copy(LAND_BOUNCE).lerp(SEA_BOUNCE, seaBlend);
       if (!elsewhere && !inSpace) bounce.color.lerp(TOWN_GLOW, night * (1 - seaBlend) * 0.7);
@@ -1924,6 +1950,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       }
       wingBreak?.update(dt, -stepX, stepZ);
       thermals?.update(dt, pose.thermals, night);
+      logoCraft?.update(dt, pose.logos, night);
+      boostFlame?.update(dt, pose.boost?.[0] ?? 0, pose.boost?.[1] ?? 0);
       if (ufo) {
         airframe.group.getWorldPosition(ufoBase);
         const side = pose.ufo?.strike?.side ?? 1;
@@ -1961,6 +1989,21 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       earthAir.uniforms.sunDirection.value.copy(sunPos);
       earthSun.copy(sunPos).transformDirection(camera.matrixWorldInverse);
     }
+
+    /* The rain round the camera outside, and the storm's lightning: its flash lights the next frame. */
+    camera.getWorldPosition(eyeAt);
+    stormFlash = storm.update({
+      eye: eyeAt,
+      camera,
+      flowX: -groundSpeed * Math.sin(hdg),
+      flowZ: groundSpeed * Math.cos(hdg),
+      dt,
+      rain: pose.exterior && inWeather && rain ? (thunder ? 1 : 0.6) * (1 - snowBlend) : 0,
+      storm: thunder && inWeather,
+      cloudBase: cloudDeckY,
+      night,
+    });
+    if (stormFlash > 0.02) renderer.toneMappingExposure *= 1 + stormFlash * 0.35;
 
     /* Posed, lit and dressed for this frame: exactly the state the shaders
        have to be compiled for. Until they are, the canvas waits. */
@@ -2056,7 +2099,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     for (const along of [24, 0, -22]) {
       const x = fx * (along + ahead);
       const z = fz * (along + ahead);
-      top = Math.max(top, reliefAt(x, z), towerTopAt(x, z, shift.x, shift.z, underfoot.towers));
+      top = Math.max(top, reliefAt(x, z));
     }
     return Math.max(top, underfoot.floor);
   };
@@ -2069,6 +2112,9 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     ufo?.dispose();
     wingBreak?.dispose();
     thermals?.dispose();
+    logoCraft?.dispose();
+    boostFlame?.dispose();
+    storm.dispose();
     airframe.dispose();
     farmland.day.dispose();
     farmland.night.dispose();
@@ -2078,11 +2124,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     nearGeometry.dispose();
     nearMat.dispose();
     scenery.dispose();
-    skyline.dispose();
     snowfall.dispose();
-    streetMat.dispose();
-    city.day.dispose();
-    city.night.dispose();
     ranges.dispose();
     ocean.day.dispose();
     ocean.night.dispose();
@@ -2143,5 +2185,5 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     return { x: (onScreen.x + 1) / 2, y: (1 - onScreen.y) / 2 };
   };
 
-  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, groundAt, planeOnScreen, setDeckReadout: deck.setReadout, dispose };
+  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, groundAt, planeOnScreen, setDeckReadout: deck.setReadout, lastFlash: () => storm.lastFlash, flash: storm.flash, dispose };
 }

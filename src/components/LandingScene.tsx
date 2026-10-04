@@ -6,11 +6,14 @@ import type { BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import { useAttitude, type Attitude } from '../lib/useAttitude';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
-import { airspeedAt, clampUnit, dealFailures, FEET, fly, GAME, leadFor, speedAt, WASTED_AT, type Cause, type FlightGame } from '../lib/landingGame';
+import {
+  BOOST, clampUnit, dealFailures, FEET, fly, GAME, groundSpeed, leadFor, speedAt, stepBoost, TURBULENCE, WASTED_AT,
+  type Cause, type FlightGame,
+} from '../lib/landingGame';
+import { LOGOS, stepLogos } from '../lib/logos';
 import { climbBonus, SCORING, survivalRate } from '../lib/scoring';
 import { FPM, KNOTS, speedAngle, varioAngle } from '../lib/instruments';
 import { dodge, planeTimeScale, slowAt, ufoAt, UFO } from '../lib/ufo';
-import { startAir } from '../lib/thermals';
 
 /**
  * The landing page's aeroplane: the exterior scene, full screen, and — when
@@ -47,6 +50,10 @@ export interface LandingHud {
   horizon: RefObject<SVGGElement | null>;
   /** Lit while the aeroplane is in rising air. */
   lift: RefObject<HTMLParagraphElement | null>;
+  /** The boost button: its tank shown as `--charge`, lit while a burn is going. */
+  boost: RefObject<HTMLButtonElement | null>;
+  /** How many logos have been flown through. */
+  logos: RefObject<HTMLSpanElement | null>;
 }
 
 
@@ -109,6 +116,10 @@ interface LandingSceneProps {
   onDodge: () => void;
   /** The aeroplane is down. */
   onCrash: (metres: number) => void;
+  /** A logo has been flown through: how many so far. */
+  onLogo: (count: number) => void;
+  /** Lightning, `metres` off: for the thunder. */
+  onThunder: (metres: number) => void;
 }
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -172,14 +183,16 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 
 const LandingScene = ({
   feed, sky, band, controls, taken, playing, game, hud, sounds, shot,
-  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash,
+  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
   const latest = useRef({ sky, band });
   latest.current = { sky, band };
-  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash });
-  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash };
+  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder });
+  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder };
+  /** The last lightning flash already heard. */
+  const heardFlash = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -195,7 +208,7 @@ const LandingScene = ({
     // Dev only: the game and the ground under it, for the headless checks,
     // which run far too slowly to fly into a hill for real.
     if (import.meta.env.DEV) {
-      Object.assign(window, { __saGame: game.current, __saGround: handles.groundAt });
+      Object.assign(window, { __saGame: game.current, __saGround: handles.groundAt, __saFlash: handles.flash });
       Object.defineProperty(window, '__saSounds', { get: () => sounds.current, configurable: true });
     }
     const resize = () => {
@@ -241,7 +254,7 @@ const LandingScene = ({
 
   const pose = useRef<ViewPose>({ seatIndex: 0, row: 1, yaw: 0, id: '1A', exterior: true, orbit: 0 });
   const flown = useRef<Attitude>({ pitch: 0, bank: 0, speed: 240, alt: 0, vs: 0, heading: 0, roll: 0 });
-  const shown = useRef({ feet: -1, warn: false, stall: false, score: -1, rate: -1, kt: -1, fpm: NaN, lift: false });
+  const shown = useRef({ feet: -1, warn: false, stall: false, score: -1, rate: -1, kt: -1, fpm: NaN, lift: false, charge: -1, burning: false });
   const crowd = useRef({ on: false, gain: 0 });
   /** The wind in the thermals: how loud it is now. */
   const windGain = useRef(0);
@@ -405,8 +418,6 @@ const LandingScene = ({
               g.failedAt = now;
               g.damage = 0.5;
               g.decay = 0;
-              // From here there is rising air to look for.
-              startAir(g.air);
               // Made it: the reach bonus, and the climb bonus for how fast — by the foot.
               g.climbTime = (now - g.phaseAt) / 1000;
               g.bonus = SCORING.reached + climbBonus(g.climbTime, (g.blastAlt * FEET) / GAME.blastFeet);
@@ -444,7 +455,7 @@ const LandingScene = ({
         }
         if (g.dodgeLock) {
           const off = ((g.heading - g.dodgeLock.heading + 540) % 360) - 180;
-          g.dodgeLock.lateral += (g.failed ? g.speed : airspeedAt(g.agl)) * Math.sin((off * Math.PI) / 180) * flyDt;
+          g.dodgeLock.lateral += groundSpeed(g) * Math.sin((off * Math.PI) / 180) * flyDt;
         }
         if (u?.strike && g.dodgeLock && g.clock >= u.hitAt) {
           const d = dodge(g.dodgeLock, u.strike, g.alt, g.bank);
@@ -502,6 +513,30 @@ const LandingScene = ({
         }
       }
 
+      if (live) {
+        stepBoost(g, flyDt);
+        /* The logos: flown through, they pay and put boost back in the tank. */
+        const got = stepLogos(g.logos, flyDt, groundSpeed(g), g.heading, g.alt, g.vs, w.groundAt() + 45);
+        if (got) {
+          const points = got * LOGOS.points;
+          g.extra += points;
+          if (g.failed) g.score += points;
+          g.boosts = Math.min(BOOST.charges, g.boosts + got * BOOST.perLogo);
+          calls.current.onLogo(g.logos.count);
+        }
+        /* Thunder, and the shove of a close strike's air. */
+        const flash = w.lastFlash();
+        if (flash && flash.at !== heardFlash.current) {
+          heardFlash.current = flash.at;
+          calls.current.onThunder(flash.distance);
+          if (flash.distance < 3500) {
+            const kick = (Math.random() < 0.5 ? -1 : 1) * (1 - flash.distance / 3500);
+            g.gustRoll = clampUnit(g.gustRoll + kick);
+            g.gustLift = clampUnit(g.gustLift - Math.abs(kick) * 0.7);
+            if (g.failed) g.rollRate += kick * 25;
+          }
+        }
+      }
       if (CAPTURE) captureState.onGameFrame?.(g, realDt);
       const ix = live ? clampUnit(g.keys.x + g.stick.x) : 0;
       const iy = live ? clampUnit(g.keys.y + g.stick.y) : 0;
@@ -510,7 +545,7 @@ const LandingScene = ({
       if (flyDt > 0) g.accel += ((step.vs - g.vs) / flyDt - g.accel) * (1 - Math.exp(-2 * flyDt));
       g.vs = step.vs;
       g.alt = Math.min(GAME.ceiling, g.alt + step.vs * flyDt);
-      if (live) g.distance += (g.failed ? g.speed : airspeedAt(g.agl)) * flyDt;
+      if (live) g.distance += groundSpeed(g) * flyDt;
       p.chase = 1;
     }
 
@@ -520,6 +555,14 @@ const LandingScene = ({
     p.height = g.alt;
     p.timeScale = g.slow;
     p.thermals = g.phase === 'flying' ? g.air.list : undefined;
+    p.logos = g.phase === 'flying' ? g.logos.list : undefined;
+    p.weather = g.weather;
+    /* The afterburners: out of whichever engines still run — or, with both
+       gone, both, relit for as long as the burn lasts. */
+    const burn = g.phase === 'flying' ? g.boostPower : 0;
+    const relit = g.failed === 0 || g.both;
+    p.boost = [relit || g.failed !== -1 ? burn : 0, relit || g.failed !== 1 ? burn : 0];
+    p.shake = g.phase === 'flying' ? TURBULENCE[g.weather] * 0.55 + burn * 0.5 : 0;
     if (g.phase === 'flying') {
       const saucer = ufoAt(g.ufo, g.clock);
       // Off the line it was aimed along: while it closes, and as it goes past.
@@ -535,7 +578,7 @@ const LandingScene = ({
     p.fury = g.damage;
     /* The ground goes by at the airspeed, not the height's speed, once the
        dive is over: so low down it rushes, and at 10,000 ft it drifts. */
-    p.speed = g.failed ? g.speed : g.phase === 'flying' ? airspeedAt(g.agl) : undefined;
+    p.speed = g.failed || g.phase === 'flying' ? groundSpeed(g) : undefined;
     // The sideslip is the good engine's doing: none once it has gone too.
     p.slip = g.failed ? g.failed * (3 + 4 * g.damage) * g.thrust : 0;
     /* After the blast the camera eases round over the burning engine's
@@ -581,7 +624,7 @@ const LandingScene = ({
         g.score = g.bestFeet * SCORING.perFoot + g.extra;
         g.rate = 0;
       } else {
-        const rate = survivalRate(g.bank, ft);
+        const rate = survivalRate(g.bank, ft, g.updraft > 0.2);
         g.rate = rate / SCORING.perSecond;
         g.score += rate * dt;
       }
@@ -618,7 +661,7 @@ const LandingScene = ({
     }
 
     /* The instruments: the airspeed the ground goes by at. */
-    const kt = Math.round((g.failed ? g.speed : airspeedAt(g.agl)) * KNOTS);
+    const kt = Math.round(groundSpeed(g) * KNOTS);
     if (kt !== shown.current.kt) {
       shown.current.kt = kt;
       hud.speedNeedle.current?.setAttribute('transform', `rotate(${speedAngle(kt).toFixed(1)} 50 50)`);
@@ -640,6 +683,20 @@ const LandingScene = ({
     if (lifting !== shown.current.lift && hud.lift.current) {
       shown.current.lift = lifting;
       hud.lift.current.classList.toggle('is-on', lifting);
+    }
+    /* The boost button: the tank, and whether a burn is going. */
+    const charge = Math.round(g.boosts * 20) / 20;
+    const btn = hud.boost.current;
+    if (btn && charge !== shown.current.charge) {
+      shown.current.charge = charge;
+      btn.style.setProperty('--charge', String(charge / BOOST.charges));
+      btn.dataset.ready = String(Math.floor(g.boosts));
+      btn.classList.toggle('is-empty', g.boosts < 1);
+    }
+    const burning = g.boost > 0;
+    if (btn && burning !== shown.current.burning) {
+      shown.current.burning = burning;
+      btn.classList.toggle('is-burning', burning);
     }
   }, controls);
 
