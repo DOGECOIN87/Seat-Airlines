@@ -748,7 +748,7 @@ export default function App() {
           wallet={wallet}
           onEnter={enter}
           manifest={manifest}
-          adverts={advertImages}
+          banners={banners}
           onClaim={() => (wallet.unavailable && !wallet.address ? openPanel('check-in') : startClaim())}
           soundEnabled={aircraftAudio.enabled}
           onSoundToggle={aircraftAudio.toggle}

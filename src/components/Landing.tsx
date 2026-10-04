@@ -9,6 +9,7 @@ import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
 import SeatOverview from './SeatOverview';
 import type { Manifest } from '../lib/manifest';
+import type { BannerSet } from '../lib/banners';
 import { SPLASH_BETWEEN, SPLASH_FIRST, SPLASH_LAST } from '../content/cabin';
 import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
@@ -75,7 +76,7 @@ interface LandingProps {
   onEnter: () => void;
   /** Who is in which seat, and the advert on each, for the seat overview. */
   manifest: Manifest;
-  adverts: Readonly<Record<string, string>>;
+  banners: BannerSet;
   /** Claim your Seat: connect, then the seats. Called as the landing goes. */
   onClaim: () => void;
   soundEnabled: boolean;
@@ -163,7 +164,7 @@ const OVERVIEW_AFTER = 3000;
 const SPLASH_FADE = 800;
 
 export default function Landing({
-  feed, sky, band, marketCap, controls, taken, wallet, onEnter, manifest, adverts, onClaim, soundEnabled, onSoundToggle,
+  feed, sky, band, marketCap, controls, taken, wallet, onEnter, manifest, banners, onClaim, soundEnabled, onSoundToggle,
 }: LandingProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [ready, setReady] = useState(false);
@@ -918,7 +919,7 @@ export default function Landing({
         </main>
       )}
       {overview && !inGame && preflight === 'off' && !scoresOpen && (
-        <SeatOverview manifest={manifest} adverts={adverts} onClaim={claim} onBrowse={leave} />
+        <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} />
       )}
       {/* The airline elsewhere: one even row along the foot of the screen. */}
       {!inGame && preflight === 'off' && <SocialLinks night className="sa-landing__social" />}

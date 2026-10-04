@@ -1,19 +1,27 @@
-import { memo, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { CABIN_ZONES, type ZoneKey } from '../content/cabin';
+import { safeHref, type Banner } from '../lib/banners';
 import { shortAddress, type Manifest } from '../lib/manifest';
 
 /**
  * The whole aircraft, shrunk to fit beside the landing's aeroplane.
  *
  * A few seconds after the plane has been on the screen, a top-down plan of
- * it rises in: the outline draws itself, every one of the 178 seats pops in
- * nose to tail with the advert on it, and a "Claim your Seat" button blinks
- * under it. It is the premise in one picture — one plane, every seat a
- * billboard, and the empty ones yours for the out-holding.
+ * it rises in: the airframe draws itself and fills in white, every one of
+ * the 178 seats pops in nose to tail with the advert on it, seen through
+ * the roof as if it were glass, and a "Claim your Seat" button blinks under
+ * it. It is the premise in one picture — one plane, every seat a billboard,
+ * and the empty ones yours for the out-holding.
  *
- * Rows are drawn in the order they sit in the fuselage, not the order the
- * ladder fills them: the exit rows are 16 and 17, between two blocks of
- * economy, and that is where they are drawn.
+ * The seats are small at this size, so pointing at one lifts its advert out
+ * of the cabin as a large tile, with whose seat it is; on a touch screen the
+ * first tap on a seat does that, and a tap anywhere else on the plane goes
+ * in to the full-size wall.
+ *
+ * The nose points right, the way the aeroplane flies. Rows are drawn in the
+ * order they sit in the fuselage, not the order the ladder fills them: the
+ * exit rows are 16 and 17, between two blocks of economy, and that is where
+ * they are drawn, with a galley between cabins.
  */
 
 interface Column {
@@ -33,8 +41,13 @@ const COLUMNS: readonly Column[] = CABIN_ZONES
   .sort((a, b) => a.n - b.n)
   .map(({ n, zone, left, right }) => ({ key: String(n), zone, left, right }));
 
-/** How wide a row is drawn, against economy's: the front of the cabin has more room. */
-const WIDTH: Record<ZoneKey, number> = { deck: 1.5, first: 1.35, business: 1.05, exit: 1, economy: 1 };
+/** How wide a row is drawn, against economy's: the front of the cabin has more legroom. */
+const WIDTH: Record<ZoneKey, number> = { deck: 1.5, first: 1.45, business: 1.12, exit: 1.15, economy: 1 };
+
+const CABIN_NAME = Object.fromEntries(CABIN_ZONES.map((z) => [z.key, z.name])) as Record<ZoneKey, string>;
+const ZONE_OF: ReadonlyMap<string, ZoneKey> = new Map(
+  COLUMNS.flatMap((c) => [...c.left, ...c.right].map((id) => [id, c.zone] as const)),
+);
 
 /** A stable scatter for the twinkle, so a re-render does not reshuffle it. */
 const scatter = (id: string) => {
@@ -64,34 +77,84 @@ function useCountUp(target: number, ms = 1400, delay = 900): number {
   return shown;
 }
 
+/* The airframe, nose to the right, in a 1000 × 420 box. One wing, tailplane
+   and engine are drawn; the other side is the same mirrored about y = 210.
+
+   The fuselage is drawn wider than an airliner's, to fit six seats abreast
+   that can be seen; everything else is to scale off its length, as on an
+   A320 — the wingspan about the length of the aeroplane, swept 25°, and
+   the tailplane a third of that. So the wings run off the top and bottom
+   of the picture, which crops them. */
+const BODY =
+  'M150 122 L830 122 C905 122 960 168 974 210 C960 252 905 298 830 298 L150 298 '
+  + 'C100 298 48 244 26 214 L26 206 C48 176 100 122 150 122 Z';
+/** The cabin, seen through the roof: the body inset, stopping short of the cockpit. */
+const CABIN =
+  'M206 134 L832 134 C884 134 918 168 926 210 C918 252 884 286 832 286 L206 286 '
+  + 'C196 286 190 280 190 270 L190 150 C190 140 196 134 206 134 Z';
+const WING = 'M600 124 L431 -241 L395 -241 L438 30 L455 124 Z';
+/** The wing's leading edge, picked out darker. */
+const LEADING = 'M600 124 L431 -241';
+/** The flaps and spoilers along the trailing edge. */
+const FLAPS = 'M455 124 L438 30 L395 -241 M470 110 L455 30 L420 -160 M452 70 L478 70 M444 -10 L468 -10';
+const TAILPLANE = 'M182 132 L112 40 L78 40 L96 158 Z';
+const NACELLE = { x: 520, y: 12, w: 112, h: 38 };
+const MIRROR = 'matrix(1 0 0 -1 0 420)';
+
+/** Where the peek tile sits, in the card's own pixels. */
+interface Peek { id: string; x: number; y: number; below: boolean }
+/** The peek tile's size: keep in step with `.sa-ov__peek`. */
+const PEEK_W = 168;
+const PEEK_H = 236;
+
 interface SeatOverviewProps {
   manifest: Manifest;
-  /** Advert images, by seat id. */
-  adverts: Readonly<Record<string, string>>;
+  /** Every advert, by seat id. */
+  banners: Readonly<Record<string, Banner>>;
   /** Connect and go to the seats. */
   onClaim: () => void;
   /** Go in, to the wall. */
   onBrowse: () => void;
 }
 
-const SeatOverview = memo(function SeatOverview({ manifest, adverts, onClaim, onBrowse }: SeatOverviewProps) {
-  const [hover, setHover] = useState<string | null>(null);
+const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, onBrowse }: SeatOverviewProps) {
+  const card = useRef<HTMLElement>(null);
+  const [peek, setPeek] = useState<Peek | null>(null);
+  const touch = useRef(false);
   const seated = useCountUp(manifest.entries.length);
   const open = useCountUp(manifest.open);
   const total = useMemo(() => COLUMNS.reduce((n, c) => n + c.left.length + c.right.length, 0), []);
 
-  const hovered = hover ? manifest.bySeat.get(hover) ?? null : null;
+  /* Lift a seat's advert out of the cabin: above the seat, or below it if
+     there is no room above, never past either side of the card. */
+  const show = useCallback((id: string, el: HTMLElement) => {
+    const box = card.current?.getBoundingClientRect();
+    if (!box) return;
+    const r = el.getBoundingClientRect();
+    const half = PEEK_W / 2 + 6;
+    const x = Math.min(Math.max(r.left + r.width / 2 - box.left, half), box.width - half);
+    const below = r.top - PEEK_H - 12 < 0;
+    setPeek({ id, x, y: below ? r.bottom - box.top : r.top - box.top, below });
+  }, []);
+  const hide = useCallback((id: string) => setPeek((p) => (p?.id === id ? null : p)), []);
 
   const seat = (id: string, col: number, i: number) => {
     const entry = manifest.bySeat.get(id);
-    const image = entry ? adverts[id] : undefined;
+    const image = entry ? banners[id]?.image : undefined;
     const state = image ? 'is-ad' : entry ? 'is-held' : 'is-open';
     return (
       <span
         key={id}
-        className={`sa-ov__seat ${state}`}
-        onPointerEnter={() => setHover(id)}
-        onPointerLeave={() => setHover((h) => (h === id ? null : h))}
+        className={`sa-ov__seat ${state}${peek?.id === id ? ' is-peeked' : ''}`}
+        onPointerEnter={(e) => { if (e.pointerType === 'mouse') show(id, e.currentTarget); }}
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') hide(id); }}
+        onClick={(e) => {
+          /* On a touch screen the first tap on a seat shows it; the plane's
+             own click — going in — waits for a tap on one already shown. */
+          if (!touch.current || peek?.id === id) return;
+          e.stopPropagation();
+          show(id, e.currentTarget);
+        }}
         style={{
           '--pop': `${col * 38 + i * 14}ms`,
           '--tw': `${(scatter(id) * 9).toFixed(2)}s`,
@@ -101,8 +164,13 @@ const SeatOverview = memo(function SeatOverview({ manifest, adverts, onClaim, on
     );
   };
 
+  const peekEntry = peek ? manifest.bySeat.get(peek.id) ?? null : null;
+  const peekBanner = peek && peekEntry ? banners[peek.id] ?? null : null;
+  const peekOwn = peekBanner && !peekBanner.house ? peekBanner : null;
+  const peekLink = safeHref(peekOwn?.href);
+
   return (
-    <aside className="sa-ov" aria-label="Every seat on board">
+    <aside ref={card} className="sa-ov" aria-label="Every seat on board">
       <div className="sa-ov__head">
         <p className="sa-ov__eyebrow">
           <span className="sa-live" aria-hidden /> Live seating
@@ -115,52 +183,157 @@ const SeatOverview = memo(function SeatOverview({ manifest, adverts, onClaim, on
 
       {/* The plan is a picture of the wall, not a way through it: one button
           for the whole thing, which goes in to the full-size one. */}
-      <button type="button" className="sa-ov__plane" onClick={onBrowse} aria-label="See who is on board">
-        <svg viewBox="0 0 1000 400" className="sa-ov__outline" aria-hidden preserveAspectRatio="none">
-          {/* Wings, swept back, and the tailplane. */}
-          <path className="sa-ov__wing" pathLength={1} d="M430 116 L560 8 L615 8 L590 116 Z" />
-          <path className="sa-ov__wing" pathLength={1} d="M430 284 L560 392 L615 392 L590 284 Z" />
-          <path className="sa-ov__wing" pathLength={1} d="M860 130 L925 62 L958 62 L945 136 Z" />
-          <path className="sa-ov__wing" pathLength={1} d="M860 270 L925 338 L958 338 L945 264 Z" />
-          {/* Engines under the wings. */}
-          <rect className="sa-ov__engine" x="470" y="58" width="70" height="26" rx="13" />
-          <rect className="sa-ov__engine" x="470" y="316" width="70" height="26" rx="13" />
-          {/* The fuselage: round nose on the left, the cone to the tail. */}
-          <path
-            className="sa-ov__body"
-            pathLength={1}
-            d="M110 112 L860 112 C915 112 975 170 990 200 C975 230 915 288 860 288 L110 288 C40 288 10 240 10 200 C10 160 40 112 110 112 Z"
-          />
-          {/* Lights on the wingtips: red to port, green to starboard. */}
-          <circle className="sa-ov__nav sa-ov__nav--port" cx="590" cy="10" r="7" />
-          <circle className="sa-ov__nav sa-ov__nav--star" cx="590" cy="390" r="7" />
-        </svg>
+      <button
+        type="button"
+        className="sa-ov__plane"
+        onClick={onBrowse}
+        onPointerDown={(e) => { touch.current = e.pointerType !== 'mouse'; }}
+        aria-label="See who is on board"
+      >
+        {/* Cloud drifting by underneath, so it reads as flying. */}
+        <span className="sa-ov__sky" aria-hidden />
+        <span className="sa-ov__float">
+          <svg viewBox="0 0 1000 420" className="sa-ov__art" aria-hidden preserveAspectRatio="none">
+            <defs>
+              {/* White paint, rounder in the middle than at the edges, with the sun along its spine. */}
+              <linearGradient id="sa-ov-paint" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#AEB9C7" />
+                <stop offset="0.16" stopColor="#E9EEF4" />
+                <stop offset="0.42" stopColor="#FFFFFF" />
+                <stop offset="0.7" stopColor="#E3E9F0" />
+                <stop offset="1" stopColor="#97A4B5" />
+              </linearGradient>
+              <linearGradient id="sa-ov-wingpaint" x1="1" y1="1" x2="0" y2="0">
+                <stop offset="0" stopColor="#E6EBF1" />
+                <stop offset="1" stopColor="#B7C2CF" />
+              </linearGradient>
+              <linearGradient id="sa-ov-cowl" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#8F9CAD" />
+                <stop offset="0.45" stopColor="#F1F4F8" />
+                <stop offset="1" stopColor="#7D8A9C" />
+              </linearGradient>
+              <linearGradient id="sa-ov-floor" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#081428" />
+                <stop offset="0.5" stopColor="#10284A" />
+                <stop offset="1" stopColor="#081428" />
+              </linearGradient>
+              <linearGradient id="sa-ov-fin" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stopColor="#0E2E5E" />
+                <stop offset="1" stopColor="#1B4F95" />
+              </linearGradient>
+              <linearGradient id="sa-ov-trail" x1="1" y1="0" x2="0" y2="0">
+                <stop offset="0" stopColor="#F2FAFF" stopOpacity="0.6" />
+                <stop offset="1" stopColor="#F2FAFF" stopOpacity="0" />
+              </linearGradient>
+              <filter id="sa-ov-soft" x="-10%" y="-20%" width="120%" height="140%">
+                <feGaussianBlur stdDeviation="7" />
+              </filter>
+            </defs>
 
-        <span className="sa-ov__cabin">
-          {COLUMNS.map((c, col) => (
-            <span
-              key={c.key}
-              className={`sa-ov__row sa-ov__row--${c.zone}`}
-              style={{ flexGrow: WIDTH[c.zone] }}
-            >
-              <span className="sa-ov__bank">{c.left.map((id, i) => seat(id, col, i))}</span>
-              <span className="sa-ov__bank">{c.right.map((id, i) => seat(id, col, i + 3))}</span>
-            </span>
-          ))}
-          <span className="sa-ov__sweep" aria-hidden />
+            {/* Contrails from the engines, streaming aft. */}
+            <path className="sa-ov__trail" d="M512 31 L-60 31" />
+            <path className="sa-ov__trail" d="M512 389 L-60 389" />
+
+            {/* Its shadow, cast on the cloud below. */}
+            <g className="sa-ov__shadow" filter="url(#sa-ov-soft)">
+              <path d={BODY} />
+              <path d={WING} />
+              <path d={WING} transform={MIRROR} />
+              <path d={TAILPLANE} />
+              <path d={TAILPLANE} transform={MIRROR} />
+            </g>
+
+            {/* Wings, tailplane and engines, under the fuselage. */}
+            {[0, 1].map((side) => (
+              <g key={side} transform={side ? MIRROR : undefined}>
+                <path className="sa-ov__draw sa-ov__wing" pathLength={1} d={WING} />
+                <path className="sa-ov__leading" d={LEADING} />
+                <path className="sa-ov__panel" d={FLAPS} />
+                <path className="sa-ov__draw sa-ov__wing" pathLength={1} d={TAILPLANE} />
+                <line className="sa-ov__panel" x1={NACELLE.x + 30} y1={NACELLE.y + NACELLE.h / 2} x2={NACELLE.x + 70} y2={NACELLE.y + NACELLE.h / 2} />
+                <g className="sa-ov__engine">
+                  <rect x={NACELLE.x} y={NACELLE.y} width={NACELLE.w} height={NACELLE.h} rx={NACELLE.h / 2} />
+                  <ellipse className="sa-ov__intake" cx={NACELLE.x + NACELLE.w - 5} cy={NACELLE.y + NACELLE.h / 2} rx="6" ry={NACELLE.h / 2 - 4} />
+                  <rect className="sa-ov__exhaust" x={NACELLE.x - 8} y={NACELLE.y + 9} width="14" height={NACELLE.h - 18} rx="5" />
+                </g>
+              </g>
+            ))}
+
+            {/* The fuselage: white paint, with the cabin under a glass roof. */}
+            <path className="sa-ov__draw sa-ov__body" pathLength={1} d={BODY} />
+            <path className="sa-ov__cabinfloor" d={CABIN} />
+            {/* A blue cheatline along each side, the airline's colour. */}
+            <path className="sa-ov__cheat" d="M150 128 L840 128 M150 292 L840 292" />
+            {/* The window rows. */}
+            <path className="sa-ov__windows" d="M206 129 L850 129 M206 291 L850 291" />
+            {/* The fin, seen edge-on from above, in the tail's navy. */}
+            <path className="sa-ov__fin" d="M30 210 C60 202 140 201 200 204 L200 216 C140 219 60 218 30 210 Z" />
+            {/* The cockpit glazing. */}
+            <path className="sa-ov__glass" d="M936 180 C950 190 957 200 959 210 C957 220 950 230 936 240 L929 226 C936 221 940 216 941 210 C940 204 936 199 929 194 Z" />
+            {/* Doors: forward, over the wing, aft. */}
+            {[862, 545, 178].map((x) => (
+              <g key={x} className="sa-ov__door">
+                <rect x={x} y="119" width="16" height="6" rx="2" />
+                <rect x={x} y="295" width="16" height="6" rx="2" />
+              </g>
+            ))}
+
+            {/* The beacon on the tail; the wingtip lights are out of the picture. */}
+            <circle className="sa-ov__nav sa-ov__nav--tail" cx="30" cy="210" r="6" />
+          </svg>
+
+          <span className="sa-ov__cabin">
+            {COLUMNS.map((c, col) => (
+              <Fragment key={c.key}>
+                {/* A galley between cabins, and a pair of doors at the exit rows. */}
+                {col > 0 && COLUMNS[col - 1].zone !== c.zone && (
+                  <span className={`sa-ov__galley${c.zone === 'exit' || COLUMNS[col - 1].zone === 'exit' ? ' sa-ov__galley--exit' : ''}`} aria-hidden />
+                )}
+                <span className={`sa-ov__row sa-ov__row--${c.zone}`} style={{ flexGrow: WIDTH[c.zone] }}>
+                  <span className="sa-ov__bank">{c.left.map((id, i) => seat(id, col, i))}</span>
+                  <span className="sa-ov__bank">{c.right.map((id, i) => seat(id, col, i + 3))}</span>
+                </span>
+              </Fragment>
+            ))}
+            <span className="sa-ov__sweep" aria-hidden />
+          </span>
         </span>
       </button>
 
-      <p className="sa-ov__readout" aria-live="polite">
-        {hover ? (
-          hovered ? (
-            <><strong>{hover}</strong> · #{hovered.rank} · {shortAddress(hovered.address)}</>
-          ) : (
-            <><strong>{hover}</strong> · open — out-hold #{manifest.entries.length || 1} to take it</>
-          )
-        ) : (
-          'Every seat is a billboard. Biggest holders up front.'
-        )}
+      {/* The seat under the pointer, big enough to read its advert. */}
+      {peek && (
+        <div
+          key={peek.id}
+          className={`sa-ov__peek${peek.below ? ' is-below' : ''}`}
+          style={{ left: peek.x, top: peek.y }}
+          role="status"
+        >
+          <div className="sa-ov__peek-art">
+            {peekBanner ? (
+              <img src={peekBanner.image} alt="" />
+            ) : (
+              <span className="sa-ov__peek-empty">{peekEntry ? 'No advert yet' : 'Open seat'}</span>
+            )}
+            <span className="sa-ov__peek-seat">
+              {peek.id}
+              {peekEntry && <span className="sa-ov__peek-rank">#{peekEntry.rank}</span>}
+            </span>
+          </div>
+          <p className="sa-ov__peek-cabin">{CABIN_NAME[ZONE_OF.get(peek.id) ?? 'economy']}</p>
+          <p className="sa-ov__peek-line">
+            {peekOwn ? (
+              peekLink ? <a href={peekLink} target="_blank" rel="noopener noreferrer nofollow">{peekOwn.alt}</a> : peekOwn.alt
+            ) : peekEntry ? (
+              <span className="sa-ov__peek-addr">{shortAddress(peekEntry.address)}</span>
+            ) : (
+              `Out-hold #${manifest.entries.length || 1} to take it`
+            )}
+          </p>
+        </div>
+      )}
+
+      <p className="sa-ov__readout">
+        Point at any seat to see its advert. Biggest holders up front.
       </p>
 
       <button type="button" className="sa-ov__claim" onClick={onClaim}>

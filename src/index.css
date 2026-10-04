@@ -5356,33 +5356,39 @@ p { text-wrap-style: pretty; }
 
 /* ── The landing's seat overview ──────────────────────────────
    The whole aircraft from above, a few seconds after the plane: the
-   card rises in out of a blur, the outline draws itself, every seat
-   pops in nose to tail, and then it keeps living — a light sweeping
-   the cabin, adverts twinkling, open seats breathing, the wingtip
-   lights blinking — over a Claim your Seat that will not sit still. */
+   card rises in out of a blur, the airframe draws itself and fills in
+   white, every seat pops in nose to tail under a glass roof, and then
+   it keeps living — floating over drifting cloud with contrails behind
+   it, a light sweeping the cabin, adverts twinkling, open seats
+   breathing, the tail beacon blinking — over a Claim your Seat
+   that will not sit still. Pointing at a seat lifts its advert out as
+   a big tile. */
 .sa-ov {
   position: absolute;
   z-index: 3;
   right: clamp(1rem, 3vw, 2.25rem);
-  top: 50%;
-  width: min(44vw, 40rem);
+  /* Low on the right, just above the Scores and Sound buttons: the
+     aeroplane flies across the upper middle of the screen and the words
+     hold the lower left, so this is the corner it leaves free. */
+  bottom: calc(max(clamp(2rem, 7vh, 4.5rem), calc(var(--safe-bottom) + 1.25rem)) + 6.4rem);
+  width: min(42vw, 40rem);
   padding: 1rem 1.1rem 1.15rem;
   border-radius: 22px;
-  background: linear-gradient(160deg, rgba(14, 26, 48, 0.78), rgba(5, 9, 18, 0.72));
+  background: linear-gradient(160deg, rgba(14, 26, 48, 0.8), rgba(5, 9, 18, 0.74));
   box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.22), 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 60px rgba(0, 150, 235, 0.15);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   pointer-events: auto;
   touch-action: manipulation;
-  transform: translateY(-50%);
+  transform-origin: bottom right;
   animation: sa-ov-in 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes sa-ov-in {
-  0% { opacity: 0; transform: translateY(calc(-50% + 3rem)) scale(0.82); filter: blur(10px); }
+  0% { opacity: 0; transform: translateY(3rem) scale(0.82); filter: blur(10px); }
   60% { opacity: 1; filter: blur(0); }
-  100% { opacity: 1; transform: translateY(-50%) scale(1); filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: blur(0); }
 }
-/* A glint that runs once round the card's edge as it lands. */
+/* A glint that keeps running round the card's edge. */
 .sa-ov::before {
   content: '';
   position: absolute;
@@ -5417,63 +5423,173 @@ p { text-wrap-style: pretty; }
 .sa-ov__count strong { color: #fff; font-size: 13px; }
 .sa-ov__count .sa-ov__open { color: #7FE3F7; }
 
+/* ── The aeroplane ── */
 .sa-ov__plane {
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 5 / 2;
+  aspect-ratio: 1000 / 420;
   margin-top: 0.6rem;
   padding: 0;
   border: 0;
+  border-radius: 14px;
   background: none;
   cursor: pointer;
+  /* The picture's edge crops the aeroplane: at scale, its wings are wider
+     than the card. */
+  overflow: hidden;
+  /* Safari drops a rounded clip on a transformed child without this. */
+  isolation: isolate;
 }
-.sa-ov__plane:focus-visible { outline: 2px solid #7FE3F7; outline-offset: 4px; border-radius: 12px; }
-.sa-ov__outline { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.sa-ov__body,
-.sa-ov__wing {
-  fill: rgba(232, 240, 250, 0);
+.sa-ov__plane:focus-visible { outline: 2px solid #7FE3F7; outline-offset: 4px; }
+/* Cloud going by underneath, aft: the plan is flying. */
+.sa-ov__sky {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(18% 30% at 20% 30%, rgba(200, 225, 250, 0.12), transparent 70%),
+    radial-gradient(22% 26% at 62% 78%, rgba(200, 225, 250, 0.10), transparent 70%),
+    radial-gradient(14% 22% at 88% 22%, rgba(200, 225, 250, 0.10), transparent 70%),
+    radial-gradient(20% 30% at 42% 54%, rgba(200, 225, 250, 0.07), transparent 70%);
+  background-size: 50% 100%;
+  background-repeat: repeat-x;
+  /* A window on the sky the aeroplane is crossing. */
+  background-color: rgba(24, 52, 92, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.18), inset 0 0 40px rgba(0, 0, 0, 0.45);
+  animation: sa-landing-fade 1s ease 1s both, sa-ov-clouds 14s linear infinite;
+}
+@keyframes sa-ov-clouds { from { background-position: 0 0; } to { background-position: -100% 0; } }
+/* The whole aeroplane rides a little turbulence once it is in. */
+.sa-ov__float {
+  position: absolute;
+  inset: 0;
+  animation: sa-ov-float 6s ease-in-out 3s infinite;
+}
+@keyframes sa-ov-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-1.5%) rotate(-0.4deg); }
+  65% { transform: translateY(1%) rotate(0.3deg); }
+}
+.sa-ov__art { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+/* The airframe draws itself in light, then is painted. */
+.sa-ov__draw {
   stroke: #7FE3F7;
-  stroke-width: 3;
+  stroke-width: 2;
+  stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: sa-ov-draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) 0.35s forwards, sa-ov-fill 0.9s ease 1.4s forwards;
+  fill-opacity: 0;
 }
-.sa-ov__wing { animation-delay: 0.75s, 1.6s; }
+.sa-ov__body {
+  fill: url(#sa-ov-paint);
+  animation: sa-ov-draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) 0.35s forwards, sa-ov-paint 0.9s ease 1.4s forwards;
+}
+.sa-ov__wing {
+  fill: url(#sa-ov-wingpaint);
+  animation: sa-ov-draw 1.1s cubic-bezier(0.65, 0, 0.35, 1) 0.8s forwards, sa-ov-paint 0.9s ease 1.6s forwards;
+}
 @keyframes sa-ov-draw { to { stroke-dashoffset: 0; } }
-@keyframes sa-ov-fill { to { fill: rgba(232, 240, 250, 0.1); stroke: rgba(127, 227, 247, 0.55); } }
-.sa-ov__engine { fill: rgba(127, 227, 247, 0.18); stroke: rgba(127, 227, 247, 0.5); stroke-width: 2; vector-effect: non-scaling-stroke; animation: sa-landing-fade 0.6s ease 1.7s both; }
+@keyframes sa-ov-paint { to { fill-opacity: 1; stroke: rgba(70, 86, 108, 0.55); } }
+.sa-ov__leading { fill: none; stroke: #8794A6; stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; animation: sa-landing-fade 0.6s ease 2s both; }
+.sa-ov__panel { fill: none; stroke: rgba(70, 86, 108, 0.45); stroke-width: 1; vector-effect: non-scaling-stroke; animation: sa-landing-fade 0.6s ease 2s both; }
+.sa-ov__engine {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sa-ov-pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.8s both;
+}
+.sa-ov__engine > rect:first-child { fill: url(#sa-ov-cowl); stroke: rgba(70, 86, 108, 0.6); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.sa-ov__intake { fill: #1A2433; }
+.sa-ov__exhaust { fill: #4A5566; }
+@keyframes sa-ov-pop-in { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+/* Under the glass roof: the cabin floor, dark, so the adverts glow on it. */
+.sa-ov__cabinfloor {
+  fill: url(#sa-ov-floor);
+  stroke: rgba(127, 227, 247, 0.45);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+  animation: sa-landing-fade 0.7s ease 1.3s forwards;
+}
+.sa-ov__cheat { fill: none; stroke: #0087EA; stroke-width: 3; vector-effect: non-scaling-stroke; opacity: 0; animation: sa-landing-fade 0.6s ease 1.9s forwards; }
+.sa-ov__windows { fill: none; stroke: #1E2A3A; stroke-width: 2.5; stroke-dasharray: 3 7; vector-effect: non-scaling-stroke; opacity: 0; animation: sa-landing-fade 0.6s ease 1.9s forwards; }
+.sa-ov__fin { fill: url(#sa-ov-fin); opacity: 0; animation: sa-landing-fade 0.6s ease 1.8s forwards; }
+.sa-ov__glass { fill: #14202F; stroke: rgba(255, 255, 255, 0.6); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0; animation: sa-landing-fade 0.6s ease 1.9s forwards; }
+.sa-ov__door rect { fill: rgba(120, 132, 150, 0.9); opacity: 0; animation: sa-landing-fade 0.5s ease 2.1s forwards; }
+.sa-ov__shadow {
+  fill: rgba(0, 0, 0, 0.6);
+  transform: translate(18px, 26px);
+  opacity: 0;
+  animation: sa-landing-fade 1s ease 1.6s forwards;
+}
+.sa-ov__trail {
+  fill: none;
+  stroke: url(#sa-ov-trail);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-dasharray: 60 22;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+  animation: sa-landing-fade 1.2s ease 2.2s forwards, sa-ov-trail 0.9s linear 2.2s infinite;
+}
+@keyframes sa-ov-trail { to { stroke-dashoffset: 82; } }
 .sa-ov__nav { opacity: 0; animation: sa-ov-strobe 1.6s steps(1, end) 2s infinite; }
-.sa-ov__nav--port { fill: #FF4D5E; filter: drop-shadow(0 0 6px #FF4D5E); }
-.sa-ov__nav--star { fill: #3BFF8F; filter: drop-shadow(0 0 6px #3BFF8F); animation-delay: 2.15s; }
+.sa-ov__nav--tail { fill: #fff; filter: drop-shadow(0 0 7px #fff); animation-delay: 2.5s; animation-duration: 2.2s; }
 @keyframes sa-ov-strobe { 0% { opacity: 1; } 12% { opacity: 0.15; } 20% { opacity: 1; } 32%, 100% { opacity: 0.15; } }
 
-/* The seats, laid inside the fuselage: rows nose to tail, three a side
-   either side of the aisle. Each seat is a square measured off the
-   cabin's height, never wider than its row. */
+/* ── The seats, under the glass roof ──
+   Rows nose (right) to tail, three a side either side of the aisle,
+   a galley between cabins. Each seat is a square measured off the
+   cabin's height, never wider than its row, with its headrest on the
+   aft edge. Lined up with CABIN in SeatOverview. */
 .sa-ov__cabin {
   position: absolute;
-  left: 7%;
-  right: 14.5%;
-  top: 30%;
-  bottom: 30%;
+  left: 20%;
+  right: 8.6%;
+  top: 33%;
+  bottom: 33%;
   display: flex;
-  gap: 0.4%;
-  overflow: hidden;
+  flex-direction: row-reverse;
+  gap: 0.35%;
   container-type: size;
-  /* Six seats and the aisle down the cabin's height. */
   --s: calc(100cqh * 0.9 / 6);
 }
 .sa-ov__row {
+  position: relative;
   flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 7cqh;
+  gap: 8cqh;
 }
+/* Each cabin's carpet, faintly its own. */
+.sa-ov__row::before {
+  content: '';
+  position: absolute;
+  inset: -4cqh -0.2cqw;
+  background: var(--floor, transparent);
+  opacity: 0;
+  animation: sa-landing-fade 0.8s ease 1.4s forwards;
+  pointer-events: none;
+}
+.sa-ov__row--deck { --floor: rgba(127, 227, 247, 0.10); }
+.sa-ov__row--first { --floor: rgba(255, 200, 90, 0.12); }
+.sa-ov__row--business { --floor: rgba(100, 150, 255, 0.12); }
+.sa-ov__row--exit { --floor: rgba(255, 140, 60, 0.08); }
+.sa-ov__galley {
+  flex: 0.6 1 0;
+  margin-block: 6cqh;
+  border-radius: 2px;
+  background: repeating-linear-gradient(0deg, rgba(160, 225, 245, 0.18) 0 2px, transparent 2px 6px);
+  opacity: 0;
+  animation: sa-landing-fade 0.6s ease 1.6s forwards;
+}
+.sa-ov__galley--exit { background: linear-gradient(rgba(255, 196, 64, 0.55), rgba(255, 196, 64, 0.55)) center / 2px 100% no-repeat; }
 .sa-ov__bank {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -5482,26 +5598,38 @@ p { text-wrap-style: pretty; }
   gap: 1.5cqh;
 }
 .sa-ov__seat {
+  position: relative;
   display: block;
   width: min(92%, var(--s));
   aspect-ratio: 1;
-  border-radius: 22%;
+  border-radius: 24% 18% 18% 24%;
   background: rgba(255, 255, 255, 0.07) center / cover no-repeat;
   box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.35);
   transform: scale(0);
+  transition: box-shadow 0.15s ease;
   animation: sa-ov-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) calc(1.3s + var(--pop)) forwards;
 }
+/* The headrest: a bar along the seat's back, which faces the tail. */
+.sa-ov__seat::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 12%;
+  bottom: 12%;
+  width: 16%;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
 .sa-ov__row--first .sa-ov__seat { width: min(92%, calc(var(--s) * 1.3)); }
-.sa-ov__row--deck .sa-ov__seat { width: min(92%, calc(var(--s) * 1.45)); }
+.sa-ov__row--deck .sa-ov__seat { width: min(92%, calc(var(--s) * 1.4)); border-radius: 30%; }
 @keyframes sa-ov-pop {
   0% { transform: scale(0); opacity: 0; }
   60% { transform: scale(1.35); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
 .sa-ov__seat.is-held { background-color: #0087EA; box-shadow: 0 0 6px rgba(0, 150, 235, 0.6); }
-.sa-ov__seat.is-ad { background-color: #0E2E5E; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35); }
-/* Once they are in: the adverts twinkle, each on its own clock, and the
-   open seats breathe — there for the taking. */
+.sa-ov__seat.is-ad { background-color: #0E2E5E; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4), 0 0 5px rgba(0, 150, 235, 0.45); }
 .sa-ov__seat.is-ad,
 .sa-ov__seat.is-held {
   animation:
@@ -5513,6 +5641,7 @@ p { text-wrap-style: pretty; }
     sa-ov-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) calc(1.3s + var(--pop)) forwards,
     sa-ov-breathe 2.6s ease-in-out calc(3.5s + var(--pop)) infinite;
 }
+.sa-ov__seat.is-open::before { background: rgba(127, 227, 247, 0.3); box-shadow: none; }
 @keyframes sa-ov-twinkle {
   0%, 90%, 100% { transform: scale(1); filter: none; }
   94% { transform: scale(1.3); filter: brightness(1.5) drop-shadow(0 0 4px #7FE3F7); }
@@ -5521,25 +5650,104 @@ p { text-wrap-style: pretty; }
   0%, 100% { transform: scale(1); box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.3); }
   50% { transform: scale(1); box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.85), 0 0 5px rgba(127, 227, 247, 0.45); }
 }
-.sa-ov__seat:hover { transform: scale(1.6) !important; z-index: 1; position: relative; box-shadow: 0 0 0 1px #fff, 0 0 10px rgba(127, 227, 247, 0.9); }
+.sa-ov__seat:hover,
+.sa-ov__seat.is-peeked { transform: scale(1.6) !important; z-index: 2; box-shadow: 0 0 0 1.5px #fff, 0 0 12px rgba(127, 227, 247, 0.95); }
 /* A band of light that walks the cabin, nose to tail. */
 .sa-ov__sweep {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(100deg, transparent 0%, rgba(127, 227, 247, 0) 40%, rgba(180, 240, 255, 0.35) 50%, rgba(127, 227, 247, 0) 60%, transparent 100%);
+  inset: -6cqh 0;
+  background: linear-gradient(80deg, transparent 0%, rgba(127, 227, 247, 0) 40%, rgba(180, 240, 255, 0.35) 50%, rgba(127, 227, 247, 0) 60%, transparent 100%);
   background-size: 250% 100%;
-  background-position: 150% 0;
+  background-position: -60% 0;
   mix-blend-mode: screen;
   pointer-events: none;
   animation: sa-ov-sweep 4.2s ease-in-out 2.8s infinite;
 }
 @keyframes sa-ov-sweep {
-  0% { background-position: 150% 0; }
-  55%, 100% { background-position: -60% 0; }
+  0% { background-position: -60% 0; }
+  55%, 100% { background-position: 150% 0; }
 }
 
+/* ── The seat under the pointer, lifted out big ── */
+.sa-ov__peek {
+  position: absolute;
+  z-index: 5;
+  width: 168px; /* PEEK_W in SeatOverview */
+  padding: 8px 8px 10px;
+  border-radius: 16px;
+  background: linear-gradient(170deg, rgba(22, 38, 66, 0.97), rgba(8, 14, 28, 0.97));
+  box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.45), 0 18px 44px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 150, 235, 0.35);
+  transform: translate(-50%, calc(-100% - 12px));
+  transform-origin: 50% 100%;
+  pointer-events: none;
+  animation: sa-ov-peek 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.sa-ov__peek.is-below { transform: translate(-50%, 12px); transform-origin: 50% 0; animation-name: sa-ov-peek-below; }
+@keyframes sa-ov-peek {
+  from { opacity: 0; transform: translate(-50%, calc(-100% - 2px)) scale(0.6); }
+  to { opacity: 1; transform: translate(-50%, calc(-100% - 12px)) scale(1); }
+}
+@keyframes sa-ov-peek-below {
+  from { opacity: 0; transform: translate(-50%, 2px) scale(0.6); }
+  to { opacity: 1; transform: translate(-50%, 12px) scale(1); }
+}
+.sa-ov__peek-art {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #0A1424;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+.sa-ov__peek-art img { width: 100%; height: 100%; object-fit: cover; }
+.sa-ov__peek-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7FE3F7;
+  background: repeating-linear-gradient(45deg, rgba(127, 227, 247, 0.06) 0 8px, transparent 8px 16px);
+}
+.sa-ov__peek-seat {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  display: inline-flex;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  background: rgba(8, 14, 28, 0.8);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+.sa-ov__peek-rank { color: #7FE3F7; }
+.sa-ov__peek-cabin {
+  margin-top: 7px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7FE3F7;
+}
+.sa-ov__peek-line {
+  margin-top: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: #EAF2FB;
+}
+.sa-ov__peek-line a { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
+.sa-ov__peek-addr { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
 .sa-ov__readout {
-  min-height: 1.4em;
   margin-top: 0.55rem;
   overflow: hidden;
   white-space: nowrap;
@@ -5550,9 +5758,9 @@ p { text-wrap-style: pretty; }
   color: rgba(214, 228, 242, 0.78);
   animation: sa-landing-fade 0.6s ease 2s both;
 }
-.sa-ov__readout strong { color: #fff; }
 
-/* Claim your Seat: blinking, glowing, a shine running across it. */
+/* Claim your Seat, in the airline's bright blue: blinking, glowing, a
+   shine running across it. */
 .sa-ov__claim {
   position: relative;
   display: flex;
@@ -5564,13 +5772,14 @@ p { text-wrap-style: pretty; }
   margin-top: 0.75rem;
   overflow: hidden;
   border-radius: 999px;
-  background: linear-gradient(100deg, #FFB800, #FF7A00);
-  color: #1A0E00;
+  background: linear-gradient(100deg, #00C9F1, #0087EA 60%, #005FB8);
+  color: #fff;
   font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.22em;
   text-transform: uppercase;
+  text-shadow: 0 1px 6px rgba(0, 40, 90, 0.55);
   cursor: pointer;
   animation:
     sa-ov-claim-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 2.4s both,
@@ -5580,11 +5789,11 @@ p { text-wrap-style: pretty; }
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.75) 50%, transparent 70%);
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.7) 50%, transparent 70%);
   transform: translateX(-120%);
   animation: sa-ov-shine 2.6s ease-in-out 3.4s infinite;
 }
-.sa-ov__claim:hover { filter: brightness(1.1); }
+.sa-ov__claim:hover { filter: brightness(1.12); }
 .sa-ov__claim:active { transform: translateY(1px); }
 .sa-ov__claim:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 @keyframes sa-ov-claim-in {
@@ -5592,8 +5801,8 @@ p { text-wrap-style: pretty; }
   100% { opacity: 1; transform: none; }
 }
 @keyframes sa-ov-blink {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 184, 0, 0.7), 0 8px 26px rgba(255, 140, 0, 0.45); filter: brightness(1); }
-  50% { box-shadow: 0 0 0 8px rgba(255, 184, 0, 0), 0 8px 40px rgba(255, 160, 0, 0.9); filter: brightness(1.22); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 201, 241, 0.75), 0 8px 26px rgba(0, 135, 234, 0.45); filter: brightness(1); }
+  50% { box-shadow: 0 0 0 9px rgba(0, 201, 241, 0), 0 8px 42px rgba(0, 201, 241, 0.95); filter: brightness(1.28); }
 }
 @keyframes sa-ov-shine {
   0% { transform: translateX(-120%); }
@@ -5606,10 +5815,12 @@ p { text-wrap-style: pretty; }
   .sa-ov {
     left: 50%;
     right: auto;
+    bottom: auto;
     top: calc(max(1rem, var(--safe-top)) + 4.1rem);
     width: min(calc(100vw - 2rem), 34rem);
     padding: 0.7rem 0.8rem 0.85rem;
     transform: translateX(-50%);
+    transform-origin: top center;
     animation-name: sa-ov-in-top;
   }
   .sa-ov__claim { min-height: 2.75rem; font-size: 0.9rem; margin-top: 0.55rem; }
@@ -5625,8 +5836,9 @@ p { text-wrap-style: pretty; }
 }
 .sa-landing.is-leaving .sa-ov { animation: none; opacity: 0; transition: opacity 0.3s ease; }
 @media (prefers-reduced-motion: reduce) {
-  .sa-ov, .sa-ov *, .sa-ov::before, .sa-ov__claim::after { animation: none !important; }
+  .sa-ov, .sa-ov *, .sa-ov::before, .sa-ov__claim::after, .sa-ov__row::before { animation: none !important; }
   .sa-ov__seat { transform: none; }
-  .sa-ov__body, .sa-ov__wing { stroke-dashoffset: 0; fill: rgba(232, 240, 250, 0.1); }
-  .sa-ov__nav { opacity: 1; }
+  .sa-ov__draw { stroke-dashoffset: 0; fill-opacity: 1; stroke: rgba(70, 86, 108, 0.55); }
+  .sa-ov__nav, .sa-ov__trail, .sa-ov__row::before, .sa-ov__galley, .sa-ov__cabinfloor, .sa-ov__cheat,
+  .sa-ov__windows, .sa-ov__fin, .sa-ov__glass, .sa-ov__door rect, .sa-ov__shadow { opacity: 1; }
 }
