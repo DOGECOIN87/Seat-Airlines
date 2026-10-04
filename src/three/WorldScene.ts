@@ -227,23 +227,27 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   const cgPivot = new THREE.Vector3();
   /** Where the airframe turns about: the wing box, not the nose. */
   const CG_Z = 10.8;
+  /* Every device draws the full scene: the same antialiasing, shadows,
+     terrain, woods and weather. A lighter one only differs in how it paces
+     itself when it cannot keep up (see the pacing, below). */
   const lowPower =
     (typeof navigator !== 'undefined' && (navigator.hardwareConcurrency ?? 8) <= 4) ||
     (typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches);
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: !lowPower,
-    powerPreference: lowPower ? 'low-power' : 'high-performance',
+    antialias: true,
+    powerPreference: 'high-performance',
     // The scene spans a window a few centimetres from the camera through a
     // sky dome 160 km away. Log depth keeps window glass and the exterior
     // livery from z-fighting at that range.
     logarithmicDepthBuffer: true,
   });
-  /* Sharp on a phone too: up to one and a half device pixels to a CSS pixel,
-     and never below one. Going under one to save work made the landing and
-     the cabin visibly soft in wallet browsers, which is worse than a few
-     frames a second fewer; frame rate gives way first (see the pacing). */
-  const maxPixelRatio = Math.min(window.devicePixelRatio, 1.5);
+  /* Sharp everywhere: up to two device pixels to a CSS pixel — a retina
+     screen's own — and never below one. Going under one to save work made
+     the landing and the cabin visibly soft in wallet browsers, which is
+     worse than a few frames a second fewer; frame rate gives way first
+     (see the pacing). */
+  const maxPixelRatio = Math.min(window.devicePixelRatio, 2);
   const minPixelRatio = Math.min(window.devicePixelRatio, 1);
   let pixelRatio = maxPixelRatio;
   renderer.setPixelRatio(pixelRatio);
@@ -251,8 +255,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.85;
   renderer.shadowMap.enabled = true;
-  // Soft shadows take several times the samples; a phone gets the plain filter.
-  renderer.shadowMap.type = lowPower ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   /* The first frame waits for the shaders, compiled in parallel (see precompile.ts). */
   const canDraw = precompiler(renderer);
 
@@ -449,7 +452,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   const sunPos = new THREE.Vector3();
   const sun = new THREE.DirectionalLight(0xffffff, 2.4);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(lowPower ? 256 : 512, lowPower ? 256 : 512);
+  // 2048 over the seventy-odd metres round the aeroplane: a texel every few centimetres, so the wing's shadow on the fuselage is crisp.
+  sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -36;
   sun.shadow.camera.right = 36;
   sun.shadow.camera.top = 36;
@@ -694,7 +698,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      are lit through the normal map, so even the flat far country keeps the
      light and shade of its slopes. */
   const NEAR = 26000;
-  const NEAR_SEG = lowPower ? 150 : 220;
+  const NEAR_SEG = 220;
   const nearGeometry = new THREE.PlaneGeometry(NEAR, NEAR, NEAR_SEG, NEAR_SEG);
   {
     // UVs matched to the plate's, so the same textures land in the same place.
@@ -838,7 +842,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   /* ── Snowfall ─────────────────────────────────────────────────────────
      Over the snowfields it is snowing, in the air round whichever camera
      is looking (see `snow.ts`). */
-  const snowfall = createSnowfall({ flakes: lowPower ? 2600 : 5200 });
+  const snowfall = createSnowfall({ flakes: 5200 });
   scene.add(snowfall.points);
   const eyeAt = new THREE.Vector3();
   const toAircraft = new THREE.Matrix4();
@@ -849,7 +853,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   /* ── Rain and thunderstorms ──────────────────────────────────────────
      Rain in the air round the camera outside, and in a storm, lightning to
      the horizon that lights the whole sky (see `storm.ts`). */
-  const storm = createStorm({ drops: lowPower ? 6000 : 12000 });
+  const storm = createStorm({ drops: 12000 });
   scene.add(storm.group);
   /** How bright the sky is from lightning, as of the last frame drawn. */
   let stormFlash = 0;
@@ -865,7 +869,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      out where it is haze (see `ranges.ts`). They take the same envMap and the
      same fog as the ground, and sink out of sight over water and past the
      cloud. */
-  const ranges = createRanges({ base: import.meta.env.BASE_URL, segments: lowPower ? 96 : 128, envMap: envRT.texture });
+  const ranges = createRanges({ base: import.meta.env.BASE_URL, segments: 128, envMap: envRT.texture });
   scene.add(ranges.group);
 
   /* ── What stands on it ────────────────────────────────────────────────
@@ -878,9 +882,10 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     trees: farmland.props.trees,
     buildings: farmland.props.buildings,
     boats: ocean.boats,
+    pylons: farmland.props.pylons,
+    spans: farmland.props.spans,
     height: farmland.height,
     near: { size: NEAR, segments: NEAR_SEG },
-    lowPower,
     overlayOrder: OVERLAY_ORDER,
   });
   scene.add(scenery.group);

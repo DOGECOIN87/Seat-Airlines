@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { TILE_METRES } from './terrain';
-import { seededRandom, type BoatKind, type BoatSpot, type BuildingSpot, type TreeKind, type TreeSpot } from './props';
+import { seededRandom, type BoatKind, type BoatSpot, type BuildingSpot, type PylonSpot, type TreeKind, type TreeSpot } from './props';
 
 /**
  * What stands on the ground, in the round.
@@ -58,11 +58,13 @@ interface SceneryOptions {
   trees: TreeSpot[];
   buildings: BuildingSpot[];
   boats: BoatSpot[];
+  /** The power lines' towers, and the spans strung between them. */
+  pylons: PylonSpot[];
+  spans: [number, number][];
   /** The farmland's relief map, which the ground mesh is displaced by. */
   height: THREE.Texture;
   /** The ground mesh: metres across, and segments along each side. */
   near: { size: number; segments: number };
-  lowPower: boolean;
   /** Where see-through ground layers draw: before the clouds, after the sea. */
   overlayOrder: number;
 }
@@ -421,6 +423,129 @@ function houseShape(): THREE.BufferGeometry {
    waterline at 0; each carries its hull in its first colour and its trim in
    its second, and everything above the deck that could have a window in it
    marked as glass. */
+/* ── The power lines ────────────────────────────────────────────────────
+   A lattice steel tower of the big double-circuit kind: four legs splayed
+   at the foot and drawn in to a waist, cross-braced in every bay, three
+   crossarms a side with a string of insulators hanging from each tip, and
+   the earth-wire peak on top. Fifty-eight metres, in its own metres, the
+   line running along z. */
+const PYLON = {
+  arms: [[11, 30], [9.5, 38], [8, 46]] as const,
+  insulator: 3.6,
+  peak: 58,
+};
+/** Where each conductor is strung, across and up from the tower's foot: three a side, and the earth wire. */
+const CONDUCTORS: readonly [number, number][] = [
+  ...PYLON.arms.flatMap(([x, y]) => [[-x, y - PYLON.insulator], [x, y - PYLON.insulator]] as [number, number][]),
+  [0, PYLON.peak],
+];
+
+function pylonShape(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  const insulators = new Set<THREE.BufferGeometry>();
+  const up = new THREE.Vector3(0, 1, 0);
+  const beam = (a: THREE.Vector3, b: THREE.Vector3, w: number, glass = false) => {
+    const d = b.clone().sub(a);
+    const g = glass ? new THREE.CylinderGeometry(w, w, d.length(), 8) : new THREE.BoxGeometry(w, d.length(), w);
+    g.deleteAttribute('uv');
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, d.normalize()));
+    g.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+    parts.push(g);
+    if (glass) insulators.add(g);
+  };
+  // Half the tower's width at a height: splayed feet, a waist at the lowest arm, narrowing to the top.
+  const half = (y: number) => (y <= 30 ? THREE.MathUtils.lerp(5, 1.5, y / 30) : THREE.MathUtils.lerp(1.5, 1.05, (y - 30) / 22));
+  const corner = (y: number, sx: number, sz: number) => new THREE.Vector3(sx * half(y), y, sz * half(y));
+  const corners = [[1, 1], [-1, 1], [-1, -1], [1, -1]] as const;
+  const levels = [0, 8, 16, 23, 30, 38, 46, 52];
+  for (const [sx, sz] of corners) {
+    beam(corner(0, sx, sz), corner(30, sx, sz), 0.5);
+    beam(corner(30, sx, sz), corner(52, sx, sz), 0.4);
+    // The peak.
+    beam(corner(52, sx, sz), new THREE.Vector3(0, PYLON.peak, 0), 0.28);
+  }
+  for (let i = 1; i < levels.length; i++) {
+    const y0 = levels[i - 1];
+    const y1 = levels[i];
+    for (let c = 0; c < 4; c++) {
+      const [ax, az] = corners[c];
+      const [bx, bz] = corners[(c + 1) % 4];
+      beam(corner(y1, ax, az), corner(y1, bx, bz), 0.22);
+      // One diagonal a bay, alternating, so the faces zigzag.
+      if ((i + c) % 2) beam(corner(y0, ax, az), corner(y1, bx, bz), 0.18);
+      else beam(corner(y0, bx, bz), corner(y1, ax, az), 0.18);
+    }
+  }
+  for (const [reach, y] of PYLON.arms) {
+    for (const sx of [-1, 1]) {
+      const tip = new THREE.Vector3(sx * reach, y, 0);
+      const h = half(y);
+      beam(new THREE.Vector3(sx * h, y, h), tip, 0.28);
+      beam(new THREE.Vector3(sx * h, y, -h), tip, 0.28);
+      beam(new THREE.Vector3(sx * half(y + 3), y + 3, 0), tip.clone().add(new THREE.Vector3(0, 0.3, 0)), 0.22);
+      beam(tip, new THREE.Vector3(sx * reach, y - PYLON.insulator, 0), 0.22, true);
+    }
+  }
+  const flat = parts.map((g) => g.toNonIndexed());
+  const merged = mergeGeometries(flat);
+  if (!merged) throw new Error('the pylon did not merge');
+  // Which vertices are insulator: their parts' runs, in order.
+  const glassRun: boolean[] = [];
+  flat.forEach((g, k) => {
+    for (let i = 0; i < g.attributes.position.count; i++) glassRun.push(insulators.has(parts[k]));
+  });
+  [...parts, ...flat].forEach((g) => g.dispose());
+  return finishShape(merged, (i) => (glassRun[i] ? 1 : 0), () => 0);
+}
+
+/* The wires, strung tower to tower: each span's conductors as lines of a
+   dozen segments, hanging in a shallow catenary between the two towers'
+   attachment points — wherever the ground has put those towers — and never
+   allowed down into a hillside between them. */
+const WIRE_SEGMENTS = 14;
+const WIRE_SAG = 9;
+const WIRE_VERTEX = /* glsl */ `
+vec2 scXZ = vec2( wSpan.x * SC_TILE - scShift.x, wSpan.y * SC_TILE + scShift.y );
+vec2 scWrap = floor( scXZ / SC_TILE + 0.5 );
+scXZ += ( floor( modelMatrix[ 3 ].xz / SC_TILE + 0.5 ) - scWrap ) * SC_TILE;
+vec2 wD = wSpan.zw - wSpan.xy;
+wD -= floor( wD + 0.5 );
+vec2 wB = scXZ + wD * SC_TILE;
+float scAlive = scShow * ( 1.0 - smoothstep( scReach.x, scReach.y, length( 0.5 * ( scXZ + wB ) ) ) );
+vec2 wDir = normalize( wD );
+vec2 wAcross = vec2( wDir.y, - wDir.x );
+float wF = position.x;
+vec2 wXZ = mix( scXZ, wB, wF ) + wAcross * wAttach.x * scAlive;
+float wY = mix( scGround( scXZ ), scGround( wB ), wF ) + ( wAttach.y - ${WIRE_SAG.toFixed(1)} * 4.0 * wF * ( 1.0 - wF ) ) * scAlive;
+wY = max( wY, scGround( wXZ ) + 6.0 * scAlive );
+vec3 transformed = vec3( wXZ.x, wY, wXZ.y ) - modelMatrix[ 3 ].xyz;
+`;
+
+function wireGeometry(pylons: PylonSpot[], spans: [number, number][]): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const span: number[] = [];
+  const attach: number[] = [];
+  for (const [a, b] of spans) {
+    const pa = pylons[a];
+    const pb = pylons[b];
+    for (const [x, y] of CONDUCTORS) {
+      for (let k = 0; k < WIRE_SEGMENTS; k++) {
+        for (const f of [k / WIRE_SEGMENTS, (k + 1) / WIRE_SEGMENTS]) {
+          pos.push(f, 0, 0);
+          span.push(pa.s, pa.t, pb.s, pb.t);
+          attach.push(x, y);
+        }
+      }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('wSpan', new THREE.Float32BufferAttribute(span, 4));
+  geo.setAttribute('wAttach', new THREE.Float32BufferAttribute(attach, 2));
+  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 60, 0), TILE * 0.75 + 600);
+  return geo;
+}
+
 function box(w: number, h: number, l: number, x: number, y: number, z: number): THREE.BufferGeometry {
   const g = new THREE.BoxGeometry(w, h, l).toNonIndexed();
   g.translate(x, y + h / 2, z);
@@ -664,9 +789,11 @@ export function createScenery(o: SceneryOptions): SceneryHandles {
      thousands of them to a tile; buildings, a couple of hundred to a tile,
      carry on to six; ships, being the size of a street, stay in view as far
      again. */
-  const TREE_REACH = o.lowPower ? new THREE.Vector2(2600, 3800) : new THREE.Vector2(3200, 4500);
-  const HOUSE_REACH = o.lowPower ? new THREE.Vector2(3600, 4800) : new THREE.Vector2(4500, 6000);
+  const TREE_REACH = new THREE.Vector2(3200, 4500);
+  const HOUSE_REACH = new THREE.Vector2(4500, 6000);
   const SEA_REACH = new THREE.Vector2(7500, 9500);
+  // Towers are the tallest thing on the land: seen further off than a house.
+  const PYLON_REACH = new THREE.Vector2(5500, 7000);
 
   const shared = {
     scShift: { value: new THREE.Vector2() },
@@ -683,22 +810,29 @@ export function createScenery(o: SceneryOptions): SceneryHandles {
   const treeU = { ...shared, scShow: landShow, scReach: { value: TREE_REACH } };
   const houseU = { ...shared, scShow: landShow, scReach: { value: HOUSE_REACH } };
   const seaU = { ...shared, scShow: { value: 0 }, scReach: { value: SEA_REACH } };
+  const pylonU = { ...shared, scShow: landShow, scReach: { value: PYLON_REACH } };
 
   const LAMP = 'vec3( 1.0, 0.72, 0.42 )';
   const treeMat = placedMaterial(treeU, { SC_GROUNDED: '' });
   const houseMat = placedMaterial(houseU, {
     SC_GROUNDED: '', SC_SINK: '6.0', SC_WINDOWS: '', SC_BAY: '3.4', SC_STOREY: '3.1', SC_LAMP: LAMP,
   });
+  const pylonMat = placedMaterial(pylonU, { SC_GROUNDED: '' });
+  const wireMat = new THREE.LineBasicMaterial({ color: 0x30353c, transparent: true, opacity: 0.9 });
+  wireMat.defines = { SC_GROUNDED: '' };
+  wireMat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, pylonU);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\n${PLACE_COMMON}\nattribute vec4 wSpan;\nattribute vec2 wAttach;`)
+      .replace('#include <begin_vertex>', WIRE_VERTEX);
+  };
   const boatMat = placedMaterial(seaU, {
     SC_PER_TILE: '', SC_WINDOWS: '', SC_BAY: '2.6', SC_STOREY: '2.8', SC_LAMP: 'vec3( 1.0, 0.86, 0.62 )',
   });
 
   /* ── Trees ── */
   const treeSets: Record<'cone' | 'crown' | 'spindle', Instances> = { cone: newInstances(), crown: newInstances(), spindle: newInstances() };
-  let kept = 0;
   for (const t of o.trees) {
-    // A lighter device plants a third of the woods; the painted floor fills in.
-    if (o.lowPower && t.kind !== 'poplar' && ((kept++ * 0.618034) % 1) > 0.35) continue;
     const set = treeSets[TREE_SHAPE[t.kind]];
     const [dark, light] = TREE_GREENS[t.kind];
     const c = new THREE.Color(dark).lerp(new THREE.Color(light), t.shade);
@@ -738,6 +872,23 @@ export function createScenery(o: SceneryOptions): SceneryHandles {
       const tint = WINDOW_TINTS[windowDraw() < 0.12 ? 3 : Math.floor(windowDraw() * 3)];
       windows.add([x, y, z], [b.s, b.t, b.angle, seed], tint, 2.2 + windowDraw() * 1.2, 1);
     }
+  }
+
+  /* ── Power lines ── */
+  const towers = newInstances();
+  const beacons = newLamps();
+  const STEEL = rgb('#9aa2aa');
+  const GLASS = rgb('#56626e');
+  for (const [i, p] of o.pylons.entries()) {
+    const yaw = p.angle - Math.PI / 2;
+    const seed = (i * 0.618034) % 1;
+    towers.spot.push(p.s, p.t, yaw, seed);
+    towers.size.push(1, 1, 1);
+    towers.colA.push(...STEEL);
+    towers.colB.push(...GLASS);
+    towers.extra.push(0, 1);
+    // The aircraft-warning lamp on the peak, red after dark.
+    beacons.add([0, PYLON.peak + 0.6, 0], [p.s, p.t, yaw, seed], [1.7, 0.18, 0.12], 3, 1);
   }
 
   /* ── Boats ── */
@@ -803,6 +954,7 @@ export function createScenery(o: SceneryOptions): SceneryHandles {
   })();
   const shipLightMat = lampMaterial(seaU, lightTex, { SC_PER_TILE: '' });
   const windowMat = lampMaterial(houseU, lightTex, { SC_GROUNDED: '' });
+  const beaconMat = lampMaterial(pylonU, lightTex, { SC_GROUNDED: '' });
   const shipLightGeo = shipLights.geometry();
   const windowGeo = windows.geometry();
 
@@ -822,10 +974,10 @@ export function createScenery(o: SceneryOptions): SceneryHandles {
     }
     return out;
   };
-  const place = (geo: THREE.BufferGeometry, mat: THREE.Material, reach: THREE.Vector2, sea: boolean, points = false, order = 0) => {
-    if ((geo as THREE.InstancedBufferGeometry).instanceCount === 0) return;
+  const place = (geo: THREE.BufferGeometry, mat: THREE.Material, reach: THREE.Vector2, sea: boolean, kind: boolean | 'lines' = false, order = 0) => {
+    if ((geo as THREE.InstancedBufferGeometry).instanceCount === 0 || geo.attributes.position.count === 0) return;
     for (const [kx, kz] of copies(reach.y)) {
-      const mesh = points ? new THREE.Points(geo, mat) : new THREE.Mesh(geo, mat);
+      const mesh = kind === 'lines' ? new THREE.LineSegments(geo, mat) : kind ? new THREE.Points(geo, mat) : new THREE.Mesh(geo, mat);
       mesh.position.set(kx * TILE, 0, kz * TILE);
       mesh.renderOrder = order;
       mesh.matrixAutoUpdate = false;
@@ -853,6 +1005,14 @@ export function createScenery(o: SceneryOptions): SceneryHandles {
     geometries.push(geo, shapes[k].geometry);
     place(geo, boatMat, SEA_REACH, true);
   }
+  const pylonShapeGeo = pylonShape();
+  const pylonGeo = instanced(pylonShapeGeo, towers);
+  const wireGeo = wireGeometry(o.pylons, o.spans);
+  const beaconGeo = beacons.geometry();
+  geometries.push(pylonGeo, pylonShapeGeo, wireGeo, beaconGeo);
+  place(pylonGeo, pylonMat, PYLON_REACH, false);
+  place(wireGeo, wireMat, PYLON_REACH, false, 'lines');
+  place(beaconGeo, beaconMat, PYLON_REACH, false, true, o.overlayOrder + 0.03);
   const wakeInst = instanced(wakeGeo, wakes);
   geometries.push(wakeInst, wakeGeo, shipLightGeo, windowGeo);
   place(wakeInst, wakeMat, SEA_REACH, true, false, o.overlayOrder + 0.02);
@@ -882,7 +1042,7 @@ export function createScenery(o: SceneryOptions): SceneryHandles {
 
   const dispose = () => {
     for (const g of geometries) g.dispose();
-    for (const m of [treeMat, houseMat, boatMat, wakeMat, shipLightMat, windowMat]) m.dispose();
+    for (const m of [treeMat, houseMat, boatMat, wakeMat, shipLightMat, windowMat, pylonMat, wireMat, beaconMat]) m.dispose();
     lightTex.dispose();
   };
 

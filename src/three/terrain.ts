@@ -185,7 +185,7 @@ export function farmlandTextures(size = 2048): GroundTextures {
     const a = Math.atan2(ys, x);
     return (Math.hypot(x, ys) - shoreR(l, a)) * THREE.MathUtils.lerp(1, l.aspect, Math.abs(Math.sin(a)));
   };
-  const KINDS = ['pond', 'pond', 'pond', 'round', 'round', 'ribbon', 'ribbon', 'lobed', 'lobed'] as const;
+  const KINDS = ['pond', 'pond', 'pond', 'round', 'round', 'ribbon', 'ribbon', 'lobed', 'lobed', 'large'] as const;
   for (let tries = 0; tries < 1400 && lakes.length < 14; tries++) {
     const u = rand();
     const v = rand();
@@ -198,6 +198,12 @@ export function farmlandTextures(size = 2048): GroundTextures {
       r = 0.004 + rand() * 0.006;
       aspect = 0.6 + rand() * 0.4;
       waves.push([2, rand() * 0.12, rand() * 6.283]);
+    } else if (kind === 'large') {
+      // A big lake, half a kilometre and more: bays, arms and a headland or two.
+      r = 0.075 + rand() * 0.035;
+      aspect = 0.55 + rand() * 0.35;
+      bend = (rand() - 0.5) * 0.4;
+      for (const n of [2, 3, 4, 5]) waves.push([n, 0.07 + rand() * 0.12, rand() * 6.283]);
     } else if (kind === 'round') {
       r = 0.016 + rand() * 0.022;
       aspect = 0.62 + rand() * 0.38;
@@ -214,7 +220,8 @@ export function farmlandTextures(size = 2048): GroundTextures {
       waves.push([4 + Math.floor(rand() * 2), 0.08 + rand() * 0.08, rand() * 6.283]);
     }
     const reach = r * 1.5;
-    if (heightAt(u, v) > (kind === 'pond' ? 0.3 : 0.2)) continue;
+    if (heightAt(u, v) > (kind === 'pond' ? 0.3 : kind === 'large' ? 0.16 : 0.2)) continue;
+    if (kind === 'large' && lakes.some((l) => l.r > 0.07)) continue;
     if (wrapped(v - riverAt(u)) < reach + 0.05) continue;
     if (lakes.some((l) => Math.hypot(wrapped(l.u - u), wrapped(l.v - v)) < (l.r + r) * 1.5 + 0.09)) continue;
     lakes.push({ u, v, r, aspect, rot: rand() * Math.PI, bend, waves });
@@ -766,11 +773,13 @@ function landProps(p: {
     for (let k = 0; k < route.towers; k++) {
       let f = k / route.towers;
       // Step along the line, either way, until clear of water, roads and towns.
-      for (let tries = 0; tries < 12; tries++) {
+      // Searching up to about half a span each way: far enough to get a tower out of a town.
+      const planned = f;
+      for (let tries = 0; tries < 24; tries++) {
         const sx = wrap01(route.from[0] + ds * f) * size;
         const ty = wrap01(route.from[1] + dt * f) * size;
         if (!blocked(sx, ty)) break;
-        f += ((tries % 2 ? 1 : -1) * (tries + 1) * 0.006) / route.towers * 3;
+        f = planned + (tries % 2 ? 1 : -1) * Math.ceil((tries + 1) / 2) * (0.5 / route.towers / 12);
       }
       f += (lineRand() - 0.5) * 0.008;
       pylons.push({ s: wrap01(route.from[0] + ds * f), t: wrap01(route.from[1] + dt * f), angle });

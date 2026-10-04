@@ -370,14 +370,13 @@ function ld3Geometry(): THREE.BufferGeometry {
    ──────────────────────────────────────────────────────────────────────── */
 
 export function createCargoHold(canvasEl: HTMLCanvasElement): CargoHoldHandles {
-  const lowPower =
-    (navigator.hardwareConcurrency ?? 8) <= 4 || window.matchMedia('(max-width: 768px)').matches;
+  // The full hold on every device: antialiased, sharp to a retina screen, every lamp lit.
   const renderer = new THREE.WebGLRenderer({
     canvas: canvasEl,
-    antialias: !lowPower,
-    powerPreference: lowPower ? 'low-power' : 'high-performance',
+    antialias: true,
+    powerPreference: 'high-performance',
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1.5 : 1.75));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
@@ -684,18 +683,14 @@ export function createCargoHold(canvasEl: HTMLCanvasElement): CargoHoldHandles {
     const head = new THREE.Group();
     head.position.y = -cordLen;
     head.add(new THREE.Mesh(bulbGeo, bulbMat), new THREE.LineSegments(cageGeo, cageMat), new THREE.Mesh(beamGeo, beamMat));
-    // Fewer real lights on a phone; the far lamps still glow.
-    if (!lowPower || i < 3) {
-      const light = new THREE.PointLight('#FFC98A', 5.5, 9, 2);
-      head.add(light);
-    }
+    head.add(new THREE.PointLight('#FFC98A', 5.5, 9, 2));
     pivot.add(cord, head);
     scene.add(pivot);
     return { pivot, phase: i * 1.7 };
   });
 
   /* ── Dust, turning slowly in the light ── */
-  const dustCount = lowPower ? 220 : 480;
+  const dustCount = 480;
   const dustPos = new Float32Array(dustCount * 3);
   const dustSeed = new Float32Array(dustCount);
   const drand = seeded(0xd057);
