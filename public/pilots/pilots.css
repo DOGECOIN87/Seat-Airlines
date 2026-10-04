@@ -1,0 +1,10 @@
+/* The leaderboard page: legal.css's plain page, with the boards. */
+.fly { display: inline-block; padding: 0.55rem 1.1rem; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 700; text-decoration: none; }
+.fly:hover { filter: brightness(1.1); }
+.board { margin-bottom: 0.5rem; font-variant-numeric: tabular-nums; }
+.board td:first-child, .board th:first-child { width: 2.5rem; }
+.num { text-align: right; padding-right: 0; }
+.board .num { white-space: nowrap; }
+.pilot { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0.9rem; }
+.day { color: var(--soft); font-size: 0.9rem; font-weight: 500; }
+.note { color: var(--soft); font-size: 0.9rem; }

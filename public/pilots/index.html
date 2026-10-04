@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://seat-airlines-banners.trashmarket.workers.dev; base-uri 'none'; form-action 'none'">
+<title>Top pilots · Seat Airlines flight game leaderboard</title>
+<meta name="description" content="Today's top pilots and the all-time leaderboard for the Seat Airlines flight game: climb an airliner to 10,000 ft, ride the updrafts, boost and keep it flying. Free to play in the browser.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://seat-airlines.space/pilots/">
+<link rel="icon" href="/favicon.ico?v=3">
+<link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml">
+<meta property="og:site_name" content="Seat Airlines">
+<meta property="og:title" content="Top pilots · Seat Airlines">
+<meta property="og:description" content="Today's top pilots and the all-time board. Think you can fly further?">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://seat-airlines.space/pilots/">
+<meta property="og:image" content="https://seat-airlines.space/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@SeatAirlines">
+<link rel="stylesheet" href="/legal.css">
+<link rel="stylesheet" href="/pilots/pilots.css">
+<script src="/pilots/pilots.js" defer></script>
+</head>
+<body>
+<main>
+<header><a href="/">← Seat Airlines</a></header>
+<h1>Top pilots</h1>
+<p class="meta">The Seat Airlines flight game leaderboard. The day's top five are posted by <a href="https://x.com/SeatAirlines" rel="noopener">@SeatAirlines</a> on X at 23:50 UTC.</p>
+<p><a class="fly" href="/">Take the controls →</a></p>
+
+<h2 id="today">Today <span class="day" data-day></span></h2>
+<table class="board">
+  <thead><tr><th scope="col">#</th><th scope="col">Pilot</th><th scope="col" class="num">Score</th></tr></thead>
+  <tbody data-board="today"><tr><td colspan="3" class="note">Loading…</td></tr></tbody>
+</table>
+
+<h2 id="all-time">All time</h2>
+<table class="board">
+  <thead><tr><th scope="col">#</th><th scope="col">Pilot</th><th scope="col" class="num">Score</th><th scope="col" class="num">Survived</th></tr></thead>
+  <tbody data-board="all"><tr><td colspan="4" class="note">Loading…</td></tr></tbody>
+</table>
+<noscript><p class="note">The scores need JavaScript to load. <a href="/">Play the game</a> to see the board in the cabin.</p></noscript>
+
+<h2 id="how-to-play">How to play</h2>
+<p>Connect a Solana wallet on the <a href="/">landing page</a> and press <strong>Fly</strong>. The airliner dives to the deck and the controls are yours: the arrow keys (or WASD) on a computer, a drag anywhere on a phone. The brief is to climb to 10,000&nbsp;ft — and somewhere on the way, an engine lets go.</p>
+<ul>
+  <li><strong>Boost</strong> — the space bar or the round button. The engines still turning light their afterburners for a few seconds: a big shove forward and a hard climb. Three burns in the tank, refilling over time.</li>
+  <li><strong>Updrafts</strong> — thermals marked by a cumulus cloud. Fly under one with the wings level and it lifts you.</li>
+  <li><strong>Logos</strong> — spinning gold coins ahead. Fly near one and the aeroplane pulls it in: points, and boost back in the tank.</li>
+  <li><strong>Weather</strong> — clear air, rain or a thunderstorm, with rough air and lightning.</li>
+  <li><strong>UFOs</strong> — now and then one comes for a wing. Climb, dive or bank out of its way.</li>
+</ul>
+
+<h2 id="scoring">How scoring works</h2>
+<table>
+  <tbody>
+    <tr><td>Height before the engine goes</td><td>0.1 a foot</td></tr>
+    <tr><td>Reaching the brief's height</td><td>1,000, plus 40 for every second under 75</td></tr>
+    <tr><td>Every second in the air after</td><td>100, at ×1</td></tr>
+    <tr><td>Wings within 20° of level</td><td>+0.5 to the multiplier</td></tr>
+    <tr><td>Under 500&nbsp;ft</td><td>+1 to the multiplier</td></tr>
+    <tr><td>Riding an updraft</td><td>+0.5 to the multiplier</td></tr>
+    <tr><td>Each logo collected</td><td>500</td></tr>
+    <tr><td>A UFO dodged</td><td>2,500</td></tr>
+  </tbody>
+</table>
+<p class="note">The multipliers add up: wings level and under 500&nbsp;ft together is ×2.5, and ×3 in an updraft.</p>
+<p class="note">Posting a score signs a plain message with your wallet — never a transaction. Scores are for fun and have no monetary value; see the <a href="/terms/">Terms</a>.</p>
+
+<footer><a href="/">Seat Airlines</a> · <a href="/terms/">Terms</a> · <a href="/privacy/">Privacy</a></footer>
+</main>
+</body>
+</html>

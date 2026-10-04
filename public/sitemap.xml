@@ -6,6 +6,11 @@
     <changefreq>weekly</changefreq>
   </url>
   <url>
+    <loc>https://seat-airlines.space/pilots/</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
     <loc>https://seat-airlines.space/terms/</loc>
     <changefreq>yearly</changefreq>
   </url>
