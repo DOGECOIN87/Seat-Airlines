@@ -15,13 +15,24 @@ import SeatDialog from './SeatDialog';
  * cabin by cabin, the best placements largest and first.
  */
 
-/** How wide a tile is drawn, by cabin: the front of the aircraft is the front of the wall. */
-const TILE: Record<ZoneKey, string> = {
-  deck: '13rem',
-  first: '10rem',
-  business: '8rem',
-  exit: '7rem',
-  economy: '6.25rem',
+/* Each cabin is laid out with its own seats to a row — two on the flight
+   deck, four in first, six behind — so the wall's rows are the cabin's
+   rows and break where they do, and the front of the aircraft is drawn
+   largest. On a phone the six-across cabins go three to a row. */
+const COLUMNS: Record<ZoneKey, { wide: number; narrow: number }> = {
+  deck: { wide: 2, narrow: 2 },
+  first: { wide: 4, narrow: 2 },
+  business: { wide: 6, narrow: 3 },
+  exit: { wide: 6, narrow: 3 },
+  economy: { wide: 6, narrow: 3 },
+};
+/** The widest a cabin's row is drawn, so two flight-deck seats are big but not a wall each. */
+const ROW_MAX: Record<ZoneKey, string> = {
+  deck: '30rem',
+  first: '46rem',
+  business: '100%',
+  exit: '100%',
+  economy: '100%',
 };
 
 interface TileProps {
@@ -37,8 +48,11 @@ const Tile = ({ entry, banner, mine, onOpen }: TileProps) => {
      than as the browser's broken-image icon. Keyed to the URL, so a replaced
      advert gets a fresh try. */
   const [failed, setFailed] = useState<string | null>(null);
-  const picture = banner && failed !== banner.image ? banner : null;
-  const own = picture && !picture.house ? picture : null;
+  /* Only an advert the holder put up is shown here. The airline's own house
+     adverts fill empty screens in the cabin, but on the wall they read as
+     filler and bury the real ones, so a seat without its own advert is
+     drawn as the advert space it is. */
+  const own = banner && !banner.house && failed !== banner.image ? banner : null;
   const link = safeHref(own?.href);
   return (
     <li className={`sa-adwall__tile${mine ? ' is-mine' : ''}`}>
@@ -47,17 +61,23 @@ const Tile = ({ entry, banner, mine, onOpen }: TileProps) => {
         onClick={() => onOpen(id)}
         aria-haspopup="dialog"
         aria-label={`Seat ${id}, rank ${entry.rank}, ${shortAddress(entry.address)}${own ? `. Advert: ${own.alt}` : ''}`}
-        className="sa-adwall__art"
+        className={`sa-adwall__art${own ? ' has-ad' : ' is-space'}`}
       >
-        {picture ? (
-          <img src={picture.image} alt="" loading="lazy" onError={() => setFailed(picture.image)} />
+        {own ? (
+          <>
+            <img src={own.image} alt="" loading="lazy" onError={() => setFailed(own.image)} />
+            <span className="sa-adwall__seat" aria-hidden>
+              {id}
+              <span className="sa-adwall__rank">#{entry.rank}</span>
+            </span>
+          </>
         ) : (
-          <span className="sa-adwall__blank">No advert yet</span>
+          <span className="sa-adwall__space" aria-hidden>
+            <span className="sa-adwall__space-id">{id}</span>
+            <span className="sa-adwall__space-rank">#{entry.rank}</span>
+            <span className="sa-adwall__space-note">{mine ? 'Add your advert' : 'Advert space'}</span>
+          </span>
         )}
-        <span className="sa-adwall__seat" aria-hidden>
-          {id}
-          <span className="sa-adwall__rank">#{entry.rank}</span>
-        </span>
       </button>
       <p className="sa-adwall__caption">
         {own ? (
@@ -128,7 +148,11 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
             </h3>
             <ul
               className="sa-adwall__grid"
-              style={{ '--tile': TILE[zone.key] } as CSSProperties}
+              style={{
+                '--cols': COLUMNS[zone.key].wide,
+                '--cols-narrow': COLUMNS[zone.key].narrow,
+                '--row-max': ROW_MAX[zone.key],
+              } as CSSProperties}
             >
               {held.map((entry) => (
                 <Tile

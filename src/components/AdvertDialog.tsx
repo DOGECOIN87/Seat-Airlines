@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BANNER_SIZE, type Banner } from '../lib/banners';
+import { ACCEPTED_IMAGES, BANNER_SIZE, type Banner } from '../lib/banners';
 import { defaultEdit, loadImage, loadImageFromSrc, panBy, renderBanner, type EditState } from '../lib/imageEdit';
 
 interface AdvertDialogProps {
@@ -21,6 +21,9 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
   const [image, setImage] = useState(own?.image ?? '');
   const [edit, setEdit] = useState<EditState>(defaultEdit());
   const [bytes, setBytes] = useState(0);
+  /** The chosen file's own size and the format it was saved as, for the readout. */
+  const [original, setOriginal] = useState(0);
+  const [format, setFormat] = useState('');
   const [alt, setAlt] = useState(own?.alt ?? '');
   const [href, setHref] = useState(own?.href ?? '');
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +55,7 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
   useEffect(() => {
     if (!source) return;
     const timer = window.setTimeout(() => {
-      try { const out = renderBanner(source, edit); setImage(out.dataUrl); setBytes(out.bytes); }
+      try { const out = renderBanner(source, edit); setImage(out.dataUrl); setBytes(out.bytes); setFormat(out.type.replace('image/', '').toUpperCase()); }
       catch (e) { setError(e instanceof Error ? e.message : 'That edit could not be applied.'); }
     }, 120);
     return () => window.clearTimeout(timer);
@@ -61,7 +64,7 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
   const take = async (file?: File) => {
     if (!file) return;
     setBusy(true); setError(null); setImage('');
-    try { const img = await loadImage(file); setSource(img); setEdit(defaultEdit()); }
+    try { const img = await loadImage(file); setOriginal(file.size); setSource(img); setEdit(defaultEdit()); }
     catch (e) { setError(e instanceof Error ? e.message : 'That image could not be read.'); }
     finally { setBusy(false); }
   };
@@ -125,7 +128,7 @@ export default function AdvertDialog({ seat, current, onSave, onClear, onClose, 
             {image ? <img src={image} alt="Edited advert preview" className="h-full w-full object-cover" /> : <button type="button" onClick={() => input.current?.click()} className="h-full w-full text-[11px] uppercase tracking-[.14em] text-ui-faint">Drop, paste, or choose an image</button>}
             {grid && image && <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,transparent_32.9%,rgba(255,255,255,.6)_33%,transparent_33.4%,transparent_66.2%,rgba(255,255,255,.6)_66.5%,transparent_67%),linear-gradient(0deg,transparent_32.9%,rgba(255,255,255,.6)_33%,transparent_33.4%,transparent_66.2%,rgba(255,255,255,.6)_66.5%,transparent_67%)]" />}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2"><input ref={input} type="file" accept="image/*" hidden onChange={e => void take(e.target.files?.[0])} /><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => input.current?.click()}>Choose image</button><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => setEdit(defaultEdit())} disabled={!source}>Reset</button><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => setGrid(v => !v)} disabled={!image}>{grid ? 'Hide grid' : 'Show grid'}</button><span className="ml-auto text-[11px] uppercase tracking-[.12em] text-ui-faint">{busy ? 'Processing…' : bytes ? `${prettyBytes(bytes)} ready` : `${BANNER_SIZE}px square`}</span></div>
+          <div className="mt-3 flex flex-wrap items-center gap-2"><input ref={input} type="file" accept={ACCEPTED_IMAGES} hidden onChange={e => void take(e.target.files?.[0])} /><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => input.current?.click()}>Choose image</button><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => setEdit(defaultEdit())} disabled={!source}>Reset</button><button type="button" className="sa-ghost px-3 py-1.5 text-[11px]" onClick={() => setGrid(v => !v)} disabled={!image}>{grid ? 'Hide grid' : 'Show grid'}</button><span className="ml-auto text-[11px] uppercase tracking-[.12em] text-ui-faint">{busy ? 'Optimising…' : bytes ? (original ? `${prettyBytes(original)} → ${prettyBytes(bytes)} ${format}` : `${prettyBytes(bytes)} ${format}`) : `${BANNER_SIZE}px square`}</span></div>
           <p className="mt-2 text-[11px] leading-relaxed text-ui-faint">Drag to reposition.</p>
         </div>
         <div className="space-y-3">

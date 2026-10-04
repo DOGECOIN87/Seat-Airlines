@@ -77,8 +77,18 @@ let ownerEtag: string | undefined;
  */
 export const canPublish = Boolean(API);
 
-/** The longest side of a stored banner, and the JPEG quality it keeps. */
-export const BANNER_SIZE = 384;
+/**
+ * The side of a stored banner, in pixels, and the JPEG quality it keeps.
+ * 512 so the flight deck's tiles on the wall stay sharp on a phone's
+ * high-density screen; the encoder (imageEdit.ts) keeps it small anyway.
+ */
+export const BANNER_SIZE = 512;
+/** What an advert is squeezed down to, if it can be: a seat should cost its viewers nothing. */
+export const TARGET_BYTES = 80 * 1024;
+/** Past this many pixels a phone can run out of memory just decoding the file. */
+export const MAX_SOURCE_PIXELS = 40_000_000;
+/** What the file picker offers: the formats every browser here can decode. */
+export const ACCEPTED_IMAGES = 'image/jpeg,image/png,image/webp,image/gif,image/avif';
 const QUALITY = 0.82;
 /** Refuse anything that would bloat storage even after re-encoding. */
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
