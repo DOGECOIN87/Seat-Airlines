@@ -1,0 +1,60 @@
+{
+  "comment": "Launch intro and short: scene lengths (frames at 30 fps) and the schedules that the picture (src/intro) and the synthesized sound (sfx/synth.mjs) both read, so every tick, flap and hit lands on its frame. VO cues sit at `at` seconds into their scene, or `lead` seconds before the climb reaches band `band`. climbKeys are [seconds into the climb, progress]: band floors are crossed at those times.",
+  "fps": 30,
+  "cuts": {
+    "intro": {
+      "scenes": [
+        { "id": "landing", "frames": 105 },
+        { "id": "ignition", "frames": 120 },
+        { "id": "sky", "frames": 135 },
+        { "id": "seats", "frames": 200 },
+        { "id": "billboard", "frames": 120 },
+        { "id": "network", "frames": 120 },
+        { "id": "climb", "frames": 315 },
+        { "id": "board", "frames": 105 },
+        { "id": "end", "frames": 120 }
+      ],
+      "climbKeys": [[0, 0], [4.1, 0.22], [6.0, 0.5], [7.7, 0.72], [9.0, 0.9], [10.5, 1]],
+      "vo": [
+        { "file": "01-welcome", "scene": "ignition", "at": 0.75 },
+        { "file": "02-one-plane", "scene": "sky", "at": 0.5 },
+        { "file": "03-your-bag", "scene": "seats", "at": 0.4 },
+        { "file": "04-altitude", "scene": "climb", "at": 0.2 },
+        { "file": "05-to-the-moon-p1", "scene": "climb", "band": 1, "lead": 0.9 },
+        { "file": "05-to-the-moon-p2", "scene": "climb", "band": 2, "lead": 0.6 },
+        { "file": "05-to-the-moon-p3", "scene": "climb", "band": 3, "lead": 0.5 },
+        { "file": "05-to-the-moon-p4", "scene": "climb", "band": 4, "lead": 0.3 },
+        { "file": "06-fly-higher", "scene": "board", "at": 0.3 },
+        { "file": "07-now-boarding", "scene": "end", "at": 0.5 }
+      ]
+    },
+    "short": {
+      "scenes": [
+        { "id": "ignition", "frames": 105 },
+        { "id": "climb", "frames": 135 },
+        { "id": "board", "frames": 90 },
+        { "id": "end", "frames": 105 }
+      ],
+      "climbKeys": [[0, 0], [2.2, 0.22], [3.0, 0.5], [3.6, 0.72], [4.1, 0.9], [4.5, 1]],
+      "vo": [
+        { "file": "01-welcome", "scene": "ignition", "at": 0.6 },
+        { "file": "04-altitude", "scene": "climb", "at": 0.3 },
+        { "file": "06-fly-higher", "scene": "board", "at": 0.2 },
+        { "file": "07-now-boarding", "scene": "end", "at": 0.5 }
+      ]
+    }
+  },
+  "ignition": { "badgeIn": 6, "land": 30, "shineFrom": 40, "shineFrames": 30, "wordFrom": 54 },
+  "seats": { "fillFrom": 14, "perRank": 0.6 },
+  "climb": {
+    "bands": [
+      { "name": "WEATHER", "u": 0, "cap": 120000 },
+      { "name": "CLOUDS", "u": 0.22, "cap": 1000000 },
+      { "name": "SPACE", "u": 0.5, "cap": 10000000 },
+      { "name": "MOON", "u": 0.72, "cap": 50000000 },
+      { "name": "MARS", "u": 0.9, "cap": 100000000 }
+    ],
+    "topCap": 140000000
+  },
+  "board": { "from": 6, "rowGap": 5, "perChar": 0.7, "flipFrames": 2, "settle": 4 }
+}

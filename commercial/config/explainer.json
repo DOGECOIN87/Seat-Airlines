@@ -1,0 +1,18 @@
+{
+  "comment": "The looping 'How it works' explainer. Each chapter runs `frames` at least, longer if its VO line (config/vo-explainer.json) needs it: voAt + line + tail. `cues` are frames from the chapter's start where something happens on screen; sfx/explainer.mjs puts its sounds on the same frames. The video ends by dissolving back into its own first frame (`seam` frames), so it loops.",
+  "fps": 30,
+  "tail": 1.3,
+  "seam": 24,
+  "chapters": [
+    { "id": "title", "frames": 120, "vo": "e00-how-it-works", "voAt": 0.5, "cues": { "shine": 34 } },
+    { "id": "token", "frames": 180, "vo": "e01-token", "voAt": 0.4, "cues": { "strip": 6, "cursor": 40, "click": 66, "toast": 70 } },
+    { "id": "checkin", "frames": 180, "vo": "e02-check-in", "voAt": 0.4, "cues": { "card": 6, "connect": 42, "list": 48, "pick": 96, "pass": 108 } },
+    { "id": "seat", "frames": 180, "vo": "e03-your-seat", "voAt": 0.4, "cues": { "fill": 8, "you": 92, "hold": 118 } },
+    { "id": "moveup", "frames": 170, "vo": "e04-move-up", "voAt": 0.4, "cues": { "grow": 20, "pass": 70, "card": 78, "chime": 80 } },
+    { "id": "altitude", "frames": 210, "vo": "e05-altitude", "voAt": 0.4, "cues": { "climb": 12, "bands": [30, 54, 78, 102, 126], "pitchUp": 150, "pitchDown": 178 } },
+    { "id": "billboard", "frames": 180, "vo": "e06-billboard", "voAt": 0.4, "cues": { "grid": 6, "upload": 36, "drop": 66, "move": 112, "land": 138 } },
+    { "id": "fly", "frames": 195, "vo": "e07-fly", "voAt": 0.4, "cues": { "keys": [24, 44, 64, 84], "tenK": 120, "fire": 132, "score": 168 } },
+    { "id": "safety", "frames": 180, "vo": "e08-safety", "voAt": 0.4, "cues": { "card": 8, "cross": 56, "check": 84 } },
+    { "id": "outro", "frames": 150, "vo": "e09-fly-higher", "voAt": 0.4, "cues": { "badge": 4, "url": 30 } }
+  ]
+}

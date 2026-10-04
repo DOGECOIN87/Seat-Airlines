@@ -1,0 +1,79 @@
+{
+  "01-welcome": {
+    "seconds": 2.738,
+    "phrases": [
+      0.0,
+      1.483
+    ]
+  },
+  "02-one-plane": {
+    "seconds": 2.284,
+    "phrases": [
+      0.0,
+      1.327
+    ]
+  },
+  "03-your-bag": {
+    "seconds": 5.413,
+    "phrases": [
+      0.0,
+      1.193,
+      2.735,
+      4.214
+    ]
+  },
+  "04-altitude": {
+    "seconds": 2.686,
+    "phrases": [
+      0.0,
+      1.283,
+      1.856
+    ]
+  },
+  "05-to-the-moon": {
+    "seconds": 6.491,
+    "phrases": [
+      0.0,
+      2.163,
+      3.897,
+      5.403
+    ]
+  },
+  "05-to-the-moon-p1": {
+    "seconds": 1.754,
+    "phrases": [
+      0
+    ]
+  },
+  "05-to-the-moon-p2": {
+    "seconds": 1.325,
+    "phrases": [
+      0
+    ]
+  },
+  "05-to-the-moon-p3": {
+    "seconds": 1.097,
+    "phrases": [
+      0
+    ]
+  },
+  "05-to-the-moon-p4": {
+    "seconds": 1.088,
+    "phrases": [
+      0
+    ]
+  },
+  "06-fly-higher": {
+    "seconds": 2.674,
+    "phrases": [
+      0.0,
+      1.392
+    ]
+  },
+  "07-now-boarding": {
+    "seconds": 2.064,
+    "phrases": [
+      0.0
+    ]
+  }
+}

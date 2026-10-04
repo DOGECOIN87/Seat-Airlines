@@ -6,7 +6,11 @@
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "render:A": "remotion render src/index.ts SeatAirlines-A out/seat-airlines-commercial-A.mp4 --codec=h264 --crf=16",
-    "render:B": "remotion render src/index.ts SeatAirlines-B out/seat-airlines-commercial-B.mp4 --codec=h264 --crf=16"
+    "render:B": "remotion render src/index.ts SeatAirlines-B out/seat-airlines-commercial-B.mp4 --codec=h264 --crf=16",
+    "vo": "python3 vo/prep.py",
+    "sfx": "node sfx/synth.mjs",
+    "films": "sh render-films.sh",
+    "stills": "node stills.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",

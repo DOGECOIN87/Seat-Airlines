@@ -60,14 +60,19 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
               return (
                 <li key={row.address} className={you ? 'is-you' : undefined}>
                   <span className={`sa-scores__rank${i < 3 ? ` sa-scores__rank--${i + 1}` : ''}`}>{i + 1}</span>
+                  <span className="sa-scores__pilot">
+                  {row.x?.avatar && <img className="sa-scores__avatar" src={row.x.avatar} alt="" width={36} height={36} loading="lazy" referrerPolicy="no-referrer" />}
                   <span className="sa-scores__who">
                     <span className="sa-scores__wallet">
-                      {shortWallet(row.address)}
+                      {row.x ? (
+                        <a className="sa-scores__x" href={`https://x.com/${encodeURIComponent(row.x.username)}`} target="_blank" rel="noopener noreferrer">@{row.x.username}</a>
+                      ) : shortWallet(row.address)}
                       {you && <span className="sa-scores__you">You</span>}
                     </span>
                     <span className="sa-scores__meta">
                       {row.survived > 0 ? `${Math.round(row.survived)} s on one engine` : 'Short of 10,000 ft'}
                     </span>
+                  </span>
                   </span>
                   <span className="sa-scores__score">{row.score.toLocaleString('en-US')}</span>
                 </li>
