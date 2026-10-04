@@ -1158,11 +1158,21 @@ async function handle(request: Request, env: Env): Promise<Response> {
        message, never a transaction), a run this server started, and a
        score that run could have earned in the time since. Each wallet
        keeps its best; each run posts once. */
-    if (url.pathname === '/scores' || url.pathname === '/runs') {
+    if (url.pathname === '/scores' || url.pathname === '/scores/today' || url.pathname === '/runs') {
       const db = env.DIRECTORY;
       if (!db) return json({ error: 'This deployment has no leaderboard configured.' }, 503, cors);
       const priv = { ...cors, 'cache-control': 'no-store' };
 
+      // The UTC day's best flight per wallet: what the daily post on X names.
+      if (request.method === 'GET' && url.pathname === '/scores/today') {
+        const day = utcDay(Date.now());
+        try {
+          const scores = await dayTop(db, day.start, day.end, BOARD_SIZE);
+          return json({ day: day.key, scores }, 200, { ...cors, 'cache-control': 'public, max-age=30' });
+        } catch {
+          return json({ day: day.key, scores: [] }, 200, { ...cors, 'cache-control': 'public, max-age=30' });
+        }
+      }
       if (request.method === 'GET' && url.pathname === '/scores') {
         try {
           const { results } = await db
