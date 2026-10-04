@@ -106,6 +106,9 @@ const TAILPLANE = 'M136 160 L47 4 L2 4 L26 206 Z';
 const ELEVATOR = 'M19 10 L58 176';
 /** The engine, hung forward of the wing a quarter of the way out. */
 const NACELLE = { x: 579, y: 15, w: 100, h: 54 };
+/** What the window shows: the whole height, but the tail section mostly
+    off its left edge — the seats are the point, not the tail. */
+const VIEW = '140 0 860 420';
 const MIRROR = 'matrix(1 0 0 -1 0 420)';
 
 /** Where the peek tile sits, in the card's own pixels. */
@@ -200,7 +203,7 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
         {/* Cloud drifting by underneath, so it reads as flying. */}
         <span className="sa-ov__sky" aria-hidden />
         <span className="sa-ov__float">
-          <svg viewBox="0 0 1000 420" className="sa-ov__art" aria-hidden preserveAspectRatio="none">
+          <svg viewBox={VIEW} className="sa-ov__art" aria-hidden preserveAspectRatio="none">
             <defs>
               {/* White paint, rounder in the middle than at the edges, with the sun along its spine. */}
               <linearGradient id="sa-ov-paint" x1="0" y1="0" x2="0" y2="1">

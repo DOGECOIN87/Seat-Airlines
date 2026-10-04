@@ -5428,7 +5428,7 @@ p { text-wrap-style: pretty; }
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 1000 / 420;
+  aspect-ratio: 860 / 420; /* VIEW in SeatOverview */
   margin-top: 0.6rem;
   padding: 0;
   border: 0;
@@ -5547,8 +5547,9 @@ p { text-wrap-style: pretty; }
    aft edge. Lined up with CABIN in SeatOverview. */
 .sa-ov__cabin {
   position: absolute;
-  left: 25.5%;
-  right: 8.6%;
+  /* Off VIEW: x 255 to 914 of the drawing, in a window from x 140, 860 wide. */
+  left: 13.37%;
+  right: 10%;
   top: 33%;
   bottom: 33%;
   display: flex;
