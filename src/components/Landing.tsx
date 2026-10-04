@@ -890,9 +890,10 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 : `${!wallet.address ? 'Solana wallet required' : touch ? 'Drag to fly' : 'Arrow keys to fly'}\u00a0· climb to ${goalFeet.toLocaleString('en-US')}\u00a0ft`}
             </p>
           )}
-          <SocialLinks night className="sa-landing__social" />
         </main>
       )}
+      {/* The airline elsewhere: one even row along the foot of the screen. */}
+      {!inGame && preflight === 'off' && <SocialLinks night className="sa-landing__social" />}
       {!inGame && preflight !== 'off' && (
         <div className="sa-preflight" role="dialog" aria-modal="true" aria-labelledby="sa-preflight-title">
           <div className="sa-preflight__card">

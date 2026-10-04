@@ -4360,7 +4360,7 @@ p { text-wrap-style: pretty; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sa-landing__hero, .sa-landing__end, .sa-preflight__card { animation: none; }
+  .sa-landing__hero, .sa-landing__social, .sa-landing__end, .sa-preflight__card { animation: none; }
   .sa-splash.is-fading .sa-splash__board { transform: none; }
   .sa-landing__enter::after { animation: none; opacity: 0; }
   .sa-landing.is-crashed .sa-landing__scene,
@@ -4902,7 +4902,22 @@ p { text-wrap-style: pretty; }
   white-space: nowrap;
 }
 .sa-social .sa-docs__mark { width: 1.05rem; height: 1.05rem; inline-size: 1.05rem; block-size: 1.05rem; }
-.sa-landing__social { pointer-events: auto; }
+/* On the landing: pinned along the foot of the screen, centred, the
+   three chips sharing the row evenly; the words above make room for it. */
+.sa-landing__social {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(1rem, calc(var(--safe-bottom) + 0.75rem));
+  z-index: 2;
+  margin-inline: auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  pointer-events: auto;
+  animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sa-social.sa-landing__social { width: min(34rem, calc(100% - 2 * clamp(1rem, 3vw, 2.25rem))); }
+.sa-landing.is-splash .sa-landing__social { animation-play-state: paused; }
+.sa-landing__hero { padding-bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.75rem)) + 2.5rem + max(1.25rem, 3vh)); }
 
 /* The footer: brand, then the links row at the far end; the legal links and
    the line underneath. On a phone the links take a row of their own. */
