@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PUMP_URL, TOKEN_MINT, hasToken } from '../lib/token';
 import { DEXSCREENER_URL } from '../lib/social';
+import { GOLDEN_TICKER } from '../lib/dexBoost';
 
 /**
  * The contract address, across the top of the page.
@@ -90,11 +91,11 @@ const ContractBar = ({ boosts = 0 }: { boosts?: number }) => {
           href={DEXSCREENER_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className={`sa-pump sa-pump--boost${boosts > 0 ? ' is-on' : ''}`}
-          title={boosts > 0 ? `Boosted on DexScreener (${boosts} active)` : 'Boost on DexScreener and the plane goes on afterburner'}
+          className={`sa-pump sa-pump--boost${boosts > 0 ? ' is-on' : ''}${boosts >= GOLDEN_TICKER ? ' is-golden' : ''}`}
+          title={boosts > 0 ? `${boosts.toLocaleString('en-US')} Boosts running on DexScreener` : 'Boost on DexScreener (the yellow Boost button) and the plane goes on afterburner'}
         >
           <FlameMark />
-          <span className="sa-pump__text">{boosts > 0 ? 'boosted' : 'boost'}</span>
+          <span className="sa-pump__text">{boosts > 0 ? `boosted ×${boosts.toLocaleString('en-US')}` : 'boost'}</span>
         </a>
 
         {/* Announced rather than shown twice: the button's own label already

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, type MutableRefObject, type RefObject } from 'react';
 import { CAPTURE, captureState } from '../capture/flag';
 import { bandHeight, createWorld, type ViewPose, type WorldHandles } from '../three/WorldScene';
-import { BOOST_CRUISE, cruiseFlicker } from '../lib/dexBoost';
+import { cruiseBurn, cruiseSpeed } from '../lib/dexBoost';
 import type { FlightFeed } from '../lib/flightFeed';
 import type { BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
@@ -96,8 +96,8 @@ interface LandingSceneProps {
   taken: ReadonlySet<string>;
   /** Somebody has taken the controls. */
   playing: boolean;
-  /** The token is boosted on DexScreener: cruising, it burns and goes faster. */
-  boosted?: boolean;
+  /** How boosted the token is on DexScreener, 0–1: cruising, it burns and goes faster for it. */
+  boost?: number;
   game: MutableRefObject<FlightGame>;
   hud: LandingHud;
   sounds: MutableRefObject<LandingSounds | null>;
@@ -186,14 +186,14 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 
 
 const LandingScene = ({
-  feed, sky, band, controls, taken, playing, boosted = false, game, hud, sounds, shot,
+  feed, sky, band, controls, taken, playing, boost = 0, game, hud, sounds, shot,
   onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
   const latest = useRef({ sky, band });
-  const boostedNow = useRef(boosted);
-  boostedNow.current = boosted;
+  const boostNow = useRef(boost);
+  boostNow.current = boost;
   latest.current = { sky, band };
   const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder });
   calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder };
@@ -356,9 +356,9 @@ const LandingScene = ({
       p.height = undefined;
       /* Boosted on DexScreener, and nobody flying it: cruise on afterburner,
          flickering, the ground going by nearly twice as fast. */
-      const burn = boostedNow.current ? cruiseFlicker(now) : 0;
+      const burn = cruiseBurn(now, boostNow.current);
       p.boost = [burn, burn];
-      p.speedScale = boostedNow.current ? BOOST_CRUISE : undefined;
+      p.speedScale = cruiseSpeed(boostNow.current);
       w.render(a, skyState, bandState, p);
       // Where the dive will start from, if the controls are taken now.
       g.heading = a.heading;

@@ -2326,8 +2326,18 @@ textarea {
   animation: sa-boost-glow 1.4s ease-in-out infinite;
 }
 .sa-pilots--boost.is-on .sa-pilots__flame { color: #fff; }
+.sa-pilots__count { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; opacity: 0.85; }
+/* 500 Boosts and up: DexScreener's Golden Ticker, so the button goes gold, with a shine. */
+.sa-pilots--boost.is-golden,
+.sa-pump--boost.is-golden {
+  background: linear-gradient(110deg, #B8860B 0%, #FFD700 30%, #FFF6C2 45%, #FFD700 60%, #B8860B 100%);
+  background-size: 220% 100%;
+  color: #2A1C00;
+  animation: sa-boost-glow 1.4s ease-in-out infinite, sa-golden 3s linear infinite;
+}
+@keyframes sa-golden { from { background-position: 100% 0; } to { background-position: -120% 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .sa-pump--boost.is-on, .sa-pilots--boost.is-on { animation: none; }
+  .sa-pump--boost.is-on, .sa-pilots--boost.is-on, .sa-pilots--boost.is-golden, .sa-pump--boost.is-golden { animation: none; }
 }
 
 /* Seat advert editor: tactile controls, drag surface, and compact preview. */

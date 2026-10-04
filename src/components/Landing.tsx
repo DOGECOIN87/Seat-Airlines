@@ -11,6 +11,7 @@ import SeatOverview from './SeatOverview';
 import type { Manifest } from '../lib/manifest';
 import type { BannerSet } from '../lib/banners';
 import { DEXSCREENER_URL } from '../lib/social';
+import { GOLDEN_TICKER, boostStrength } from '../lib/dexBoost';
 import { SPLASH_BETWEEN, SPLASH_FIRST, SPLASH_LAST } from '../content/cabin';
 import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
@@ -826,7 +827,7 @@ export default function Landing({
               controls={controls}
               taken={taken}
               playing={inGame}
-              boosted={boosts > 0}
+              boost={boostStrength(boosts)}
               game={game}
               hud={hud}
               sounds={sounds}
@@ -891,13 +892,15 @@ export default function Landing({
               href={DEXSCREENER_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className={`sa-pilots sa-pilots--boost${boosts > 0 ? ' is-on' : ''}`}
-              title={boosts > 0 ? `Boosted on DexScreener (${boosts} active). Add another there.` : 'Boost the token on DexScreener and the plane goes on afterburner'}
+              className={`sa-pilots sa-pilots--boost${boosts > 0 ? ' is-on' : ''}${boosts >= GOLDEN_TICKER ? ' is-golden' : ''}`}
+              title={boosts > 0
+                ? `${boosts.toLocaleString('en-US')} Boosts running on DexScreener. More burn harder: tap the yellow Boost button there.`
+                : 'Boost the token on DexScreener (the yellow Boost button) and the plane goes on afterburner'}
             >
               <svg viewBox="0 0 24 24" aria-hidden className="sa-pilots__icon sa-pilots__flame">
                 <path d="M13.5 1.5s1 3.2-1.6 6.1C9.6 10.2 7 12 7 15.6A5 5 0 0 0 12 21a5 5 0 0 0 5-5.3c0-2.4-1.3-4-1.3-4s-.4 2.1-2 2.7c0 0 1.4-4.5-.2-9.4z" />
               </svg>
-              {boosts > 0 ? 'Boosted' : 'Boost'}
+              {boosts > 0 ? <>Boosted <span className="sa-pilots__count">×{boosts.toLocaleString('en-US')}</span></> : 'Boost'}
             </a>
             {/* The board, on the same row as the way in and the controls but
                 apart from them at its far end: the one thing here that is not

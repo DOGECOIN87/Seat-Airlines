@@ -61,7 +61,7 @@ import {
   type BannerSet,
 } from './lib/banners';
 import { visibilityAwareInterval } from './lib/visibility';
-import { useDexBoost } from './lib/dexBoost';
+import { boostStrength, useDexBoost } from './lib/dexBoost';
 
 // The renderer and Three.js are the heaviest parts of the experience. Keeping
 // them behind the view boundary lets the controls and live flight data become
@@ -915,7 +915,7 @@ export default function App() {
                 </Suspense>
               ) : camera === 'exterior' ? (
                 <Suspense fallback={<SceneLoading exterior />}>
-                  <ExteriorView feed={feed} sky={sky} band={band} taken={taken} claimed={claimedSeat} viewing={viewSeat} controls={controls} boosted={boosts > 0} />
+                  <ExteriorView feed={feed} sky={sky} band={band} taken={taken} claimed={claimedSeat} viewing={viewSeat} controls={controls} boost={boostStrength(boosts)} />
                 </Suspense>
               ) : camera === 'deck' ? (
                 <Suspense fallback={<SceneLoading />}>
