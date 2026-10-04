@@ -492,9 +492,9 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                   aria-expanded={active}
                 >
                   <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="font-heading text-lg text-ui-ink">{card?.displayName || holderName(entry)}</span>
-                      {entry.address === address && <span className="rounded-full bg-ui-ink px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-white">You</span>}
+                    <span className="flex min-w-0 flex-nowrap items-center gap-2">
+                      <span className="truncate font-heading text-lg text-ui-ink" title={card?.displayName || holderName(entry)}>{card?.displayName || holderName(entry)}</span>
+                      {entry.address === address && <span className="shrink-0 rounded-full bg-ui-ink px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-white">You</span>}
                     </span>
                     <span className="mt-1 block text-[11px] uppercase tracking-[0.14em] text-ui-soft">
                       {sectionLabel(entry.seat.zone)} · seat {entry.seat.id} · {card?.role || defaultRole(entry.seat.zone)}
@@ -521,7 +521,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
                         ) : !card ? (
                           <p>No card yet.</p>
                         ) : card.readable ? (
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+                          <div className="flex flex-nowrap gap-x-4 overflow-x-auto whitespace-nowrap pt-1 [&>*]:shrink-0">
                             <span>Email: {card.email || 'Not given'}</span>
                             {card.website && <a className="inline-flex items-center gap-1.5 underline" href={card.website} target="_blank" rel="noreferrer"><AccountIcon account="website" />Website</a>}
                             {card.linkedin && <a className="inline-flex items-center gap-1.5 underline" href={card.linkedin} target="_blank" rel="noreferrer"><AccountIcon account="linkedin" />LinkedIn</a>}
