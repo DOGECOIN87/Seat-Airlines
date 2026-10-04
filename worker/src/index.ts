@@ -745,12 +745,19 @@ export default {
      no CORS headers, so the browser reports a CORS failure and the real cause
      is invisible from the site. Answer with JSON and CORS instead. */
   async fetch(request: Request, env: Env): Promise<Response> {
+    let res: Response;
     try {
-      return await handle(request, env);
+      res = await handle(request, env);
     } catch (e) {
       console.error(e);
-      return json({ error: 'Something went wrong on our side.' }, 500, corsHeaders(env, request.headers.get('origin')));
+      res = json({ error: 'Something went wrong on our side.' }, 500, corsHeaders(env, request.headers.get('origin')));
     }
+    /* Nothing this service answers belongs in a search engine: the site is
+       the place to be found. A header rather than robots.txt, because a
+       robots.txt rule would also stop X fetching the flight cards' pages. */
+    const out = new Response(res.body, res);
+    out.headers.set('x-robots-tag', 'noindex, nofollow');
+    return out;
   },
   /* The cron (wrangler.toml): the day's top pilots, posted as the airline. */
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
