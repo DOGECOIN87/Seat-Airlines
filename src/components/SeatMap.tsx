@@ -1,9 +1,10 @@
 import { memo, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { CABIN_ZONES, CARGO_HOLD, LAVATORY_SEATS, findSeat, seatCount, type ZoneKey } from '../content/cabin';
+import { CABIN_SECTIONS, CARGO_HOLD, LAVATORY_SEATS, findSeat, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner, type BannerSet } from '../lib/banners';
 import { shortAddress, type Manifest, type ManifestEntry } from '../lib/manifest';
 import { formatShare, formatTokens } from '../lib/seatLadder';
 import SeatDialog from './SeatDialog';
+import AircraftRow from './AircraftRow';
 
 /**
  * The cabin, from above.
@@ -47,7 +48,7 @@ const Seat = ({ id, zone, entry, banner, mine, found = false, onOpen, onInspect 
      icon, which is what the front of the wall showed when one went missing.
      Keyed to the URL, so a replaced advert gets a fresh try. */
   const [failed, setFailed] = useState<string | null>(null);
-  const picture = banner && failed !== banner.image ? banner : null;
+  const picture = sold && banner && !banner.house && failed !== banner.image ? banner : null;
 
   /* Raised means held, sunk means open, blue means yours. The whole legend
      is three shadows, which is why the map can be read without one. */
@@ -222,14 +223,14 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
         </svg>
 
         <div className="sa-map__cabin mx-auto max-w-[var(--cabin-w)]">
-          {CABIN_ZONES.map((zone) => {
+          {CABIN_SECTIONS.map(({ zone, rows, id: sectionId, note }) => {
             const accent = ACCENT[zone.accent];
             const isOpen = openZones.has(zone.key);
-            const total = seatCount(zone);
-            const held = zone.rows.reduce((n, row) => n + [...row.left, ...row.right]
+            const total = rows.reduce((n, row) => n + row.left.length + row.right.length, 0);
+            const held = rows.reduce((n, row) => n + [...row.left, ...row.right]
               .filter((c) => manifest.seats.has(row.n === null ? c : `${row.n}${c}`)).length, 0);
             return (
-                <section key={zone.key} className={`sa-zone sa-zone--${zone.key}`}>
+                <section key={sectionId} className={`sa-zone sa-zone--${zone.key}`}>
                   {/* The whole header is the switch: a big target on a phone,
                       and the heading stays a heading for anybody navigating
                       by them. */}
@@ -238,7 +239,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                       type="button"
                       onClick={() => toggleZone(zone.key)}
                       aria-expanded={isOpen}
-                      aria-controls={`sa-zone-${zone.key}`}
+                      aria-controls={`sa-zone-${sectionId}`}
                       className={`sa-zone-head sa-zone-toggle ${accent}`}
                     >
                       <span className="sa-zone-head__mark" aria-hidden>{zone.code}</span>
@@ -254,7 +255,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                         <span className="sa-zone-head__visual">
                           {`${held}\u00a0of\u00a0${total}\u00a0taken\u00a0`}
                           <span aria-hidden>· </span>
-                          {zone.note.replace(/–/g, '–\u2060')}
+                          {note.replace(/–/g, '–\u2060')}
                         </span>
                       </span>
                       <span className="sa-zone-toggle__label" aria-hidden>
@@ -265,42 +266,29 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                   </h3>
 
                 {isOpen && (
-                <div
-                  id={`sa-zone-${zone.key}`}
-                  className={`flex flex-col gap-[5px] px-3 py-3.5 ${zone.key === 'deck' ? 'items-center' : ''}`}
-                  style={{ '--seat': `calc(var(--seat-base) * ${ZONE_SCALE[zone.key]})` } as CSSProperties}
-                >
-                  {zone.rows.map((row) => (
-                      <div key={row.n ?? 'deck'} className="flex items-center justify-center gap-[5px]">
-                        {row.n !== null && (
-                          <span className="sa-rownum w-6 flex-none text-right font-mono text-[11px]">{row.n}</span>
-                        )}
-                        {[row.left, row.right].map((bank, side) => (
-                          <div key={side} className="contents">
-                            {side === 1 && <span aria-hidden className="w-5 flex-none" />}
-                            {bank.map((c) => {
-                              const id = row.n === null ? c : `${row.n}${c}`;
-                              return (
-                                <Seat
-                                  key={id}
-                                  id={id}
-                                  zone={zone.key}
-                                  entry={manifest.bySeat.get(id) ?? null}
-                                  banner={banners[id] ?? null}
-                                  mine={mine === id}
-                                  found={found === id}
-                                  onOpen={openSeat}
-                                  onInspect={setInspecting}
-                                />
-                              );
-                            })}
-                          </div>
-                        ))}
-                        {row.n !== null && (
-                          <span className="sa-rownum w-6 flex-none font-mono text-[11px]">{row.n}</span>
-                        )}
-                      </div>
-                  ))}
+                <div className="sa-zone__scroll">
+                  <div
+                    id={`sa-zone-${sectionId}`}
+                    className="sa-zone__rows"
+                    style={{ '--seat': `calc(var(--seat-base) * ${ZONE_SCALE[zone.key]})` } as CSSProperties}
+                  >
+                    {rows.map((row) => (
+                      <AircraftRow key={row.n ?? 'deck'} row={row} renderSeat={(id) => (
+                        <li key={id}>
+                          <Seat
+                            id={id}
+                            zone={zone.key}
+                            entry={manifest.bySeat.get(id) ?? null}
+                            banner={banners[id] ?? null}
+                            mine={mine === id}
+                            found={found === id}
+                            onOpen={openSeat}
+                            onInspect={setInspecting}
+                          />
+                        </li>
+                      )} />
+                    ))}
+                  </div>
                 </div>
                 )}
               </section>
@@ -405,7 +393,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
             </>
           ) : (
             <p className="sa-map__note">
-              Open any seat to see who holds it. Seat Airlines adverts mark open seats.
+              Open any seat to see who holds it. Empty seats keep their position in each row.
             </p>
           )}
         </div>

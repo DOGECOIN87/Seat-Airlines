@@ -1,6 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CAPTURE, captureState, useCaptureVersion } from './capture/flag';
-import { logoMarkup } from './components/Mark';
 import ContractBar from './components/ContractBar';
 import ViewFrame from './components/ViewFrame';
 import Annunciators from './components/Annunciators';
@@ -37,6 +36,7 @@ import {
 } from './lib/flightModel';
 import { useFlightState } from './lib/useFlightState';
 import { useAircraftAudio } from './lib/useAircraftAudio';
+import { usePressFeedback } from './lib/usePressFeedback';
 import { useSky } from './lib/useSky';
 import { coverFor } from './lib/manualControls';
 import { useFlight } from './lib/useFlight';
@@ -48,7 +48,6 @@ import { MANIFEST_SIZE, shortAddress, type Manifest } from './lib/manifest';
 import { headlines, personalMove, type PersonalMove } from './lib/seatMoves';
 import { resetClientStateForToken } from './lib/tokenReset';
 import {
-  houseAdverts,
   fetchPublished,
   fetchOwnerBanners,
   canPublish,
@@ -240,6 +239,7 @@ export default function App() {
   /* Boosts running on DexScreener: while there are any, the plane is on afterburner. */
   const boosts = useDexBoost();
   const aircraftAudio = useAircraftAudio(lamps, tick.change5m, band.band);
+  usePressFeedback(aircraftAudio.enabled);
 
   /* The page opens outside, on the whole aeroplane. It is the one frame that
      explains the premise without a caption — one plane, everyone in it — and
@@ -305,32 +305,16 @@ export default function App() {
     }
     return out;
   }, [byOwner, manifest.entries]);
-  /* Two of the house adverts below carry the logo inside their own artwork,
-     which needs the logo's markup rather than its address: they draw without
-     it for the moment it takes to arrive, then again with it. */
-  const [logo, setLogo] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    logoMarkup().then((markup) => { if (live) setLogo(markup); }, () => {});
-    return () => { live = false; };
-  }, []);
-  /* Held seats with nothing on them yet carry the airline's own campaigns, the
-     way unsold inventory does on a real aircraft. A holder's own upload, and
-     the published set, both beat them. */
-  const house = useMemo(
-    () => houseAdverts(manifest.entries.map((e) => e.seat.id), logo),
-    [manifest.entries, logo],
-  );
   const banners = useMemo(
     () => {
-      const all: BannerSet = { ...house, ...local, ...ownerSeats, ...published };
+      const all: BannerSet = { ...local, ...ownerSeats, ...published };
       if (!CAPTURE) return all;
       const film: Record<string, Banner> = {};
       for (const [seat, image] of Object.entries(captureState.adverts)) film[seat] = { image, alt: 'Advert' };
       return { ...all, ...film };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [house, local, ownerSeats, published, captureVersion],
+    [local, ownerSeats, published, captureVersion],
   );
   /* Just the images, keyed by seat, for the screens in the cabin: the 3D view
      has no business knowing what a Banner is. */
@@ -341,8 +325,7 @@ export default function App() {
   }, [banners]);
   /* What there is of the holder's own to take down on the seat they are
      advertising on: an advert on the published wall, one kept in this
-     browser, or both. With neither, the dialog offers nothing to take down —
-     the airline's house advert is not the holder's to remove. */
+     browser, or both. With neither, the dialog offers nothing to take down. */
   const ownAdvert = wallet.address ? byOwner[wallet.address] : undefined;
   const keptAdvert = advertising ? local[advertising] : undefined;
   const takeDownAdvert = advertising && (ownAdvert || keptAdvert)
