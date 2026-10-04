@@ -3,7 +3,7 @@ import { fetchSeatProfile, SOCIALS, type PublicSeatProfile } from '../lib/networ
 import { shareSeatCard, type ShareOutcome } from '../lib/seatCard';
 import { CABIN_ZONES, LAVATORY_NOTE, LAVATORY_SEATS, findSeat, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner } from '../lib/banners';
-import type { ManifestEntry } from '../lib/manifest';
+import { shortAddress, type ManifestEntry } from '../lib/manifest';
 import { formatShare, formatTokens } from '../lib/seatLadder';
 import ModalWindow from './ModalWindow';
 import AccountIcon from './AccountIcon';
@@ -59,6 +59,7 @@ export default function SeatDialog({
     return () => controller.abort();
   }, [address]);
   const profile = publicProfile && publicProfile.address === address ? publicProfile.profile : null;
+  const holderName = profile?.displayName.trim() || (entry ? shortAddress(entry.address) : 'Open seat');
   const contacts = [
     { label: 'Website', account: 'website' as const, href: safeHref(profile?.website) },
     { label: 'LinkedIn', account: 'linkedin' as const, href: safeHref(profile?.linkedin) },
@@ -189,7 +190,7 @@ export default function SeatDialog({
           {banner && (
             <div className="sa-seatwin__advert">
               <p className="sa-map__label">{banner.house ? 'House advert' : 'Advert'}</p>
-              <p className="sa-map__alt">{banner.alt}</p>
+              <p className="sa-map__alt">{holderName}</p>
               {link && (
                 <a href={link} target="_blank" rel="noopener noreferrer nofollow" className="sa-seatwin__link">
                   Visit {new URL(link).hostname.replace(/^www\./, '')} <span aria-hidden>↗</span>

@@ -36,9 +36,10 @@ interface TileProps {
   mine: boolean;
   onOpen: (id: string) => void;
   dimmed: boolean;
+  displayName?: string;
 }
 
-const Tile = ({ id, entry, banner, mine, onOpen, dimmed }: TileProps) => {
+const Tile = ({ id, entry, banner, mine, onOpen, dimmed, displayName }: TileProps) => {
   /* A picture that will not load is drawn as the seat without one, rather
      than as the browser's broken-image icon. Keyed to the URL, so a replaced
      advert gets a fresh try. */
@@ -48,6 +49,7 @@ const Tile = ({ id, entry, banner, mine, onOpen, dimmed }: TileProps) => {
   const own = entry && banner && !banner.house && failed !== banner.image ? banner : null;
   const picture = own;
   const link = safeHref(own?.href);
+  const holderName = displayName?.trim() || (entry ? shortAddress(entry.address) : 'Open seat');
   return (
     <li className={`sa-adwall__tile${mine ? ' is-mine' : ''}${dimmed ? ' is-filtered' : ''}`}>
       <button
@@ -75,12 +77,12 @@ const Tile = ({ id, entry, banner, mine, onOpen, dimmed }: TileProps) => {
       <p className="sa-adwall__caption">
         {own ? (
           link ? (
-            <a href={link} target="_blank" rel="noopener noreferrer nofollow" title={own.alt}>{own.alt}</a>
+            <a href={link} target="_blank" rel="noopener noreferrer nofollow" title={holderName}>{holderName}</a>
           ) : (
-            <span title={own.alt}>{own.alt}</span>
+            <span title={holderName}>{holderName}</span>
           )
         ) : (
-          <span className="sa-adwall__holder">{mine ? 'Your seat' : entry ? shortAddress(entry.address) : 'Open seat'}</span>
+          <span className="sa-adwall__holder">{mine ? 'Your seat' : holderName}</span>
         )}
       </p>
     </li>
@@ -191,6 +193,7 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
                       mine={mine === seat}
                       onOpen={openSeat}
                       dimmed={filtering && !matchingSeats.has(seat)}
+                      displayName={profiles[manifest.bySeat.get(seat)?.address ?? '']?.displayName}
                     />
                   )} />
                 ))}
