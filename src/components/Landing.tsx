@@ -807,11 +807,13 @@ export default function Landing({
     return { state: failure.both ? failure.second ?? 'blast' : 'run' };
   };
   const engines: [EngineState, EngineState] = [engineState(-1), engineState(1)];
+  /** The seat overview is up: the words beside or under it make room. */
+  const showOverview = overview && !inGame && preflight === 'off' && !scoresOpen;
 
   return (
     <div
       className={`sa-landing is-${phase}${leaving ? ' is-leaving' : ''}${ready ? ' is-ready' : ''}${
-        failure ? ' is-failing' : ''}${blasted ? ' is-blast' : ''}${splash === 'on' ? ' is-splash' : ''}`}
+        failure ? ' is-failing' : ''}${blasted ? ' is-blast' : ''}${splash === 'on' ? ' is-splash' : ''}${showOverview ? ' has-ov' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={letGo}
@@ -913,7 +915,7 @@ export default function Landing({
                 onFocus={prefetchScores}
                 aria-haspopup="dialog"
                 aria-expanded={scoresOpen}
-                className="sa-pilots"
+                className="sa-pilots sa-pilots--scores"
               >
                 <DeckIcon name="trophy" className="sa-pilots__icon" />
                 Scores
@@ -940,7 +942,7 @@ export default function Landing({
           )}
         </main>
       )}
-      {overview && !inGame && preflight === 'off' && !scoresOpen && (
+      {showOverview && (
         <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
       )}
       {/* The airline elsewhere: one even row along the foot of the screen. */}
