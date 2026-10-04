@@ -15,7 +15,8 @@
  * hundred a second, and more for doing it well or dangerously: half again
  * with the wings within twenty degrees of level (which, on one engine, is
  * the skill), and double with the ground under five hundred feet (which is
- * the nerve). Both at once is two and a half times.
+ * the nerve). Both at once is two and a half times. The airline's floating
+ * medallions pay a flat bonus each for being flown through.
  *
  * ── What can be believed ──────────────────────────────────────────────────
  * The game runs in the visitor's browser, so a score is a claim. The Worker
@@ -58,6 +59,10 @@ export const SCORING = {
   maxSurvival: 900,
   /** For getting out of a UFO's way. */
   ufoDodge: 2500,
+  /** For flying through one of the airline's floating medallions. */
+  logoBonus: 500,
+  /** No flight can fly through more than this many: they turn up every several seconds. */
+  maxLogos: 12,
 } as const;
 
 /** The best rate there is: level and low at once. */
@@ -93,7 +98,8 @@ export function scoreCeiling(elapsedMs: number): number {
   const slack = (points: number) => Math.round(points * 1.1 + 300);
   if (seconds < SCORING.firstFailure) return slack(SCORING.maxHeightPoints);
   const flying = Math.min(SCORING.maxSurvival, seconds - SCORING.firstFailure);
-  return slack(SCORING.maxHeightPoints + SCORING.reached + climbBonus(SCORING.climbFloor) + SCORING.ufoDodge + flying * MAX_RATE);
+  return slack(SCORING.maxHeightPoints + SCORING.reached + climbBonus(SCORING.climbFloor) + SCORING.ufoDodge
+    + SCORING.logoBonus * SCORING.maxLogos + flying * MAX_RATE);
 }
 
 /** What the wallet signs to post a score. Readable on purpose: it is what the wallet shows. */

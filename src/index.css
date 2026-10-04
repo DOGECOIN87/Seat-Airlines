@@ -4120,6 +4120,65 @@ p { text-wrap-style: pretty; }
   to { transform: scaleX(0); }
 }
 
+/* ── The boost ─────────────────────────────────────────────────
+   The button that lights the engines still turning, bottom right where a
+   thumb rests: a round amber button with its charges as pips, pulsing
+   while one is burning. The HUD takes no pointer, so the button takes its
+   own back. */
+.sa-boost {
+  pointer-events: auto;
+  position: absolute;
+  right: max(1rem, var(--safe-right));
+  bottom: calc(var(--gauge) + max(1.4rem, var(--safe-bottom)));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 5.4rem;
+  height: 5.4rem;
+  padding: 0.55rem 0 0.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 32%, #ffd47e 0%, #f59a2e 55%, #b35c10 100%);
+  box-shadow:
+    0 0 0 2px rgba(255, 200, 110, 0.55),
+    0 0 26px rgba(255, 150, 40, 0.45),
+    0 6px 18px rgba(0, 0, 0, 0.5);
+  color: #2a1400;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.sa-boost__flame { width: 1.5rem; height: 1.5rem; fill: currentColor; }
+.sa-boost__label {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.sa-boost__pips { display: flex; gap: 0.3rem; }
+.sa-boost__pips i {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: rgba(42, 20, 0, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(42, 20, 0, 0.4);
+}
+.sa-boost__pips i.is-on { background: #fff7e6; box-shadow: 0 0 6px rgba(255, 240, 200, 0.9); }
+.sa-boost:disabled {
+  cursor: default;
+  filter: grayscale(0.7) brightness(0.75);
+  box-shadow: 0 0 0 2px rgba(255, 200, 110, 0.25), 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+.sa-boost:not(:disabled):active { transform: scale(0.93); }
+.sa-boost.is-hot { animation: sa-boost-burn 0.5s ease-in-out infinite alternate; }
+@keyframes sa-boost-burn {
+  from { box-shadow: 0 0 0 2px rgba(255, 200, 110, 0.55), 0 0 22px rgba(255, 150, 40, 0.5), 0 6px 18px rgba(0, 0, 0, 0.5); }
+  to { box-shadow: 0 0 0 3px rgba(255, 220, 140, 0.9), 0 0 44px rgba(255, 170, 60, 0.85), 0 6px 18px rgba(0, 0, 0, 0.5); }
+}
+.sa-boost:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
 /* ── An engine gone ─────────────────────────────────────────── */
 /* The airframe shakes for as long as it burns, and hard at the blast. */
 .sa-landing.is-failing:not(.is-crashed) .sa-landing__scene { animation: sa-landing-rattle 0.14s steps(2, end) infinite; }

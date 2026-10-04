@@ -21,7 +21,10 @@ import { createEngineFire } from './engineFire';
 import { createLightning } from './lightning';
 import { createUfoCraft, createWingBreak, type UfoPose, type WingBreak } from './ufoCraft';
 import { createThermalsCraft } from './thermalsCraft';
+import { createLogosCraft } from './logosCraft';
+import { createBoostFlames } from './boostFlames';
 import type { Thermal } from '../lib/thermals';
+import type { LogoPickup } from '../lib/logos';
 
 /**
  * The world outside, rendered.
@@ -132,6 +135,13 @@ export interface ViewPose {
   wingLost?: -1 | 0 | 1;
   /** The thermals about, relative to the aeroplane (see lib/thermals.ts). */
   thermals?: readonly Thermal[];
+  /** The bonus medallions about, relative to the aeroplane (see lib/logos.ts). */
+  logos?: readonly LogoPickup[];
+  /**
+   * The boost: 0–1 how hard the lit engines are burning, and which of them
+   * are lit. Needs a world built with `{ damage: true }`.
+   */
+  boost?: { level: number; port: boolean; starboard: boolean };
   /** Degrees the nose is yawed right of the path it is flying: the sideslip a dead engine drags it into. */
   slip?: number;
   /**
@@ -291,6 +301,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   let failedSide: -1 | 0 | 1 = 0;
   const ufo = options.damage ? createUfoCraft(`${import.meta.env.BASE_URL}ufo.glb`) : null;
   const thermals = options.damage ? createThermalsCraft() : null;
+  const logos = options.damage ? createLogosCraft() : null;
+  const boostFlames = options.damage ? createBoostFlames() : null;
   let wingBreak: WingBreak | null = null;
   let wingLost: -1 | 0 | 1 = 0;
   const ufoBase = new THREE.Vector3();
@@ -348,6 +360,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     scene.add(bolt.group);
     if (ufo) scene.add(ufo.group);
     if (thermals) scene.add(thermals.group);
+    if (logos) scene.add(logos.group);
+    if (boostFlames) airframe.group.add(boostFlames.group);
   }
 
   /* Cabin lighting. A tube blocks the sun, and there is no bounce in here. */
@@ -1924,6 +1938,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       }
       wingBreak?.update(dt, -stepX, stepZ);
       thermals?.update(dt, pose.thermals, night);
+      logos?.update(dt, pose.logos, night, a.alt);
+      boostFlames?.update(dt, pose.boost);
       if (ufo) {
         airframe.group.getWorldPosition(ufoBase);
         const side = pose.ufo?.strike?.side ?? 1;
@@ -2069,6 +2085,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     ufo?.dispose();
     wingBreak?.dispose();
     thermals?.dispose();
+    logos?.dispose();
+    boostFlames?.dispose();
     airframe.dispose();
     farmland.day.dispose();
     farmland.night.dispose();

@@ -42,7 +42,7 @@ export const AIR = {
   ahead: [600, 1300] as readonly [number, number],
   spread: 25,
   radius: [400, 650] as readonly [number, number],
-  peak: [0.8, 1.15] as readonly [number, number],
+  peak: [0.9, 1.22] as readonly [number, number],
   life: [26, 36] as readonly [number, number],
   /** Seconds to build, and to fade. */
   fade: 3,

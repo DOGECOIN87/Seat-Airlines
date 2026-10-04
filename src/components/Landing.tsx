@@ -12,7 +12,7 @@ import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import type { ManualControls } from '../lib/manualControls';
-import { blastAltitude, clampUnit, FEET, newGame, type Cause, type Phase } from '../lib/landingGame';
+import { blastAltitude, clampUnit, FEET, fireBoost, GAME, newGame, type Cause, type Phase } from '../lib/landingGame';
 import {
   canShareFile, cardAssets, cardJpeg, composeCard, hostCard, hostsCards, intentUrl, saveFile, shareFile, shareText, SITE_URL,
   type SharedFlight,
@@ -360,11 +360,52 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
     };
   };
 
+  /* The boost: the button in the corner, or the space bar. Three a flight —
+     lighting the engines still turning for a few seconds of thrust. */
+  const [boostUi, setBoostUi] = useState<{ charges: number; hot: boolean }>({ charges: GAME.boostCharges, hot: false });
+  const pressBoost = useCallback(() => {
+    const g = game.current;
+    if (!fireBoost(g)) return;
+    setBoostUi({ charges: g.boostCharges, hot: true });
+    timers.current.push(window.setTimeout(() => setBoostUi((u) => ({ ...u, hot: false })), GAME.boostSeconds * 1000));
+    // The roar, synthesized on the gesture so the browser lets it play.
+    try {
+      const Ctx = window.AudioContext
+        ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const dur = 1.1;
+      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = 1.1;
+      bp.frequency.setValueAtTime(240, ctx.currentTime);
+      bp.frequency.exponentialRampToValueAtTime(2600, ctx.currentTime + dur * 0.7);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      src.connect(bp);
+      bp.connect(gain);
+      gain.connect(ctx.destination);
+      void ctx.resume();
+      src.start();
+      src.stop(ctx.currentTime + dur);
+    } catch {
+      /* No audio, no roar. */
+    }
+  }, []);
+
   const takeOff = useCallback(() => {
     const g = game.current;
     if (!ready || g.phase !== 'idle' || gone.current) return;
     makeSounds();
     setPreflight('off');
+    setBoostUi({ charges: GAME.boostCharges, hot: false });
     g.phase = 'intro';
     g.phaseAt = performance.now();
     setPhase('intro');
@@ -440,6 +481,17 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       void wow.play().catch(() => {});
     }
   }, [sayUfo]);
+  /** A bonus medallion flown through: what it paid, shown as it lands. */
+  const [logoPop, setLogoPop] = useState<number | null>(null);
+  const onLogo = useCallback((bonus: number) => {
+    setLogoPop(bonus);
+    timers.current.push(window.setTimeout(() => setLogoPop(null), 2800));
+    const wow = sounds.current?.wow;
+    if (wow) {
+      wow.currentTime = 0;
+      void wow.play().catch(() => {});
+    }
+  }, []);
 
   /* The card, then the video: made as soon as the flight is over, so they
      are there by the time anybody asks for them. */
@@ -648,6 +700,12 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
         if (game.current.phase === 'idle') start();
         return;
       }
+      // The boost: the space bar, while flying.
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (game.current.phase === 'flying') pressBoost();
+        return;
+      }
       if (e.key === 'Escape' && game.current.phase !== 'idle') leave();
       else if (e.key === 'Enter' && game.current.phase === 'idle' && document.activeElement === document.body) leave();
     };
@@ -666,7 +724,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', drop);
     };
-  }, [start, leave, clearSplash]);
+  }, [start, leave, clearSplash, pressBoost]);
 
   /* The stick, for a touch screen (or a mouse): press anywhere and drag.
      Up climbs, down dives, sideways banks, measured from where the press
@@ -763,6 +821,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               onUfoWarn={onUfoWarn}
               onStrike={onStrike}
               onDodge={onDodge}
+              onLogo={onLogo}
               onCrash={onCrash}
             />
           </Suspense>
@@ -1001,9 +1060,15 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
               </small>
             </p>
           )}
+          {logoPop !== null && !ufoCaption && (
+            <p className="sa-hud__bonus" aria-live="polite">
+              +{logoPop.toLocaleString('en-US')}
+              <small>medallion bonus</small>
+            </p>
+          )}
           {failure && phase === 'flying' && (
             <p key="mayday" className="sa-hud__help sa-hud__help--mayday">
-              Wings level ×1.5 · under 500 ft ×2 · nose down for speed
+              Wings level ×1.5 · under 500 ft ×2 · nose down for speed · {touch ? 'boost button' : 'Space to boost'}
             </p>
           )}
           {!failure && (phase === 'intro' || phase === 'flying') && (
@@ -1018,6 +1083,27 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
                 </>
               )}
             </p>
+          )}
+          {/* The boost: the engines still turning, lit for a few seconds. Nothing left to light with both gone. */}
+          {phase === 'flying' && (
+            <button
+              type="button"
+              onClick={pressBoost}
+              disabled={boostUi.charges <= 0 || boostUi.hot || !!failure?.both}
+              className={`sa-boost${boostUi.hot ? ' is-hot' : ''}`}
+              aria-label={touch ? 'Boost' : 'Boost (Space bar)'}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden className="sa-boost__flame">
+                <path d="M12 2.2c.7 3.2-.6 5.2-2.1 7C8.4 10.9 7 12.6 7 15a5 5 0 0 0 10 0c0-1.2-.4-2.3-1-3.3-.4 1-1 1.9-2 2.6.6-2.7-.3-6.3-2-12.1z" />
+                <path d="M12 22a3.2 3.2 0 0 1-3.2-3.2c0-1.5 1.2-2.6 2-3.6.7-.9 1.2-1.8 1.2-3 1.9 1.9 3.2 3.9 3.2 6.6A3.2 3.2 0 0 1 12 22z" opacity=".55" />
+              </svg>
+              <span className="sa-boost__label">Boost</span>
+              <span className="sa-boost__pips" aria-hidden>
+                {Array.from({ length: GAME.boostCharges }, (_, i) => (
+                  <i key={i} className={i < boostUi.charges ? 'is-on' : ''} />
+                ))}
+              </span>
+            </button>
           )}
         </div>
       )}

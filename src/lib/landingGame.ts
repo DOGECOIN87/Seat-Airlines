@@ -14,7 +14,11 @@
  * and less as the fire spreads — and once the fire has done its worst, it
  * starts on the wing. On about a third of flights the other engine follows
  * it. Now and then it flies into rising air, which gives a pilot with the
- * wings level a few seconds of climb and a stick that bites again. There is
+ * wings level a few seconds of climb and a stick that bites again. The
+ * pilot gets three boosts: the engines still turning light their
+ * afterburners for a few seconds, pushing it forward and buying lift
+ * again. And the airline hangs bonus medallions in the air ahead, spinning
+ * gold coins worth flying through. There is
  * no clock. It ends when it meets the ground, which for the best pilots is
  * about a minute later.
  *
@@ -26,6 +30,7 @@
 
 import { planUfo, UFO, type DodgeLock, type UfoPlan } from './ufo';
 import { newAir, stepAir, type Air } from './thermals';
+import { newLogos, stepLogos, type LogoAir } from './logos';
 
 export type Phase = 'idle' | 'intro' | 'flying' | 'crashed';
 
@@ -84,6 +89,14 @@ export interface FlightGame {
   thrust: number;
   /** 0 in still air, up to about 1 in the middle of a thermal. */
   updraft: number;
+  /** Seconds of boost still burning, once the button has been hit. */
+  boostLeft: number;
+  /** Boosts still to spend this flight. */
+  boostCharges: number;
+  /** 0–1, eased: how much boost is actually on, for the model and the flames. */
+  boostLevel: number;
+  /** The bonus medallions about: where they hang, and when the next turns up (see logos.ts). */
+  logos: LogoAir;
   /** The thermals about: where they are, and when the next turns up (see thermals.ts). */
   air: Air;
   /** How fast the game's time runs against the clock's: 1, or less in slow motion. */
@@ -155,8 +168,24 @@ export const GAME = {
   secondOdds: 0.35,
   secondFrom: 12,
   secondTo: 30,
+  /**
+   * The boost: how many a flight gets, and how long each burns. The button
+   * lights the engines that are still turning — the one that is left, or
+   * both if none has gone — and for those seconds the aeroplane has thrust
+   * to spend again.
+   */
+  boostCharges: 3,
+  boostSeconds: 5,
+  /** What a boost does to the thrust: this share of a healthy engine's, so the sink and the drag both go with it. */
+  boostThrust: 2.0,
+  /** Metres a second of climb a boost buys outright, on top of what the nose is doing. */
+  boostClimb: 9,
+  /** Metres a second squared the lit engines push it forward by. */
+  boostPush: 6,
+  /** How much faster it goes with both engines lit before anything has gone: a shove, not a second flight model. */
+  boostShove: 1.25,
   /** Metres a second a thermal at full strength lifts a wings-level aeroplane. */
-  draftLift: 60,
+  draftLift: 73,
   /**
    * Seconds into the warning clip that the bang lands. The engine goes on
    * the clip's own clock, so the fireball and the bang are the same moment.
@@ -206,6 +235,10 @@ export const newGame = (): FlightGame => ({
   both: false,
   bothAt: 0,
   thrust: 1,
+  boostLeft: 0,
+  boostCharges: GAME.boostCharges,
+  boostLevel: 0,
+  logos: newLogos(),
   updraft: 0,
   air: newAir(),
   slow: 1,
@@ -266,6 +299,10 @@ export function dealFailures(g: FlightGame): void {
   g.causes = [asked('strike') ? 'lightning' : cause(), cause()];
   g.secondAfter = asked('dual') || Math.random() < GAME.secondOdds ? between(GAME.secondFrom, GAME.secondTo) : Infinity;
   g.air = newAir();
+  g.boostLeft = 0;
+  g.boostCharges = GAME.boostCharges;
+  g.boostLevel = 0;
+  g.logos = newLogos();
   g.clock = 0;
   g.wingLost = 0;
   g.dodgeLock = null;
@@ -277,6 +314,22 @@ export function dealFailures(g: FlightGame): void {
 
 /** Seconds into its warning clip that an engine goes, for what takes it. */
 export const leadFor = (c: Cause): number => (c === 'lightning' ? GAME.strikeAt : GAME.blastAt);
+
+/** Whether the bonus medallions are on this flight: `?nologo` flies without them. */
+export const logosOn = (): boolean => !asked('nologo');
+
+/**
+ * Light the boost. The engines still turning — the one that is left, or
+ * both if none has gone — burn for `GAME.boostSeconds`, pushing the
+ * aeroplane forward and buying it lift again. Nothing to light with both
+ * gone, none left to spend, or one already burning.
+ */
+export function fireBoost(g: FlightGame): boolean {
+  if (g.phase !== 'flying' || g.both || g.boostCharges <= 0 || g.boostLeft > 0) return false;
+  g.boostCharges -= 1;
+  g.boostLeft = GAME.boostSeconds;
+  return true;
+}
 
 /**
  * What the climb is worked out from, at a height: it grows with the height
@@ -347,6 +400,10 @@ const drift = (v: number, rate: number, dt: number) => v + (Math.random() * 2 - 
  * and the smoother air over the wing gives the stick back some of its bite.
  */
 export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; stall: number } {
+  // The boost burns down, and eases in and out rather than cutting.
+  if (g.boostLeft > 0) g.boostLeft = Math.max(0, g.boostLeft - dt);
+  const bl = g.boostLevel + ((g.boostLeft > 0 ? 1 : 0) - g.boostLevel) * (1 - Math.exp(-6 * dt));
+  g.boostLevel = bl;
   const lost = g.wingLost;
   // In the UFO's slow motion the aeroplane answers the stick sharply and steadily: 0 normally, 1 in it.
   const assist = Math.min(1, Math.max(0, (1 - g.slow) / (1 - UFO.slow)));
@@ -357,9 +414,9 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
     // A wing short: it banks toward the short side unless the stick holds it off.
     g.bank += (ix * GAME.maxBank + lost * 18 - g.bank) * (1 - Math.exp(-3.5 * (1 + 1.5 * assist) * dt));
     g.heading = (g.heading + g.bank * GAME.turnRate * dt + 360) % 360;
-    g.speed = speedAt(g.alt);
+    g.speed = speedAt(g.alt) * (1 + (GAME.boostShove - 1) * bl);
     g.rollRate = 0;
-    const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain - Math.abs(lost) * 6;
+    const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain + bl * GAME.boostClimb * 0.5 - Math.abs(lost) * 6;
     return { vs: Math.max(-GAME.maxClimb, Math.min(GAME.maxClimb, vs)), stall: 0 };
   }
 
@@ -368,6 +425,8 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // The thermals go by; the lift is whatever the aeroplane is flying through.
   const u = stepAir(g.air, dt, g.speed, g.heading, g.alt);
   g.updraft = u;
+  // The medallions go by with the air, spinning where they hang.
+  stepLogos(g.logos, dt, g.speed, g.heading, g.alt);
   const caught = Math.max(0, Math.cos(g.bank * DEG)) ** 3;
   // The fire takes twenty seconds to do its worst, then fifty more to take
   // the wing — and while a level wing rides rising air, the cool air over it
@@ -382,7 +441,10 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   g.buffetPitch = drift(g.buffetPitch, 8, dt);
   // The other engine gone as well: its thrust spools down over three seconds.
   if (g.both) g.thrust = Math.max(0, g.thrust - dt / 3);
-  const t = g.thrust;
+  // A boost on: the engines still turning make more than a healthy engine's.
+  // The sink and the drag go with the thrust — and so, fairly, does the
+  // good engine's pull toward the dead one.
+  const t = g.thrust + bl * (GAME.boostThrust - 1);
   const glide = 1 - t;
 
   const stall = smoothstep(GAME.stallSpeed + 6, GAME.stallSpeed - 4, g.speed);
@@ -390,10 +452,14 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // spreads and the wing goes; the dead engine, the spiral, the buffet and a
   // stall push it. Full stick outruns the push to begin with, only just
   // outruns it once the fire is at its worst, and loses to it as the wing goes.
-  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.5 * u) * (lost ? 0.88 : 1) * (1 + 0.8 * assist);
+  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.5 * u) * (lost ? 0.88 : 1) * (1 + 0.8 * assist)
+    * (1 + 0.5 * bl);
   const commanded = ix * 80 * authority;
-  // The good engine's pull goes with its thrust; the burning wing's does not; nor does a missing wingtip's.
-  const push = dead * ((32 + 10 * k) * t + 30 * w) * (1 + 0.5 * g.surge) + lost * 24;
+  // The good engine's pull goes with its thrust — a boost on it pulls half
+  // again as hard, which is the price of the shove — the burning wing's
+  // does not; nor does a missing wingtip's.
+  const tPush = g.thrust + bl * (GAME.boostThrust - 1) * 0.5;
+  const push = dead * ((32 + 10 * k) * tPush + 30 * w) * (1 + 0.5 * g.surge) + lost * 24;
   g.rollRate += ((commanded - g.rollRate) * 2.6 + push + Math.sin(g.bank * DEG) * 55
     + g.buffetRoll * (40 + 60 * k + 20 * glide) * (1 - 0.35 * u) * (1 - 0.6 * assist) + dead * stall * 80) * dt;
   g.bank = wrap180(g.bank + g.rollRate * dt);
@@ -411,11 +477,12 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // less what a bank spills, plus whatever rising air a level wing catches.
   const sink = 10 + 18 * k + 24 * w + 22 * glide + stall * 40 + Math.abs(lost) * 5;
   const vs = v * Math.sin(g.pitch * DEG) - sink - (1 - lift) * v * 0.4
-    + u * GAME.draftLift * Math.max(0, lift) ** 3 * (1 - 0.4 * w);
+    + u * GAME.draftLift * Math.max(0, lift) ** 3 * (1 - 0.4 * w)
+    + bl * GAME.boostClimb;
   // Speed: gravity along the flight path — the nose down is the only way to
   // buy it — against drag that grows with speed and with bank, and that no
-  // thrust is left to cancel.
+  // thrust is left to cancel. A boost on: the lit engines shove it forward.
   const drag = (0.5 + 0.4 * k + 0.6 * w + 1.6 * glide) * (0.6 + 0.4 * (v / 130) ** 2) + Math.abs(Math.sin(g.bank * DEG)) * 3.5;
-  g.speed = Math.max(45, Math.min(260, v + (-9.81 * Math.sin(g.pitch * DEG) - drag) * dt));
+  g.speed = Math.max(45, Math.min(260, v + (-9.81 * Math.sin(g.pitch * DEG) - drag + bl * GAME.boostPush) * dt));
   return { vs, stall };
 }

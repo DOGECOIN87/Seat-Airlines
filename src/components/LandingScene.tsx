@@ -6,7 +6,8 @@ import type { BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import { useAttitude, type Attitude } from '../lib/useAttitude';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
-import { airspeedAt, clampUnit, dealFailures, FEET, fly, GAME, leadFor, speedAt, WASTED_AT, type Cause, type FlightGame } from '../lib/landingGame';
+import { airspeedAt, clampUnit, dealFailures, FEET, fly, GAME, leadFor, logosOn, speedAt, WASTED_AT, type Cause, type FlightGame } from '../lib/landingGame';
+import { LOGOS, collectLogos, startLogos } from '../lib/logos';
 import { climbBonus, SCORING, survivalRate } from '../lib/scoring';
 import { FPM, KNOTS, speedAngle, varioAngle } from '../lib/instruments';
 import { dodge, planeTimeScale, slowAt, ufoAt, UFO } from '../lib/ufo';
@@ -107,6 +108,8 @@ interface LandingSceneProps {
   onStrike: (side: -1 | 1) => void;
   /** It went past. */
   onDodge: () => void;
+  /** A bonus medallion was flown through: what it paid. */
+  onLogo: (bonus: number) => void;
   /** The aeroplane is down. */
   onCrash: (metres: number) => void;
 }
@@ -172,14 +175,14 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 
 const LandingScene = ({
   feed, sky, band, controls, taken, playing, game, hud, sounds, shot,
-  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash,
+  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onLogo, onCrash,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
   const latest = useRef({ sky, band });
   latest.current = { sky, band };
-  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash });
-  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash };
+  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onLogo, onCrash });
+  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onLogo, onCrash };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -405,8 +408,9 @@ const LandingScene = ({
               g.failedAt = now;
               g.damage = 0.5;
               g.decay = 0;
-              // From here there is rising air to look for.
+              // From here there is rising air to look for — and the airline's medallions to fly through.
               startAir(g.air);
+              if (logosOn()) startLogos(g.logos);
               // Made it: the reach bonus, and the climb bonus for how fast — by the foot.
               g.climbTime = (now - g.phaseAt) / 1000;
               g.bonus = SCORING.reached + climbBonus(g.climbTime, (g.blastAlt * FEET) / GAME.blastFeet);
@@ -421,6 +425,8 @@ const LandingScene = ({
               // The other one: a kick the other way, the nose down again, and no thrust left at all.
               g.both = true;
               g.bothAt = now;
+              // Whatever was lit dies with the last engine.
+              g.boostLeft = 0;
               g.rollRate -= g.failed * 35;
               g.pitch -= 3;
               calls.current.onFailure(g.failed === -1 ? 1 : -1, cause, true);
@@ -507,6 +513,16 @@ const LandingScene = ({
       const iy = live ? clampUnit(g.keys.y + g.stick.y) : 0;
       const step = fly(g, ix, iy, flyDt);
       stall = step.stall;
+      // Through a medallion: paid on the spot, like getting out of the UFO's way.
+      if (live) {
+        const got = collectLogos(g.logos, g.alt);
+        if (got > 0) {
+          const bonus = got * LOGOS.bonus;
+          g.extra += bonus;
+          if (g.failed) g.score += bonus;
+          calls.current.onLogo(bonus);
+        }
+      }
       if (flyDt > 0) g.accel += ((step.vs - g.vs) / flyDt - g.accel) * (1 - Math.exp(-2 * flyDt));
       g.vs = step.vs;
       g.alt = Math.min(GAME.ceiling, g.alt + step.vs * flyDt);
@@ -520,6 +536,12 @@ const LandingScene = ({
     p.height = g.alt;
     p.timeScale = g.slow;
     p.thermals = g.phase === 'flying' ? g.air.list : undefined;
+    p.logos = g.phase === 'flying' ? g.logos.list : undefined;
+    // The boost lights the engines still turning: the one that is left, or both if none has gone.
+    const boosting = (side: -1 | 1) => g.boostLevel > 0.01 && !g.both && (g.failed === 0 || g.failed !== side);
+    p.boost = g.phase === 'flying'
+      ? { level: g.boostLevel, port: boosting(-1), starboard: boosting(1) }
+      : undefined;
     if (g.phase === 'flying') {
       const saucer = ufoAt(g.ufo, g.clock);
       // Off the line it was aimed along: while it closes, and as it goes past.
