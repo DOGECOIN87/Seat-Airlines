@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, type MutableRefObject, type RefObject } from 'react';
 import { CAPTURE, captureState } from '../capture/flag';
 import { bandHeight, createWorld, type ViewPose, type WorldHandles } from '../three/WorldScene';
+import { BOOST_CRUISE, cruiseFlicker } from '../lib/dexBoost';
 import type { FlightFeed } from '../lib/flightFeed';
 import type { BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
@@ -95,6 +96,8 @@ interface LandingSceneProps {
   taken: ReadonlySet<string>;
   /** Somebody has taken the controls. */
   playing: boolean;
+  /** The token is boosted on DexScreener: cruising, it burns and goes faster. */
+  boosted?: boolean;
   game: MutableRefObject<FlightGame>;
   hud: LandingHud;
   sounds: MutableRefObject<LandingSounds | null>;
@@ -181,13 +184,16 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
   return Infinity;
 }
 
+
 const LandingScene = ({
-  feed, sky, band, controls, taken, playing, game, hud, sounds, shot,
+  feed, sky, band, controls, taken, playing, boosted = false, game, hud, sounds, shot,
   onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
   const latest = useRef({ sky, band });
+  const boostedNow = useRef(boosted);
+  boostedNow.current = boosted;
   latest.current = { sky, band };
   const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder });
   calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder };
@@ -348,6 +354,11 @@ const LandingScene = ({
     if (g.phase === 'idle') {
       p.chase = 0;
       p.height = undefined;
+      /* Boosted on DexScreener, and nobody flying it: cruise on afterburner,
+         flickering, the ground going by nearly twice as fast. */
+      const burn = boostedNow.current ? cruiseFlicker(now) : 0;
+      p.boost = [burn, burn];
+      p.speedScale = boostedNow.current ? BOOST_CRUISE : undefined;
       w.render(a, skyState, bandState, p);
       // Where the dive will start from, if the controls are taken now.
       g.heading = a.heading;
@@ -562,6 +573,7 @@ const LandingScene = ({
     const burn = g.phase === 'flying' ? g.boostPower : 0;
     const relit = g.failed === 0 || g.both;
     p.boost = [relit || g.failed !== -1 ? burn : 0, relit || g.failed !== 1 ? burn : 0];
+    p.speedScale = undefined;
     p.shake = g.phase === 'flying' ? TURBULENCE[g.weather] * 0.55 + burn * 0.5 : 0;
     /* The flaps, as a crew would set them: a notch for the climb out of the
        dive, out further as the speed bleeds away on a dead engine — lift for

@@ -125,9 +125,11 @@ interface SeatOverviewProps {
   onClaim: () => void;
   /** Go in, to the wall. */
   onBrowse: () => void;
+  /** Boosted on DexScreener: the engines burn and the cloud goes by faster. */
+  boosted?: boolean;
 }
 
-const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, onBrowse }: SeatOverviewProps) {
+const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, onBrowse, boosted = false }: SeatOverviewProps) {
   const card = useRef<HTMLElement>(null);
   const [peek, setPeek] = useState<Peek | null>(null);
   const touch = useRef(false);
@@ -180,7 +182,7 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
   const peekLink = safeHref(peekOwn?.href);
 
   return (
-    <aside ref={card} className="sa-ov" aria-label="Every seat on board">
+    <aside ref={card} className={`sa-ov${boosted ? ' is-boosted' : ''}`} aria-label="Every seat on board">
       <div className="sa-ov__head">
         <p className="sa-ov__eyebrow">
           <span className="sa-live" aria-hidden /> Live seating
@@ -235,6 +237,13 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
                 <stop offset="0" stopColor="#F2FAFF" stopOpacity="0.6" />
                 <stop offset="1" stopColor="#F2FAFF" stopOpacity="0" />
               </linearGradient>
+              <linearGradient id="sa-ov-flame" x1="1" y1="0" x2="0" y2="0">
+                <stop offset="0" stopColor="#FFFFFF" />
+                <stop offset="0.12" stopColor="#9FE8FF" />
+                <stop offset="0.35" stopColor="#FFB23A" />
+                <stop offset="0.75" stopColor="#FF4A12" stopOpacity="0.7" />
+                <stop offset="1" stopColor="#FF2A00" stopOpacity="0" />
+              </linearGradient>
               <filter id="sa-ov-soft" x="-10%" y="-20%" width="120%" height="140%">
                 <feGaussianBlur stdDeviation="7" />
               </filter>
@@ -265,6 +274,12 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
                 <g className="sa-ov__engine">
                   <rect x={NACELLE.x} y={NACELLE.y} width={NACELLE.w} height={NACELLE.h} rx={NACELLE.h / 2} />
                   <ellipse className="sa-ov__intake" cx={NACELLE.x + NACELLE.w - 5} cy={NACELLE.y + NACELLE.h / 2} rx="6" ry={NACELLE.h / 2 - 4} />
+                  {boosted && (
+                    <g className="sa-ov__burn">
+                      <path className="sa-ov__flame" d={`M${NACELLE.x - 4} ${NACELLE.y + 8} C${NACELLE.x - 50} ${NACELLE.y + 12} ${NACELLE.x - 110} ${NACELLE.y + 20} ${NACELLE.x - 190} ${NACELLE.y + NACELLE.h / 2} C${NACELLE.x - 110} ${NACELLE.y + NACELLE.h - 20} ${NACELLE.x - 50} ${NACELLE.y + NACELLE.h - 12} ${NACELLE.x - 4} ${NACELLE.y + NACELLE.h - 8} Z`} />
+                      <path className="sa-ov__flame sa-ov__flame--core" d={`M${NACELLE.x - 4} ${NACELLE.y + 16} C${NACELLE.x - 40} ${NACELLE.y + 20} ${NACELLE.x - 70} ${NACELLE.y + 24} ${NACELLE.x - 100} ${NACELLE.y + NACELLE.h / 2} C${NACELLE.x - 70} ${NACELLE.y + NACELLE.h - 24} ${NACELLE.x - 40} ${NACELLE.y + NACELLE.h - 20} ${NACELLE.x - 4} ${NACELLE.y + NACELLE.h - 16} Z`} />
+                    </g>
+                  )}
                   <rect className="sa-ov__exhaust" x={NACELLE.x - 8} y={NACELLE.y + 9} width="14" height={NACELLE.h - 18} rx="5" />
                 </g>
               </g>

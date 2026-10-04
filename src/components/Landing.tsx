@@ -10,6 +10,7 @@ import Wasted from './Wasted';
 import SeatOverview from './SeatOverview';
 import type { Manifest } from '../lib/manifest';
 import type { BannerSet } from '../lib/banners';
+import { DEXSCREENER_URL } from '../lib/social';
 import { SPLASH_BETWEEN, SPLASH_FIRST, SPLASH_LAST } from '../content/cabin';
 import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
@@ -79,6 +80,8 @@ interface LandingProps {
   banners: BannerSet;
   /** Claim your Seat: connect, then the seats. Called as the landing goes. */
   onClaim: () => void;
+  /** Boosts running on DexScreener: while there are any, the plane burns. */
+  boosts: number;
   soundEnabled: boolean;
   onSoundToggle: () => void;
 }
@@ -164,7 +167,7 @@ const OVERVIEW_AFTER = 3000;
 const SPLASH_FADE = 800;
 
 export default function Landing({
-  feed, sky, band, marketCap, controls, taken, wallet, onEnter, manifest, banners, onClaim, soundEnabled, onSoundToggle,
+  feed, sky, band, marketCap, controls, taken, wallet, onEnter, manifest, banners, onClaim, boosts, soundEnabled, onSoundToggle,
 }: LandingProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [ready, setReady] = useState(false);
@@ -823,6 +826,7 @@ export default function Landing({
               controls={controls}
               taken={taken}
               playing={inGame}
+              boosted={boosts > 0}
               game={game}
               hud={hud}
               sounds={sounds}
@@ -880,6 +884,21 @@ export default function Landing({
                 {wallet.address ? 'Fly' : 'Connect & fly'}
               </button>
             )}
+            {/* Boost the token on DexScreener — its page, where the Boost
+                button is. While a boost runs, the plane behind is on
+                afterburner, so this says so. */}
+            <a
+              href={DEXSCREENER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`sa-pilots sa-pilots--boost${boosts > 0 ? ' is-on' : ''}`}
+              title={boosts > 0 ? `Boosted on DexScreener (${boosts} active). Add another there.` : 'Boost the token on DexScreener and the plane goes on afterburner'}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden className="sa-pilots__icon sa-pilots__flame">
+                <path d="M13.5 1.5s1 3.2-1.6 6.1C9.6 10.2 7 12 7 15.6A5 5 0 0 0 12 21a5 5 0 0 0 5-5.3c0-2.4-1.3-4-1.3-4s-.4 2.1-2 2.7c0 0 1.4-4.5-.2-9.4z" />
+              </svg>
+              {boosts > 0 ? 'Boosted' : 'Boost'}
+            </a>
             {/* The board, on the same row as the way in and the controls but
                 apart from them at its far end: the one thing here that is not
                 a way forward. */}
@@ -919,7 +938,7 @@ export default function Landing({
         </main>
       )}
       {overview && !inGame && preflight === 'off' && !scoresOpen && (
-        <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} />
+        <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
       )}
       {/* The airline elsewhere: one even row along the foot of the screen. */}
       {!inGame && preflight === 'off' && <SocialLinks night className="sa-landing__social" />}

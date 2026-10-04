@@ -8,6 +8,7 @@ import { useAttitude } from '../lib/useAttitude';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import type { CabinSeat } from '../content/cabin';
 import Mark from './Mark';
+import { BOOST_CRUISE, cruiseFlicker } from '../lib/dexBoost';
 
 /**
  * The whole aircraft, from outside.
@@ -34,15 +35,19 @@ interface ExteriorViewProps {
   viewing: CabinSeat | null;
   /** Hand-flying, if anybody is. Left out, the aeroplane flies the market. */
   controls?: ManualControls;
+  /** The token is boosted on DexScreener: on afterburner, and faster. */
+  boosted?: boolean;
 }
 
-const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HANDS_OFF }: ExteriorViewProps) => {
+const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HANDS_OFF, boosted = false }: ExteriorViewProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
   const capRead = useRef<HTMLSpanElement>(null);
   const chgRead = useRef<HTMLSpanElement>(null);
   const latest = useRef({ sky, band });
   latest.current = { sky, band };
+  const boostedNow = useRef(boosted);
+  boostedNow.current = boosted;
 
   /** Dragging swings the camera around the aeroplane. */
   const orbit = useRef({ angle: 0, active: false, x: 0 });
@@ -53,7 +58,7 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
     if (!canvas) return;
     let handles: WorldHandles;
     try {
-      handles = createWorld(canvas);
+      handles = createWorld(canvas, { thrust: true });
     } catch {
       setWebgl(false);
       return;
@@ -110,6 +115,10 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
       spunAt.current = 0;
     }
     pose.current.orbit = orbit.current.angle;
+    /* Boosted on DexScreener: on afterburner, and going faster. */
+    const burn = boostedNow.current ? cruiseFlicker(performance.now()) : 0;
+    pose.current.boost = [burn, burn];
+    pose.current.speedScale = boostedNow.current ? BOOST_CRUISE : undefined;
     world.current?.render(a, latest.current.sky, latest.current.band, pose.current);
     if (tick) {
       if (capRead.current) capRead.current.textContent = formatCap(tick.marketCap);

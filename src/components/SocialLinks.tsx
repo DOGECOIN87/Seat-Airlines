@@ -1,7 +1,8 @@
-import { LOCK_URL, TELEGRAM_URL, X_URL } from '../lib/social';
+import { DEXSCREENER_URL, LOCK_URL, TELEGRAM_URL, X_URL } from '../lib/social';
 
 /**
- * The airline's X and Telegram, and the lock on the team's tokens.
+ * The airline's X and Telegram, the token's chart on DexScreener, and the
+ * lock on the team's tokens.
  *
  * Shown on the landing (on the night, in glass, like the docs link) and in
  * the footer. The marks are Simple Icons' (CC0), drawn inline in the link's
@@ -14,6 +15,9 @@ const TELEGRAM_MARK =
 const LOCK_MARK =
   'M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V11a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 5a3 3 0 1 1 6 0v3H9V6zm3 7a2 2 0 0 1 1 3.73V19h-2v-2.27A2 2 0 0 1 12 13z';
 
+/** A rising chart: DexScreener's own mark is not in Simple Icons. */
+const CHART_MARK = 'M3 3h2v16h16v2H3V3zm4 11.6 4-4.6 3 3 5.3-6.3 1.5 1.3-6.7 8-3-3-2.6 3L7 14.6z';
+
 const Mark = ({ d }: { d: string }) => (
   <svg viewBox="0 0 24 24" className="sa-docs__mark" aria-hidden focusable="false">
     <path d={d} />
@@ -22,7 +26,7 @@ const Mark = ({ d }: { d: string }) => (
 
 const SocialLinks = ({ night = false, className = '' }: { night?: boolean; className?: string }) => {
   const chip = night ? 'sa-docs sa-docs--night sa-social__chip' : 'sa-docs sa-social__chip';
-  /* Three chips of one size, mark and name each, on one row at every width. */
+  /* Four chips of one size, mark and name each, on one row at every width. */
   return (
     <nav className={`sa-social ${className}`} aria-label="Seat Airlines elsewhere">
       <a href={X_URL} target="_blank" rel="noopener noreferrer" className={chip} aria-label="Seat Airlines on X" title="X">
@@ -32,6 +36,12 @@ const SocialLinks = ({ night = false, className = '' }: { night?: boolean; class
       <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className={chip} aria-label="Seat Airlines on Telegram" title="Telegram">
         <Mark d={TELEGRAM_MARK} />
         <span className="sa-docs__label">Telegram</span>
+      </a>
+      <a href={DEXSCREENER_URL} target="_blank" rel="noopener noreferrer" className={chip} aria-label="The token's chart on DexScreener" title="DexScreener">
+        <Mark d={CHART_MARK} />
+        <span className="sa-docs__label">
+          Dex<span className="sa-social__long">Screener</span>
+        </span>
       </a>
       <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" className={chip} aria-label="The team's tokens, locked on Jupiter Lock" title="The team's tokens, locked on Jupiter Lock">
         <Mark d={LOCK_MARK} />

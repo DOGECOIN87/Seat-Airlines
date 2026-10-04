@@ -116,6 +116,11 @@ export interface ViewPose {
    */
   speed?: number;
   /**
+   * How much faster than the band's own speed the ground goes by, when
+   * `speed` is not set: above 1 while the token is boosted on DexScreener.
+   */
+  speedScale?: number;
+  /**
    * An engine gone: -1 the port one, 1 the starboard, 0 or absent neither.
    * The change to one is the explosion; from then on it burns. Needs a
    * world built with `{ damage: true }`.
@@ -176,6 +181,8 @@ export interface ViewPose {
 export interface WorldOptions {
   /** Build the engine fire the landing's game can set off. */
   damage?: boolean;
+  /** Build the afterburners, for a view that lights them while the token is boosted. */
+  thrust?: boolean;
 }
 
 export interface WorldHandles {
@@ -312,7 +319,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   let failedSide: -1 | 0 | 1 = 0;
   const ufo = options.damage ? createUfoCraft(`${import.meta.env.BASE_URL}ufo.glb`) : null;
   const thermals = options.damage ? createThermalsCraft() : null;
-  const boostFlame = options.damage ? createBoostFlame() : null;
+  const boostFlame = options.damage || options.thrust ? createBoostFlame() : null;
   let wingBreak: WingBreak | null = null;
   let wingLost: -1 | 0 | 1 = 0;
   const ufoBase = new THREE.Vector3();
@@ -372,8 +379,9 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     if (ufo) scene.add(ufo.group);
     if (thermals) scene.add(thermals.group);
     if (logoCraft) scene.add(logoCraft.group);
-    if (boostFlame) airframe.group.add(boostFlame.group);
   }
+  /* The afterburners ride the airframe: the game's, or a boosted cruise's. */
+  if (boostFlame) airframe.group.add(boostFlame.group);
 
   /* Cabin lighting. A tube blocks the sun, and there is no bounce in here. */
   const cabinLight = new THREE.PointLight(0xffd8a8, 11, 10, 2);
@@ -1465,7 +1473,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     const now = performance.now();
     const dt = pose.freeze ? 0 : Math.min(0.1, (now - last) / 1000) * (pose.timeScale ?? 1);
     last = now;
-    const groundSpeed = pose.speed ?? THREE.MathUtils.clamp(Math.sqrt(Math.max(0, height)) * V_ROOT, SPEED_FLOOR, SPEED_CAP);
+    const groundSpeed = pose.speed
+      ?? THREE.MathUtils.clamp(Math.sqrt(Math.max(0, height)) * V_ROOT, SPEED_FLOOR, SPEED_CAP) * (pose.speedScale ?? 1);
     /* Nose to tail, whatever the heading. The aircraft is yawed by −heading,
        so its nose points along (sin h, 0, −cos h); the texture offsets and
        the cloud wrap below move features by −Δshift.x in x and +Δshift.z in
@@ -1913,6 +1922,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     /* The engine fire, once the aeroplane is posed: the explosion on the
        frame an engine goes, the flames and the smoke every frame after —
        and whatever is still in the air played out once it is over. */
+    boostFlame?.update(dt, pose.boost?.[0] ?? 0, pose.boost?.[1] ?? 0);
     if (fires && bolt) {
       const first = pose.failed ?? 0;
       // A new flight: everything still burning or in the air goes at once.
@@ -1960,7 +1970,6 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       wingBreak?.update(dt, -stepX, stepZ);
       thermals?.update(dt, pose.thermals, night);
       logoCraft?.update(dt, pose.logos, night);
-      boostFlame?.update(dt, pose.boost?.[0] ?? 0, pose.boost?.[1] ?? 0);
       if (ufo) {
         airframe.group.getWorldPosition(ufoBase);
         const side = pose.ufo?.strike?.side ?? 1;

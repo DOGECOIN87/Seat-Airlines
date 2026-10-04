@@ -61,6 +61,7 @@ import {
   type BannerSet,
 } from './lib/banners';
 import { visibilityAwareInterval } from './lib/visibility';
+import { useDexBoost } from './lib/dexBoost';
 
 // The renderer and Three.js are the heaviest parts of the experience. Keeping
 // them behind the view boundary lets the controls and live flight data become
@@ -236,6 +237,8 @@ export default function App() {
       : { hour: controls.hour },
   );
   const band = useMemo(() => bandFor(tick.marketCap), [tick.marketCap]);
+  /* Boosts running on DexScreener: while there are any, the plane is on afterburner. */
+  const boosts = useDexBoost();
   const aircraftAudio = useAircraftAudio(lamps, tick.change5m, band.band);
 
   /* The page opens outside, on the whole aeroplane. It is the one frame that
@@ -749,6 +752,7 @@ export default function App() {
           onEnter={enter}
           manifest={manifest}
           banners={banners}
+          boosts={boosts}
           onClaim={() => (wallet.unavailable && !wallet.address ? openPanel('check-in') : startClaim())}
           soundEnabled={aircraftAudio.enabled}
           onSoundToggle={aircraftAudio.toggle}
@@ -768,7 +772,7 @@ export default function App() {
 
       <a href="#wall" onClick={(e) => { e.preventDefault(); openPanel('wall'); }} className="sa-skip">Skip to the seat map</a>
 
-      <ContractBar />
+      <ContractBar boosts={boosts} />
 
       {/* ── Gate sign ──────────────────────────────────────────────────
           An airline's vernacular is a brand bar over a strip of flight data,
@@ -911,7 +915,7 @@ export default function App() {
                 </Suspense>
               ) : camera === 'exterior' ? (
                 <Suspense fallback={<SceneLoading exterior />}>
-                  <ExteriorView feed={feed} sky={sky} band={band} taken={taken} claimed={claimedSeat} viewing={viewSeat} controls={controls} />
+                  <ExteriorView feed={feed} sky={sky} band={band} taken={taken} claimed={claimedSeat} viewing={viewSeat} controls={controls} boosted={boosts > 0} />
                 </Suspense>
               ) : camera === 'deck' ? (
                 <Suspense fallback={<SceneLoading />}>
