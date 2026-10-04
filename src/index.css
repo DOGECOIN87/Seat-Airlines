@@ -1416,6 +1416,9 @@ html {
    keeps a wider frame — an aircraft cropped to its middle is a tube. */
 .sd-frame { aspect-ratio: 3 / 2; max-height: min(72vh, 720px); }
 .sd-frame--wide { aspect-ratio: 16 / 9; max-height: min(72vh, 720px); }
+/* Without a wallet the view is shorter, so the wall of adverts under it
+   is on the first screen rather than a scroll away. */
+.sa-viewport--visitor .sd-frame--wide { max-height: min(52vh, 560px); }
 
 @media (max-width: 640px) {
   .sa-shell { width: auto; }
@@ -1870,6 +1873,147 @@ html {
 }
 .sa-map__legend li { display: flex; align-items: center; gap: 0.5rem; }
 .sa-map__count { color: var(--ui-faint); }
+
+/* ── Who's on board ───────────────────────────────────────────
+   The adverts, for everybody, straight under the aeroplane: a
+   light panel like the deck, each cabin a row of square screens
+   sunk into it, the front of the aircraft drawn largest. */
+.sa-adwall {
+  margin-top: 0.75rem;
+  padding: var(--s-3) var(--s-2);
+  border-radius: var(--r-xl);
+  background: var(--face-flat);
+  box-shadow: var(--e);
+  scroll-margin-top: calc(var(--sa-topbar-h, 3.4rem) + 0.75rem);
+}
+@media (min-width: 640px) { .sa-adwall { padding: var(--s-3); } }
+.sa-adwall__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+.sa-adwall__eyebrow,
+.sa-adwall__count,
+.sa-adwall__cabin-head {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+.sa-adwall__eyebrow { color: var(--accent-deep); }
+.sa-adwall__title {
+  margin-top: 0.3rem;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--t-xl);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--ui-ink);
+}
+.sa-adwall__count { color: var(--ui-faint); }
+.sa-adwall__count strong { color: var(--ui-ink); }
+.sa-adwall__empty {
+  margin-top: var(--s-2);
+  padding: var(--s-3) var(--s-2);
+  border-radius: var(--r);
+  background: var(--ui-sink);
+  box-shadow: var(--e-well);
+  text-align: center;
+  font-size: var(--t-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ui-faint);
+}
+.sa-adwall__cabin { margin-top: var(--s-3); }
+.sa-adwall__cabin-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+  color: var(--ui-ink);
+}
+.sa-adwall__cabin-count { color: var(--ui-faint); }
+.sa-adwall__grid {
+  display: grid;
+  /* At least two to a row, however narrow the screen. */
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--tile), calc(50% - 0.45rem)), 1fr));
+  gap: 0.85rem;
+}
+.sa-adwall__tile { min-width: 0; }
+.sa-adwall__art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--r);
+  background: var(--ui-sink);
+  box-shadow: var(--e-well);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.sa-adwall__art:hover { transform: translateY(-2px); box-shadow: var(--e-sm); }
+.sa-adwall__art:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+.sa-adwall__art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sa-adwall__tile.is-mine .sa-adwall__art { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sa-adwall__blank {
+  padding: 0 0.5rem;
+  font-size: 10px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ui-faint);
+}
+/* The seat number rides on the advert, like a placard on a seat back. */
+.sa-adwall__seat {
+  position: absolute;
+  left: 0.4rem;
+  top: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  background: rgba(20, 24, 31, 0.72);
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.sa-adwall__rank { color: #7FE3F7; }
+.sa-adwall__caption {
+  margin-top: 0.45rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ui-ink);
+}
+.sa-adwall__caption a { color: var(--accent-deep); text-decoration: underline; text-underline-offset: 2px; }
+.sa-adwall__holder { font-family: 'IBM Plex Mono', ui-monospace, monospace; color: var(--ui-faint); }
+@media (prefers-reduced-motion: reduce) {
+  .sa-adwall__art, .sa-adwall__art:hover { transition: none; transform: none; }
+}
+
+/* ── What a wallet opens ──────────────────────────────────────
+   Without one, the walk strip says what connecting gives you,
+   with the button that does it. */
+.sa-unlock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.25rem;
+  width: 100%;
+}
+.sa-unlock__text { flex: 1 1 18rem; min-width: 0; font-size: 13px; line-height: 1.45; color: var(--ui-soft); }
+.sa-unlock__text strong { color: var(--ui-ink); }
 /* Each key is the seat state it stands for, drawn at 13px. */
 .sa-key { width: 14px; height: 14px; flex: none; border-radius: 4px; }
 .sa-key--open { background: var(--ui-sink); box-shadow: inset -1px -1px 2px rgba(255, 255, 255, 0.9), inset 1px 1px 2px rgba(166, 170, 183, 0.7); }
@@ -2303,6 +2447,7 @@ p { text-wrap-style: pretty; }
 }
 .sa-hero :is(.sa-deck, .sd-viewframe, .ui-card, .sa-map, .sa-dock__track) > *,
 .sa-section :is(.sa-deck, .ui-card, .sa-map) > *,
+.sa-adwall > *,
 .sa-wall,
 .sa-panel,
 .sa-footer {

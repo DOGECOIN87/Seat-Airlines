@@ -845,7 +845,7 @@ export default function Landing({ feed, sky, band, marketCap, controls, taken, w
           </p>
           <div className="sa-landing__actions">
             <button type="button" onClick={leave} className="sa-landing__enter">
-              Enter <span aria-hidden>→</span>
+              See who’s on board <span aria-hidden>→</span>
             </button>
             {!failed && (
               <button type="button" onClick={onFly} disabled={!ready} className="sa-landing__fly">

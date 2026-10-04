@@ -54,13 +54,15 @@ interface SectionDockProps {
   /** Open the high scores. They are a window over the page, not a section. */
   onScores: () => void;
   scoresOpen: boolean;
+  /** Which sections have a tab. All of them when left out. */
+  panels?: readonly PanelKey[];
 }
 
-export function SectionDock({ open, onToggle, onScores, scoresOpen }: SectionDockProps) {
+export function SectionDock({ open, onToggle, onScores, scoresOpen, panels }: SectionDockProps) {
   return (
     <nav className="sa-dock" aria-label="Sections">
       <div className="sa-dock__track">
-        {PANELS.map((p) => (
+        {PANELS.filter((p) => !panels || panels.includes(p.key)).map((p) => (
           <button
             key={p.key}
             type="button"

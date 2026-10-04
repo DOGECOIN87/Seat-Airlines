@@ -7,6 +7,7 @@ import Annunciators from './components/Annunciators';
 import { ClimbRoute, DeckIcon, FlightReadouts, type DeckIconName } from './components/InstrumentDeck';
 import Flyover from './components/Flyover';
 import AdvertDialog from './components/AdvertDialog';
+import AdvertWall from './components/AdvertWall';
 import DocsLink from './components/DocsLink';
 import Wordmark from './components/Wordmark';
 import WalletPicker from './components/WalletPicker';
@@ -192,6 +193,10 @@ const ZONE_ICON: Record<ZoneKey, DeckIconName> = {
   exit: 'exit',
   economy: 'economy',
 };
+
+/* The tabs without a seat: the directory and the rooms are a cabin's, so
+   they appear with one. Their links still open them, to say as much. */
+const VISITOR_PANELS: readonly PanelKey[] = ['wall', 'check-in'];
 
 const SceneLoading = ({ exterior = false }: { exterior?: boolean }) => (
   <div
@@ -445,10 +450,12 @@ export default function App() {
   const lastSeat = useRef<string | null>(null);
   useEffect(() => {
     const boarded = Boolean(wallet.address);
+    /* No seat is not a reason to move the camera: the view stays on the
+       aeroplane and the wall under it, which is what everybody is here to
+       see. The hold is a tap away on the walk strip. */
     if (berth.hold && boarded && lastSeat.current !== 'HOLD') {
       lastSeat.current = 'HOLD';
-      setCamera('hold');
-      say('Passenger assigned to the cargo hold. Mind the step.', 'alert');
+      say('Passenger assigned to the cargo hold. Hold more to take a seat.', 'alert');
       return;
     }
     const id = berth.seat?.id ?? null;
@@ -518,6 +525,27 @@ export default function App() {
       ding();
     }
   }, [manifest, seatKey, holding, say, ding]);
+
+  /* ── What a wallet opens ───────────────────────────────────────────
+     The adverts are for everybody: the aeroplane and the wall under it need
+     nothing connected. Connecting a wallet opens the rest of the aircraft —
+     walking the cabins, the flight deck, the hold — and holding enough for a
+     seat opens the cabin's directory and rooms, and your own advert. */
+  const explorer = Boolean(wallet.address);
+  const seated = Boolean(claimed);
+  useEffect(() => {
+    if (!explorer) setCamera('exterior');
+  }, [explorer]);
+  const unlock = () => {
+    if (wallet.unavailable) {
+      openPanel('check-in');
+      return;
+    }
+    if (!wallet.connecting) void wallet.connect();
+  };
+  const showWall = () => {
+    document.getElementById('on-board')?.scrollIntoView({ behavior: glide(), block: 'start' });
+  };
 
   const walkTo = (zone: ZoneKey) => {
     setViewZone(zone);
@@ -809,7 +837,7 @@ export default function App() {
           <div ref={cockpitRef} className={`sa-cockpit${panel ? ' is-open' : ''}`}>
           <div className="sa-cockpit__main">
           {/* ── The view ── */}
-          <div className={lamps.shaking ? 'sa-viewport sd-shake' : 'sa-viewport'}>
+          <div className={`sa-viewport${lamps.shaking ? ' sd-shake' : ''}${explorer ? '' : ' sa-viewport--visitor'}`}>
             <ViewFrame
               label={
                 camera === 'exterior'
@@ -844,10 +872,16 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-                ) : (
+                ) : explorer ? (
                   <div className="sd-controls__look">
                     <button type="button" onClick={() => setCamera('seat')} className={chip(false)}>
                       {camera === 'exterior' ? 'Step inside' : 'Back to your seat'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="sd-controls__look">
+                    <button type="button" onClick={showWall} className={chip(false)}>
+                      Who’s on board <span aria-hidden>↓</span>
                     </button>
                   </div>
                 )}
@@ -895,6 +929,20 @@ export default function App() {
             </ViewFrame>
           </div>
 
+          {/* ── Who's on board ──
+              The adverts, for everybody, with nothing to connect or open
+              first. It is the reason the site exists, so it sits straight
+              under the aeroplane rather than behind a tab. */}
+          <AdvertWall
+            manifest={manifest}
+            banners={banners}
+            mine={claimed}
+            canAdvertise={claimed}
+            onAdvertise={setAdvertising}
+            owner={wallet.address}
+            sign={wallet.signMessage}
+          />
+
           {/* ── The instrument deck ──────────────────────────────────────
               Walk, state and lamps are three readings of one aircraft, so they
               are one panel under the window divided by hairlines, rather than
@@ -905,6 +953,18 @@ export default function App() {
               the stop you are at lit in it. It scrolls sideways rather than
               wrapping wherever the whole aeroplane does not fit on one line. */}
           <div className="sa-deck__strip sa-deck__strip--cyan flex-wrap items-center">
+            {!explorer ? (
+              <div className="sa-unlock">
+                <p className="sa-unlock__text">
+                  <strong>Connect a wallet to step inside.</strong> Walk the cabins, sit in the flight
+                  deck and fly the plane. Hold the token to get a seat and put your advert on it.
+                </p>
+                <button type="button" onClick={unlock} className={chip(true)} disabled={wallet.connecting}>
+                  {wallet.connecting ? 'Check your wallet…' : wallet.unavailable ? 'Get a wallet' : 'Connect wallet'}
+                </button>
+              </div>
+            ) : (
+            <>
             <div className="sa-walk sd-chrome">
               <span className="sa-strip-label">Walk the aircraft</span>
               <div className="sa-seg" role="group" aria-label="Walk the aircraft">
@@ -951,6 +1011,8 @@ export default function App() {
                 </div>
               </div>
             )}
+            </>
+            )}
           </div>
 
           {/* ── Where the flight is ──
@@ -966,7 +1028,13 @@ export default function App() {
           </div>
 
           <SectionPanel open={panel} onClose={closePanel} render={section} />
-          <SectionDock open={panel} onToggle={togglePanel} onScores={openScores} scoresOpen={scoresOpen} />
+          <SectionDock
+            open={panel}
+            onToggle={togglePanel}
+            onScores={openScores}
+            scoresOpen={scoresOpen}
+            panels={seated ? undefined : VISITOR_PANELS}
+          />
           </div>
         </section>
 
