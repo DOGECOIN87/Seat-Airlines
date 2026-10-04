@@ -38,10 +38,10 @@ const Tile = ({ id, entry, banner, mine, onOpen }: TileProps) => {
      than as the browser's broken-image icon. Keyed to the URL, so a replaced
      advert gets a fresh try. */
   const [failed, setFailed] = useState<string | null>(null);
-  /* Restore the original airline artwork when a holder has no advert yet.
-     An unoccupied seat keeps its recessed empty-seat design. */
-  const picture = entry && banner && failed !== banner.image ? banner : null;
-  const own = picture && !picture.house ? picture : null;
+  /* Only real holder adverts get artwork. Every other seat keeps its
+     sculpted empty surface, with the rank of its holder when occupied. */
+  const own = entry && banner && !banner.house && failed !== banner.image ? banner : null;
+  const picture = own;
   const link = safeHref(own?.href);
   return (
     <li className={`sa-adwall__tile${mine ? ' is-mine' : ''}`}>
@@ -51,7 +51,7 @@ const Tile = ({ id, entry, banner, mine, onOpen }: TileProps) => {
         aria-haspopup="dialog"
         aria-label={entry ? `Seat ${id}, rank ${entry.rank}, ${shortAddress(entry.address)}${own ? `. Advert: ${own.alt}` : ''}` : `Seat ${id}, open`}
         data-seat={id}
-        className={`sa-adwall__art${picture ? ' has-ad' : ' is-open'}`}
+        className={`sa-adwall__art${picture ? ' has-ad' : ' is-empty'}${!entry ? ' is-open' : ''}`}
       >
         {picture ? (
           <img src={picture.image} alt="" loading="lazy" onError={() => setFailed(picture.image)} />

@@ -48,7 +48,7 @@ const Seat = ({ id, zone, entry, banner, mine, found = false, onOpen, onInspect 
      icon, which is what the front of the wall showed when one went missing.
      Keyed to the URL, so a replaced advert gets a fresh try. */
   const [failed, setFailed] = useState<string | null>(null);
-  const picture = banner && failed !== banner.image ? banner : null;
+  const picture = sold && banner && !banner.house && failed !== banner.image ? banner : null;
 
   /* Raised means held, sunk means open, blue means yours. The whole legend
      is three shadows, which is why the map can be read without one. */
@@ -393,7 +393,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
             </>
           ) : (
             <p className="sa-map__note">
-              Open any seat to see who holds it. Seat Airlines adverts mark open seats.
+              Open any seat to see who holds it. Empty seats keep their position in each row.
             </p>
           )}
         </div>
