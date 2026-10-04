@@ -5515,6 +5515,7 @@ p { text-wrap-style: pretty; }
 }
 .sa-ov__cheat { fill: none; stroke: #0087EA; stroke-width: 3; vector-effect: non-scaling-stroke; opacity: 0; animation: sa-landing-fade 0.6s ease 1.9s forwards; }
 .sa-ov__windows { fill: none; stroke: #1E2A3A; stroke-width: 2.5; stroke-dasharray: 3 7; vector-effect: non-scaling-stroke; opacity: 0; animation: sa-landing-fade 0.6s ease 1.9s forwards; }
+.sa-ov__apu { fill: #3A4556; opacity: 0; animation: sa-landing-fade 0.6s ease 1.8s forwards; }
 .sa-ov__fin { fill: url(#sa-ov-fin); opacity: 0; animation: sa-landing-fade 0.6s ease 1.8s forwards; }
 .sa-ov__glass { fill: #14202F; stroke: rgba(255, 255, 255, 0.6); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0; animation: sa-landing-fade 0.6s ease 1.9s forwards; }
 .sa-ov__door rect { fill: rgba(120, 132, 150, 0.9); opacity: 0; animation: sa-landing-fade 0.5s ease 2.1s forwards; }
