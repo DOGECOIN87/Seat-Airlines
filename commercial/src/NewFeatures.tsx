@@ -8,7 +8,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 
 /**
- * "New on Seat Airlines": a 19 s, 4:5 cut for X. Text-led (X plays muted),
+ * "New on Seat Airlines": a 19.5 s, 4:5 cut for X. Text-led (X plays muted),
  * with the real UI as large cropped cards. Same palette, type and sounds as
  * the main commercial. Every card is a real screenshot of the site, filmed by
  * capture/features/*.mjs: the wallet picker, the email and passkey sign-in
@@ -19,7 +19,7 @@ import '@fontsource/ibm-plex-mono/600.css';
 export const NF_FPS = 30;
 export const NF_W = 1080;
 export const NF_H = 1350;
-export const NF_SECONDS = 19;
+export const NF_SECONDS = 19.5;
 
 const NAVY = '#0F1725';
 const CYAN = '#00C9F1';
@@ -171,33 +171,56 @@ const Again: React.FC = () => {
 const AGAIN_CROP = { y0: 190, y1: 790 };
 
 const TOUR_PAGES = ['What it is', 'How seats work', 'Connect a wallet', 'How to buy'];
-const Tour: React.FC = () => {
+const TOUR_FRAMES = 72; // four pages, 0.6 s each
+
+/** The tour, page by page. */
+const TourPages: React.FC = () => {
   const f = useCurrentFrame();
-  const bar = f >= 78;
-  const page = Math.min(3, Math.floor(f / 19));
-  const within = f - page * 19;
+  const page = Math.min(3, Math.floor(f / 18));
+  const within = f - page * 18;
   const o = interpolate(within, [0, 5], [0, 1], clamp);
   return (
     <div style={{ display: 'grid', gap: 36, justifyItems: 'center' }}>
-      <Slam size={104} lines={[{ text: 'FIRST VISIT?' }, { text: 'TAKE THE TOUR.', color: CYAN }]} />
-      {!bar ? (
-        <Rise delay={6}>
-          <div style={{ opacity: o, transform: `translateY(${(1 - o) * 24}px)` }}>
-            <Crop src={`tour${page + 1}`} y0={150} y1={700} x0={8} x1={382} width={600} />
-          </div>
-        </Rise>
-      ) : (
-        <Rise delay={0}>
-          <div style={{ position: 'relative' }}>
-            <Crop src="site" y0={0} y1={84} x0={0} x1={390} width={900} />
-            <Ring left={790} top={14} width={96} height={96} radius={48} />
-          </div>
-        </Rise>
-      )}
-      <Label color="rgba(244,248,252,0.85)" size={32}>{bar ? 'Tap ? to replay it anytime' : TOUR_PAGES[page]}</Label>
+      <Slam size={112} lines={[{ text: 'TAKE THE TOUR.', color: CYAN }]} />
+      <Rise delay={6}>
+        <div style={{ opacity: o, transform: `translateY(${(1 - o) * 24}px)` }}>
+          <Crop src={`tour${page + 1}`} y0={150} y1={700} x0={8} x1={382} width={700} />
+        </div>
+      </Rise>
+      <Label color="rgba(244,248,252,0.85)" size={32}>{`First visit · ${TOUR_PAGES[page]}`}</Label>
     </div>
   );
 };
+
+/** The way back: the real top of the site, the ? tapped, and the tour opening beneath it. */
+const Replay: React.FC = () => {
+  const f = useCurrentFrame();
+  const k = 800 / 390; // the strip is the site's top 150 css px, shown 800 wide
+  const cx = 345 * k;
+  const cy = 52 * k;
+  const ripple = interpolate(f, [16, 40], [0, 1], clamp);
+  return (
+    <div style={{ display: 'grid', gap: 36, justifyItems: 'center' }}>
+      <Slam size={104} lines={[{ text: 'REPLAY IT' }, { text: 'ANYTIME.', color: CYAN }]} />
+      <div style={{ position: 'relative' }}>
+        <Crop src="site" y0={0} y1={150} x0={0} x1={390} width={800} />
+        <Ring left={cx - 50} top={cy - 50} width={100} height={100} radius={50} />
+        {ripple > 0 && ripple < 1 && (
+          <div style={{ position: 'absolute', left: cx - 70, top: cy - 70, width: 140, height: 140, borderRadius: '50%', border: `6px solid ${CYAN}`, opacity: 1 - ripple, transform: `scale(${0.3 + ripple * 1.5})` }} />
+        )}
+      </div>
+      <Rise delay={30}><Crop src="tour1" y0={215} y1={648} x0={8} x1={382} width={480} /></Rise>
+      <Label color="rgba(244,248,252,0.85)" size={32}>Tap ? and the tour opens</Label>
+    </div>
+  );
+};
+
+const Tour: React.FC = () => (
+  <>
+    <Sequence durationInFrames={TOUR_FRAMES}><Scene frames={TOUR_FRAMES}><TourPages /></Scene></Sequence>
+    <Sequence from={TOUR_FRAMES}><Scene frames={48}><Replay /></Scene></Sequence>
+  </>
+);
 
 const End: React.FC = () => {
   const f = useCurrentFrame();
@@ -226,8 +249,8 @@ const PLAN: { id: string; at: number; seconds: number; node: React.ReactNode; wh
   { id: 'sheet', at: 4, seconds: 4, node: <Sheet />, whoosh: true },
   { id: 'fly', at: 8, seconds: 2.5, node: <Fly />, whoosh: true },
   { id: 'again', at: 10.5, seconds: 3, node: <Again />, whoosh: true },
-  { id: 'tour', at: 13.5, seconds: 3.5, node: <Tour />, whoosh: true },
-  { id: 'end', at: 17, seconds: 2, node: <End />, whoosh: true },
+  { id: 'tour', at: 13.5, seconds: 4, node: <Tour />, whoosh: true },
+  { id: 'end', at: 17.5, seconds: 2, node: <End />, whoosh: true },
 ];
 
 const sfx = (file: string, at: number, volume: number, key: string) => (
@@ -247,7 +270,7 @@ export const NewFeatures: React.FC = () => (
     {PLAN.filter((p) => p.whoosh).map((p) => sfx('audio/whoosh.wav', p.at - 0.15, 0.45, `w-${p.id}`))}
     {/* The count ticking down on the crash screen, once a second (the shots change every second). */}
     {[0, 1, 2].map((i) => sfx('audio/tick.wav', 10.5 + 0.6 + i * 1.0, 0.4, `tick${i}`))}
-    {sfx('audio/riser.wav', 17 - 1.0, 0.4, 'riser')}
+    {sfx('audio/riser.wav', 17.5 - 1.0, 0.4, 'riser')}
     {[0, 4.5, 9, 13.5, 18].map((startSec, i) => {
       const start = Math.round(startSec * NF_FPS);
       const dur = Math.min(NF_SECONDS * NF_FPS - start, Math.round(5.5 * NF_FPS));
