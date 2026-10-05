@@ -6277,3 +6277,47 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 }
 /* A search: the seats it does not match fade back. */
 .sa-ov__seat.is-dim { opacity: 0.18 !important; filter: grayscale(1); }
+
+/* ── The wall's chart: fixed size, slides sideways when narrower ──
+   The track is 1240px wide: a desk at 100% sees the whole cabin, and
+   anything narrower scrolls it. The sky above and below the fuselage
+   is cropped (the wings run off the edges, as they do on the landing),
+   so the chart is not taller than it needs to be on a phone. */
+.sa-ov__pan, .sa-ov__track { display: contents; }
+.sa-ov--wall .sa-ov__pan {
+  position: relative;
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  border-radius: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(127, 227, 247, 0.5) transparent;
+  --fade-l: 0rem;
+  --fade-r: 0rem;
+}
+/* A fade at whichever edge has more cabin past it, and a hand to drag it by. */
+.sa-ov--wall .sa-ov__pan:is(.has-left, .has-right) {
+  cursor: grab;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+  mask: linear-gradient(90deg, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+}
+.sa-ov--wall .sa-ov__pan.has-left { --fade-l: 2.5rem; }
+.sa-ov--wall .sa-ov__pan.has-right { --fade-r: 2.5rem; }
+.sa-ov--wall .sa-ov__pan.is-dragging { cursor: grabbing; user-select: none; }
+.sa-ov--wall .sa-ov__pan.is-dragging .sa-ov__seat { pointer-events: none; }
+.sa-ov--wall .sa-ov__track {
+  position: relative;
+  display: block;
+  width: max(100%, 1240px);
+  aspect-ratio: 860 / 300;
+  overflow: hidden;
+}
+.sa-ov--wall .sa-ov__track > .sa-ov__plane {
+  position: absolute;
+  left: 0;
+  top: -20%;
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
+}

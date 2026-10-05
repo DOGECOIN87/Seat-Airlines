@@ -145,6 +145,57 @@ const SeatOverview = memo(function SeatOverview({
   const card = useRef<HTMLElement>(null);
   const [peek, setPeek] = useState<Peek | null>(null);
   const touch = useRef(false);
+  /* The wall's chart is drawn at a fixed size, wide enough that a desk at
+     100% sees the whole cabin; narrower, it slides sideways — by finger, by
+     wheel, or by dragging with the mouse. It opens on the nose, where the
+     best seats are. */
+  const pan = useRef<HTMLDivElement>(null);
+  const dragged = useRef(false);
+  /* Which edges have more cabin past them: each one fades. */
+  const edges = useCallback(() => {
+    const el = pan.current;
+    if (!el) return;
+    const more = el.scrollWidth - el.clientWidth;
+    el.classList.toggle('has-left', more > 1 && el.scrollLeft > 1);
+    el.classList.toggle('has-right', more > 1 && el.scrollLeft < more - 1);
+  }, []);
+  useEffect(() => {
+    if (variant !== 'wall') return;
+    const el = pan.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+    edges();
+    if (!('ResizeObserver' in window)) return;
+    const watch = new ResizeObserver(edges);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [variant, edges]);
+  const onPan = useCallback(() => { setPeek(null); edges(); }, [edges]);
+  const dragPan = variant !== 'wall' ? {} : {
+    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+      dragged.current = false;
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      const el = e.currentTarget;
+      const from = e.clientX;
+      const left = el.scrollLeft;
+      const move = (m: PointerEvent) => {
+        const dx = m.clientX - from;
+        if (Math.abs(dx) > 5) { dragged.current = true; el.classList.add('is-dragging'); }
+        if (dragged.current) el.scrollLeft = left - dx;
+      };
+      const up = () => {
+        el.classList.remove('is-dragging');
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    },
+    /* A drag that ends on a seat is a drag, not a click on it. */
+    onClickCapture: (e: React.MouseEvent) => {
+      if (dragged.current) { e.stopPropagation(); e.preventDefault(); dragged.current = false; }
+    },
+  };
   const seated = useCountUp(manifest.entries.length);
   const open = useCountUp(manifest.open);
   const total = useMemo(() => COLUMNS.reduce((n, c) => n + c.left.length + c.right.length, 0), []);
@@ -157,7 +208,10 @@ const SeatOverview = memo(function SeatOverview({
     const r = el.getBoundingClientRect();
     const half = PEEK_W / 2 + 6;
     const x = Math.min(Math.max(r.left + r.width / 2 - box.left, half), box.width - half);
-    const below = r.top - PEEK_H - 12 < 0;
+    /* The site's gate sign stays stuck to the top of the screen: a preview
+       that would open behind it opens below the seat instead. */
+    const ceiling = document.querySelector('.sa-topbar')?.getBoundingClientRect().bottom ?? 0;
+    const below = r.top - PEEK_H - 12 < Math.max(0, ceiling);
     setPeek({ id, x, y: below ? r.bottom - box.top : r.top - box.top, below });
   }, []);
   const hide = useCallback((id: string) => setPeek((p) => (p?.id === id ? null : p)), []);
@@ -214,6 +268,7 @@ const SeatOverview = memo(function SeatOverview({
 
       {/* The plan is a picture of the wall, not a way through it: one button
           for the whole thing, which goes in to the full-size one. */}
+      <div ref={pan} className="sa-ov__pan" onScroll={onPan} {...dragPan}><div className="sa-ov__track">
       <button
         type="button"
         className="sa-ov__plane"
@@ -346,6 +401,7 @@ const SeatOverview = memo(function SeatOverview({
           </span>
         </span>
       </button>
+      </div></div>
 
       {/* The seat under the pointer, big enough to read its advert. */}
       {peek && (
@@ -381,7 +437,7 @@ const SeatOverview = memo(function SeatOverview({
 
       <p className="sa-ov__readout">
         {variant === 'wall'
-          ? 'Point at a seat to see its advert, tap it to open it. Biggest holders up front.'
+          ? 'Point at a seat to see its advert, tap it to open it. Slide sideways for the whole cabin; biggest holders up front.'
           : 'Point at any seat to see its advert. Biggest holders up front.'}
       </p>
 
