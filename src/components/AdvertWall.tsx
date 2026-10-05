@@ -23,6 +23,24 @@ import type { Offering } from '../content/offerings';
  * every one the same size, in rank order, with their captions.
  */
 
+/** Narrow enough that the seat chart can be put away: phones and small tablets. */
+const FOLDABLE = '(max-width: 767.98px)';
+const CHART_KEY = 'seat-airlines.wall-chart-open';
+/** Asks the wall to open the seat chart, from anywhere on the page. */
+export const SHOW_CHART_EVENT = 'seat-airlines:show-chart';
+
+function useMatch(query: string): boolean {
+  const [on, setOn] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    const update = () => setOn(m.matches);
+    update();
+    m.addEventListener('change', update);
+    return () => m.removeEventListener('change', update);
+  }, [query]);
+  return on;
+}
+
 /** The default caption the advert dialog fills in when the holder leaves it blank. */
 const DEFAULT_CAPTION = /^Advert on seat /;
 
@@ -92,6 +110,22 @@ interface AdvertWallProps {
 
 const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvertise, onAdvertise, onClaim, boosted = false, owner, sign }: AdvertWallProps) {
   const [open, setOpen] = useState<{ id: string; zone: ZoneKey } | null>(null);
+  /* On a phone the seat chart can be put away, and stays the way it was
+     left. A desk always shows it: there is room, and it is the point. */
+  const foldable = useMatch(FOLDABLE);
+  const [chartOpen, setChartOpen] = useState(() => {
+    try { return localStorage.getItem(CHART_KEY) !== '0'; } catch { return true; }
+  });
+  const setChart = useCallback((next: boolean) => {
+    setChartOpen(next);
+    try { localStorage.setItem(CHART_KEY, next ? '1' : '0'); } catch { /* A preference, not state anything depends on. */ }
+  }, []);
+  useEffect(() => {
+    const show = () => setChart(true);
+    window.addEventListener(SHOW_CHART_EVENT, show);
+    return () => window.removeEventListener(SHOW_CHART_EVENT, show);
+  }, [setChart]);
+  const showChart = !foldable || chartOpen;
   const [searchQuery, setSearchQuery] = useState('');
   const [offeringFilter, setOfferingFilter] = useState<Offering | ''>('');
   const [profiles, setProfiles] = useState<Record<string, PublicSeatProfile>>({});
@@ -186,6 +220,27 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
           )}
 
           {/* ── The cabin from above: every seat, its advert on it ── */}
+          {foldable && (
+            <button
+              type="button"
+              className={`sa-adwall__chart-toggle${showChart ? ' is-open' : ''}`}
+              aria-expanded={showChart}
+              aria-controls="sa-adwall-chart"
+              onClick={() => setChart(!showChart)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden className="sa-adwall__chart-icon">
+                <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" />
+              </svg>
+              <span className="sa-adwall__chart-title">Seat chart</span>
+              {/* A switch, like the rest of the panel's: on shows the chart. */}
+              <span className="sa-adwall__switch" aria-hidden>
+                <span className="sa-adwall__switch-text">{showChart ? 'On' : 'Off'}</span>
+                <span className="sa-adwall__switch-knob" />
+              </span>
+            </button>
+          )}
+          {showChart && (
+          <div id="sa-adwall-chart">
           <SeatOverview
             manifest={manifest}
             banners={banners}
@@ -196,6 +251,8 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
             boosted={boosted}
             highlight={filtering ? matchingSeats : null}
           />
+          </div>
+          )}
 
           {/* ── The adverts ── */}
           <h3 className="sa-adwall__section">On display</h3>

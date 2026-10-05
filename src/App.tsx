@@ -6,7 +6,7 @@ import Annunciators from './components/Annunciators';
 import { ClimbRoute, DeckIcon, FlightReadouts, type DeckIconName } from './components/InstrumentDeck';
 import Flyover from './components/Flyover';
 import AdvertDialog from './components/AdvertDialog';
-import AdvertWall from './components/AdvertWall';
+import AdvertWall, { SHOW_CHART_EVENT } from './components/AdvertWall';
 import DocsLink from './components/DocsLink';
 import Wordmark from './components/Wordmark';
 import WalletPicker from './components/WalletPicker';
@@ -530,6 +530,7 @@ export default function App() {
     if (!wallet.connecting) void wallet.connect();
   };
   const showWall = () => {
+    window.dispatchEvent(new Event(SHOW_CHART_EVENT));
     document.getElementById('on-board')?.scrollIntoView({ behavior: glide(), block: 'start' });
   };
 
