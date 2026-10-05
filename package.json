@@ -16,6 +16,8 @@
     "icons": "node scripts/build-icons.mjs"
   },
   "dependencies": {
+    "@danfessler/trellis": "^0.3.0",
+    "@danfessler/trellis-react": "^0.3.0",
     "@solana/web3.js": "^1.99.0",
     "@turnkey/react-wallet-kit": "^1.11.1",
     "@types/three": "^0.185.4",
