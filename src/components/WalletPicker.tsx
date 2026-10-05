@@ -3,9 +3,6 @@ import type { WalletState } from '../lib/useWallet';
 import ModalWindow from './ModalWindow';
 import { EMBEDDED_ID } from '../lib/embeddedWallet';
 
-/** Sign-in Helius has announced for embedded wallets but not shipped yet. */
-const COMING_SOON = ['Google', 'Apple', 'Discord', 'X'];
-
 /**
  * Which wallet, when there is more than one.
  *
@@ -40,7 +37,7 @@ export default function WalletPicker({ wallet }: { wallet: WalletState }) {
                 <span className="sa-wallets__name">
                   <span>{w.name}</span>
                   {w.id === EMBEDDED_ID && (
-                    <span className="sa-wallets__soon">{COMING_SOON.join(', ')} sign-in coming soon</span>
+                    <span className="sa-wallets__soon">Sign in with email or passkey</span>
                   )}
                 </span>
               </button>
