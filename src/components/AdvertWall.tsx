@@ -1,8 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { CABIN_ZONES, findSeat, seatCount, type ZoneKey } from '../content/cabin';
+import { findSeat, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner, type BannerSet } from '../lib/banners';
 import { shortAddress, type Manifest, type ManifestEntry } from '../lib/manifest';
 import SeatDialog from './SeatDialog';
+import SeatOverview from './SeatOverview';
 import PassengerFilters from './PassengerFilters';
 import { fetchSeatProfiles, type PublicSeatProfile } from '../lib/networkingApi';
 import { matchesPassenger } from '../lib/passengerSearch';
@@ -16,13 +17,10 @@ import type { Offering } from '../content/offerings';
  * on the page itself, straight under the aeroplane, with no wallet, no tab
  * and no cabin to unfold first.
  *
- * It is in two parts. The adverts holders have put up come first, every one
- * the same size, in rank order: they are what a visitor came to see, and on
- * a young aircraft there are few of them, so a seat-shaped grid with an
- * empty square for every holder without one buried them in grey. Then the
- * rest of the manifest, cabin by cabin, as compact seat labels — who is in
- * which seat, and that the seat's advert space is theirs to fill. Both open
- * the same seat window.
+ * First the cabin from above — the same chart the landing shows, at full
+ * width: every seat in its place with its advert on it, a big preview on
+ * hover, the seat window on a click. Then the adverts holders have put up,
+ * every one the same size, in rank order, with their captions.
  */
 
 /** The default caption the advert dialog fills in when the holder leaves it blank. */
@@ -35,7 +33,7 @@ interface AdvertProps {
   dimmed: boolean;
   displayName?: string;
   onOpen: (id: string) => void;
-  /** The picture would not load: the seat goes back among the labels. */
+  /** The picture would not load: it is left off the list rather than shown broken. */
   onBroken: (image: string) => void;
 }
 
@@ -75,36 +73,6 @@ const Advert = ({ entry, banner, mine, dimmed, displayName, onOpen, onBroken }: 
   );
 };
 
-interface SeatLabelProps {
-  entry: ManifestEntry;
-  mine: boolean;
-  dimmed: boolean;
-  displayName?: string;
-  onOpen: (id: string) => void;
-}
-
-/** A held seat with no advert of its own: compact, so the adverts are what the eye goes to. */
-const SeatLabel = ({ entry, mine, dimmed, displayName, onOpen }: SeatLabelProps) => {
-  const id = entry.seat.id;
-  const holder = displayName?.trim() || shortAddress(entry.address);
-  return (
-    <li className={dimmed ? 'is-filtered' : undefined}>
-      <button
-        type="button"
-        onClick={() => onOpen(id)}
-        aria-haspopup="dialog"
-        aria-label={`Seat ${id}, rank ${entry.rank}, ${holder}, no advert yet`}
-        data-seat={id}
-        className={`sa-adwall__label${mine ? ' is-mine' : ''}`}
-      >
-        <span className="sa-adwall__label-seat">{id}</span>
-        <span className="sa-adwall__label-rank">#{entry.rank}</span>
-        <span className="sa-adwall__label-holder">{mine ? 'Your seat · add an advert' : holder}</span>
-      </button>
-    </li>
-  );
-};
-
 interface AdvertWallProps {
   manifest: Manifest;
   banners: BannerSet;
@@ -113,12 +81,16 @@ interface AdvertWallProps {
   /** The seat this visitor may advertise on, if any. */
   canAdvertise: string | null;
   onAdvertise: (seat: string) => void;
+  /** Claim your Seat: connect a wallet and go to the seats. */
+  onClaim: () => void;
+  /** Boosted on DexScreener: the chart's engines burn. */
+  boosted?: boolean;
   /** The connected wallet and its signer, for sharing your seat's card to X. */
   owner?: string | null;
   sign?: (message: string) => Promise<string>;
 }
 
-const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvertise, onAdvertise, owner, sign }: AdvertWallProps) {
+const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvertise, onAdvertise, onClaim, boosted = false, owner, sign }: AdvertWallProps) {
   const [open, setOpen] = useState<{ id: string; zone: ZoneKey } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [offeringFilter, setOfferingFilter] = useState<Offering | ''>('');
@@ -184,16 +156,6 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
     }),
     [manifest.entries, advertOn],
   );
-  const cabins = useMemo(() => CABIN_ZONES.map((zone) => {
-    const held = manifest.entries.filter((e) => e.seat.zone === zone.key);
-    return {
-      zone,
-      held: held.length,
-      total: seatCount(zone),
-      waiting: held.filter((e) => !advertOn(e.seat.id)),
-    };
-  }), [manifest.entries, advertOn]);
-  const waitingCount = cabins.reduce((n, c) => n + c.waiting.length, 0);
 
   return (
     <section id="on-board" className="sa-adwall" aria-labelledby="sa-adwall-title">
@@ -223,6 +185,18 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
             </p>
           )}
 
+          {/* ── The cabin from above: every seat, its advert on it ── */}
+          <SeatOverview
+            manifest={manifest}
+            banners={banners}
+            variant="wall"
+            onSeat={openSeat}
+            onClaim={onClaim}
+            onBrowse={() => {}}
+            boosted={boosted}
+            highlight={filtering ? matchingSeats : null}
+          />
+
           {/* ── The adverts ── */}
           <h3 className="sa-adwall__section">On display</h3>
           {adverts.length ? (
@@ -246,37 +220,6 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
             </p>
           )}
 
-          {/* ── Everybody else, in their seats ── */}
-          {waitingCount > 0 && (
-            <>
-              <h3 className="sa-adwall__section">
-                Advert space{' '}
-                <span className="sa-adwall__section-note">
-                  {waitingCount} seated {waitingCount === 1 ? 'holder has' : 'holders have'} not put one up yet
-                </span>
-              </h3>
-              {cabins.map(({ zone, held, total, waiting }) => (waiting.length === 0 ? null : (
-                <div key={zone.key} className="sa-adwall__cabin">
-                  <p className="sa-adwall__cabin-head">
-                    <span className="sa-adwall__cabin-name">{zone.name}</span>
-                    <span className="sa-adwall__cabin-count tabular-nums">{held} of {total} seated</span>
-                  </p>
-                  <ul className="sa-adwall__labels">
-                    {waiting.map((entry) => (
-                      <SeatLabel
-                        key={entry.seat.id}
-                        entry={entry}
-                        mine={mine === entry.seat.id}
-                        dimmed={filtering && !matchingSeats.has(entry.seat.id)}
-                        displayName={profiles[entry.address]?.displayName}
-                        onOpen={openSeat}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              )))}
-            </>
-          )}
         </>
       )}
 

@@ -6237,3 +6237,43 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   .sa-adwall__head > * { flex-shrink: 1; }
   .sa-adwall__count { flex-basis: 100%; letter-spacing: 0.1em; }
 }
+
+/* ── The seat chart in the wall ───────────────────────────────
+   The landing's card, at the wall's full width and in its flow:
+   no fixed position, no counts of its own (the wall's header has
+   them). Specific enough to beat the landing's placement rules at
+   every width. */
+.sa-ov.sa-ov--wall {
+  position: relative;
+  inset: auto;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  transform: none;
+  transform-origin: center;
+  animation-name: sa-ov-in-wall;
+}
+@keyframes sa-ov-in-wall {
+  0% { opacity: 0; transform: translateY(1.5rem) scale(0.97); filter: blur(8px); }
+  100% { opacity: 1; transform: none; filter: blur(0); }
+}
+.sa-ov--wall .sa-ov__head { display: none; }
+.sa-ov--wall .sa-ov__plane { margin-top: 0; }
+.sa-ov--wall .sa-ov__plane { cursor: default; }
+.sa-ov--wall .sa-ov__seat { cursor: pointer; }
+.sa-ov--wall .sa-ov__readout { display: block; }
+@media (max-width: 1023.98px) {
+  .sa-ov.sa-ov--wall { left: auto; top: auto; width: 100%; transform: none; animation-name: sa-ov-in-wall; }
+}
+@media (max-height: 600px) and (max-width: 1023.98px), (max-height: 520px) {
+  .sa-ov.sa-ov--wall { display: block; }
+}
+@media (max-width: 639.98px) {
+  .sa-ov.sa-ov--wall { padding: 0.6rem 0.6rem 0.75rem; border-radius: 16px; }
+}
+/* A search: the seats it does not match fade back. */
+.sa-ov__seat.is-dim { opacity: 0.18 !important; filter: grayscale(1); }

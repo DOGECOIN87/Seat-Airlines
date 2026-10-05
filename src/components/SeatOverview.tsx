@@ -127,9 +127,21 @@ interface SeatOverviewProps {
   onBrowse: () => void;
   /** Boosted on DexScreener: the engines burn and the cloud goes by faster. */
   boosted?: boolean;
+  /**
+   * 'wall': the same chart, full width in the site's wall rather than a card
+   * over the landing — no counts of its own (the wall has them), and a seat
+   * opens its seat window instead of the plane going in.
+   */
+  variant?: 'landing' | 'wall';
+  /** Open a seat's window. With it, every seat click opens one. */
+  onSeat?: (id: string) => void;
+  /** Seats a search matches; the rest fade back. Absent, none fade. */
+  highlight?: ReadonlySet<string> | null;
 }
 
-const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, onBrowse, boosted = false }: SeatOverviewProps) {
+const SeatOverview = memo(function SeatOverview({
+  manifest, banners, onClaim, onBrowse, boosted = false, variant = 'landing', onSeat, highlight = null,
+}: SeatOverviewProps) {
   const card = useRef<HTMLElement>(null);
   const [peek, setPeek] = useState<Peek | null>(null);
   const touch = useRef(false);
@@ -157,12 +169,19 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
     return (
       <span
         key={id}
-        className={`sa-ov__seat ${state}${peek?.id === id ? ' is-peeked' : ''}`}
+        className={`sa-ov__seat ${state}${peek?.id === id ? ' is-peeked' : ''}${highlight && !highlight.has(id) ? ' is-dim' : ''}`}
         onPointerEnter={(e) => { if (e.pointerType === 'mouse') show(id, e.currentTarget); }}
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') hide(id); }}
         onClick={(e) => {
-          /* On a touch screen the first tap on a seat shows it; the plane's
-             own click — going in — waits for a tap on one already shown. */
+          /* On a touch screen the first tap on a seat shows it; the second
+             opens it (or, on the landing, goes in). With a mouse, the hover
+             has already shown it, so a click opens it straight away. */
+          if (onSeat && (!touch.current || peek?.id === id)) {
+            e.stopPropagation();
+            setPeek(null);
+            onSeat(id);
+            return;
+          }
           if (!touch.current || peek?.id === id) return;
           e.stopPropagation();
           show(id, e.currentTarget);
@@ -182,7 +201,7 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
   const peekLink = safeHref(peekOwn?.href);
 
   return (
-    <aside ref={card} className={`sa-ov${boosted ? ' is-boosted' : ''}`} aria-label="Every seat on board">
+    <aside ref={card} className={`sa-ov${variant === 'wall' ? ' sa-ov--wall' : ''}${boosted ? ' is-boosted' : ''}`} aria-label="Every seat on board">
       <div className="sa-ov__head">
         <p className="sa-ov__eyebrow">
           <span className="sa-live" aria-hidden /> Live seating
@@ -198,9 +217,9 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
       <button
         type="button"
         className="sa-ov__plane"
-        onClick={onBrowse}
+        onClick={variant === 'wall' ? undefined : onBrowse}
         onPointerDown={(e) => { touch.current = e.pointerType !== 'mouse'; }}
-        aria-label="See who is on board"
+        aria-label={variant === 'wall' ? 'The cabin from above: point at a seat to see its advert' : 'See who is on board'}
       >
         {/* Cloud drifting by underneath, so it reads as flying. */}
         <span className="sa-ov__sky" aria-hidden />
@@ -361,7 +380,9 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
       )}
 
       <p className="sa-ov__readout">
-        Point at any seat to see its advert. Biggest holders up front.
+        {variant === 'wall'
+          ? 'Point at a seat to see its advert, tap it to open it. Biggest holders up front.'
+          : 'Point at any seat to see its advert. Biggest holders up front.'}
       </p>
 
       <button type="button" className="sa-ov__claim" onClick={onClaim}>
