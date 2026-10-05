@@ -38,6 +38,7 @@ interface ViewFrameProps {
 
 const ViewFrame = ({ children, label, actions, onZoomOutBeyond, zoomOutHint }: ViewFrameProps) => {
   const boxRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [full, setFull] = useState(false);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -145,6 +146,31 @@ const ViewFrame = ({ children, label, actions, onZoomOutBeyond, zoomOutHint }: V
     };
   }, [full]);
 
+  /* In the desk cockpit the frame sits inside a workspace that contains what
+     is fixed inside it, so the overlay alone would fill only its own panel.
+     There the browser's own full screen lifts the frame out instead, and
+     leaving that (Escape, or the browser's own control) leaves this. */
+  const toggleFull = () => {
+    const root = rootRef.current;
+    if (!full && root?.closest('.trellis') && document.fullscreenEnabled) {
+      root.requestFullscreen().then(
+        () => setFull(true),
+        () => setFull(true),
+      );
+      return;
+    }
+    if (full && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    setFull((v) => !v);
+  };
+  useEffect(() => {
+    if (!full) return;
+    const onChange = () => {
+      if (!document.fullscreenElement) setFull(false);
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, [full]);
+
   /* Wheel has to be a non-passive native listener to be preventable. */
   useEffect(() => {
     const box = boxRef.current;
@@ -175,7 +201,7 @@ const ViewFrame = ({ children, label, actions, onZoomOutBeyond, zoomOutHint }: V
   const zoomed = scale > 1.001;
 
   return (
-    <div className={full ? 'sd-full fixed inset-0 z-[60] flex flex-col gap-2 bg-[#05070F] p-3' : 'sd-viewframe relative'}>
+    <div ref={rootRef} className={full ? 'sd-full fixed inset-0 z-[60] flex flex-col gap-2 bg-[#05070F] p-3' : 'sd-viewframe relative'}>
       <div
         ref={boxRef}
         tabIndex={0}
@@ -249,7 +275,7 @@ const ViewFrame = ({ children, label, actions, onZoomOutBeyond, zoomOutHint }: V
           </button>
           <button
             type="button"
-            onClick={() => setFull((v) => !v)}
+            onClick={toggleFull}
             aria-pressed={full}
             aria-label="Full screen"
             title={full ? 'Exit full screen' : 'Full screen'}

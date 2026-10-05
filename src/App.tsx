@@ -16,6 +16,9 @@ import SeatChange from './components/SeatChange';
 import SeatTicker, { type TickerItem } from './components/SeatTicker';
 import Landing from './components/Landing';
 import { SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
+import type { WorkspaceHandle } from '@danfessler/trellis-react';
+import { DESK_QUERY, hideSections, openSection, toggleSection } from './lib/deskSections';
+import { useMatch } from './lib/useMatch';
 import type { LogEntry } from './components/RadioLog';
 import {
   ALL_SEATS,
@@ -79,6 +82,8 @@ const BoardingPass = lazy(() => import('./components/BoardingPass'));
 const NetworkingHub = lazy(() => import('./components/NetworkingHub'));
 const RadioLog = lazy(() => import('./components/RadioLog'));
 const ScoresDialog = lazy(() => import('./components/ScoresDialog'));
+/* The desk cockpit's workspace: a desk-only download (see CockpitWorkspace). */
+const CockpitWorkspace = lazy(() => import('./components/CockpitWorkspace'));
 const prefetchFlightDeck = () => { void loadFlightDeck(); };
 const prefetchSeatMap = () => { void loadSeatMap(); };
 
@@ -576,6 +581,38 @@ export default function App() {
      still on the screen. Their old anchors still open them. */
   const [panel, setPanel] = useState<PanelKey | null>(null);
   const cockpitRef = useRef<HTMLDivElement>(null);
+  /* On a desk with a mouse the sections are panels in a workspace around
+     the view (see CockpitWorkspace), and these open and put them away
+     there. Not while filming: the capture scripts frame the page as it is
+     everywhere else. */
+  const desk = useMatch(DESK_QUERY) && !CAPTURE;
+  const deskRef = useRef(desk);
+  deskRef.current = desk;
+  const workspace = useRef<WorkspaceHandle | null>(null);
+  /* A section asked for before the workspace is up — from its anchor, or
+     from the landing's Claim — opens once it is. */
+  const pendingSection = useRef<PanelKey | null>(null);
+  const onWorkspace = useCallback((ws: WorkspaceHandle | null) => {
+    workspace.current = ws;
+    if (!ws) return;
+    /* After the commit, so a workspace StrictMode makes twice in
+       development opens the section in the one that stays. */
+    window.setTimeout(() => {
+      const live = workspace.current;
+      const key = pendingSection.current;
+      if (!live || !key) return;
+      pendingSection.current = null;
+      openSection(live, key);
+    }, 0);
+  }, []);
+  /* Crossing to a desk with a section open carries it across. */
+  useEffect(() => {
+    if (!desk) return;
+    setPanel((open) => {
+      if (open) pendingSection.current = open;
+      return null;
+    });
+  }, [desk]);
   /* The panel and the tabs stick under the gate sign, whose height is its
      content's — one row on a desk, two on a phone — so it is measured
      rather than guessed. */
@@ -589,8 +626,19 @@ export default function App() {
     });
     observer.observe(bar);
     return () => observer.disconnect();
-  }, []);
+    /* The bar is not there on the landing: measured once the site is entered. */
+  }, [entered]);
   const openPanel = useCallback((key: PanelKey) => {
+    if (deskRef.current) {
+      const ws = workspace.current;
+      if (ws) openSection(ws, key);
+      else pendingSection.current = key;
+      /* The workspace comes up to meet it, as the panel's view does below. */
+      const box = document.querySelector('.sa-wsbox');
+      const top = box?.getBoundingClientRect().top ?? 0;
+      if (box && (top > 120 || top < -80)) box.scrollIntoView({ behavior: glide(), block: 'start' });
+      return;
+    }
     setPanel(key);
     /* On a desk the panel opens beside the view, so the view comes up to
        meet it: the pair fill the screen under the gate sign. A phone's
@@ -612,6 +660,7 @@ export default function App() {
   }, [openPanel]);
   const closePanel = useCallback(() => {
     setPanel(null);
+    if (deskRef.current && workspace.current) hideSections(workspace.current);
     /* A section opened from its anchor leaves the anchor in the address
        bar; closing takes it back out, without a step in the history. */
     if (panelFromHash(window.location.hash)) {
@@ -619,7 +668,15 @@ export default function App() {
     }
   }, []);
   const togglePanel = useCallback(
-    (key: PanelKey) => (panel === key ? closePanel() : openPanel(key)),
+    (key: PanelKey) => {
+      if (deskRef.current) {
+        if (workspace.current) toggleSection(workspace.current, key);
+        else pendingSection.current = key;
+        return;
+      }
+      if (panel === key) closePanel();
+      else openPanel(key);
+    },
     [panel, openPanel, closePanel],
   );
   /* The high scores: a window over the page, opened from the tab bar. */
@@ -760,91 +817,10 @@ export default function App() {
     );
   }
 
-  return (
-    <Suspense fallback={<SceneLoading />}>
-      <div className="sa-app relative min-h-screen text-ui-ink">
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="sa-ground absolute inset-0" />
-        <div className="sa-ground__pattern absolute inset-0" />
-      </div>
-
-      <a href="#wall" onClick={(e) => { e.preventDefault(); openPanel('wall'); }} className="sa-skip">Skip to the seat map</a>
-
-      <ContractBar boosts={boosts} onHelp={() => setTourOpen(true)} />
-      {tourOpen && <Welcome onClose={closeTour} />}
-
-      {/* ── Gate sign ──────────────────────────────────────────────────
-          An airline's vernacular is a brand bar over a strip of flight data,
-          set in figures you can read across a concourse. It stays at the top
-          of the screen rather than scrolling away, because the numbers are the
-          thing that is live — you should be able to see the altitude move
-          while you are reading the seat map. */}
-      <header ref={topbarRef} className="sa-topbar sticky top-0 z-40">
-        <div className="mx-auto flex max-w-[94rem] flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-2 sm:px-8 lg:gap-x-7 lg:py-2.5">
-          <a href="#top" className="sa-brand flex shrink-0 items-center text-ui-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ui-blue">
-            <Wordmark />
-            <Flyover />
-          </a>
-
-          {/* The one call to action, where it is always on the screen: beside
-              the brand on a phone or a tablet, after the figures on a desk.
-              Brand, figures and button need about 1,000px to share a row;
-              narrower, the figures take a row of their own under the two,
-              across the whole width, from the brand's edge to the button's,
-              rather than wrapping beside the button and lining up with
-              neither. */}
-          <a
-            href="#wall"
-            onClick={claimSeat}
-            onMouseEnter={prefetchSeatMap}
-            onFocus={prefetchSeatMap}
-            className="sa-cta sa-cta--bar sa-shine ml-auto shrink-0 lg:order-last lg:ml-0"
-          >
-            {wallet.connecting ? 'Checking in…' : claimed ? `My seat · ${claimed}` : 'Claim a seat'}
-            {!wallet.connecting && <span aria-hidden>→</span>}
-          </a>
-
-          <dl className="sd-chrome flex w-full min-w-0 items-center justify-between gap-x-7 overflow-x-auto lg:ml-auto lg:w-auto lg:max-w-[62%] lg:justify-start">
-            {[
-              { k: 'Altitude', v: `${formatFeet(tick.marketCap)} ft`, tone: 'text-ui-deep' },
-              { k: 'Market cap', v: formatCap(tick.marketCap), tone: 'text-ui-ink' },
-              /* Direction is the one thing on the page a single accent cannot
-                 carry, so it keeps a sign as well as a colour. */
-              { k: '5m', v: formatChange(tick.change5m), tone: tick.change5m >= 0 ? 'text-ui-deep' : 'text-ui-soft' },
-              { k: 'Seated', v: `${manifest.entries.length}/${MANIFEST_SIZE}`, tone: 'text-ui-ink' },
-            ].map((f) => (
-              <div key={f.k} className="sa-topbar__fig shrink-0">
-                <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ui-faint">{f.k}</dt>
-                <dd className={`font-mono text-[15px] leading-tight ${f.tone}`}>{f.v}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </header>
-
-      <main id="top" className="sa-shell mx-auto max-w-[94rem] px-5 sm:px-8">
-        {/* ══════════════════════════════════════════════════════════════
-            01 · The aeroplane
-            The page opens on the whole aircraft, from outside, because that
-            is the sentence the product is: one plane, everyone in it. Every
-            other camera on the page is a step inward from this frame.
-            ══════════════════════════════════════════════════════════════ */}
-        <section className="sa-hero pt-5 sm:pt-7" aria-labelledby="hero-title">
-          {/* The airline's line is said twice on the way in — boarded on the
-              splash, then under the aeroplane on the landing — so here it is
-              only the page's name, for assistive technology. The page itself
-              starts with the view: the way to a seat is up in the gate sign,
-              stepping inside is on the view's own bar, and the sections are
-              down its edge. */}
-          <h1 id="hero-title" className="sr-only">Seat Airlines. Hold more. Fly higher.</h1>
-
-          {/* ── The cockpit ──────────────────────────────────────────────
-              The view and its deck, with the page's sections a tab away down
-              its right edge. A section opens between the view and the tabs
-              and the view narrows to make room, so looking from a seat on the
-              wall happens beside the wall rather than a scroll above it. */}
-          <div ref={cockpitRef} className={`sa-cockpit${panel ? ' is-open' : ''}`}>
-          <div className="sa-cockpit__main">
+  /* The cockpit's three parts, drawn once and placed by the layout: the
+     view, the wall of adverts and the instrument deck. */
+  const viewport = (
+    <>
           {/* ── The view ── */}
           <div className={`sa-viewport${lamps.shaking ? ' sd-shake' : ''}${explorer ? '' : ' sa-viewport--visitor'}`}>
             <ViewFrame
@@ -937,7 +913,10 @@ export default function App() {
               )}
             </ViewFrame>
           </div>
-
+    </>
+  );
+  const wall = (
+    <>
           {/* ── Who's on board ──
               The adverts, for everybody, with nothing to connect or open
               first. It is the reason the site exists, so it sits straight
@@ -953,7 +932,10 @@ export default function App() {
             owner={wallet.address}
             sign={wallet.signMessage}
           />
-
+    </>
+  );
+  const deck = (
+    <>
           {/* ── The instrument deck ──────────────────────────────────────
               Walk, state and lamps are three readings of one aircraft, so they
               are one panel under the window divided by hairlines, rather than
@@ -1036,8 +1018,119 @@ export default function App() {
             <Annunciators lamps={lamps} />
           </section>
           </div>
-          </div>
+    </>
+  );
 
+  return (
+    <Suspense fallback={<SceneLoading />}>
+      <div className="sa-app relative min-h-screen text-ui-ink">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="sa-ground absolute inset-0" />
+        <div className="sa-ground__pattern absolute inset-0" />
+      </div>
+
+      <a href="#wall" onClick={(e) => { e.preventDefault(); openPanel('wall'); }} className="sa-skip">Skip to the seat map</a>
+
+      <ContractBar boosts={boosts} onHelp={() => setTourOpen(true)} />
+      {tourOpen && <Welcome onClose={closeTour} />}
+
+      {/* ── Gate sign ──────────────────────────────────────────────────
+          An airline's vernacular is a brand bar over a strip of flight data,
+          set in figures you can read across a concourse. It stays at the top
+          of the screen rather than scrolling away, because the numbers are the
+          thing that is live — you should be able to see the altitude move
+          while you are reading the seat map. */}
+      <header ref={topbarRef} className="sa-topbar sticky top-0 z-40">
+        <div className="mx-auto flex max-w-[94rem] flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-2 sm:px-8 lg:gap-x-7 lg:py-2.5">
+          <a href="#top" className="sa-brand flex shrink-0 items-center text-ui-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ui-blue">
+            <Wordmark />
+            <Flyover />
+          </a>
+
+          {/* The one call to action, where it is always on the screen: beside
+              the brand on a phone or a tablet, after the figures on a desk.
+              Brand, figures and button need about 1,000px to share a row;
+              narrower, the figures take a row of their own under the two,
+              across the whole width, from the brand's edge to the button's,
+              rather than wrapping beside the button and lining up with
+              neither. */}
+          <a
+            href="#wall"
+            onClick={claimSeat}
+            onMouseEnter={prefetchSeatMap}
+            onFocus={prefetchSeatMap}
+            className="sa-cta sa-cta--bar sa-shine ml-auto shrink-0 lg:order-last lg:ml-0"
+          >
+            {wallet.connecting ? 'Checking in…' : claimed ? `My seat · ${claimed}` : 'Claim a seat'}
+            {!wallet.connecting && <span aria-hidden>→</span>}
+          </a>
+
+          <dl className="sd-chrome flex w-full min-w-0 items-center justify-between gap-x-7 overflow-x-auto lg:ml-auto lg:w-auto lg:max-w-[62%] lg:justify-start">
+            {[
+              { k: 'Altitude', v: `${formatFeet(tick.marketCap)} ft`, tone: 'text-ui-deep' },
+              { k: 'Market cap', v: formatCap(tick.marketCap), tone: 'text-ui-ink' },
+              /* Direction is the one thing on the page a single accent cannot
+                 carry, so it keeps a sign as well as a colour. */
+              { k: '5m', v: formatChange(tick.change5m), tone: tick.change5m >= 0 ? 'text-ui-deep' : 'text-ui-soft' },
+              { k: 'Seated', v: `${manifest.entries.length}/${MANIFEST_SIZE}`, tone: 'text-ui-ink' },
+            ].map((f) => (
+              <div key={f.k} className="sa-topbar__fig shrink-0">
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ui-faint">{f.k}</dt>
+                <dd className={`font-mono text-[15px] leading-tight ${f.tone}`}>{f.v}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </header>
+
+      <main id="top" className="sa-shell mx-auto max-w-[94rem] px-5 sm:px-8">
+        {/* ══════════════════════════════════════════════════════════════
+            01 · The aeroplane
+            The page opens on the whole aircraft, from outside, because that
+            is the sentence the product is: one plane, everyone in it. Every
+            other camera on the page is a step inward from this frame.
+            ══════════════════════════════════════════════════════════════ */}
+        <section className="sa-hero pt-5 sm:pt-7" aria-labelledby="hero-title">
+          {/* The airline's line is said twice on the way in — boarded on the
+              splash, then under the aeroplane on the landing — so here it is
+              only the page's name, for assistive technology. The page itself
+              starts with the view: the way to a seat is up in the gate sign,
+              stepping inside is on the view's own bar, and the sections are
+              down its edge. */}
+          <h1 id="hero-title" className="sr-only">Seat Airlines. Hold more. Fly higher.</h1>
+
+          {/* ── The cockpit ──────────────────────────────────────────────
+              The view and its deck, with the page's sections a tab away down
+              its right edge. A section opens between the view and the tabs
+              and the view narrows to make room, so looking from a seat on the
+              wall happens beside the wall rather than a scroll above it. */}
+          {desk ? (
+            /* On a desk with a mouse, the view and the sections are one
+               docking workspace (see CockpitWorkspace), with the wall and the
+               deck under it at the page's full width. */
+            <Suspense fallback={<div className="sa-wsbox" role="status" aria-label="Loading the cockpit" />}>
+              <CockpitWorkspace
+                onHandle={onWorkspace}
+                view={viewport}
+                section={section}
+                dock={{
+                  onToggle: togglePanel,
+                  onScores: openScores,
+                  scoresOpen,
+                  panels: seated ? undefined : VISITOR_PANELS,
+                }}
+              >
+                {wall}
+                {deck}
+              </CockpitWorkspace>
+            </Suspense>
+          ) : (
+          <div ref={cockpitRef} className={`sa-cockpit${panel ? ' is-open' : ''}`}>
+          <div className="sa-cockpit__main">
+          {viewport}
+          {wall}
+          {deck}
+          </div>
           <SectionPanel open={panel} onClose={closePanel} render={section} />
           <SectionDock
             open={panel}
@@ -1047,6 +1140,7 @@ export default function App() {
             panels={seated ? undefined : VISITOR_PANELS}
           />
           </div>
+          )}
         </section>
 
       </main>

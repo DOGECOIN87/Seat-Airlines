@@ -2558,6 +2558,7 @@ p { text-wrap-style: pretty; }
 .sa-adwall > *,
 .sa-wall,
 .sa-panel,
+.sa-ws [data-trellis-part="content"],
 .sa-footer {
   --e-sm:    -3px -3px 8px var(--lit),    3px 3px 8px var(--shade);
   --e:       -6px -6px 16px var(--lit),   7px 7px 18px var(--shade);
@@ -2795,8 +2796,8 @@ p { text-wrap-style: pretty; }
   padding: 1.25rem 1.25rem 2rem 1.5rem;
 }
 /* The hero's type is set for the navy ground; the panel is light. */
-.sa-panel .sa-lead { color: var(--ui-soft); }
-.sa-panel .sa-eyebrow { color: var(--accent-deep); }
+:is(.sa-panel, .sa-wsview) .sa-lead { color: var(--ui-soft); }
+:is(.sa-panel, .sa-wsview) .sa-eyebrow { color: var(--accent-deep); }
 .sa-panel__sub {
   margin-top: 2rem;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -2808,8 +2809,8 @@ p { text-wrap-style: pretty; }
 }
 /* The three steps, as a numbered list rather than three cards: the seat
    map is what the panel is for, so it starts a screen sooner. */
-.sa-panel .sa-steps { margin-top: 1.25rem; gap: 0.5rem; }
-.sa-panel .sa-step {
+:is(.sa-panel, .sa-wsview) .sa-steps { margin-top: 1.25rem; gap: 0.5rem; }
+:is(.sa-panel, .sa-wsview) .sa-step {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: 0.85rem;
@@ -2818,9 +2819,9 @@ p { text-wrap-style: pretty; }
   border-radius: var(--r);
   box-shadow: var(--e-sm);
 }
-.sa-panel .sa-step__no { grid-row: span 2; }
-.sa-panel .sa-step__h { margin-top: 0.1rem; font-size: var(--t-sm); }
-.sa-panel .sa-step__b { max-width: none; margin-top: 0.15rem; font-size: var(--t-sm); line-height: 1.5; }
+:is(.sa-panel, .sa-wsview) .sa-step__no { grid-row: span 2; }
+:is(.sa-panel, .sa-wsview) .sa-step__h { margin-top: 0.1rem; font-size: var(--t-sm); }
+:is(.sa-panel, .sa-wsview) .sa-step__b { max-width: none; margin-top: 0.15rem; font-size: var(--t-sm); line-height: 1.5; }
 
 /* The tabs: a bar along the bottom of the screen, under the
    thumb on a phone and in the same place on a desk, frosted so
@@ -6543,3 +6544,174 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 
 /* The tour's way back: a "?" that stays when the bar drops its words on a phone. */
 .sa-help__q { display: inline-grid; place-items: center; border-radius: 50%; background: var(--accent-deep); color: #fff; font-family: Montserrat, ui-sans-serif, system-ui, sans-serif; font-size: 11px; font-weight: 800; line-height: 1; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   The desk cockpit
+   On a desk with a mouse the view and the sections are one docking
+   workspace (CockpitWorkspace): the view is its stage and each
+   section a panel that can sit beside it, under it, over it or in
+   a tab with another. The workspace draws its own panels; these
+   rules dress them in the site's material — light, soft-extruded
+   cards on the navy, the blue along the top, the selected tab
+   standing proud of a sunk track — and size the whole to the
+   screen between the gate sign and the tab bar.
+   ═══════════════════════════════════════════════════════════════ */
+.sa-wsbox {
+  --sa-top: calc(var(--sa-topbar-h, 3.4rem) + 0.75rem);
+  /* The workspace keeps its gap round the outside too; pulling the box
+     out by the gap lines the panels up with the page's edges. */
+  margin-inline: -14px;
+  height: clamp(32rem, calc(100dvh - var(--sa-top) - var(--dock-h) - var(--safe-bottom) - 1.25rem), 62rem);
+  scroll-margin-top: calc(var(--sa-top) - 14px);
+}
+/* The page under it — the wall, then the deck — at the full width. */
+.sa-wsbox ~ .sa-adwall { margin-top: 0.25rem; }
+
+.sa-ws { color: var(--ui-ink); }
+.sa-ws [data-trellis-part="panel"] {
+  background:
+    var(--g-accent) top / 100% 3px no-repeat,
+    linear-gradient(180deg, #DFE0E4 0%, #E3E4E8 40%, #DCDDE2 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 16px 36px -12px rgba(0, 0, 0, 0.6);
+  transition: box-shadow 0.2s ease;
+}
+/* The view's panel is its bezel: the frame's own face, no accent. */
+.sa-ws [data-trellis-part="panel"][data-region="stage"] {
+  background: var(--face-flat);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 18px 44px -12px rgba(0, 0, 0, 0.6);
+}
+.sa-ws [data-trellis-part="panel"][data-focused]:not([data-region="stage"]) {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 0 0 1.5px rgba(0, 201, 241, 0.55),
+    0 18px 40px -12px rgba(0, 0, 0, 0.62);
+}
+.sa-ws [data-trellis-part="panel"][data-floating] { box-shadow: var(--trellis-shadow-float); }
+.sa-ws [data-trellis-part="panel"][data-lifted] { box-shadow: var(--trellis-shadow-lifted); }
+
+/* The tabs: set into a sunk track, the selected one raised out of it
+   in the blue, as the walk strip's segments are. */
+.sa-ws [data-trellis-part="tabbar"] { padding-top: 3px; }
+.sa-ws [data-trellis-part="tabbar"] { box-shadow: none; }
+.sa-ws [data-trellis-part="tabs"] {
+  flex: 0 1 auto;
+  gap: 3px;
+  margin: 4px auto 4px 8px;
+  padding: 3px;
+  border-radius: 14px;
+  background: var(--ui-sink);
+  box-shadow: var(--e-press);
+}
+.sa-ws [data-trellis-part="tab"] {
+  gap: 0.45rem;
+  padding-inline: 0.7rem 0.55rem;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-faint);
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sa-ws [data-trellis-part="tab"]:hover { color: var(--ui-ink); }
+.sa-ws [data-trellis-part="tab"] { border-radius: 11px; }
+.sa-ws [data-trellis-part="tab"][data-selected],
+.sa-ws [data-trellis-part="panel"][data-focused] [data-trellis-part="tab"][data-selected] {
+  color: var(--accent-deep);
+  background: var(--face);
+  box-shadow:
+    -2px -2px 6px rgba(255, 255, 255, 0.9),
+    2px 2px 6px rgba(170, 174, 187, 0.55);
+}
+/* Pills, not file tabs: no flare joining the selected one to the page. */
+.sa-ws [data-trellis-part="tab"][data-selected]::before,
+.sa-ws [data-trellis-part="tab"][data-selected]::after { content: none; }
+.sa-ws [data-trellis-part="tab-icon"] svg { width: 16px; height: 16px; }
+.sa-ws [data-trellis-part="tab"][data-selected] [data-trellis-part="tab-icon"] { color: var(--accent); }
+.sa-ws [data-trellis-part="panel-menu"] { color: var(--ui-soft); border-radius: 999px; }
+.sa-ws [data-trellis-part="panel-menu"]:hover { color: var(--accent-deep); }
+.sa-ws [data-trellis-part="drop-slot"] {
+  border-radius: var(--trellis-radius);
+  outline: 2px dashed rgba(0, 201, 241, 0.7);
+  outline-offset: -6px;
+}
+.sa-ws [data-trellis-part="divider"][data-active],
+.sa-ws [data-trellis-part="divider"]:hover { --trellis-accent: #00C9F1; }
+.sa-ws .trellis-menu {
+  border-radius: 14px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 18px 40px -10px rgba(0, 0, 0, 0.5);
+}
+.sa-ws .trellis-menu-item { min-height: 32px; border-radius: 8px; }
+/* A finger takes a tab to drag it, not to scroll the page. */
+@media (any-pointer: coarse) {
+  .sa-ws [data-trellis-part="tabs"],
+  .sa-ws [data-trellis-part="tab"] { touch-action: none; }
+}
+
+/* What is in a panel is the page's own type, not the workspace's. */
+.sa-ws [data-trellis-part="surface"] { background: transparent; }
+.sa-ws [data-trellis-part="content"] {
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--t-base);
+  line-height: 1.5;
+  color: var(--ui-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A section scrolls in its own box, under its tab. */
+.sa-wsview {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 0.85rem 1.1rem 2rem 1.35rem;
+}
+.sa-wsview__title {
+  margin-bottom: 1rem;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--t-md);
+  font-weight: 800;
+  line-height: 1.12;
+  text-transform: uppercase;
+  letter-spacing: -0.015em;
+  color: var(--ui-ink);
+}
+
+/* The view fills the stage: the frame gives up its aspect ratio, as it
+   does in full screen, and the glass takes whatever the rail leaves. */
+.sa-wsstage {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px;
+}
+.sa-wsstage > .sa-viewport {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+.sa-wsstage .sd-viewframe:not(.sd-full) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.sa-wsstage .sd-viewframe:not(.sd-full) > .sd-glass { flex: 1 1 auto; min-height: 0; }
+.sa-wsstage .sd-viewframe:not(.sd-full) > .sd-glass > .origin-center { position: absolute; inset: 0; }
+.sa-wsstage .sd-viewframe:not(.sd-full) :is(.sd-frame, .sd-frame--wide) {
+  aspect-ratio: auto;
+  max-height: none;
+  height: 100%;
+}
+/* The browser's full screen, entered from inside the workspace. */
+.sd-full:fullscreen { width: 100%; height: 100%; }

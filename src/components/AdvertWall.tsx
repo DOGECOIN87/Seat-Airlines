@@ -8,6 +8,7 @@ import PassengerFilters from './PassengerFilters';
 import { fetchSeatProfiles, type PublicSeatProfile } from '../lib/networkingApi';
 import { matchesPassenger } from '../lib/passengerSearch';
 import type { Offering } from '../content/offerings';
+import { useMatch } from '../lib/useMatch';
 
 /**
  * Who is on board: the adverts, then everybody else in their seats.
@@ -28,18 +29,6 @@ const FOLDABLE = '(max-width: 1279.98px)';
 const CHART_KEY = 'seat-airlines.wall-chart-open';
 /** Asks the wall to open the seat chart, from anywhere on the page. */
 export const SHOW_CHART_EVENT = 'seat-airlines:show-chart';
-
-function useMatch(query: string): boolean {
-  const [on, setOn] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
-  useEffect(() => {
-    const m = window.matchMedia(query);
-    const update = () => setOn(m.matches);
-    update();
-    m.addEventListener('change', update);
-    return () => m.removeEventListener('change', update);
-  }, [query]);
-  return on;
-}
 
 /** The default caption the advert dialog fills in when the holder leaves it blank. */
 const DEFAULT_CAPTION = /^Advert on seat /;
