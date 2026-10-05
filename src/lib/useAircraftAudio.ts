@@ -26,10 +26,6 @@ interface AudioRig {
   ctx: AudioContext;
   master: GainNode;
   recording: AudioBufferSourceNode;
-  /** The cabin's hum, and the engines as heard from outside: crossfaded as the camera goes in and out. */
-  inside: GainNode;
-  outside: GainNode;
-  jet: AudioBufferSourceNode | null;
   seatbeltBuffer: AudioBuffer;
   occasionalSeatbeltBuffer: AudioBuffer;
   /**
@@ -150,9 +146,6 @@ const activated = (): boolean => {
   return ua ? ua.isActive : true;
 };
 
-/** The engines from outside, against the cabin's hum at 1: the two files are levelled to match. */
-const OUTSIDE_LEVEL = 1;
-
 export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: FlightBand) {
   const [enabled, setEnabled] = useState(() => typeof window === 'undefined' || soundWanted());
   /* Read by a start already under way, which can outlast a change of mind:
@@ -161,7 +154,6 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
   const wanted = useRef(enabled);
   wanted.current = enabled;
   const starting = useRef(false);
-  const isOutside = useRef(true);
   const rig = useRef<AudioRig | null>(null);
   const previous = useRef({ seatbelt: lamps.seatbelt, oxygen: lamps.oxygen, brace: lamps.brace, band });
 
@@ -173,7 +165,6 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
     if (current.intercomTimer !== null) window.clearTimeout(current.intercomTimer);
     if (current.occasionalSeatbeltTimer !== null) window.clearTimeout(current.occasionalSeatbeltTimer);
     current.recording.stop();
-    current.jet?.stop();
     current.activeSources.forEach(source => source.stop());
     current.master.gain.setTargetAtTime(0.0001, current.ctx.currentTime, 0.12);
     window.setTimeout(() => void current.ctx.close(), 450);
@@ -221,15 +212,9 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
     const recording = ctx.createBufferSource();
     recording.buffer = await ctx.decodeAudioData(await recordingResponse.arrayBuffer());
     recording.loop = true;
-    /* Inside, the cabin's hum; outside, the engines' roar (loaded below).
-       Each through its own fader, so a change of camera is a crossfade. */
-    const inside = ctx.createGain();
-    const outside = ctx.createGain();
-    inside.gain.value = isOutside.current ? 0 : 1;
-    outside.gain.value = isOutside.current ? OUTSIDE_LEVEL : 0;
-    inside.connect(master);
-    outside.connect(master);
-    recording.connect(inside);
+    /* The cabin's hum, wherever the camera is: the landing, outside the
+       aeroplane or in a seat all sound like the same flight. */
+    recording.connect(master);
 
     if (!wanted.current) { void ctx.close(); return; }
 
@@ -240,9 +225,6 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
       ctx,
       master,
       recording,
-      inside,
-      outside,
-      jet: null,
       seatbeltBuffer: silence,
       occasionalSeatbeltBuffer: silence,
       intercomBuffers: new Map(),
@@ -267,17 +249,9 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
         };
         /* The sign's chime and the occasional one are the same recording —
            they were two byte-identical files, fetched and decoded twice. */
-        const [chime, roar] = await Promise.all([decode('/seatbelt-warning.mp3'), decode('/jet-loop.mp3')]);
+        const chime = await decode('/seatbelt-warning.mp3');
         const target = rig.current;
         if (!target || target.stopped) return;
-        if (roar) {
-          const jet = ctx.createBufferSource();
-          jet.buffer = roar;
-          jet.loop = true;
-          jet.connect(target.outside);
-          jet.start();
-          target.jet = jet;
-        }
         if (chime) {
           target.seatbeltBuffer = chime;
           target.occasionalSeatbeltBuffer = chime;
@@ -289,16 +263,6 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
       }
     })();
   };
-
-  /* Outside the aeroplane the cabin's hum gives way to its engines. */
-  const setOutside = useCallback((out: boolean) => {
-    isOutside.current = out;
-    const current = rig.current;
-    if (!current) return;
-    const now = current.ctx.currentTime;
-    current.inside.gain.setTargetAtTime(out ? 0 : 1, now, 0.35);
-    current.outside.gain.setTargetAtTime(out ? OUTSIDE_LEVEL : 0, now, 0.35);
-  }, []);
 
   const toggle = useCallback(() => {
     setEnabled(value => {
@@ -344,5 +308,5 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
     if (wanted.current && current) playBuffer(current, current.seatbeltBuffer, 0.8);
   }, []);
 
-  return { enabled, toggle, ding, setOutside };
+  return { enabled, toggle, ding };
 }
