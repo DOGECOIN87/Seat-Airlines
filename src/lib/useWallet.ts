@@ -16,7 +16,7 @@
  * failing silently, and the page stays fully usable without one.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { listWallets, onWalletsChange, walletError, type WalletAdapter } from './wallets';
+import { listWallets, onWalletsChange, walletError, walletsSettled, whenWalletsSettled, type WalletAdapter } from './wallets';
 
 /** The wallet a person chose last, by name, so a return visit reconnects to it. */
 const CHOSEN_KEY = 'sa.wallet';
@@ -174,7 +174,15 @@ export function useWallet(): WalletState {
   }, []);
 
   const connect = useCallback(async (): Promise<string | null> => {
-    const wallets = listWallets();
+    let wallets = listWallets();
+    /* A tap before the Worker has said whether email and passkey sign-in is
+       on would otherwise be told there is no wallet at all. */
+    if (!wallets.length && !walletsSettled()) {
+      setConnecting(true);
+      await whenWalletsSettled();
+      setConnecting(false);
+      wallets = listWallets();
+    }
     if (!wallets.length) {
       setError('No Solana wallet found. Install Phantom, Solflare, Backpack or Nightly, then try again.');
       return null;
@@ -233,7 +241,7 @@ export function useWallet(): WalletState {
 
   const wallets = found.map(({ id, name, icon }) => ({ id, name, icon }));
   return {
-    address, walletName, connecting, error, unavailable: found.length === 0,
+    address, walletName, connecting, error, unavailable: found.length === 0 && walletsSettled(),
     wallets, picking, choose, connect, disconnect, signMessage,
   };
 }

@@ -6487,3 +6487,6 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 }
 .sa-adwall__ad-art img { inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); border-radius: calc(var(--r) - 5px); }
 .sa-adwall__ad-art:hover { box-shadow: 6px 8px 18px rgba(140, 146, 160, 0.55), -4px -4px 10px rgba(255, 255, 255, 0.95); }
+
+/* The email and passkey sign-in (src/lib/heliusBridge.tsx) is a dialog portalled to the body by its own library, whose z-index is small. Over the landing, the seat map and every window of the page's own, it has to win. */
+#headlessui-portal-root { position: relative; z-index: 2147483000; }

@@ -13,7 +13,7 @@
  * nothing is listed twice. It is still the way in when a wallet's Standard
  * connect fails without saying why, which in-app browsers do (see connect).
  */
-import { embeddedAdapter, embeddedReady, probeEmbedded } from './embeddedWallet';
+import { embeddedAdapter, embeddedProbed, embeddedReady, embeddedSettled, probeEmbedded } from './embeddedWallet';
 
 /** One wallet, whichever way it was found. */
 export interface WalletAdapter {
@@ -346,3 +346,9 @@ export function onWalletsChange(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
+
+/** True once every kind of wallet has had its say: the ones in the browser are known at once, the email and passkey one after the Worker answers. */
+export const walletsSettled = embeddedSettled;
+
+/** Resolves once `walletsSettled()` is true. */
+export const whenWalletsSettled = embeddedProbed;
