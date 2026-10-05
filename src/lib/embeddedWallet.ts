@@ -35,21 +35,32 @@ const ICON = `data:image/svg+xml,${encodeURIComponent(
    wants no part of it; otherwise whatever the Worker says. */
 const disabled = /^(0|false|off|no)$/i.test(String(import.meta.env.VITE_EMBEDDED_WALLETS ?? '').trim());
 let ready = false;
-let asked = false;
+let probe: Promise<void> | null = null;
+let settled = disabled || typeof window === 'undefined';
 
-/** Asks the Worker once whether embedded wallets are set up, and calls `then` if they are. */
+/**
+ * Asks the Worker once whether embedded wallets are set up, and calls `then`
+ * once the answer is in (whichever it is), so the page can re-read its list.
+ */
 export function probeEmbedded(then: () => void): void {
-  if (asked || disabled || typeof window === 'undefined') return;
-  asked = true;
-  fetch(`${HELIUS_API}/status`)
+  if (probe || disabled || typeof window === 'undefined') return;
+  probe = fetch(`${HELIUS_API}/status`)
     .then((res) => (res.ok ? res.json() : null))
     .then((body: { ready?: boolean } | null) => {
-      if (!body?.ready) return;
-      ready = true;
-      then();
+      ready = Boolean(body?.ready);
     })
-    .catch(() => { /* No Worker, or no answer: the option is simply not offered. */ });
+    .catch(() => { /* No Worker, or no answer: the option is simply not offered. */ })
+    .finally(() => {
+      settled = true;
+      then();
+    });
 }
+
+/** Resolves once the Worker has answered, or failed to. Never rejects. */
+export const embeddedProbed = (): Promise<void> => probe ?? Promise.resolve();
+
+/** False until the Worker has answered, so "no wallet at all" is not declared before the last one is known. */
+export const embeddedSettled = () => settled;
 
 export const embeddedReady = () => ready;
 

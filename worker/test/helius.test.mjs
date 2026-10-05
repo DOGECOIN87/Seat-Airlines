@@ -5,7 +5,7 @@
  *   npm test
  */
 import assert from 'node:assert/strict';
-import { handleHelius, trustedOrigin, MAX_HELIUS_BODY } from '../dist-test/helius.js';
+import { handleHelius, rpcAllowed, trustedOrigin, MAX_HELIUS_BODY } from '../dist-test/helius.js';
 
 let pass = 0;
 let fail = 0;
@@ -93,9 +93,22 @@ await check('rpc is mainnet only, and an oversized body is refused', async () =>
   const big = await handleHelius(req('rpc', { method: 'POST', body: 'x'.repeat(MAX_HELIUS_BODY + 1) }), env, cors, true, up);
   assert.equal(big.status, 413);
   assert.equal(up.calls.length, 0);
-  const ok = await handleHelius(req('rpc?cluster=mainnet-beta', { method: 'POST', body: '{"method":"getSlot"}' }), env, cors, true, up);
+  const ok = await handleHelius(req('rpc?cluster=mainnet-beta', { method: 'POST', body: '{"method":"getBalance"}' }), env, cors, true, up);
   assert.equal(ok.status, 200);
   assert.ok(up.calls[0].url.startsWith('https://mainnet.helius-rpc.com/'));
+});
+
+await check('rpc passes the calls a wallet makes and refuses the expensive ones, singly or in a batch', async () => {
+  assert.equal(rpcAllowed('{"jsonrpc":"2.0","id":1,"method":"getLatestBlockhash"}'), true);
+  assert.equal(rpcAllowed('[{"method":"getBalance"},{"method":"getAccountInfo"}]'), true);
+  assert.equal(rpcAllowed('{"method":"getProgramAccounts"}'), false);
+  assert.equal(rpcAllowed('[{"method":"getBalance"},{"method":"getProgramAccounts"}]'), false);
+  assert.equal(rpcAllowed('not json'), false);
+  assert.equal(rpcAllowed('[]'), false);
+  const up = upstream({ result: 1 });
+  const res = await handleHelius(req('rpc', { method: 'POST', body: '{"method":"getProgramAccounts"}' }), env, cors, true, up);
+  assert.equal(res.status, 403);
+  assert.equal(up.calls.length, 0);
 });
 
 await check('send goes through Sender and answers the signature', async () => {

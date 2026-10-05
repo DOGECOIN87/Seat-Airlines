@@ -16,7 +16,7 @@
  * failing silently, and the page stays fully usable without one.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { listWallets, onWalletsChange, walletError, type WalletAdapter } from './wallets';
+import { listWallets, onWalletsChange, walletError, walletsSettled, whenWalletsSettled, type WalletAdapter } from './wallets';
 
 /** The wallet a person chose last, by name, so a return visit reconnects to it. */
 const CHOSEN_KEY = 'sa.wallet';
@@ -175,27 +175,15 @@ export function useWallet(): WalletState {
 
   const connect = useCallback(async (): Promise<string | null> => {
     let wallets = listWallets();
-    /* Helius discovers its embedded provider asynchronously. A first click on
-       a freshly loaded landing page should still reach the same Helius modal,
-       rather than losing the race and showing the generic install card. */
-    if (!wallets.length) {
-      await new Promise<void>((resolve) => {
-        let done = false;
-        let timer = 0;
-        let stop = () => {};
-        const finish = () => {
-          if (done) return;
-          done = true;
-          window.clearTimeout(timer);
-          stop();
-          resolve();
-        };
-        stop = onWalletsChange(finish);
-      // The worker can be cold on mobile; its status response is commonly
-      // several seconds on the first request. Do not turn that into a false
-      // "no wallet" result before Helius has had time to register.
-      timer = window.setTimeout(finish, 10_000);
-      });
+    /* Email and passkey sign-in is discovered asynchronously: the Worker is
+       asked whether it is on, and on a phone the first answer can take
+       several seconds. A tap before then must not be told there is no wallet
+       at all — it waits for the answer, up to ten seconds, and then goes to
+       the wallet that is there, or says there is none. */
+    if (!wallets.length && !walletsSettled()) {
+      setConnecting(true);
+      await Promise.race([whenWalletsSettled(), new Promise<void>((resolve) => window.setTimeout(resolve, 10_000))]);
+      setConnecting(false);
       wallets = listWallets();
     }
     if (!wallets.length) {
@@ -256,7 +244,7 @@ export function useWallet(): WalletState {
 
   const wallets = found.map(({ id, name, icon }) => ({ id, name, icon }));
   return {
-    address, walletName, connecting, error, unavailable: found.length === 0,
+    address, walletName, connecting, error, unavailable: found.length === 0 && walletsSettled(),
     wallets, picking, choose, connect, disconnect, signMessage,
   };
 }

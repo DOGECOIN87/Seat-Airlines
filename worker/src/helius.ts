@@ -38,6 +38,21 @@ const API = 'https://dev-api.helius.xyz/v0';
 const RPC = 'https://mainnet.helius-rpc.com/';
 const SENDER = 'https://sender.helius-rpc.com/fast';
 
+/**
+ * The JSON-RPC methods a wallet needs from the chain, and no others.
+ *
+ * `Origin` is set by browsers and typed by anybody with curl, so it keeps
+ * other *sites* off these routes but is not a lock. What bounds the cost of
+ * somebody forging it is what the route will do: no `getProgramAccounts`, no
+ * history scans, only the handful of cheap calls signing and sending use.
+ */
+const RPC_METHODS = new Set([
+  'getLatestBlockhash', 'getBlockHeight', 'isBlockhashValid', 'getBalance', 'getAccountInfo',
+  'getMultipleAccounts', 'getTokenAccountBalance', 'getTokenAccountsByOwner', 'getSignatureStatuses',
+  'getFeeForMessage', 'getMinimumBalanceForRentExemption', 'getRecentPrioritizationFees',
+  'getPriorityFeeEstimate', 'simulateTransaction', 'sendTransaction',
+]);
+
 /** A registration or a JSON-RPC call is small; anything bigger is not one. */
 export const MAX_HELIUS_BODY = 64 * 1024;
 
@@ -62,10 +77,11 @@ export function trustedOrigin(allowedOrigins: string | undefined, origin: string
 /**
  * Answer one `/helius/…` request.
  *
- * `trusted` is whether the request came from an origin this deployment
- * serves. Every route but the bootstrap spends credits or writes on the
- * project's behalf, so those refuse anybody else outright rather than relying
- * on CORS, which only stops a browser from reading the answer.
+ * `trusted` is whether the request names an origin this deployment serves.
+ * Every route but the bootstrap spends credits or writes on the project's
+ * behalf, so those turn other sites away rather than relying on CORS, which
+ * only stops a browser from reading the answer. It is the browser's honesty
+ * being relied on, not a credential; see RPC_METHODS for what bounds the rest.
  */
 export async function handleHelius(
   request: Request,
@@ -111,6 +127,7 @@ export async function handleHelius(
     if (cluster !== 'mainnet-beta') return reply({ error: 'Mainnet only.' }, 400, cors);
     const body = await boundedText(request);
     if (body === null) return reply({ error: 'That request is too large.' }, 413, cors);
+    if (!rpcAllowed(body)) return reply({ error: 'That call is not available here.' }, 403, cors);
     const res = await upstream(`${RPC}?api-key=${encodeURIComponent(key)}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -146,6 +163,19 @@ export async function handleHelius(
   }
 
   return reply({ error: 'Not found' }, 404, cors);
+}
+
+/** Whether every call in a JSON-RPC body (one, or a batch) is one a wallet needs. */
+export function rpcAllowed(body: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return false;
+  }
+  const calls = Array.isArray(parsed) ? parsed : [parsed];
+  return calls.length > 0 && calls.length <= 10
+    && calls.every((c) => typeof (c as { method?: unknown })?.method === 'string' && RPC_METHODS.has((c as { method: string }).method));
 }
 
 /** The body as text, or null if it runs past the cap however it was sent. */
