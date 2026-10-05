@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 
-/** One tiny pulse and a soft, short click for an actual button activation. */
+/**
+ * One tiny pulse and a soft, short click for an actual button activation —
+ * both only with the site's sound on, so a muted page stays quiet in the hand too.
+ */
 export function usePressFeedback(soundEnabled: boolean) {
   const sound = useRef(soundEnabled);
   sound.current = soundEnabled;
@@ -14,8 +17,8 @@ export function usePressFeedback(soundEnabled: boolean) {
       const now = performance.now();
       if (now - last < 50) return;
       last = now;
-      try { navigator.vibrate?.(5); } catch { /* Optional device capability. */ }
       if (!sound.current) return;
+      try { navigator.vibrate?.(5); } catch { /* Optional device capability. */ }
       try {
         const Context = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
         if (!Context) return;

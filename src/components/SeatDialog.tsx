@@ -190,7 +190,8 @@ export default function SeatDialog({
           {banner && (
             <div className="sa-seatwin__advert">
               <p className="sa-map__label">{banner.house ? 'House advert' : 'Advert'}</p>
-              <p className="sa-map__alt">{holderName}</p>
+              {/* The advertiser's own words; the holder's name when they left it at the default. */}
+              <p className="sa-map__alt">{banner.alt && !/^Advert on seat /.test(banner.alt) ? banner.alt : holderName}</p>
               {link && (
                 <a href={link} target="_blank" rel="noopener noreferrer nofollow" className="sa-seatwin__link">
                   Visit {new URL(link).hostname.replace(/^www\./, '')} <span aria-hidden>↗</span>

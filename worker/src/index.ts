@@ -1501,8 +1501,12 @@ async function handle(request: Request, env: Env): Promise<Response> {
     /* Public seat cards show offering tags and links opted in by the owner.
        No session, email, or cabin contact permissions are exposed here. */
     if (request.method === 'GET' && ['/seat-profile', '/seat-profiles'].includes(url.pathname)) {
-      const headers = { ...cors, 'cache-control': 'no-store' };
       const collection = url.pathname === '/seat-profiles';
+      /* One holder's card is never cached, so turning links off takes effect
+         on the next read. The list every visitor's wall loads is held for 30
+         seconds: a revocation reaches it within half a minute, and the
+         directory is not queried once per page view. */
+      const headers = { ...cors, 'cache-control': collection ? 'public, max-age=30' : 'no-store' };
       const address = url.searchParams.get('address');
       if (!collection && !isAddress(address)) return json({ error: 'That wallet address is not valid.' }, 400, headers);
       if (!env.DIRECTORY) return json(collection ? {} : null, 200, headers);

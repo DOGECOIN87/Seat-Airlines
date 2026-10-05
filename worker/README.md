@@ -148,7 +148,7 @@ can also opt in to showing their display name, website, LinkedIn and social
 links on the public seat detail card. This is disabled for existing profiles;
 email and role are never returned by the public `GET /seat-profile?address=…`
 route. Turning the setting off removes those links on subsequent reads.
-The route uses `Cache-Control: no-store`. `GET /seat-profiles` returns the same
+The single-card route uses `Cache-Control: no-store`; the `/seat-profiles` list is cached for 30 seconds, so a revocation reaches every wall within half a minute. `GET /seat-profiles` returns the same
 public fields, keyed by wallet, for holders currently seated on the aircraft.
 
 `profile_categories` stores the offering tags and `public_seat_profiles`
