@@ -3482,6 +3482,8 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   font-size: 14px;
   color: var(--ui-soft);
 }
+.sa-wallets__name { display: grid; gap: 0.15rem; min-width: 0; text-align: left; }
+.sa-wallets__soon { font-size: 11px; line-height: 1.4; color: var(--ui-soft); letter-spacing: 0; text-transform: none; font-weight: 400; }
 .sa-wallets__fine { margin-top: 0.9rem; font-size: 11.5px; line-height: 1.6; color: var(--ui-soft); }
 
 @media (prefers-reduced-motion: reduce) {
