@@ -10,6 +10,11 @@
  *   GET  /flight    what the aeroplane is being told to do, if anything
  *   PUT  /flight    tell it — the flight deck only
  *
+ * Embedded wallets (email, passkey, social sign-in), with the Helius key
+ * held here rather than in the page — see `helius.ts`:
+ *
+ *   GET/POST /helius/…
+ *
  * The directory, behind a session that same wallet signature opens:
  *
  *   POST   /session    prove the key, get a bearer token for a day
@@ -68,12 +73,13 @@ import {
 } from './xshare';
 import { airlineName, finishAirlineConnect, postAsAirline, startAirlineConnect, XError } from './xshare';
 import { dailyText, dayTop, utcDay } from './daily';
+import { handleHelius, heliusConfigured, isHeliusPath, trustedOrigin, type HeliusEnv } from './helius';
 import {
   ANNOUNCEMENT, canAnnounce, canMessage, canPostToChannel, canViewContact,
   channelFor, zoneOfChannel,
 } from '../../src/lib/seating';
 
-export interface Env extends XEnv {
+export interface Env extends XEnv, HeliusEnv {
   BANNERS: KVNamespace;
   /** The airline's own X account, without the @: the only one the daily post may be connected as. */
   X_AIRLINE_USERNAME?: string;
@@ -815,6 +821,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
       return json({ error: 'That request is too large.' }, 413, cors);
     }
 
+    if (isHeliusPath(url.pathname)) {
+      return handleHelius(request, env, cors, trustedOrigin(env.ALLOWED_ORIGINS, request.headers.get('origin')));
+    }
+
     if (request.method === 'GET' && url.pathname === '/health') {
       /* `sections` is the field somebody curls this route to read, and it
          used to answer a different question than the one being asked.
@@ -840,6 +850,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
         service: 'seat-airlines-banners',
         storage: usingR2(env) ? 'r2' : 'kv',
         directory: Boolean(env.DIRECTORY),
+        embeddedWallets: heliusConfigured(env),
         // Whether the cabins can be told apart *right now* — the thing that
         // decides whether a card shows contact details or an introduction
         // sends, asked of the ladder that decides it.

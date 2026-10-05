@@ -13,6 +13,7 @@
  * nothing is listed twice. It is still the way in when a wallet's Standard
  * connect fails without saying why, which in-app browsers do (see connect).
  */
+import { embeddedAdapter, embeddedReady, probeEmbedded } from './embeddedWallet';
 
 /** One wallet, whichever way it was found. */
 export interface WalletAdapter {
@@ -302,6 +303,8 @@ function listen() {
   }
   // A provider injected late shows up once the page has loaded.
   window.addEventListener('load', notify, { once: true });
+  // Email and passkey sign-in, once the Worker says this deployment has it.
+  probeEmbedded(notify);
 }
 
 /** The first four by name, then the rest in alphabetical order. */
@@ -330,7 +333,11 @@ export function listWallets(): WalletAdapter[] {
     out.push(adapter(provider, () => fromInjected(name, provider)));
     names.add(name.toLowerCase());
   }
-  return out.sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
+  out.sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
+  /* Last, under the wallets the person already has: it is for people who
+     have none, and someone with Phantom open came to use Phantom. */
+  if (embeddedReady()) out.push(embeddedAdapter());
+  return out;
 }
 
 /** Told whenever a wallet registers or leaves. Returns the unsubscribe. */

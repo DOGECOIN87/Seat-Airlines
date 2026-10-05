@@ -79,7 +79,9 @@ export default defineConfig(({ mode }) => ({
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('/three/')) return 'three-vendor';
-          if (id.includes('/react/') || id.includes('/react-dom/')) return 'react-vendor';
+          // React itself only: `@headlessui/react/` and the like also contain
+          // "/react/", and belong to the embedded wallet's lazy chunk.
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react-vendor';
           return undefined;
         },
       },
