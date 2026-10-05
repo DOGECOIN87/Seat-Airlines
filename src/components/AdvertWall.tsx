@@ -23,8 +23,8 @@ import type { Offering } from '../content/offerings';
  * every one the same size, in rank order, with their captions.
  */
 
-/** Narrow enough that the seat chart can be put away: phones and small tablets. */
-const FOLDABLE = '(max-width: 767.98px)';
+/** Narrow enough that the seat chart can be put away: phones and tablets, upright or sideways. */
+const FOLDABLE = '(max-width: 1279.98px)';
 const CHART_KEY = 'seat-airlines.wall-chart-open';
 /** Asks the wall to open the seat chart, from anywhere on the page. */
 export const SHOW_CHART_EVENT = 'seat-airlines:show-chart';
