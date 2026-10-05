@@ -1,7 +1,7 @@
 /**
  * Helius embedded wallets, with the API key kept on this side.
  *
- * `helius-wallet-kit` signs people in by email, passkey or a social account
+ * `helius-wallet-kit` signs people in by passkey, email or text message
  * and gives them a non-custodial Solana wallet. Run key-less — which is the
  * mode it recommends for production — it expects a small server alongside
  * the page holding `HELIUS_API_KEY` and answering a handful of routes under

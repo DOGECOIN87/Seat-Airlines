@@ -1,5 +1,5 @@
 /**
- * A wallet for people who do not have one: email, passkey or social sign-in.
+ * A wallet for people who do not have one: passkey, email or text-message sign-in.
  *
  * Helius Wallet-as-a-Service gives each person who signs in a non-custodial
  * Solana wallet of their own. Here it is one more entry in the picker,
