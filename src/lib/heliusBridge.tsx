@@ -128,7 +128,7 @@ const mounted = (async () => {
     <kit.HeliusWalletProvider
       config={{
         cluster: 'mainnet-beta',
-        theme: { darkMode: true, primaryColor: '#E84125', logoLight: '/icon-square.svg', logoDark: '/icon-square.svg' },
+        theme: { darkMode: true, primaryColor: '#E84125', logoLight: '/seat-airlines-logo.svg', logoDark: '/seat-airlines-logo.svg' },
         onError: (e) => console.warn('[embedded wallet]', e.message),
       }}
     >
