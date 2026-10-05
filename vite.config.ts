@@ -38,6 +38,14 @@ function contentSecurityPolicy(env: Record<string, string>): Plugin {
     'https://api.open-meteo.com',
     // Advert artwork when it is served straight from R2 (the Worker's PUBLIC_IMAGE_BASE).
     'https://*.r2.dev',
+    /* Email and passkey wallets (src/lib/heliusBridge.tsx): sign-in and
+       signing go to Turnkey from the browser, the wallet reads the chain from
+       the project's key-less Secure RPC URL, and the sign-in screen fetches
+       its loading animation. The Helius key itself stays in the Worker. */
+    'https://api.turnkey.com',
+    'https://authproxy.turnkey.com',
+    'https://*.helius-rpc.com',
+    'https://lottie.host',
   ].filter((o): o is string => Boolean(o)));
   const policy = [
     "default-src 'self'",
@@ -79,7 +87,9 @@ export default defineConfig(({ mode }) => ({
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('/three/')) return 'three-vendor';
-          if (id.includes('/react/') || id.includes('/react-dom/')) return 'react-vendor';
+          // React itself only: `@headlessui/react/` and the like also contain
+          // "/react/", and belong to the embedded wallet's lazy chunk.
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react-vendor';
           return undefined;
         },
       },
