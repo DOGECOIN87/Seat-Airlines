@@ -43,6 +43,8 @@
          technology, which only counted the <noscript> heading before. -->
     <style>
       .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}
+      /* The background logo pattern stays put: its drift animation is off. */
+      .sa-ground__pattern::before{animation:none!important}
     </style>
     <!-- What search engines read about the site. Data, not a script: the
          Content-Security-Policy does not run it and does not need to. -->

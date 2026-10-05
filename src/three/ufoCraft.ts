@@ -28,8 +28,9 @@ export interface UfoPose {
   dev?: { right: number; up: number };
 }
 
-/** Across the saucer, metres: small enough to take a wingtip, not the aeroplane. */
-const DIAMETER = 16;
+/** Across the saucer, metres: a small scout next to the airliner —
+    still big enough to take a wingtip, not the aeroplane. */
+const DIAMETER = 8;
 
 function glowTexture(): THREE.CanvasTexture {
   const n = 128;

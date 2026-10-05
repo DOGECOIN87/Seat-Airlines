@@ -96,6 +96,8 @@ interface LandingSceneProps {
   taken: ReadonlySet<string>;
   /** Somebody has taken the controls. */
   playing: boolean;
+  /** Exterior camera orbit, driven by the right stick or right-mouse drag. */
+  cameraLook: MutableRefObject<{ orbit: number }>;
   /** How boosted the token is on DexScreener, 0–1: cruising, it burns and goes faster for it. */
   boost?: number;
   game: MutableRefObject<FlightGame>;
@@ -186,7 +188,7 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 
 
 const LandingScene = ({
-  feed, sky, band, controls, taken, playing, boost = 0, game, hud, sounds, shot,
+  feed, sky, band, controls, taken, playing, cameraLook, boost = 0, game, hud, sounds, shot,
   onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -549,8 +551,17 @@ const LandingScene = ({
         }
       }
       if (CAPTURE) captureState.onGameFrame?.(g, realDt);
-      const ix = live ? clampUnit(g.keys.x + g.stick.x) : 0;
-      const iy = live ? clampUnit(g.keys.y + g.stick.y) : 0;
+      const pad = typeof navigator.getGamepads === 'function'
+        ? Array.from(navigator.getGamepads()).find((candidate) => candidate?.connected)
+        : null;
+      const dead = (value: number) => Math.abs(value) < 0.14 ? 0 : value;
+      const leftX = dead(pad?.axes[0] ?? 0);
+      const leftY = dead(pad?.axes[1] ?? 0);
+      const rightX = dead(pad?.axes[2] ?? 0);
+      if (rightX) cameraLook.current.orbit = Math.max(-75, Math.min(75, cameraLook.current.orbit + rightX * 80 * realDt));
+      p.orbit = cameraLook.current.orbit;
+      const ix = live ? clampUnit(g.keys.x + g.stick.x + leftX) : 0;
+      const iy = live ? clampUnit(g.keys.y + g.stick.y - leftY) : 0;
       const step = fly(g, ix, iy, flyDt);
       stall = step.stall;
       if (flyDt > 0) g.accel += ((step.vs - g.vs) / flyDt - g.accel) * (1 - Math.exp(-2 * flyDt));

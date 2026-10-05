@@ -175,11 +175,14 @@ export function useWallet(): WalletState {
 
   const connect = useCallback(async (): Promise<string | null> => {
     let wallets = listWallets();
-    /* A tap before the Worker has said whether email and passkey sign-in is
-       on would otherwise be told there is no wallet at all. */
+    /* Email and passkey sign-in is discovered asynchronously: the Worker is
+       asked whether it is on, and on a phone the first answer can take
+       several seconds. A tap before then must not be told there is no wallet
+       at all — it waits for the answer, up to ten seconds, and then goes to
+       the wallet that is there, or says there is none. */
     if (!wallets.length && !walletsSettled()) {
       setConnecting(true);
-      await whenWalletsSettled();
+      await Promise.race([whenWalletsSettled(), new Promise<void>((resolve) => window.setTimeout(resolve, 10_000))]);
       setConnecting(false);
       wallets = listWallets();
     }
