@@ -191,7 +191,10 @@ export function useWallet(): WalletState {
           resolve();
         };
         stop = onWalletsChange(finish);
-        timer = window.setTimeout(finish, 1500);
+      // The worker can be cold on mobile; its status response is commonly
+      // several seconds on the first request. Do not turn that into a false
+      // "no wallet" result before Helius has had time to register.
+      timer = window.setTimeout(finish, 10_000);
       });
       wallets = listWallets();
     }

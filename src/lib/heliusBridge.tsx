@@ -118,6 +118,11 @@ const mounted = (async () => {
 
   const host = document.createElement('div');
   host.id = 'sa-embedded-wallet';
+  // The landing scene creates its own stacking contexts while crashed and on
+  // mobile. Keep Helius's login/sign-message sheets above those layers.
+  host.style.position = 'relative';
+  host.style.zIndex = '2147483647';
+  host.style.isolation = 'isolate';
   document.body.appendChild(host);
   createRoot(host).render(
     <kit.HeliusWalletProvider
