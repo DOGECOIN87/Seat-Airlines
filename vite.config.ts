@@ -38,6 +38,14 @@ function contentSecurityPolicy(env: Record<string, string>): Plugin {
     'https://api.open-meteo.com',
     // Advert artwork when it is served straight from R2 (the Worker's PUBLIC_IMAGE_BASE).
     'https://*.r2.dev',
+    /* Email and passkey wallets (src/lib/heliusBridge.tsx): sign-in and
+       signing go to Turnkey from the browser, the wallet reads the chain from
+       the project's key-less Secure RPC URL, and the sign-in screen fetches
+       its loading animation. The Helius key itself stays in the Worker. */
+    'https://api.turnkey.com',
+    'https://authproxy.turnkey.com',
+    'https://*.helius-rpc.com',
+    'https://lottie.host',
   ].filter((o): o is string => Boolean(o)));
   const policy = [
     "default-src 'self'",
