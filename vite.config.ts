@@ -36,6 +36,8 @@ function contentSecurityPolicy(env: Record<string, string>): Plugin {
     origin(env.VITE_RPC_URL),
     origin(env.VITE_MARKET_URL) ?? 'https://api.jup.ag',
     'https://api.open-meteo.com',
+    // The plane's afterburner: the Boosts running on the token's pair (src/lib/dexBoost.ts).
+    'https://api.dexscreener.com',
     // Advert artwork when it is served straight from R2 (the Worker's PUBLIC_IMAGE_BASE).
     'https://*.r2.dev',
     /* Email and passkey wallets (src/lib/heliusBridge.tsx): sign-in and

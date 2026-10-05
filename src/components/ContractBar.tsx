@@ -38,7 +38,7 @@ const FlameMark = () => (
 );
 
 /** Boosts running on DexScreener, for the Boost pill: lit while there are any. */
-const ContractBar = ({ boosts = 0 }: { boosts?: number }) => {
+const ContractBar = ({ boosts = 0, onHelp }: { boosts?: number; onHelp?: () => void }) => {
   const address = TOKEN_MINT || PLACEHOLDER;
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -97,6 +97,13 @@ const ContractBar = ({ boosts = 0 }: { boosts?: number }) => {
           <FlameMark />
           <span className="sa-pump__text">{boosts > 0 ? `boosted ×${boosts.toLocaleString('en-US')}` : 'boost'}</span>
         </a>
+
+        {onHelp && (
+          <button type="button" onClick={onHelp} className="sa-pump" aria-label="How it works">
+            <span aria-hidden className="sa-pump__mark sa-help__q">?</span>
+            <span className="sa-pump__text">how it works</span>
+          </button>
+        )}
 
         {/* Announced rather than shown twice: the button's own label already
             changes, and a screen reader should hear it confirmed once. */}

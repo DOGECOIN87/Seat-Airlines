@@ -10,6 +10,7 @@ import AdvertWall, { SHOW_CHART_EVENT } from './components/AdvertWall';
 import DocsLink from './components/DocsLink';
 import Wordmark from './components/Wordmark';
 import WalletPicker from './components/WalletPicker';
+import Welcome, { keepTourSeen, tourSeen } from './components/Welcome';
 import SocialLinks from './components/SocialLinks';
 import SeatChange from './components/SeatChange';
 import SeatTicker, { type TickerItem } from './components/SeatTicker';
@@ -551,7 +552,20 @@ export default function App() {
       || LOGBOOK_HASH.test(window.location.hash)
       || panelFromHash(window.location.hash) !== null,
   );
-   const enter = useCallback(() => {
+  /* The tour opens once, the first time somebody is in the site itself (not
+     on the landing), and again whenever "how it works" is pressed. */
+  const [tourOpen, setTourOpen] = useState(false);
+  /* Play again remakes the landing from nothing: a new key, no splash. */
+  const [landingRun, setLandingRun] = useState(0);
+  const playAgain = useCallback(() => setLandingRun((n) => n + 1), []);
+  useEffect(() => {
+    if (entered && !tourSeen()) setTourOpen(true);
+  }, [entered]);
+  const closeTour = useCallback(() => {
+    keepTourSeen();
+    setTourOpen(false);
+  }, []);
+  const enter = useCallback(() => {
     setEntered(true);
     window.scrollTo(0, 0);
   }, []);
@@ -723,6 +737,9 @@ export default function App() {
     return (
       <>
         <Landing
+          key={landingRun}
+          replay={landingRun > 0}
+          onPlayAgain={playAgain}
           feed={feed}
           sky={sky}
           band={band}
@@ -753,7 +770,8 @@ export default function App() {
 
       <a href="#wall" onClick={(e) => { e.preventDefault(); openPanel('wall'); }} className="sa-skip">Skip to the seat map</a>
 
-      <ContractBar boosts={boosts} />
+      <ContractBar boosts={boosts} onHelp={() => setTourOpen(true)} />
+      {tourOpen && <Welcome onClose={closeTour} />}
 
       {/* ── Gate sign ──────────────────────────────────────────────────
           An airline's vernacular is a brand bar over a strip of flight data,

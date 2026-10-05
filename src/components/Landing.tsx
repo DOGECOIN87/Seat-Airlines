@@ -76,6 +76,10 @@ interface LandingProps {
   wallet: WalletState;
   /** Go through to the site. */
   onEnter: () => void;
+  /** Fly again: the landing is made afresh, with no splash, and takes off at once if a wallet is connected. */
+  onPlayAgain: () => void;
+  /** This landing is a replay: skip the splash and, with a wallet, take off at once. */
+  replay?: boolean;
   /** Who is in which seat, and the advert on each, for the seat overview. */
   manifest: Manifest;
   banners: BannerSet;
@@ -168,7 +172,7 @@ const OVERVIEW_AFTER = 3000;
 const SPLASH_FADE = 800;
 
 export default function Landing({
-  feed, sky, band, marketCap, controls, taken, wallet, onEnter, manifest, banners, onClaim, boosts, soundEnabled, onSoundToggle,
+  feed, sky, band, marketCap, controls, taken, wallet, onEnter, onPlayAgain, replay = false, manifest, banners, onClaim, boosts, soundEnabled, onSoundToggle,
 }: LandingProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [ready, setReady] = useState(false);
@@ -270,7 +274,7 @@ export default function Landing({
   /* The splash. It goes once the line has landed on the board and held —
      and once the aeroplane behind it is ready, within reason — or at the
      first tap or key, which does nothing else. */
-  const [splash, setSplash] = useState<'on' | 'fading' | 'off'>('on');
+  const [splash, setSplash] = useState<'on' | 'fading' | 'off'>(replay ? 'off' : 'on');
   const [phrases] = useState(splashPhrases);
   /** When the call to board — the last phrase — landed. */
   const [landedAt, setLandedAt] = useState<number | null>(null);
@@ -331,19 +335,37 @@ export default function Landing({
   const gone = useRef(false);
   const timers = useRef<number[]>([]);
   useEffect(() => () => timers.current.forEach((id) => window.clearTimeout(id)), []);
-  const leave = useCallback(() => {
-    if (gone.current) return;
-    gone.current = true;
-    setLeaving(true);
-    // The warning and the crowd go with the landing; the crash sound is left to ring out.
+  /* The warning and the crowd go with the landing; the crash sound is left to ring out. */
+  const hush = () => {
     sounds.current?.blast.pause();
     sounds.current?.lightning.pause();
     sounds.current?.ufo.pause();
     sounds.current?.wind.pause();
     sounds.current?.crowd.pause();
     recording.current?.abort();
+  };
+  const leave = useCallback(() => {
+    if (gone.current) return;
+    gone.current = true;
+    setLeaving(true);
+    hush();
     timers.current.push(window.setTimeout(onEnter, 450));
   }, [onEnter]);
+  /* Fly again. The landing is rebuilt from nothing by whoever holds it, which
+     is the one way to be sure no run leaks into the next; this only has to
+     stop the count, quiet the verdict's sounds, and ask. */
+  const again = useCallback(() => {
+    if (gone.current) return;
+    gone.current = true;
+    if (autoLeave.current !== null) window.clearTimeout(autoLeave.current);
+    autoLeave.current = null;
+    hush();
+    sounds.current?.wasted.pause();
+    sounds.current?.fahh.pause();
+    sounds.current?.trombone.pause();
+    sounds.current?.wow.pause();
+    onPlayAgain();
+  }, [onPlayAgain]);
   /* The seat overview: once the splash has gone and the plane has had a
      few seconds of the screen to itself. */
   const [overview, setOverview] = useState(false);
@@ -362,6 +384,9 @@ export default function Landing({
      starts it again once it is done — sent, cancelled or failed — so the
      screen is never left waiting on a tap that may not come. */
   const [counting, setCounting] = useState(false);
+  /** Whole seconds until the site takes over, while it is counting. */
+  const [secondsLeft, setSecondsLeft] = useState(Math.ceil(END_HOLD / 1000));
+  const deadline = useRef(0);
   const holdLeave = useCallback(() => {
     if (autoLeave.current !== null) window.clearTimeout(autoLeave.current);
     autoLeave.current = null;
@@ -372,8 +397,18 @@ export default function Landing({
     if (autoLeave.current !== null) window.clearTimeout(autoLeave.current);
     autoLeave.current = window.setTimeout(leave, END_HOLD);
     timers.current.push(autoLeave.current);
+    deadline.current = performance.now() + END_HOLD;
+    setSecondsLeft(Math.ceil(END_HOLD / 1000));
     setCounting(true);
   }, [leave]);
+  /* The number on screen, kept to the same deadline the timer runs to. */
+  useEffect(() => {
+    if (!counting) return;
+    const id = window.setInterval(() => {
+      setSecondsLeft(Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000)));
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [counting]);
 
   /* The game's sounds, made inside the click or key that starts it:
      each is played once, muted, there and then, which is what a browser
@@ -441,6 +476,10 @@ export default function Landing({
     }
     takeOff();
   }, [ready, wallet.address, takeOff]);
+  /* A replay with a wallet already connected goes straight back up. */
+  useEffect(() => {
+    if (replay && ready && wallet.address && game.current.phase === 'idle' && !gone.current) takeOff();
+  }, [replay, ready, wallet.address, takeOff]);
   const connectAndFly = useCallback(async () => {
     makeSounds();
     setPreflight('connecting');
@@ -1257,15 +1296,23 @@ export default function Landing({
                   <span ref={shareProgress} className="sa-landing__share-progress" aria-hidden />
                 </button>
               )}
+              <button type="button" onClick={again} className="sa-landing__again">
+                Play again
+              </button>
               <button
                 type="button"
                 onClick={leave}
                 className={`sa-landing__enter${counting ? ' is-counting' : ''}`}
                 style={{ ['--hold' as string]: `${END_HOLD}ms` }}
               >
-                Board now <span aria-hidden>→</span>
+                Board now{counting ? ` · ${secondsLeft}s` : ''} <span aria-hidden>→</span>
               </button>
             </div>
+            {counting && (
+              <p className="sa-landing__fine sa-landing__countdown" role="timer" aria-live="off">
+                Heading into the site in {secondsLeft}s · or play again
+              </p>
+            )}
             {shareNote && (
               <p className={`sa-landing__posted${shareNote.error ? ' is-error' : ''}`} role="status">
                 {shareNote.text}
