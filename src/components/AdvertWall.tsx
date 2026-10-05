@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { CABIN_ZONES, findSeat, seatCount, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner, type BannerSet } from '../lib/banners';
 import { shortAddress, type Manifest, type ManifestEntry } from '../lib/manifest';
@@ -9,100 +9,98 @@ import { matchesPassenger } from '../lib/passengerSearch';
 import type { Offering } from '../content/offerings';
 
 /**
- * Who is on board: every held seat, and the advert on it, for anybody.
+ * Who is on board: the adverts, then everybody else in their seats.
  *
  * This is what the site is for. Every held seat is a billboard, and a
  * billboard only works if everybody walking past can see it — so the wall is
  * on the page itself, straight under the aeroplane, with no wallet, no tab
- * and no cabin to unfold first. The seat map in the Seats panel is the same
- * aircraft drawn as a seating plan; this is it drawn as a wall of adverts,
- * cabin by cabin, the best placements largest and first.
+ * and no cabin to unfold first.
  *
- * Only held seats are drawn. With a few dozen holders an all-178 plan was
- * mostly "Open" squares, the adverts a few dots in it; the seating plan
- * with every seat in its place is the Seats panel's job.
+ * It is in two parts. The adverts holders have put up come first, every one
+ * the same size, in rank order: they are what a visitor came to see, and on
+ * a young aircraft there are few of them, so a seat-shaped grid with an
+ * empty square for every holder without one buried them in grey. Then the
+ * rest of the manifest, cabin by cabin, as compact seat labels — who is in
+ * which seat, and that the seat's advert space is theirs to fill. Both open
+ * the same seat window.
  */
 
-/* Each cabin is laid out with its own seats to a row — two on the flight
-   deck, four in first, six behind — so the front of the aircraft is drawn
-   largest. On a phone the six-across cabins go three to a row. */
-const COLUMNS: Record<ZoneKey, { wide: number; narrow: number }> = {
-  deck: { wide: 2, narrow: 2 },
-  first: { wide: 4, narrow: 2 },
-  business: { wide: 6, narrow: 3 },
-  exit: { wide: 6, narrow: 3 },
-  economy: { wide: 6, narrow: 3 },
-};
+/** The default caption the advert dialog fills in when the holder leaves it blank. */
+const DEFAULT_CAPTION = /^Advert on seat /;
 
-/** The widest a cabin's row is drawn, so two flight-deck seats are big but not a wall each. */
-const ROW_MAX: Record<ZoneKey, string> = {
-  deck: '30rem',
-  first: '46rem',
-  business: '100%',
-  exit: '100%',
-  economy: '100%',
-};
-
-interface TileProps {
+interface AdvertProps {
   entry: ManifestEntry;
-  banner: Banner | null;
+  banner: Banner;
   mine: boolean;
-  onOpen: (id: string) => void;
   dimmed: boolean;
   displayName?: string;
+  onOpen: (id: string) => void;
+  /** The picture would not load: the seat goes back among the labels. */
+  onBroken: (image: string) => void;
 }
 
-const Tile = ({ entry, banner, mine, onOpen, dimmed, displayName }: TileProps) => {
+const Advert = ({ entry, banner, mine, dimmed, displayName, onOpen, onBroken }: AdvertProps) => {
   const id = entry.seat.id;
-  /* A picture that will not load is drawn as the seat without one, rather
-     than as the browser's broken-image icon. Keyed to the URL, so a replaced
-     advert gets a fresh try. */
-  const [failed, setFailed] = useState<string | null>(null);
-  /* Only real holder adverts get artwork. Every other seat keeps its
-     sculpted empty surface, with the rank of its holder when occupied. */
-  const own = banner && !banner.house && failed !== banner.image ? banner : null;
-  const picture = own;
-  const link = safeHref(own?.href);
-  const holderName = displayName?.trim() || shortAddress(entry.address);
+  const link = safeHref(banner.href);
+  const holder = displayName?.trim() || shortAddress(entry.address);
   /* The advertiser's own words are the caption: that is the advert's copy.
-     The default the dialog fills in when they leave it blank says nothing,
-     so the holder's name stands in for it. */
-  const copy = own && !/^Advert on seat /.test(own.alt) ? own.alt : holderName;
+     Left at the default, which says nothing, the holder's name stands in. */
+  const copy = banner.alt && !DEFAULT_CAPTION.test(banner.alt) ? banner.alt : holder;
   return (
-    <li className={`sa-adwall__tile${mine ? ' is-mine' : ''}${dimmed ? ' is-filtered' : ''}`}>
+    <li className={`sa-adwall__ad${mine ? ' is-mine' : ''}${dimmed ? ' is-filtered' : ''}`}>
       <button
         type="button"
         onClick={() => onOpen(id)}
         aria-haspopup="dialog"
-        aria-label={`Seat ${id}, rank ${entry.rank}, ${holderName}${own ? `. Advert: ${own.alt}` : ''}`}
+        aria-label={`Seat ${id}, rank ${entry.rank}, ${holder}. Advert: ${banner.alt}`}
         data-seat={id}
-        className={`sa-adwall__art${picture ? ' has-ad' : ' is-empty'}`}
+        className="sa-adwall__ad-art"
       >
-        {picture ? (
-          <img src={picture.image} alt="" loading="lazy" onError={() => setFailed(picture.image)} />
-        ) : (
-          <span className="sa-adwall__space" aria-hidden>
-            <span className="sa-adwall__space-id">{id}</span>
-            <span className="sa-adwall__space-rank">#{entry.rank}</span>
-            <span className="sa-adwall__space-note">{mine ? 'Add your advert' : 'Advert space'}</span>
-          </span>
-        )}
+        <img src={banner.image} alt="" loading="lazy" onError={() => onBroken(banner.image)} />
       </button>
-      <span className="sa-adwall__position" aria-hidden>
+      {/* Under the picture, never on it: an advert's artwork is the advertiser's. */}
+      <p className="sa-adwall__ad-seat" aria-hidden>
         {id}
-        <span className="sa-adwall__rank">#{entry.rank}</span>
-      </span>
-      <p className="sa-adwall__caption">
-        {own ? (
-          link ? (
-            <a href={link} target="_blank" rel="noopener noreferrer nofollow" title={copy}>{copy}</a>
-          ) : (
-            <span title={copy}>{copy}</span>
-          )
+        <span className="sa-adwall__ad-rank">#{entry.rank}</span>
+      </p>
+      <p className="sa-adwall__ad-copy">
+        {link ? (
+          <a href={link} target="_blank" rel="noopener noreferrer nofollow" title={copy}>{copy}</a>
         ) : (
-          <span className="sa-adwall__holder">{mine ? 'Your seat' : holderName}</span>
+          <span title={copy}>{copy}</span>
         )}
       </p>
+      {copy !== holder && <p className="sa-adwall__ad-holder" title={holder}>{holder}</p>}
+    </li>
+  );
+};
+
+interface SeatLabelProps {
+  entry: ManifestEntry;
+  mine: boolean;
+  dimmed: boolean;
+  displayName?: string;
+  onOpen: (id: string) => void;
+}
+
+/** A held seat with no advert of its own: compact, so the adverts are what the eye goes to. */
+const SeatLabel = ({ entry, mine, dimmed, displayName, onOpen }: SeatLabelProps) => {
+  const id = entry.seat.id;
+  const holder = displayName?.trim() || shortAddress(entry.address);
+  return (
+    <li className={dimmed ? 'is-filtered' : undefined}>
+      <button
+        type="button"
+        onClick={() => onOpen(id)}
+        aria-haspopup="dialog"
+        aria-label={`Seat ${id}, rank ${entry.rank}, ${holder}, no advert yet`}
+        data-seat={id}
+        className={`sa-adwall__label${mine ? ' is-mine' : ''}`}
+      >
+        <span className="sa-adwall__label-seat">{id}</span>
+        <span className="sa-adwall__label-rank">#{entry.rank}</span>
+        <span className="sa-adwall__label-holder">{mine ? 'Your seat · add an advert' : holder}</span>
+      </button>
     </li>
   );
 };
@@ -126,6 +124,12 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
   const [offeringFilter, setOfferingFilter] = useState<Offering | ''>('');
   const [profiles, setProfiles] = useState<Record<string, PublicSeatProfile>>({});
   const [profileSearch, setProfileSearch] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+  /* Advert pictures that would not load, by URL: those seats are listed with
+     the labels instead of as a broken square. A replaced advert gets a fresh try. */
+  const [broken, setBroken] = useState<ReadonlySet<string>>(() => new Set());
+  const markBroken = useCallback((image: string) => {
+    setBroken((current) => (current.has(image) ? current : new Set(current).add(image)));
+  }, []);
   const holderKey = manifest.entries.map((entry) => entry.address).join(',');
   useEffect(() => {
     if (!holderKey) return;
@@ -155,21 +159,41 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
       window.removeEventListener('seat-airlines:profile-saved', refresh);
     };
   }, [holderKey]);
+
+  /** A holder's own advert on a seat, if there is one that loads. */
+  const advertOn = useCallback((seat: string): Banner | null => {
+    const banner = banners[seat];
+    return banner && !banner.house && !broken.has(banner.image) ? banner : null;
+  }, [banners, broken]);
+
   const filtering = Boolean(searchQuery.trim() || offeringFilter);
-  const matchingSeats = new Set(manifest.entries.filter((entry) => matchesPassenger(entry, profiles[entry.address], searchQuery, offeringFilter, banners[entry.seat.id]?.house ? '' : banners[entry.seat.id]?.alt)).map((entry) => entry.seat.id));
+  const matchingSeats = new Set(manifest.entries
+    .filter((entry) => matchesPassenger(entry, profiles[entry.address], searchQuery, offeringFilter, advertOn(entry.seat.id)?.alt))
+    .map((entry) => entry.seat.id));
   const openSeat = useCallback((id: string) => {
     const seat = findSeat(id);
     if (seat) setOpen({ id, zone: seat.zone });
   }, []);
   const closeSeat = useCallback(() => setOpen(null), []);
 
-  /* The manifest is in rank order and the cabins fill in that order, so
-     grouping it keeps the biggest bag first in every cabin. */
-  const cabins = useMemo(() => CABIN_ZONES.map((zone) => ({
-    zone,
-    held: manifest.entries.filter((e) => e.seat.zone === zone.key),
-    total: seatCount(zone),
-  })), [manifest.entries]);
+  /* The manifest is in rank order, so both lists keep the biggest bag first. */
+  const adverts = useMemo(
+    () => manifest.entries.flatMap((entry) => {
+      const banner = advertOn(entry.seat.id);
+      return banner ? [{ entry, banner }] : [];
+    }),
+    [manifest.entries, advertOn],
+  );
+  const cabins = useMemo(() => CABIN_ZONES.map((zone) => {
+    const held = manifest.entries.filter((e) => e.seat.zone === zone.key);
+    return {
+      zone,
+      held: held.length,
+      total: seatCount(zone),
+      waiting: held.filter((e) => !advertOn(e.seat.id)),
+    };
+  }), [manifest.entries, advertOn]);
+  const waitingCount = cabins.reduce((n, c) => n + c.waiting.length, 0);
 
   return (
     <section id="on-board" className="sa-adwall" aria-labelledby="sa-adwall-title">
@@ -179,47 +203,81 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
           <h2 id="sa-adwall-title" className="sa-adwall__title">Who’s on board</h2>
         </div>
         <p className="sa-adwall__count tabular-nums">
-          <strong>{manifest.entries.length}</strong> seated · {manifest.open} open
+          <strong>{manifest.entries.length}</strong> seated · <strong>{adverts.length}</strong> {adverts.length === 1 ? 'advert' : 'adverts'} · {manifest.open} open
         </p>
       </header>
-      <PassengerFilters query={searchQuery} offering={offeringFilter} onQuery={setSearchQuery} onOffering={setOfferingFilter}
-        offeringsDisabled={profileSearch !== 'ready'} />
-      {filtering && <p className="sa-passenger-results" role="status">{matchingSeats.size} matching {matchingSeats.size === 1 ? 'holder' : 'holders'}. {matchingSeats.size ? 'Matching seats are highlighted.' : 'Try another search or clear the filters.'}</p>}
-      {profileSearch === 'unavailable' && <p className="sa-passenger-results">Profile search is unavailable. You can still search by wallet or seat.</p>}
 
       {manifest.entries.length === 0 ? (
         <p className="sa-adwall__empty" role="status">
           Boarding. The passenger list is on its way.
         </p>
       ) : (
-        cabins.map(({ zone, held, total }) => (held.length === 0 ? null : (
-          <div key={zone.key} className={`sa-adwall__cabin sa-adwall__cabin--${zone.key}`}>
-            <h3 className="sa-adwall__cabin-head">
-              <span className="sa-adwall__cabin-name">{zone.name}</span>
-              <span className="sa-adwall__cabin-count tabular-nums">{held.length} of {total}</span>
-            </h3>
-            <ul
-              className="sa-adwall__grid"
-              style={{
-                '--cols': COLUMNS[zone.key].wide,
-                '--cols-narrow': COLUMNS[zone.key].narrow,
-                '--row-max': ROW_MAX[zone.key],
-              } as CSSProperties}
-            >
-              {held.map((entry) => (
-                <Tile
+        <>
+          <PassengerFilters query={searchQuery} offering={offeringFilter} onQuery={setSearchQuery} onOffering={setOfferingFilter}
+            offeringsDisabled={profileSearch !== 'ready'} />
+          {filtering && (
+            <p className="sa-passenger-results" role="status">
+              {matchingSeats.size} matching {matchingSeats.size === 1 ? 'holder' : 'holders'}.{' '}
+              {matchingSeats.size ? 'Matches are highlighted.' : 'Try another search or clear the filters.'}
+              {profileSearch === 'unavailable' && ' Names and offerings cannot be searched right now; wallets, seats and adverts can.'}
+            </p>
+          )}
+
+          {/* ── The adverts ── */}
+          <h3 className="sa-adwall__section">On display</h3>
+          {adverts.length ? (
+            <ul className="sa-adwall__ads">
+              {adverts.map(({ entry, banner }) => (
+                <Advert
                   key={entry.seat.id}
                   entry={entry}
-                  banner={banners[entry.seat.id] ?? null}
+                  banner={banner}
                   mine={mine === entry.seat.id}
-                  onOpen={openSeat}
                   dimmed={filtering && !matchingSeats.has(entry.seat.id)}
                   displayName={profiles[entry.address]?.displayName}
+                  onOpen={openSeat}
+                  onBroken={markBroken}
                 />
               ))}
             </ul>
-          </div>
-        )))
+          ) : (
+            <p className="sa-adwall__none">
+              No adverts up yet. Every seated holder can put one on their seat, and it shows here for everybody.
+            </p>
+          )}
+
+          {/* ── Everybody else, in their seats ── */}
+          {waitingCount > 0 && (
+            <>
+              <h3 className="sa-adwall__section">
+                Advert space{' '}
+                <span className="sa-adwall__section-note">
+                  {waitingCount} seated {waitingCount === 1 ? 'holder has' : 'holders have'} not put one up yet
+                </span>
+              </h3>
+              {cabins.map(({ zone, held, total, waiting }) => (waiting.length === 0 ? null : (
+                <div key={zone.key} className="sa-adwall__cabin">
+                  <p className="sa-adwall__cabin-head">
+                    <span className="sa-adwall__cabin-name">{zone.name}</span>
+                    <span className="sa-adwall__cabin-count tabular-nums">{held} of {total} seated</span>
+                  </p>
+                  <ul className="sa-adwall__labels">
+                    {waiting.map((entry) => (
+                      <SeatLabel
+                        key={entry.seat.id}
+                        entry={entry}
+                        mine={mine === entry.seat.id}
+                        dimmed={filtering && !matchingSeats.has(entry.seat.id)}
+                        displayName={profiles[entry.address]?.displayName}
+                        onOpen={openSeat}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              )))}
+            </>
+          )}
+        </>
       )}
 
       {open && (
