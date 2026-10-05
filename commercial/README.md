@@ -19,10 +19,9 @@ Capture mode lives in the app at `src/capture/` and is compiled out of productio
 
 ## New on Seat Airlines (X post)
 
-`NewFeatures` is a 19.5 s, 1080×1350 (4:5) cut for X, text-led so it works muted, made entirely of real screenshots of the new features. `sh render-new-features.sh` writes `out/seat-airlines-new-features.mp4`.
+`NewFeatures` is a 16.5 s, 1080×1350 (4:5) cut for X, text-led so it works muted, made entirely of real screenshots of the new features. `sh render-new-features.sh` writes `out/seat-airlines-new-features.mp4`.
 
 | Screenshots (`public/features/`) | Made by |
 |---|---|
 | `landing`, `picker`, `tour1`–`4`, `site` | `node capture/features/stills.mjs`: against a built preview of the site (`npm run build && npx vite preview --port 4173`, from the repo root); no WebGL needed except for `landing` |
 | `signin-1`–`3` | `node capture/features/signin.mjs`: the real email and passkey sheet (Turnkey's component, run by the site), with stand-in answers for the Worker's status and bootstrap and Turnkey's auth-proxy config. No account is created and the address shown is made up |
-| `crash-a`–`c` | `node capture/features/crash.mjs`: the crash screen with Play again and its countdown, in capture mode. Serve a capture-mode **build** on port 3000 (`VITE_CAPTURE_MODE=1 npx vite build --outDir <dir> && npx vite preview --outDir <dir> --port 3000`), not the dev server: editing a file in the repo reloads the dev server's page and fails the take |

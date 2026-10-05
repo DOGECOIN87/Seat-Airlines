@@ -8,18 +8,17 @@ import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 
 /**
- * "New on Seat Airlines": a 19.5 s, 4:5 cut for X. Text-led (X plays muted),
+ * "New on Seat Airlines": a 16.5 s, 4:5 cut for X. Text-led (X plays muted),
  * with the real UI as large cropped cards. Same palette, type and sounds as
  * the main commercial. Every card is a real screenshot of the site, filmed by
  * capture/features/*.mjs: the wallet picker, the email and passkey sign-in
  * sheet (stand-in network answers, a made-up address, no account created), the
- * landing, the crash screen with Play again and its countdown, the tour, and
- * the "?" in the contract bar.
+ * landing, the tour, and the "?" in the contract bar.
  */
 export const NF_FPS = 30;
 export const NF_W = 1080;
 export const NF_H = 1350;
-export const NF_SECONDS = 19.5;
+export const NF_SECONDS = 16.5;
 
 const NAVY = '#0F1725';
 const CYAN = '#00C9F1';
@@ -145,39 +144,19 @@ const Fly: React.FC = () => (
         <Ring left={14} top={516} width={382} height={108} radius={54} />
       </div>
     </Rise>
-    <Label color="rgba(244,248,252,0.85)" size={30}>Post your score with your new wallet</Label>
+    <Label color="rgba(244,248,252,0.85)" size={30}>Post your score · then play again</Label>
   </div>
 );
 
-/** The real crash screen, with Play again and the count to boarding ticking down. */
-const Again: React.FC = () => {
-  const f = useCurrentFrame();
-  const shot = f < 30 ? 'crash-a' : f < 60 ? 'crash-b' : 'crash-c';
-  const press = interpolate(f, [74, 78, 84], [1, 0.96, 1], clamp);
-  return (
-    <div style={{ display: 'grid', gap: 36, justifyItems: 'center' }}>
-      <Slam size={112} lines={[{ text: 'CRASHED?' }, { text: 'PLAY AGAIN.', color: CYAN }]} />
-      <Rise delay={6}>
-        <div style={{ position: 'relative', transform: `scale(${press})` }}>
-          <Crop src={shot} y0={AGAIN_CROP.y0} y1={AGAIN_CROP.y1} width={760} />
-        </div>
-      </Rise>
-      <Label color="rgba(244,248,252,0.85)" size={30}>Then it boards you into the site</Label>
-    </div>
-  );
-};
-
-/** Which part of the crash screenshots (css px of 390×844) to show. */
-const AGAIN_CROP = { y0: 190, y1: 790 };
-
 const TOUR_PAGES = ['What it is', 'How seats work', 'Connect a wallet', 'How to buy'];
-const TOUR_FRAMES = 72; // four pages, 0.6 s each
+const TOUR_FRAMES = 60; // four pages, 0.5 s each
+const REPLAY_FRAMES = 60;
 
 /** The tour, page by page. */
 const TourPages: React.FC = () => {
   const f = useCurrentFrame();
-  const page = Math.min(3, Math.floor(f / 18));
-  const within = f - page * 18;
+  const page = Math.min(3, Math.floor(f / 15));
+  const within = f - page * 15;
   const o = interpolate(within, [0, 5], [0, 1], clamp);
   return (
     <div style={{ display: 'grid', gap: 36, justifyItems: 'center' }}>
@@ -198,7 +177,7 @@ const Replay: React.FC = () => {
   const k = 800 / 390; // the strip is the site's top 150 css px, shown 800 wide
   const cx = 345 * k;
   const cy = 52 * k;
-  const ripple = interpolate(f, [16, 40], [0, 1], clamp);
+  const ripple = interpolate(f, [10, 30], [0, 1], clamp);
   return (
     <div style={{ display: 'grid', gap: 36, justifyItems: 'center' }}>
       <Slam size={104} lines={[{ text: 'REPLAY IT' }, { text: 'ANYTIME.', color: CYAN }]} />
@@ -209,7 +188,7 @@ const Replay: React.FC = () => {
           <div style={{ position: 'absolute', left: cx - 70, top: cy - 70, width: 140, height: 140, borderRadius: '50%', border: `6px solid ${CYAN}`, opacity: 1 - ripple, transform: `scale(${0.3 + ripple * 1.5})` }} />
         )}
       </div>
-      <Rise delay={30}><Crop src="tour1" y0={215} y1={648} x0={8} x1={382} width={480} /></Rise>
+      <Rise delay={22}><Crop src="tour1" y0={215} y1={648} x0={8} x1={382} width={480} /></Rise>
       <Label color="rgba(244,248,252,0.85)" size={32}>Tap ? and the tour opens</Label>
     </div>
   );
@@ -218,7 +197,7 @@ const Replay: React.FC = () => {
 const Tour: React.FC = () => (
   <>
     <Sequence durationInFrames={TOUR_FRAMES}><Scene frames={TOUR_FRAMES}><TourPages /></Scene></Sequence>
-    <Sequence from={TOUR_FRAMES}><Scene frames={48}><Replay /></Scene></Sequence>
+    <Sequence from={TOUR_FRAMES}><Scene frames={REPLAY_FRAMES}><Replay /></Scene></Sequence>
   </>
 );
 
@@ -248,9 +227,8 @@ const PLAN: { id: string; at: number; seconds: number; node: React.ReactNode; wh
   { id: 'pick', at: 2, seconds: 2, node: <Pick />, whoosh: true },
   { id: 'sheet', at: 4, seconds: 4, node: <Sheet />, whoosh: true },
   { id: 'fly', at: 8, seconds: 2.5, node: <Fly />, whoosh: true },
-  { id: 'again', at: 10.5, seconds: 3, node: <Again />, whoosh: true },
-  { id: 'tour', at: 13.5, seconds: 4, node: <Tour />, whoosh: true },
-  { id: 'end', at: 17.5, seconds: 2, node: <End />, whoosh: true },
+  { id: 'tour', at: 10.5, seconds: 4, node: <Tour />, whoosh: true },
+  { id: 'end', at: 14.5, seconds: 2, node: <End />, whoosh: true },
 ];
 
 const sfx = (file: string, at: number, volume: number, key: string) => (
@@ -268,11 +246,8 @@ export const NewFeatures: React.FC = () => (
     {sfx('audio/chime.wav', 0.05, 0.8, 'chime')}
     {sfx('audio/impact.wav', 0.3, 0.7, 'hit')}
     {PLAN.filter((p) => p.whoosh).map((p) => sfx('audio/whoosh.wav', p.at - 0.15, 0.45, `w-${p.id}`))}
-    {/* The count ticking down on the crash screen, as the shot (and so the number) changes; then the press on Play again. */}
-    {[1.0, 2.0].map((i) => sfx('audio/tick.wav', 10.5 + i, 0.45, `tick${i}`))}
-    {sfx('audio/tick.wav', 10.5 + 74 / NF_FPS, 0.9, 'press')}
-    {sfx('audio/riser.wav', 17.5 - 1.0, 0.4, 'riser')}
-    {[0, 4.5, 9, 13.5, 18].map((startSec, i) => {
+    {sfx('audio/riser.wav', 14.5 - 1.0, 0.4, 'riser')}
+    {[0, 4.5, 9, 13.5].map((startSec, i) => {
       const start = Math.round(startSec * NF_FPS);
       const dur = Math.min(NF_SECONDS * NF_FPS - start, Math.round(5.5 * NF_FPS));
       return (
