@@ -174,7 +174,27 @@ export function useWallet(): WalletState {
   }, []);
 
   const connect = useCallback(async (): Promise<string | null> => {
-    const wallets = listWallets();
+    let wallets = listWallets();
+    /* Helius discovers its embedded provider asynchronously. A first click on
+       a freshly loaded landing page should still reach the same Helius modal,
+       rather than losing the race and showing the generic install card. */
+    if (!wallets.length) {
+      await new Promise<void>((resolve) => {
+        let done = false;
+        let timer = 0;
+        let stop = () => {};
+        const finish = () => {
+          if (done) return;
+          done = true;
+          window.clearTimeout(timer);
+          stop();
+          resolve();
+        };
+        stop = onWalletsChange(finish);
+        timer = window.setTimeout(finish, 1500);
+      });
+      wallets = listWallets();
+    }
     if (!wallets.length) {
       setError('No Solana wallet found. Install Phantom, Solflare, Backpack or Nightly, then try again.');
       return null;

@@ -457,9 +457,12 @@ export default function Landing({
   }, [wallet, takeOff]);
   /* The Fly button: straight to the wallet when there is one to ask. */
   const onFly = useCallback(() => {
-    if (wallet.address || wallet.unavailable) start();
+    // Always use the shared connector when the visitor is not connected. This
+    // lets Helius finish registering and open its own sign-in modal instead of
+    // racing into the generic "install a wallet" card on a fresh page load.
+    if (wallet.address) start();
     else void connectAndFly();
-  }, [wallet.address, wallet.unavailable, start, connectAndFly]);
+  }, [wallet.address, start, connectAndFly]);
 
   const onReady = useCallback(() => setReady(true), []);
   const onFail = useCallback(() => setFailed(true), []);
