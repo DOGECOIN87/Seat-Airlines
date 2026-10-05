@@ -19,6 +19,7 @@ import OfferingTags from './OfferingTags';
 import AccountIcon from './AccountIcon';
 import PassengerFilters from './PassengerFilters';
 import { matchesPassenger } from '../lib/passengerSearch';
+import { reveal } from '../lib/reveal';
 
 interface NetworkingHubProps {
   manifest: Manifest;
@@ -280,7 +281,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   useEffect(() => {
     if (!focusEdit || editing) return;
     editButton.current?.focus({ preventScroll: true });
-    editButton.current?.scrollIntoView({ block: 'nearest' });
+    if (editButton.current) reveal(editButton.current, { block: 'nearest' });
     setFocusEdit(false);
   }, [focusEdit, editing]);
 
@@ -291,7 +292,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
   const openEditor = () => {
     setEditing(true);
     setStatusAt('card');
-    requestAnimationFrame(() => cardPanel.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+    requestAnimationFrame(() => { if (cardPanel.current) reveal(cardPanel.current, { block: 'start', behavior: 'smooth' }); });
   };
 
   const dismiss = () => {

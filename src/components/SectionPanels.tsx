@@ -56,9 +56,15 @@ interface SectionDockProps {
   scoresOpen: boolean;
   /** Which sections have a tab. All of them when left out. */
   panels?: readonly PanelKey[];
+  /**
+   * The sections on screen, when that is more than one: the desk cockpit
+   * can show several side by side. Without it, the one that is `open`.
+   */
+  shown?: readonly PanelKey[];
 }
 
-export function SectionDock({ open, onToggle, onScores, scoresOpen, panels }: SectionDockProps) {
+export function SectionDock({ open, onToggle, onScores, scoresOpen, panels, shown }: SectionDockProps) {
+  const isOn = (key: PanelKey) => (shown ? shown.includes(key) : open === key);
   return (
     <nav className="sa-dock" aria-label="Sections">
       <div className="sa-dock__track">
@@ -67,9 +73,10 @@ export function SectionDock({ open, onToggle, onScores, scoresOpen, panels }: Se
             key={p.key}
             type="button"
             onClick={() => onToggle(p.key)}
-            aria-expanded={open === p.key}
-            aria-controls="sa-panel"
-            className={`sa-dock__btn${open === p.key ? ' is-on' : ''}`}
+            aria-expanded={isOn(p.key)}
+            aria-controls={shown ? undefined : 'sa-panel'}
+            data-dock={p.key}
+            className={`sa-dock__btn${isOn(p.key) ? ' is-on' : ''}`}
           >
             <DeckIcon name={p.icon} className="sa-dock__icon" />
             <span className="sa-dock__label">{p.label}</span>

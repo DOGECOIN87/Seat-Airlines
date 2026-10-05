@@ -5,6 +5,7 @@ import { shortAddress, type Manifest, type ManifestEntry } from '../lib/manifest
 import { formatShare, formatTokens } from '../lib/seatLadder';
 import SeatDialog from './SeatDialog';
 import AircraftRow from './AircraftRow';
+import { reveal } from '../lib/reveal';
 
 /**
  * The cabin, from above.
@@ -173,7 +174,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
     let raf = 0;
     const bring = () => {
       const el = mapRef.current?.querySelector<HTMLElement>(`[data-seat="${mine}"]`);
-      if (el) el.scrollIntoView({ block: 'center', inline: 'center', behavior: calm ? 'auto' : 'smooth' });
+      if (el) reveal(el, { block: 'center', inline: 'center', behavior: calm ? 'auto' : 'smooth' });
       else if (++tries < 30) raf = requestAnimationFrame(bring);
     };
     raf = requestAnimationFrame(bring);

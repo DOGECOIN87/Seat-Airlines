@@ -227,8 +227,17 @@ export function onStoredSessionChange(callback: () => void): () => void {
     if (event.key === SESSION_KEY || event.key === null) callback();
   };
   window.addEventListener('storage', listener);
-  return () => window.removeEventListener('storage', listener);
+  /* The directory and the chat can be open side by side in the cockpit, each
+     with its own copy of the session; a storage event only ever reaches the
+     other tabs, so this one is told directly. */
+  window.addEventListener(SESSION_EVENT, callback);
+  return () => {
+    window.removeEventListener('storage', listener);
+    window.removeEventListener(SESSION_EVENT, callback);
+  };
 }
+
+const SESSION_EVENT = 'seat-airlines:session';
 
 function keepSession(session: Session | null): void {
   try {
@@ -236,6 +245,11 @@ function keepSession(session: Session | null): void {
     else window.localStorage.removeItem(SESSION_KEY);
   } catch {
     /* Storage blocked: the session holds for this page view and no longer. */
+  }
+  try {
+    window.dispatchEvent(new Event(SESSION_EVENT));
+  } catch {
+    /* No window events (tests): nobody else on this page to tell. */
   }
 }
 
