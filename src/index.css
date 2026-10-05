@@ -6321,3 +6321,167 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   margin: 0;
   border-radius: 0;
 }
+
+/* ── Putting the seat chart away, on a phone ──
+   A raised bar with an on/off switch in it, like the panel's other
+   switches: the knob slides and the track turns blue when it is on. */
+.sa-adwall__chart-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 3.25rem;
+  margin-top: 1rem;
+  padding: 0.55rem 0.6rem 0.55rem 1rem;
+  border-radius: 999px;
+  background: var(--face);
+  box-shadow: var(--e-sm);
+  color: var(--ui-ink);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+.sa-adwall__chart-toggle:active { box-shadow: var(--e-press); }
+.sa-adwall__chart-toggle:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+.sa-adwall__chart-icon { width: 1.15rem; height: 1.15rem; flex: none; fill: var(--accent); transform: rotate(90deg); }
+.sa-adwall__chart-title { flex: 1; text-align: left; }
+.sa-adwall__switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 4.6rem;
+  height: 2.15rem;
+  flex: none;
+  border-radius: 999px;
+  background: var(--ui-sink);
+  box-shadow: inset 2px 2px 5px rgba(154, 158, 172, 0.6), inset -2px -2px 5px rgba(255, 255, 255, 0.85);
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+.sa-adwall__switch-text {
+  position: absolute;
+  right: 0.7rem;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--ui-faint);
+}
+.sa-adwall__switch-knob {
+  position: absolute;
+  left: 0.2rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--face);
+  box-shadow: 2px 2px 5px rgba(140, 146, 160, 0.55), -1px -1px 3px rgba(255, 255, 255, 0.9);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.sa-adwall__chart-toggle.is-open .sa-adwall__switch {
+  background: var(--g-accent);
+  box-shadow: inset 1px 1px 3px rgba(0, 70, 140, 0.35), 0 4px 12px rgba(0, 135, 234, 0.35);
+}
+.sa-adwall__chart-toggle.is-open .sa-adwall__switch-text { right: auto; left: 0.75rem; color: #fff; }
+.sa-adwall__chart-toggle.is-open .sa-adwall__switch-knob { transform: translateX(2.45rem); }
+.sa-adwall__chart-toggle + #sa-adwall-chart .sa-ov.sa-ov--wall { margin-top: 0.75rem; }
+@media (prefers-reduced-motion: reduce) {
+  .sa-adwall__switch, .sa-adwall__switch-knob, .sa-adwall__chart-toggle { transition: none; }
+}
+
+/* ── The wall's seat chart in the panel's soft light ──────────
+   The landing keeps its night card; in the wall the chart is made of
+   the same material as the rest of the panel. Seats are raised light
+   keys; a held seat is lit blue like a pressed-on switch; an open one
+   is sunk into the floor; an advert sits in a raised white frame. */
+.sa-ov.sa-ov--wall {
+  background: var(--face);
+  box-shadow: var(--e);
+  color: var(--ui-ink);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.sa-ov.sa-ov--wall::before { opacity: 0.35; }
+.sa-ov--wall .sa-ov__pan { background: var(--ui-sink); box-shadow: var(--e-well); }
+.sa-ov--wall .sa-ov__sky {
+  background-color: transparent;
+  box-shadow: none;
+  background-image:
+    radial-gradient(18% 30% at 20% 30%, rgba(255, 255, 255, 0.7), transparent 70%),
+    radial-gradient(22% 26% at 62% 78%, rgba(255, 255, 255, 0.6), transparent 70%),
+    radial-gradient(14% 22% at 88% 22%, rgba(255, 255, 255, 0.6), transparent 70%),
+    radial-gradient(20% 30% at 42% 54%, rgba(255, 255, 255, 0.5), transparent 70%);
+}
+.sa-ov--wall .sa-ov__shadow { fill: rgba(120, 128, 145, 0.45); }
+.sa-ov--wall .sa-ov__trail { stroke: rgba(255, 255, 255, 0.9); }
+.sa-ov--wall .sa-ov__cabinfloor { fill: #E3E5EA; stroke: rgba(163, 167, 180, 0.6); }
+.sa-ov--wall .sa-ov__galley { background: repeating-linear-gradient(0deg, rgba(163, 167, 180, 0.35) 0 2px, transparent 2px 6px); }
+.sa-ov--wall .sa-ov__sweep { mix-blend-mode: normal; opacity: 0.6; background-image: linear-gradient(80deg, transparent 0%, transparent 40%, rgba(255, 255, 255, 0.55) 50%, transparent 60%, transparent 100%); }
+.sa-ov--wall .sa-ov__row--deck { --floor: rgba(0, 135, 234, 0.06); }
+.sa-ov--wall .sa-ov__row--first { --floor: rgba(255, 184, 0, 0.08); }
+.sa-ov--wall .sa-ov__row--business { --floor: rgba(0, 135, 234, 0.05); }
+.sa-ov--wall .sa-ov__row--exit { --floor: rgba(255, 122, 0, 0.06); }
+
+/* Open: sunk into the floor. */
+.sa-ov--wall .sa-ov__seat.is-open {
+  background-color: #DADCE1;
+  box-shadow: inset 1.5px 1.5px 3px rgba(154, 158, 172, 0.65), inset -1.5px -1.5px 3px rgba(255, 255, 255, 0.9);
+  animation: sa-ov-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) calc(1.3s + var(--pop)) forwards;
+}
+.sa-ov--wall .sa-ov__seat.is-open::before { background: rgba(163, 167, 180, 0.45); box-shadow: none; }
+/* Held, no advert yet: a raised key, lit blue. */
+.sa-ov--wall .sa-ov__seat.is-held {
+  background: linear-gradient(160deg, #00C9F1 0%, #0087EA 100%);
+  box-shadow: 1.5px 2px 4px rgba(0, 105, 194, 0.4), -1.5px -1.5px 3px rgba(255, 255, 255, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+/* An advert: its picture in a raised white frame. */
+.sa-ov--wall .sa-ov__seat.is-ad {
+  background-color: #fff;
+  background-origin: content-box;
+  background-clip: content-box;
+  padding: 7%;
+  box-sizing: border-box;
+  box-shadow: 2px 2.5px 5px rgba(140, 146, 160, 0.55), -1.5px -1.5px 3px rgba(255, 255, 255, 0.95);
+}
+.sa-ov--wall .sa-ov__seat::before { background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 1px rgba(80, 90, 110, 0.4); }
+.sa-ov--wall .sa-ov__seat:hover,
+.sa-ov--wall .sa-ov__seat.is-peeked { box-shadow: 0 0 0 2px #fff, 0 6px 16px rgba(0, 105, 194, 0.45); }
+
+/* The preview: a raised light card. */
+.sa-ov--wall .sa-ov__peek {
+  background: var(--face);
+  box-shadow: var(--e-lg), 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+.sa-ov--wall .sa-ov__peek-art { background: var(--ui-sink); box-shadow: var(--e-well); }
+.sa-ov--wall .sa-ov__peek-empty { color: var(--accent-deep); background: none; }
+.sa-ov--wall .sa-ov__peek-cabin { color: var(--accent-deep); }
+.sa-ov--wall .sa-ov__peek-line { color: var(--ui-ink); }
+.sa-ov--wall .sa-ov__peek-line a { color: var(--accent-deep); }
+.sa-ov--wall .sa-ov__readout { color: var(--ui-soft); }
+
+/* Claim your Seat: the panel's blue pill, raised, still pulsing. */
+.sa-ov--wall .sa-ov__claim {
+  background: var(--g-accent);
+  color: #fff;
+  text-shadow: none;
+  animation:
+    sa-ov-claim-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 2.4s both,
+    sa-ov-blink-soft 1.6s ease-in-out 3.1s infinite;
+}
+.sa-ov--wall .sa-ov__claim:active { box-shadow: inset 3px 3px 9px rgba(0, 70, 135, 0.45); }
+@keyframes sa-ov-blink-soft {
+  0%, 100% { box-shadow: 4px 6px 14px rgba(0, 135, 234, 0.35), -4px -4px 10px rgba(255, 255, 255, 0.9); filter: brightness(1); }
+  50% { box-shadow: 4px 6px 22px rgba(0, 135, 234, 0.6), -4px -4px 10px rgba(255, 255, 255, 0.9), 0 0 0 6px rgba(0, 201, 241, 0.15); filter: brightness(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sa-ov--wall .sa-ov__claim { animation: none; }
+}
+
+/* Adverts on display: each in the same raised white frame. */
+.sa-adwall__ad-art {
+  padding: 6px;
+  background: #fff;
+  box-shadow: 4px 5px 12px rgba(140, 146, 160, 0.5), -4px -4px 10px rgba(255, 255, 255, 0.95);
+}
+.sa-adwall__ad-art img { inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); border-radius: calc(var(--r) - 5px); }
+.sa-adwall__ad-art:hover { box-shadow: 6px 8px 18px rgba(140, 146, 160, 0.55), -4px -4px 10px rgba(255, 255, 255, 0.95); }
