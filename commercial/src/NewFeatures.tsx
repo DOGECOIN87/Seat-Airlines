@@ -268,8 +268,9 @@ export const NewFeatures: React.FC = () => (
     {sfx('audio/chime.wav', 0.05, 0.8, 'chime')}
     {sfx('audio/impact.wav', 0.3, 0.7, 'hit')}
     {PLAN.filter((p) => p.whoosh).map((p) => sfx('audio/whoosh.wav', p.at - 0.15, 0.45, `w-${p.id}`))}
-    {/* The count ticking down on the crash screen, once a second (the shots change every second). */}
-    {[0, 1, 2].map((i) => sfx('audio/tick.wav', 10.5 + 0.6 + i * 1.0, 0.4, `tick${i}`))}
+    {/* The count ticking down on the crash screen, as the shot (and so the number) changes; then the press on Play again. */}
+    {[1.0, 2.0].map((i) => sfx('audio/tick.wav', 10.5 + i, 0.45, `tick${i}`))}
+    {sfx('audio/tick.wav', 10.5 + 74 / NF_FPS, 0.9, 'press')}
     {sfx('audio/riser.wav', 17.5 - 1.0, 0.4, 'riser')}
     {[0, 4.5, 9, 13.5, 18].map((startSec, i) => {
       const start = Math.round(startSec * NF_FPS);
