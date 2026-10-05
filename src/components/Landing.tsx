@@ -216,6 +216,8 @@ export default function Landing({
   /** The moment of the blast, for the shake and the flash. */
   const [blasted, setBlasted] = useState(false);
   const game = useRef(newGame());
+  /** Exterior camera orbit, driven by right-mouse drag or a gamepad's right stick. */
+  const cameraLook = useRef({ orbit: 0 });
   const [hud] = useState<LandingHud>(() => ({
     bar: createRef(), alt: createRef(), warn: createRef(), stall: createRef(), score: createRef(), rate: createRef(),
     speedNeedle: createRef(), speedText: createRef(), varioNeedle: createRef(), varioText: createRef(), horizon: createRef(),
@@ -414,6 +416,7 @@ export default function Landing({
   const takeOff = useCallback(() => {
     const g = game.current;
     if (!ready || g.phase !== 'idle' || gone.current) return;
+    cameraLook.current.orbit = 0;
     makeSounds();
     setPreflight('off');
     g.phase = 'intro';
@@ -747,6 +750,7 @@ export default function Landing({
      Up climbs, down dives, sideways banks, measured from where the press
      began, with the stick drawn there so the thumb can see what it is doing. */
   const grip = useRef<{ id: number; x: number; y: number } | null>(null);
+  const cameraGrip = useRef<{ id: number; x: number } | null>(null);
   const stickEl = useRef<HTMLDivElement>(null);
   const knobEl = useRef<HTMLDivElement>(null);
   const steer = (dx: number, dy: number) => {
@@ -757,6 +761,12 @@ export default function Landing({
   };
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     const g = game.current;
+    if (e.button === 2 && (g.phase === 'intro' || g.phase === 'flying')) {
+      cameraGrip.current = { id: e.pointerId, x: e.clientX };
+      e.currentTarget.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
     if ((g.phase !== 'intro' && g.phase !== 'flying') || grip.current) return;
     if ((e.target as HTMLElement).closest('button, a')) return;
     grip.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
@@ -770,10 +780,20 @@ export default function Landing({
     steer(0, 0);
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const c = cameraGrip.current;
+    if (c && c.id === e.pointerId) {
+      cameraLook.current.orbit = Math.max(-75, Math.min(75, cameraLook.current.orbit - (e.clientX - c.x) * 0.35));
+      c.x = e.clientX;
+      return;
+    }
     const g = grip.current;
     if (g && g.id === e.pointerId) steer(e.clientX - g.x, e.clientY - g.y);
   };
   const letGo = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (cameraGrip.current?.id === e.pointerId) {
+      cameraGrip.current = null;
+      return;
+    }
     const g = grip.current;
     if (!g || g.id !== e.pointerId) return;
     grip.current = null;
@@ -818,6 +838,7 @@ export default function Landing({
       onPointerMove={onPointerMove}
       onPointerUp={letGo}
       onPointerCancel={letGo}
+      onContextMenu={(e) => e.preventDefault()}
     >
       <div className="sa-landing__scene">
         {!failed && (
@@ -831,6 +852,7 @@ export default function Landing({
               playing={inGame}
               boost={boostStrength(boosts)}
               game={game}
+              cameraLook={cameraLook}
               hud={hud}
               sounds={sounds}
               shot={shot}
@@ -937,7 +959,7 @@ export default function Landing({
             <p className="sa-landing__hint">
               {!ready
                 ? 'Warming up…'
-                : `${!wallet.address ? 'Solana wallet required' : touch ? 'Drag to fly' : 'Arrow keys to fly'}\u00a0· climb to ${goalFeet.toLocaleString('en-US')}\u00a0ft`}
+                : `${!wallet.address ? 'Solana wallet required' : touch ? 'Drag to fly' : 'WASD / left stick to fly'}\u00a0· climb to ${goalFeet.toLocaleString('en-US')}\u00a0ft`}
             </p>
           )}
         </main>
@@ -1130,9 +1152,7 @@ export default function Landing({
                 'Drag up to climb · sideways to turn · fly through logos'
               ) : (
                 <>
-                  <kbd>↑</kbd>
-                  <kbd>↓</kbd> climb and dive · <kbd>←</kbd>
-                  <kbd>→</kbd> turn · <kbd>Space</kbd> boost · fly through logos
+                  <kbd>WASD</kbd> / <kbd>left stick</kbd> fly · <kbd>right mouse</kbd> / <kbd>right stick</kbd> look · <kbd>Space</kbd> boost · fly through logos
                 </>
               )}
             </p>
