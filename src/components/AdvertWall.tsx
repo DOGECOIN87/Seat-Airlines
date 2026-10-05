@@ -156,7 +156,7 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
     };
   }, [holderKey]);
   const filtering = Boolean(searchQuery.trim() || offeringFilter);
-  const matchingSeats = new Set(manifest.entries.filter((entry) => matchesPassenger(entry, profiles[entry.address], searchQuery, offeringFilter)).map((entry) => entry.seat.id));
+  const matchingSeats = new Set(manifest.entries.filter((entry) => matchesPassenger(entry, profiles[entry.address], searchQuery, offeringFilter, banners[entry.seat.id]?.house ? '' : banners[entry.seat.id]?.alt)).map((entry) => entry.seat.id));
   const openSeat = useCallback((id: string) => {
     const seat = findSeat(id);
     if (seat) setOpen({ id, zone: seat.zone });

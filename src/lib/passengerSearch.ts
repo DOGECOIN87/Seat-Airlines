@@ -6,9 +6,11 @@ export function matchesPassenger(
   profile: { displayName?: string; categories?: Offering[] } | undefined,
   query: string,
   offering: Offering | '',
+  /** Anything else the holder shows publicly to match on, like their advert's caption. */
+  extra = '',
 ): boolean {
   if (offering && !profile?.categories?.includes(offering)) return false;
-  const text = [entry.address, entry.seat.id, profile?.displayName ?? '',
+  const text = [entry.address, entry.seat.id, profile?.displayName ?? '', extra,
     ...OFFERINGS.filter((option) => profile?.categories?.includes(option.key)).map((option) => option.label),
   ].join(' ').toLowerCase();
   return query.trim().toLowerCase().split(/\s+/).every((word) => text.includes(word));
