@@ -932,6 +932,8 @@ export default function App() {
             mine={claimed}
             canAdvertise={claimed}
             onAdvertise={setAdvertising}
+            onClaim={startClaim}
+            boosted={boosts > 0}
             owner={wallet.address}
             sign={wallet.signMessage}
           />

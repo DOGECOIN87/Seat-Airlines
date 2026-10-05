@@ -119,6 +119,10 @@ interface SeatMapProps {
   sign?: (message: string) => Promise<string>;
 }
 
+/** The section a seat is drawn in. */
+const sectionOf = (id: string): string | undefined => CABIN_SECTIONS.find(({ rows }) => rows.some((row) =>
+  [...row.left, ...row.right].some((c) => (row.n === null ? c : `${row.n}${c}`) === id)))?.id;
+
 const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, onAdvertise, owner, sign }: SeatMapProps) {
   const [inspecting, setInspecting] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -129,8 +133,10 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
      Economy alone is 126 seats, and drawing all 178 — each a button, most
      of them adverts — on every open of the panel was a long scroll on a
      phone and a lot of work for seats nobody had asked to see. */
-  const [openZones, setOpenZones] = useState<ReadonlySet<ZoneKey>>(() => new Set());
-  const toggleZone = useCallback((zone: ZoneKey) => {
+  /* Keyed by section, not cabin: economy is two sections either side of the
+     exit rows, and opening one used to open (or close) the other with it. */
+  const [openZones, setOpenZones] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleZone = useCallback((zone: string) => {
     setOpenZones((current) => {
       const next = new Set(current);
       if (next.has(zone)) next.delete(zone); else next.add(zone);
@@ -158,7 +164,8 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
     if (!mine) return;
     const seat = findSeat(mine);
     if (!seat) return;
-    setOpenZones((current) => (current.has(seat.zone) ? current : new Set(current).add(seat.zone)));
+    const section = sectionOf(mine);
+    if (section) setOpenZones((current) => (current.has(section) ? current : new Set(current).add(section)));
     setFound(mine);
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // The cabin is drawn on the next render; look for the seat until it is there.
@@ -225,7 +232,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
         <div className="sa-map__cabin mx-auto max-w-[var(--cabin-w)]">
           {CABIN_SECTIONS.map(({ zone, rows, id: sectionId, note }) => {
             const accent = ACCENT[zone.accent];
-            const isOpen = openZones.has(zone.key);
+            const isOpen = openZones.has(sectionId);
             const total = rows.reduce((n, row) => n + row.left.length + row.right.length, 0);
             const held = rows.reduce((n, row) => n + [...row.left, ...row.right]
               .filter((c) => manifest.seats.has(row.n === null ? c : `${row.n}${c}`)).length, 0);
@@ -237,7 +244,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                   <h3 className="m-0">
                     <button
                       type="button"
-                      onClick={() => toggleZone(zone.key)}
+                      onClick={() => toggleZone(sectionId)}
                       aria-expanded={isOpen}
                       aria-controls={`sa-zone-${sectionId}`}
                       className={`sa-zone-head sa-zone-toggle ${accent}`}

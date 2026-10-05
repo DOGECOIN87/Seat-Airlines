@@ -127,12 +127,75 @@ interface SeatOverviewProps {
   onBrowse: () => void;
   /** Boosted on DexScreener: the engines burn and the cloud goes by faster. */
   boosted?: boolean;
+  /**
+   * 'wall': the same chart, full width in the site's wall rather than a card
+   * over the landing — no counts of its own (the wall has them), and a seat
+   * opens its seat window instead of the plane going in.
+   */
+  variant?: 'landing' | 'wall';
+  /** Open a seat's window. With it, every seat click opens one. */
+  onSeat?: (id: string) => void;
+  /** Seats a search matches; the rest fade back. Absent, none fade. */
+  highlight?: ReadonlySet<string> | null;
 }
 
-const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, onBrowse, boosted = false }: SeatOverviewProps) {
+const SeatOverview = memo(function SeatOverview({
+  manifest, banners, onClaim, onBrowse, boosted = false, variant = 'landing', onSeat, highlight = null,
+}: SeatOverviewProps) {
   const card = useRef<HTMLElement>(null);
   const [peek, setPeek] = useState<Peek | null>(null);
   const touch = useRef(false);
+  /* The wall's chart is drawn at a fixed size, wide enough that a desk at
+     100% sees the whole cabin; narrower, it slides sideways — by finger, by
+     wheel, or by dragging with the mouse. It opens on the nose, where the
+     best seats are. */
+  const pan = useRef<HTMLDivElement>(null);
+  const dragged = useRef(false);
+  /* Which edges have more cabin past them: each one fades. */
+  const edges = useCallback(() => {
+    const el = pan.current;
+    if (!el) return;
+    const more = el.scrollWidth - el.clientWidth;
+    el.classList.toggle('has-left', more > 1 && el.scrollLeft > 1);
+    el.classList.toggle('has-right', more > 1 && el.scrollLeft < more - 1);
+  }, []);
+  useEffect(() => {
+    if (variant !== 'wall') return;
+    const el = pan.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+    edges();
+    if (!('ResizeObserver' in window)) return;
+    const watch = new ResizeObserver(edges);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [variant, edges]);
+  const onPan = useCallback(() => { setPeek(null); edges(); }, [edges]);
+  const dragPan = variant !== 'wall' ? {} : {
+    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+      dragged.current = false;
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      const el = e.currentTarget;
+      const from = e.clientX;
+      const left = el.scrollLeft;
+      const move = (m: PointerEvent) => {
+        const dx = m.clientX - from;
+        if (Math.abs(dx) > 5) { dragged.current = true; el.classList.add('is-dragging'); }
+        if (dragged.current) el.scrollLeft = left - dx;
+      };
+      const up = () => {
+        el.classList.remove('is-dragging');
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    },
+    /* A drag that ends on a seat is a drag, not a click on it. */
+    onClickCapture: (e: React.MouseEvent) => {
+      if (dragged.current) { e.stopPropagation(); e.preventDefault(); dragged.current = false; }
+    },
+  };
   const seated = useCountUp(manifest.entries.length);
   const open = useCountUp(manifest.open);
   const total = useMemo(() => COLUMNS.reduce((n, c) => n + c.left.length + c.right.length, 0), []);
@@ -145,7 +208,10 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
     const r = el.getBoundingClientRect();
     const half = PEEK_W / 2 + 6;
     const x = Math.min(Math.max(r.left + r.width / 2 - box.left, half), box.width - half);
-    const below = r.top - PEEK_H - 12 < 0;
+    /* The site's gate sign stays stuck to the top of the screen: a preview
+       that would open behind it opens below the seat instead. */
+    const ceiling = document.querySelector('.sa-topbar')?.getBoundingClientRect().bottom ?? 0;
+    const below = r.top - PEEK_H - 12 < Math.max(0, ceiling);
     setPeek({ id, x, y: below ? r.bottom - box.top : r.top - box.top, below });
   }, []);
   const hide = useCallback((id: string) => setPeek((p) => (p?.id === id ? null : p)), []);
@@ -157,12 +223,19 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
     return (
       <span
         key={id}
-        className={`sa-ov__seat ${state}${peek?.id === id ? ' is-peeked' : ''}`}
+        className={`sa-ov__seat ${state}${peek?.id === id ? ' is-peeked' : ''}${highlight && !highlight.has(id) ? ' is-dim' : ''}`}
         onPointerEnter={(e) => { if (e.pointerType === 'mouse') show(id, e.currentTarget); }}
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') hide(id); }}
         onClick={(e) => {
-          /* On a touch screen the first tap on a seat shows it; the plane's
-             own click — going in — waits for a tap on one already shown. */
+          /* On a touch screen the first tap on a seat shows it; the second
+             opens it (or, on the landing, goes in). With a mouse, the hover
+             has already shown it, so a click opens it straight away. */
+          if (onSeat && (!touch.current || peek?.id === id)) {
+            e.stopPropagation();
+            setPeek(null);
+            onSeat(id);
+            return;
+          }
           if (!touch.current || peek?.id === id) return;
           e.stopPropagation();
           show(id, e.currentTarget);
@@ -182,7 +255,7 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
   const peekLink = safeHref(peekOwn?.href);
 
   return (
-    <aside ref={card} className={`sa-ov${boosted ? ' is-boosted' : ''}`} aria-label="Every seat on board">
+    <aside ref={card} className={`sa-ov${variant === 'wall' ? ' sa-ov--wall' : ''}${boosted ? ' is-boosted' : ''}`} aria-label="Every seat on board">
       <div className="sa-ov__head">
         <p className="sa-ov__eyebrow">
           <span className="sa-live" aria-hidden /> Live seating
@@ -195,12 +268,13 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
 
       {/* The plan is a picture of the wall, not a way through it: one button
           for the whole thing, which goes in to the full-size one. */}
+      <div ref={pan} className="sa-ov__pan" onScroll={onPan} {...dragPan}><div className="sa-ov__track">
       <button
         type="button"
         className="sa-ov__plane"
-        onClick={onBrowse}
+        onClick={variant === 'wall' ? undefined : onBrowse}
         onPointerDown={(e) => { touch.current = e.pointerType !== 'mouse'; }}
-        aria-label="See who is on board"
+        aria-label={variant === 'wall' ? 'The cabin from above: point at a seat to see its advert' : 'See who is on board'}
       >
         {/* Cloud drifting by underneath, so it reads as flying. */}
         <span className="sa-ov__sky" aria-hidden />
@@ -327,6 +401,7 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
           </span>
         </span>
       </button>
+      </div></div>
 
       {/* The seat under the pointer, big enough to read its advert. */}
       {peek && (
@@ -361,7 +436,9 @@ const SeatOverview = memo(function SeatOverview({ manifest, banners, onClaim, on
       )}
 
       <p className="sa-ov__readout">
-        Point at any seat to see its advert. Biggest holders up front.
+        {variant === 'wall'
+          ? 'Point at a seat to see its advert, tap it to open it. Slide sideways for the whole cabin; biggest holders up front.'
+          : 'Point at any seat to see its advert. Biggest holders up front.'}
       </p>
 
       <button type="button" className="sa-ov__claim" onClick={onClaim}>

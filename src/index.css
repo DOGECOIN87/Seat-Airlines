@@ -2002,6 +2002,16 @@ html {
 }
 .sa-zone__rows .sa-aircraft-row__bank { grid-template-columns: repeat(var(--bank-cols), var(--seat)); gap: 5px; }
 .sa-zone__rows .sa-aircraft-row__number { padding: 0; }
+.sa-adwall__grid {
+  display: grid;
+  /* The cabin's own seats to a row (see COLUMNS in AdvertWall). */
+  grid-template-columns: repeat(var(--cols, 6), minmax(0, 1fr));
+  gap: 0.85rem;
+  max-width: var(--row-max, 100%);
+}
+@media (max-width: 639.98px) {
+  .sa-adwall__grid { grid-template-columns: repeat(var(--cols-narrow, 3), minmax(0, 1fr)); gap: 0.6rem; }
+}
 .sa-adwall__tile { min-width: 0; }
 .sa-adwall__tile.is-filtered { opacity: 0.25; }
 .sa-adwall__tile.is-filtered:focus-within, .sa-adwall__tile.is-filtered:hover { opacity: 0.8; }
@@ -3139,6 +3149,13 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-passenger-filters input:focus-visible, .sa-passenger-filters select:focus-visible, .sa-passenger-filters__clear:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 2px; }
 .sa-passenger-filters__clear { flex-shrink: 0; white-space: nowrap; min-height: 2.75rem; padding: 0.6rem 0.75rem; color: var(--accent-deep); font-size: 12px; font-weight: 600; }
 .sa-passenger-results { margin: 0.75rem 0; font-size: 12px; color: var(--ui-soft); }
+/* On a phone the two fields stack, full width, rather than the second
+   running off the edge of the card behind a sideways scroll. */
+@media (max-width: 639.98px) {
+  .sa-passenger-filters { flex-wrap: wrap; overflow: visible; }
+  .sa-passenger-filters label { flex: 1 1 100%; min-width: 0; }
+  .sa-passenger-filters__clear { margin-left: auto; }
+}
 @media (min-width: 640px) { .sa-seatwin__info { margin-top: 0; } }
 .sa-seatwin__info > .sa-modal__eyebrow { padding-right: 3.25rem; }
 .sa-seatwin__title {
@@ -6094,4 +6111,215 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   .sa-landing__actions { gap: 0.5rem; margin-top: 0.25rem; }
   .sa-landing__actions > * { min-height: 2.75rem; }
   .sa-ov__claim { min-height: 2.5rem; }
+}
+
+
+/* ── The wall: adverts first, then the seats still to fill ──────
+   Every advert one even size, in rank order, as many to a row as
+   fit; the holders without one as compact seat labels under their
+   cabin. Matches of a search stay lit, the rest fade back. */
+.sa-adwall__section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  margin-top: var(--s-3);
+  margin-bottom: 0.85rem;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--t-md);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--ui-ink);
+}
+.sa-adwall__section-note {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: var(--ui-faint);
+}
+.sa-adwall__ads {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 1.25rem 1rem;
+}
+@media (max-width: 639.98px) {
+  .sa-adwall__ads { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 0.75rem; }
+}
+.sa-adwall__ad { min-width: 0; transition: opacity 0.2s ease; }
+.sa-adwall__ad-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--r);
+  background: var(--ui-sink);
+  box-shadow: 0 1px 2px rgba(20, 24, 31, 0.12), 0 8px 22px rgba(20, 24, 31, 0.14);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.sa-adwall__ad-art:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(20, 24, 31, 0.14), 0 14px 30px rgba(20, 24, 31, 0.2); }
+.sa-adwall__ad-art:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+.sa-adwall__ad-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sa-adwall__ad.is-mine .sa-adwall__ad-art { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sa-adwall__ad-seat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+  font: 700 12px / 1.3 'IBM Plex Mono', ui-monospace, monospace;
+  color: var(--ui-ink);
+}
+.sa-adwall__ad-rank { font-weight: 600; color: var(--accent-deep); }
+.sa-adwall__ad-copy,
+.sa-adwall__ad-holder {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sa-adwall__ad-copy { margin-top: 0.15rem; font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--ui-ink); }
+.sa-adwall__ad-copy a { color: var(--accent-deep); text-decoration: underline; text-underline-offset: 2px; }
+.sa-adwall__ad-holder { font: 500 11px / 1.4 'IBM Plex Mono', ui-monospace, monospace; color: var(--ui-faint); }
+.sa-adwall__none {
+  padding: var(--s-2);
+  border-radius: var(--r);
+  background: var(--ui-sink);
+  box-shadow: var(--e-well);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ui-soft);
+}
+.sa-adwall__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.sa-adwall__labels > li { min-width: 0; max-width: 100%; transition: opacity 0.2s ease; }
+.sa-adwall__label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  max-width: 100%;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  background: var(--face);
+  box-shadow: var(--e-sm);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ui-ink);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.sa-adwall__label:hover { transform: translateY(-1px); box-shadow: var(--e); }
+.sa-adwall__label:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 2px; }
+.sa-adwall__label.is-mine { box-shadow: inset 0 0 0 2px var(--accent), var(--e-sm); }
+.sa-adwall__label-seat { font-weight: 700; }
+.sa-adwall__label-rank { font-weight: 600; color: var(--accent-deep); }
+.sa-adwall__label-holder { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ui-faint); }
+.sa-adwall .is-filtered { opacity: 0.25; }
+.sa-adwall .is-filtered:hover,
+.sa-adwall .is-filtered:focus-within { opacity: 0.8; }
+.sa-adwall__cabin + .sa-adwall__cabin { margin-top: var(--s-2); }
+.sa-adwall__labels + * { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .sa-adwall__ad-art, .sa-adwall__label { transition: none; }
+  .sa-adwall__ad-art:hover, .sa-adwall__label:hover { transform: none; }
+}
+.sa-adwall__section + .sa-adwall__cabin { margin-top: 0; }
+/* The wall's title scales down with the narrowest phones rather than running off the card. */
+.sa-adwall__title { font-size: clamp(1.2rem, 6.8vw, var(--t-xl)); }
+/* Narrow: the counts drop under the title rather than scrolling off its right edge. */
+@media (max-width: 639.98px) {
+  .sa-adwall__head { flex-wrap: wrap; overflow: visible; white-space: normal; }
+  .sa-adwall__head > * { flex-shrink: 1; }
+  .sa-adwall__count { flex-basis: 100%; letter-spacing: 0.1em; }
+}
+
+/* ── The seat chart in the wall ───────────────────────────────
+   The landing's card, at the wall's full width and in its flow:
+   no fixed position, no counts of its own (the wall's header has
+   them). Specific enough to beat the landing's placement rules at
+   every width. */
+.sa-ov.sa-ov--wall {
+  position: relative;
+  inset: auto;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  transform: none;
+  transform-origin: center;
+  animation-name: sa-ov-in-wall;
+}
+@keyframes sa-ov-in-wall {
+  0% { opacity: 0; transform: translateY(1.5rem) scale(0.97); filter: blur(8px); }
+  100% { opacity: 1; transform: none; filter: blur(0); }
+}
+.sa-ov--wall .sa-ov__head { display: none; }
+.sa-ov--wall .sa-ov__plane { margin-top: 0; }
+.sa-ov--wall .sa-ov__plane { cursor: default; }
+.sa-ov--wall .sa-ov__seat { cursor: pointer; }
+.sa-ov--wall .sa-ov__readout { display: block; }
+@media (max-width: 1023.98px) {
+  .sa-ov.sa-ov--wall { left: auto; top: auto; width: 100%; transform: none; animation-name: sa-ov-in-wall; }
+}
+@media (max-height: 600px) and (max-width: 1023.98px), (max-height: 520px) {
+  .sa-ov.sa-ov--wall { display: block; }
+}
+@media (max-width: 639.98px) {
+  .sa-ov.sa-ov--wall { padding: 0.6rem 0.6rem 0.75rem; border-radius: 16px; }
+}
+/* A search: the seats it does not match fade back. */
+.sa-ov__seat.is-dim { opacity: 0.18 !important; filter: grayscale(1); }
+
+/* ── The wall's chart: fixed size, slides sideways when narrower ──
+   The track is 1240px wide: a desk at 100% sees the whole cabin, and
+   anything narrower scrolls it. The sky above and below the fuselage
+   is cropped (the wings run off the edges, as they do on the landing),
+   so the chart is not taller than it needs to be on a phone. */
+.sa-ov__pan, .sa-ov__track { display: contents; }
+.sa-ov--wall .sa-ov__pan {
+  position: relative;
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  border-radius: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(127, 227, 247, 0.5) transparent;
+  --fade-l: 0rem;
+  --fade-r: 0rem;
+}
+/* A fade at whichever edge has more cabin past it, and a hand to drag it by. */
+.sa-ov--wall .sa-ov__pan:is(.has-left, .has-right) {
+  cursor: grab;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+  mask: linear-gradient(90deg, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+}
+.sa-ov--wall .sa-ov__pan.has-left { --fade-l: 2.5rem; }
+.sa-ov--wall .sa-ov__pan.has-right { --fade-r: 2.5rem; }
+.sa-ov--wall .sa-ov__pan.is-dragging { cursor: grabbing; user-select: none; }
+.sa-ov--wall .sa-ov__pan.is-dragging .sa-ov__seat { pointer-events: none; }
+.sa-ov--wall .sa-ov__track {
+  position: relative;
+  display: block;
+  width: max(100%, 1240px);
+  aspect-ratio: 860 / 300;
+  overflow: hidden;
+}
+.sa-ov--wall .sa-ov__track > .sa-ov__plane {
+  position: absolute;
+  left: 0;
+  top: -20%;
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
 }
