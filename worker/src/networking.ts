@@ -20,6 +20,7 @@
  */
 
 import { fromBase58, sha256Hex } from './verify';
+import { readOfferings } from '../../src/content/offerings';
 
 /** How long a signed-in session lasts before the wallet is asked again. */
 export const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -161,6 +162,8 @@ export interface NetworkingProfile {
   website: string;
   linkedin: string;
   links: SocialLinks;
+  publicLinks?: boolean;
+  categories?: import('../../src/content/offerings').Offering[];
 }
 
 export interface NetworkingMessage {
@@ -172,7 +175,7 @@ export interface NetworkingMessage {
 }
 
 export const EMPTY_PROFILE: NetworkingProfile = {
-  displayName: '', role: '', email: '', website: '', linkedin: '', links: {},
+  displayName: '', role: '', email: '', website: '', linkedin: '', links: {}, publicLinks: false, categories: [],
 };
 
 /** A Solana address is a 32-byte ed25519 key wearing base58. */
@@ -244,6 +247,11 @@ function field(value: unknown, limit: number): string {
 export function readProfileInput(value: unknown): { profile: NetworkingProfile } | { error: string } {
   if (!value || typeof value !== 'object') return { error: 'That card was not an object.' };
   const v = value as Record<string, unknown>;
+  if ('publicLinks' in v && typeof v.publicLinks !== 'boolean') {
+    return { error: 'Public links must be enabled or disabled.' };
+  }
+  const offerings = readOfferings(v.categories);
+  if ('error' in offerings) return offerings;
   const socials = readSocialLinks(v.links);
   if ('error' in socials) return { error: socials.error };
   const profile: NetworkingProfile = {
@@ -253,6 +261,8 @@ export function readProfileInput(value: unknown): { profile: NetworkingProfile }
     website: field(v.website, FIELD_LIMITS.website),
     linkedin: field(v.linkedin, FIELD_LIMITS.linkedin),
     links: socials.links,
+    publicLinks: v.publicLinks === true,
+    categories: offerings.categories,
   };
   if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
     return { error: 'That email address does not look like one.' };

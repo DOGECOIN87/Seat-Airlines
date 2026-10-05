@@ -85,10 +85,13 @@ export interface NetworkingProfile {
   website: string;
   linkedin: string;
   links: SocialLinks;
+  /** Opt in to showing website and social links on the public seat card. */
+  publicLinks?: boolean;
+  categories?: import('../content/offerings').Offering[];
 }
 
 export const EMPTY_PROFILE: NetworkingProfile = {
-  displayName: '', role: '', email: '', website: '', linkedin: '', links: {},
+  displayName: '', role: '', email: '', website: '', linkedin: '', links: {}, publicLinks: false, categories: [],
 };
 
 export interface PublishedProfile extends NetworkingProfile {
@@ -308,13 +311,35 @@ export function fetchDirectory(session: Session): Promise<Record<string, Publish
   return call<Record<string, PublishedProfile>>('/directory', { token: session.token });
 }
 
+export interface PublicSeatProfile {
+  displayName: string;
+  website: string;
+  linkedin: string;
+  links: SocialLinks;
+  categories: import('../content/offerings').Offering[];
+}
+
+/** Only the contact links a holder has chosen to publish to everyone. */
+export async function fetchSeatProfile(address: string, signal: AbortSignal): Promise<PublicSeatProfile | null> {
+  if (!API) return null;
+  return call<PublicSeatProfile | null>(`/seat-profile?address=${encodeURIComponent(address)}`, { signal });
+}
+
+/** Public discovery uses the same opted-in fields as an individual card. */
+export async function fetchSeatProfiles(signal: AbortSignal): Promise<Record<string, PublicSeatProfile>> {
+  if (!API) return {};
+  return call<Record<string, PublicSeatProfile>>('/seat-profiles', { signal });
+}
+
 /** Publish or amend your own. */
-export function saveProfile(session: Session, profile: NetworkingProfile): Promise<PublishedProfile> {
-  return call<PublishedProfile>('/profile', {
+export async function saveProfile(session: Session, profile: NetworkingProfile): Promise<PublishedProfile> {
+  const saved = await call<PublishedProfile>('/profile', {
     method: 'PUT',
     token: session.token,
     body: JSON.stringify(profile),
   });
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('seat-airlines:profile-saved'));
+  return saved;
 }
 
 /**

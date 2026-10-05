@@ -621,6 +621,54 @@ await check('a save from a page that predates the links keeps them', async () =>
   assert(roster[alice.address].links.telegram === 'aisle_hopper', `an old page's save wiped the links: ${JSON.stringify(roster[alice.address].links)}`);
 });
 
+await check('public seat links require opt-in, omit email, and can be revoked', async () => {
+  const path = `/seat-profile?address=${alice.address}`;
+  assert(await (await api(path)).json() === null, 'a private profile appeared on the public seat card');
+  const card = { displayName: 'Aisle Hopper', role: 'Partnerships', email: 'aisle@seat-airlines.space',
+    website: 'https://seat-airlines.space', linkedin: '', links: { x: '@aislehopper' },
+    publicLinks: true, categories: ['developer', 'services'] };
+  const put = await api('/profile', { method: 'PUT', token: aliceToken, body: card });
+  assert(put.status === 200, `opt-in failed: ${put.status}`);
+  const res = await api(path);
+  const publicCard = await res.json();
+  assert(publicCard.website === card.website && publicCard.links.x === 'aislehopper', 'opted-in links were missing');
+  assert(publicCard.categories.join(',') === 'developer,services', 'offering tags were missing');
+  assert(!('email' in publicCard) && !('role' in publicCard) && !('address' in publicCard), 'private profile fields leaked');
+  assert(res.headers.get('cache-control') === 'no-store', 'public contact details can be cached after revocation');
+  const publicList = await (await api('/seat-profiles')).json();
+  assert(publicList[alice.address]?.displayName === card.displayName && !('email' in publicList[alice.address]),
+    'public discovery omitted the opted-in card or leaked email');
+  const roster = await (await api('/directory', { token: aliceToken })).json();
+  assert(roster[alice.address].publicLinks === true, 'the editor lost the opt-in');
+  await api('/profile', { method: 'PUT', token: aliceToken, body: { ...card, publicLinks: false } });
+  const tagsOnly = await (await api(path)).json();
+  assert(tagsOnly.categories.length === 2 && tagsOnly.website === '' && tagsOnly.displayName === '' && Object.keys(tagsOnly.links).length === 0,
+    'revocation did not remove the public contact details');
+  await api('/profile', { method: 'PUT', token: aliceToken, body: { ...card, publicLinks: false, categories: [] } });
+  assert(await (await api(path)).json() === null, 'an empty private card still appeared');
+  assert(!(alice.address in await (await api('/seat-profiles')).json()), 'public discovery retained the private card');
+});
+
+await check('old profile saves preserve visibility and offerings; invalid tags are refused', async () => {
+  const card = { displayName: 'Aisle Hopper', role: 'Partnerships', email: 'aisle@seat-airlines.space',
+    website: 'https://seat-airlines.space', linkedin: '', links: { x: '@aislehopper', telegram: 'aisle_hopper' },
+    publicLinks: true, categories: ['artist', 'nft'] };
+  await api('/profile', { method: 'PUT', token: aliceToken, body: card });
+  const { publicLinks, categories, ...legacy } = card;
+  const put = await api('/profile', { method: 'PUT', token: aliceToken, body: legacy });
+  const saved = await put.json();
+  assert(saved.publicLinks && saved.categories.join(',') === 'artist,nft', 'legacy save reset the new fields');
+  assert((await api('/profile', { method: 'PUT', token: aliceToken, body: { ...card, categories: ['spam'] } })).status === 400,
+    'an unknown category was accepted');
+  assert((await api('/profile', { method: 'PUT', token: aliceToken, body: { ...card, categories: ['artist', 'nft', 'services', 'developer'] } })).status === 400,
+    'too many offering tags were accepted');
+  assert((await api('/profile', { method: 'PUT', body: { ...card, address: alice.address, publicLinks: false } })).status === 401,
+    'visibility could be changed without a session');
+  assert((await api('/seat-profile?address=invalid')).status === 400, 'invalid public address was accepted');
+  // Leave the card private for the existing cabin permission checks below.
+  await api('/profile', { method: 'PUT', token: aliceToken, body: { ...card, publicLinks: false, categories: [] } });
+});
+
 await check('a card survives a new session, which localStorage never did', async () => {
   const fresh = await (await api('/session', { method: 'POST', body: await signInBody(alice) })).json();
   const roster = await (await api('/directory', { token: fresh.token })).json();

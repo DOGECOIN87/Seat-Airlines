@@ -1,10 +1,13 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { fetchSeatProfile, SOCIALS, type PublicSeatProfile } from '../lib/networkingApi';
 import { shareSeatCard, type ShareOutcome } from '../lib/seatCard';
 import { CABIN_ZONES, LAVATORY_NOTE, LAVATORY_SEATS, findSeat, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner } from '../lib/banners';
-import type { ManifestEntry } from '../lib/manifest';
+import { shortAddress, type ManifestEntry } from '../lib/manifest';
 import { formatShare, formatTokens } from '../lib/seatLadder';
 import ModalWindow from './ModalWindow';
+import AccountIcon from './AccountIcon';
+import OfferingTags from './OfferingTags';
 
 interface SeatDialogProps {
   id: string;
@@ -35,10 +38,8 @@ const WHERE: Record<string, string> = { window: 'Window seat', middle: 'Middle s
  * at all on a touch screen. Now a seat opens here: the advert at a size
  * worth looking at on the left, whoever holds the seat on the right.
  *
- * Everything in it is already on the page — the manifest, the wall — so
- * opening a seat asks nothing of the network. It used to read the holder's
- * recent transactions off an RPC, re-asked every half minute and on every
- * seat the pointer crossed; that is gone.
+ * The manifest and advert are already on the page. Opening a held seat
+ * reads its owner's opted-in public links once, without asking the chain.
  */
 export default function SeatDialog({
   id, zone, entry, banner, mine, canAdvertise, seated, onAdvertise, onClose, owner, sign,
@@ -47,6 +48,27 @@ export default function SeatDialog({
   const [shared, setShared] = useState<ShareOutcome | null>(null);
   const title = useId();
   const [copied, setCopied] = useState(false);
+  const [publicProfile, setPublicProfile] = useState<{ address: string; profile: PublicSeatProfile } | null>(null);
+  const address = entry?.address;
+  useEffect(() => {
+    if (!address) return;
+    const controller = new AbortController();
+    void fetchSeatProfile(address, controller.signal).then((profile) => {
+      if (!controller.signal.aborted) setPublicProfile(profile ? { address, profile } : null);
+    }).catch(() => { /* The seat and advert still work if public links are unavailable. */ });
+    return () => controller.abort();
+  }, [address]);
+  const profile = publicProfile && publicProfile.address === address ? publicProfile.profile : null;
+  const holderName = profile?.displayName.trim() || (entry ? shortAddress(entry.address) : 'Open seat');
+  const contacts = [
+    { label: 'Website', account: 'website' as const, href: safeHref(profile?.website) },
+    { label: 'LinkedIn', account: 'linkedin' as const, href: safeHref(profile?.linkedin) },
+    ...SOCIALS.map((social) => {
+      const value = profile?.links?.[social.key];
+      return { label: social.label, account: social.key, href: value ? safeHref(social.href(value) ?? undefined) : null,
+        text: value && !social.href(value) ? `${social.label}: ${social.show(value)}` : null };
+    }),
+  ].filter((contact) => contact.href || ('text' in contact && contact.text));
   const cabin = CABIN_ZONES.find((z) => z.key === zone) ?? CABIN_ZONES[0];
   const seat = findSeat(id);
   const where = zone === 'deck' ? (id === 'CPT' ? 'Captain' : 'First officer') : WHERE[seat?.position ?? ''] ?? 'Seat';
@@ -129,6 +151,20 @@ export default function SeatDialog({
                   </a>
                 </div>
               </div>
+              <OfferingTags categories={profile?.categories} />
+              {contacts.length > 0 && (
+                <section className="sa-seatwin__contacts" aria-label="Holder links">
+                  <p className="sa-map__label">{profile?.displayName ? `${profile.displayName} · Links` : 'Holder links'}</p>
+                  <div className="sa-seatwin__contacts-list">
+                    {contacts.map((contact) => contact.href ? (
+                      <a key={contact.label} href={contact.href} target="_blank" rel="noopener noreferrer nofollow"
+                        className="sa-seatwin__contact" aria-label={`${contact.label} — ${profile?.displayName || 'holder'}`}>
+                        <AccountIcon account={contact.account} /> {contact.label} <span aria-hidden>↗</span>
+                      </a>
+                    ) : <span key={contact.label} className="sa-seatwin__contact"><AccountIcon account={contact.account} />{'text' in contact ? contact.text : ''}</span>)}
+                  </div>
+                </section>
+              )}
               <dl className="sa-map__facts">
                 <div>
                   <dt>Rank</dt>
@@ -154,7 +190,7 @@ export default function SeatDialog({
           {banner && (
             <div className="sa-seatwin__advert">
               <p className="sa-map__label">{banner.house ? 'House advert' : 'Advert'}</p>
-              <p className="sa-map__alt">{banner.alt}</p>
+              <p className="sa-map__alt">{holderName}</p>
               {link && (
                 <a href={link} target="_blank" rel="noopener noreferrer nofollow" className="sa-seatwin__link">
                   Visit {new URL(link).hostname.replace(/^www\./, '')} <span aria-hidden>↗</span>

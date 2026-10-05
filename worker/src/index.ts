@@ -46,6 +46,7 @@ import {
   advertTextProblem, challenge, decodeDataUrl, imageType, legacyChallenge, readStoredBanner, sha256Hex, takedownChallenge, verifySignature,
   MAX_AGE_MS, MAX_IMAGE_BYTES, COOLDOWN_SECONDS, type StoredBanner,
 } from './verify';
+import { storedOfferings } from '../../src/content/offerings';
 import {
   bearerToken, isAddress, messageId, mintToken, parseStoredLinks, readMessageBody, readProfileInput,
   signInChallenge, tokenHash,
@@ -586,16 +587,21 @@ function ensureLeaderboard(db: D1Database): Promise<unknown> {
    workflow: the token has no D1). A new table is one `IF NOT EXISTS`, made
    on first use like the leaderboard's, and a card saved before it existed
    simply has no row here — which reads as no links. Both routes that touch
-   it sit behind a signed-in session, so no stranger's request writes DDL.
+   it create tables behind a signed-in session, so public reads never write DDL.
    (`migrations/0004_profile_links.sql` is the same, for a database set up
    by hand.) */
 let profileLinksTable: Promise<unknown> | null = null;
 
 function ensureProfileLinks(db: D1Database): Promise<unknown> {
-  profileLinksTable ??= db.prepare(`CREATE TABLE IF NOT EXISTS profile_links (
+  profileLinksTable ??= db.batch([db.prepare(`CREATE TABLE IF NOT EXISTS profile_links (
       address TEXT PRIMARY KEY,
       links   TEXT NOT NULL DEFAULT '{}'
-    )`).run().catch((e) => {
+    )`), db.prepare(`CREATE TABLE IF NOT EXISTS public_seat_profiles (
+      address TEXT PRIMARY KEY
+    )`), db.prepare(`CREATE TABLE IF NOT EXISTS profile_categories (
+      address TEXT PRIMARY KEY,
+      categories TEXT NOT NULL DEFAULT '[]'
+    )`)]).catch((e) => {
     profileLinksTable = null;
     throw e;
   });
@@ -671,6 +677,8 @@ interface ProfileRow {
   updated_at: string;
   /** From `profile_links`, and null for a card saved before it existed. */
   links: string | null;
+  public_links: number | null;
+  categories: string | null;
 }
 
 interface MessageRow {
@@ -716,6 +724,8 @@ const asProfile = (row: ProfileRow, readable: boolean) => ({
   website: readable ? row.website : '',
   linkedin: readable ? row.linkedin : '',
   links: readable ? parseStoredLinks(row.links) : {},
+  publicLinks: row.public_links === 1,
+  categories: storedOfferings(row.categories),
   readable,
   updated: row.updated_at,
 });
@@ -1488,6 +1498,40 @@ async function handle(request: Request, env: Env): Promise<Response> {
       });
     }
 
+    /* Public seat cards show offering tags and links opted in by the owner.
+       No session, email, or cabin contact permissions are exposed here. */
+    if (request.method === 'GET' && ['/seat-profile', '/seat-profiles'].includes(url.pathname)) {
+      const headers = { ...cors, 'cache-control': 'no-store' };
+      const collection = url.pathname === '/seat-profiles';
+      const address = url.searchParams.get('address');
+      if (!collection && !isAddress(address)) return json({ error: 'That wallet address is not valid.' }, 400, headers);
+      if (!env.DIRECTORY) return json(collection ? {} : null, 200, headers);
+      try {
+        const seated = collection ? await readLadder(env) : null;
+        if (seated && !seated.live) return json({ error: 'The passenger list is temporarily unavailable.' }, 503, headers);
+        const { results } = await env.DIRECTORY.prepare(
+          'SELECT p.address, p.display_name, p.website, p.linkedin, l.links, c.categories,' +
+          ' CASE WHEN s.address IS NULL THEN 0 ELSE 1 END AS public_links FROM profiles p' +
+          ' LEFT JOIN public_seat_profiles s ON s.address = p.address' +
+          ' LEFT JOIN profile_links l ON l.address = p.address' +
+          ' LEFT JOIN profile_categories c ON c.address = p.address' +
+          (collection ? ' WHERE p.address IN (SELECT value FROM json_each(?))' : ' WHERE p.address = ?') +
+          " AND (s.address IS NOT NULL OR c.categories <> '[]')",
+        ).bind(collection ? JSON.stringify(seated!.seated()) : address).all<ProfileRow>();
+        const publicCard = (row: ProfileRow) => ({
+          displayName: row.public_links ? row.display_name : '',
+          website: row.public_links ? row.website : '', linkedin: row.public_links ? row.linkedin : '',
+          links: row.public_links ? parseStoredLinks(row.links) : {}, categories: storedOfferings(row.categories),
+        });
+        return json(collection ? Object.fromEntries((results ?? []).map((row) => [row.address, publicCard(row)]))
+          : results?.[0] ? publicCard(results[0]) : null, 200, headers);
+      } catch (error) {
+        // Before the first authenticated profile visit there is no opt-in table.
+        if (String(error).includes('no such table')) return json(collection ? {} : null, 200, headers);
+        throw error;
+      }
+    }
+
     /* ── The directory ──────────────────────────────────────────────────
        Nothing below is cacheable: every response is either a credential or
        somebody's private correspondence. */
@@ -1626,8 +1670,11 @@ async function handle(request: Request, env: Env): Promise<Response> {
            day the hundredth holder was seated. */
         const { results } = await db
           .prepare(
-            'SELECT p.address, p.display_name, p.role, p.email, p.website, p.linkedin, p.updated_at, l.links' +
+            'SELECT p.address, p.display_name, p.role, p.email, p.website, p.linkedin, p.updated_at, l.links,' +
+            ' CASE WHEN s.address IS NULL THEN 0 ELSE 1 END AS public_links, c.categories' +
             ' FROM profiles p LEFT JOIN profile_links l ON l.address = p.address' +
+            ' LEFT JOIN public_seat_profiles s ON s.address = p.address' +
+            ' LEFT JOIN profile_categories c ON c.address = p.address' +
             ' WHERE p.address IN (SELECT value FROM json_each(?)) ORDER BY p.updated_at DESC',
           )
           .bind(JSON.stringify(wanted))
@@ -1658,6 +1705,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
            links sends none, and saving its card must not wipe the ones a
            newer page put there. */
         const sentLinks = typeof body === 'object' && body !== null && 'links' in body;
+        const sentVisibility = typeof body === 'object' && body !== null && 'publicLinks' in body;
+        const sentCategories = typeof body === 'object' && body !== null && 'categories' in body;
         await ensureProfileLinks(db);
         await db.batch([
           db
@@ -1674,9 +1723,18 @@ async function handle(request: Request, env: Env): Promise<Response> {
               .prepare('INSERT INTO profile_links (address, links) VALUES (?, ?) ON CONFLICT(address) DO UPDATE SET links = excluded.links')
               .bind(me, JSON.stringify(profile.links))]
             : []),
+          ...(sentVisibility ? [profile.publicLinks
+            ? db.prepare('INSERT OR IGNORE INTO public_seat_profiles (address) VALUES (?)').bind(me)
+            : db.prepare('DELETE FROM public_seat_profiles WHERE address = ?').bind(me)] : []),
+          ...(sentCategories ? [db.prepare(
+            'INSERT INTO profile_categories (address, categories) VALUES (?, ?)' +
+            ' ON CONFLICT(address) DO UPDATE SET categories = excluded.categories',
+          ).bind(me, JSON.stringify(profile.categories))] : []),
         ]);
 
-        return json({ ...profile, address: me, updated }, 200, priv);
+        const visibility = await db.prepare('SELECT address FROM public_seat_profiles WHERE address = ?').bind(me).first();
+        const categories = await db.prepare('SELECT categories FROM profile_categories WHERE address = ?').bind(me).first<{ categories: string }>();
+        return json({ ...profile, categories: storedOfferings(categories?.categories ?? null), publicLinks: Boolean(visibility), address: me, updated }, 200, priv);
       }
 
       if (request.method === 'GET' && url.pathname === '/messages') {
