@@ -6490,3 +6490,56 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 
 /* The email and passkey sign-in (src/lib/heliusBridge.tsx) is a dialog portalled to the body by its own library, whose z-index is small. Over the landing, the seat map and every window of the page's own, it has to win. */
 #headlessui-portal-root { position: relative; z-index: 2147483000; }
+
+/* ── The first-visit tour ───────────────────────────────────────────── */
+.sa-tour { width: min(100%, 27rem); }
+.sa-tour__body { display: grid; gap: 0.85rem; font-size: 14px; line-height: 1.6; color: var(--ui-ink); }
+.sa-tour__body p { margin: 0; }
+.sa-tour__list, .sa-tour__steps { margin: 0; padding-left: 1.15rem; display: grid; gap: 0.5rem; }
+.sa-tour__steps { list-style: decimal; }
+.sa-tour__list { list-style: disc; }
+.sa-tour__safe { font-size: 12px; line-height: 1.55; color: var(--ui-soft); }
+.sa-tour__ca { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; min-width: 0; }
+.sa-tour__ca code { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; line-height: 1.4; padding: 0.35rem 0.5rem; border-radius: 8px; background: var(--ui-sink); box-shadow: var(--e-press); }
+.sa-tour__copy, .sa-tour__back {
+  flex: none; padding: 0.4rem 0.8rem; border-radius: var(--r); background: var(--face); box-shadow: var(--e-sm);
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 700; color: var(--ui-ink); cursor: pointer;
+}
+.sa-tour__links { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.sa-tour__links a { font-weight: 700; color: var(--accent-deep); }
+.sa-tour__buy { padding: 0.5rem 0.95rem; border-radius: var(--r); background: var(--g-accent); color: #fff !important; text-decoration: none; }
+.sa-tour__dots { display: flex; justify-content: center; gap: 0.4rem; }
+.sa-tour__dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--ui-sink); box-shadow: var(--e-press); }
+.sa-tour__dots span.is-on { background: var(--accent-deep); }
+.sa-tour__actions { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+.sa-tour__next {
+  min-width: 7rem; padding: 0.65rem 1.4rem; border-radius: var(--r); background: var(--g-accent); color: #fff;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.sa-tour__copy:focus-visible, .sa-tour__back:focus-visible, .sa-tour__next:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+
+/* Play again: the way back into the game, beside the way in to the site. */
+.sa-landing__again {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.75rem;
+  padding: 0 1.6rem;
+  border-radius: 999px;
+  background: #fff;
+  color: #0b2a4a;
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.sa-landing__again:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.sa-landing__again:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.sa-landing__countdown { font-variant-numeric: tabular-nums; }
+
+/* The tour's way back: a "?" that stays when the bar drops its words on a phone. */
+.sa-help__q { display: inline-grid; place-items: center; border-radius: 50%; background: var(--accent-deep); color: #fff; font-family: Montserrat, ui-sans-serif, system-ui, sans-serif; font-size: 11px; font-weight: 800; line-height: 1; }
