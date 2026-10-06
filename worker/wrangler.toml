@@ -35,6 +35,13 @@ name = "HOLDING_LIMIT"
 namespace_id = "1001"
 simple = { limit = 20, period = 60 }
 
+# Helius is an upstream paid service. This is an abuse backstop, not an
+# authorization mechanism; Origin is never treated as one.
+[[ratelimits]]
+name = "HELIUS_LIMIT"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
 [vars]
 # The Worker uses R2 only when this is set as well as the binding above, and
 # falls back to serving images out of KV when it is not. That is deliberate:

@@ -7,10 +7,10 @@
  * the app. `wallets.ts` finds them, whichever they are: Phantom, Solflare,
  * Backpack, Nightly, and any other Solana wallet that registers itself.
  *
- * With one wallet in the browser, connecting goes straight to it. With more,
- * the page asks which (`picking`, answered by `choose`), and remembers the
- * answer: that wallet signs everything after, and is the one reconnected
- * quietly on the next visit.
+ * Every connect action opens the shared chooser (`picking`, answered by
+ * `choose`), so an installed Solana wallet and Email or passkey are presented
+ * consistently wherever the app asks somebody to connect. The chosen wallet
+ * signs everything after and is reconnected quietly on the next visit.
  *
  * If no wallet is installed, `connect` reports that plainly instead of
  * failing silently, and the page stays fully usable without one.
@@ -59,7 +59,7 @@ export interface WalletState {
   choose: (id: string | null) => void;
   /**
    * Resolves to the address once connected, or null if it did not connect —
-   * refused, no wallet, or none chosen. With more than one wallet, asks which.
+   * refused, no wallet, or none chosen. The shared chooser is always shown.
    */
   connect: () => Promise<string | null>;
   disconnect: () => Promise<void>;
@@ -180,24 +180,25 @@ export function useWallet(): WalletState {
        several seconds. A tap before then must not be told there is no wallet
        at all — it waits for the answer, up to ten seconds, and then goes to
        the wallet that is there, or says there is none. */
-    if (!wallets.length && !walletsSettled()) {
+    if (!walletsSettled()) {
       setConnecting(true);
       await Promise.race([whenWalletsSettled(), new Promise<void>((resolve) => window.setTimeout(resolve, 10_000))]);
       setConnecting(false);
       wallets = listWallets();
     }
     if (!wallets.length) {
-      setError('No Solana wallet found. Install Phantom, Solflare, Backpack or Nightly, then try again.');
+      setError('No wallet available. Install Phantom, Solflare, Backpack or Nightly, or enable Email or passkey, then try again.');
       return null;
     }
-    // One wallet goes straight to it; more, and the person picks.
+    // Always show the shared chooser, even when only one option is currently
+    // available. This keeps every connect entry point consistent and makes
+    // the two supported paths—an installed Solana wallet and Email or
+    // passkey—visible in the same window whenever both are available.
     answer.current?.(null);
-    const wallet = wallets.length === 1
-      ? wallets[0]
-      : await new Promise<WalletAdapter | null>((resolve) => {
-        answer.current = resolve;
-        setPicking(true);
-      });
+    const wallet = await new Promise<WalletAdapter | null>((resolve) => {
+      answer.current = resolve;
+      setPicking(true);
+    });
     if (!wallet) return null;
     setConnecting(true);
     setError(null);

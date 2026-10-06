@@ -23,7 +23,7 @@
  * call to somebody's metered endpoint, and a hundred visitors are not a
  * hundred callers of it: the Worker reads once and caches for everybody.
  *
- *   VITE_RPC_URL=https://your-rpc-endpoint   optional — read only when there
+ *   VITE_RPC_URL_PUBLIC=https://your-public-rpc-endpoint   optional — read only when there
  *                                            is no Worker to ask instead
  *   VITE_TOKEN_MINT=<the SPL mint address>
  *
@@ -49,7 +49,7 @@ export interface HoldingsSource {
   read(owner: string): Promise<Holding | null>;
 }
 
-const RPC_URL = import.meta.env.VITE_RPC_URL as string | undefined;
+const RPC_URL = import.meta.env.VITE_RPC_URL_PUBLIC as string | undefined;
 
 /** True when there is anywhere at all to read a holding from. */
 export const isConfigured = Boolean(WORKER_API || (RPC_URL && TOKEN_MINT));

@@ -20,10 +20,13 @@
  *   GET  /helius/waas/config    the wallet's bootstrap (organisation, auth proxy)
  *   POST /helius/waas/wallets   register a new wallet, for the dashboard's counts
  *   POST /helius/rpc            JSON-RPC, mainnet only, from an allowed origin
- *   POST /helius/send           a signed transaction, through Helius Sender
+ *
+ * There is deliberately no transaction-sending relay here. Wallets submit
+ * signed transactions through their own provider; this Worker is not a
+ * public paid Sender proxy.
  *
  * The bootstrap answers the Secure RPC URL as well, so in practice the wallet
- * talks to the chain directly and `/rpc` and `/send` are the fallback.
+ * talks to the chain directly; `/rpc` is only a bounded read-only fallback.
  *
  * Unset, `HELIUS_API_KEY` means there are no embedded wallets: every route
  * answers 503 and the page leaves the option out of its picker.
@@ -36,21 +39,19 @@ export interface HeliusEnv {
 
 const API = 'https://dev-api.helius.xyz/v0';
 const RPC = 'https://mainnet.helius-rpc.com/';
-const SENDER = 'https://sender.helius-rpc.com/fast';
 
 /**
  * The JSON-RPC methods a wallet needs from the chain, and no others.
  *
  * `Origin` is set by browsers and typed by anybody with curl, so it keeps
- * other *sites* off these routes but is not a lock. What bounds the cost of
- * somebody forging it is what the route will do: no `getProgramAccounts`, no
- * history scans, only the handful of cheap calls signing and sending use.
+ * other *sites* off these routes but is not authorization. Cost is bounded by
+ * the read-only allowlist, body limits, and the Worker rate-limit binding.
  */
 const RPC_METHODS = new Set([
   'getLatestBlockhash', 'getBlockHeight', 'isBlockhashValid', 'getBalance', 'getAccountInfo',
   'getMultipleAccounts', 'getTokenAccountBalance', 'getTokenAccountsByOwner', 'getSignatureStatuses',
   'getFeeForMessage', 'getMinimumBalanceForRentExemption', 'getRecentPrioritizationFees',
-  'getPriorityFeeEstimate', 'simulateTransaction', 'sendTransaction',
+  'getPriorityFeeEstimate',
 ]);
 
 /** A registration or a JSON-RPC call is small; anything bigger is not one. */
@@ -78,10 +79,8 @@ export function trustedOrigin(allowedOrigins: string | undefined, origin: string
  * Answer one `/helius/…` request.
  *
  * `trusted` is whether the request names an origin this deployment serves.
- * Every route but the bootstrap spends credits or writes on the project's
- * behalf, so those turn other sites away rather than relying on CORS, which
- * only stops a browser from reading the answer. It is the browser's honesty
- * being relied on, not a credential; see RPC_METHODS for what bounds the rest.
+ * Origin rejection is a browser UX/CORS control, not a credential; the route
+ * limits and allowlists are the security boundary for this public fallback.
  */
 export async function handleHelius(
   request: Request,
@@ -110,6 +109,7 @@ export async function handleHelius(
     if (request.method !== 'POST') return reply({ error: 'Method not allowed' }, 405, cors);
     const body = await boundedText(request);
     if (body === null) return reply({ error: 'That request is too large.' }, 413, cors);
+    if (!validWalletRegistration(body)) return reply({ error: 'That wallet registration is not valid.' }, 400, cors);
     const res = await upstream(`${API}/waas/wallets`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': key },
@@ -136,32 +136,6 @@ export async function handleHelius(
     return reply(await res.text(), res.status, cors);
   }
 
-  if (path === 'send') {
-    if (request.method !== 'POST') return reply({ error: 'Method not allowed' }, 405, cors);
-    const body = await boundedText(request);
-    if (body === null) return reply({ error: 'That request is too large.' }, 413, cors);
-    let transaction: unknown;
-    try {
-      ({ transaction } = JSON.parse(body) as { transaction?: unknown });
-    } catch {
-      return reply({ error: 'transaction is required' }, 400, cors);
-    }
-    if (typeof transaction !== 'string' || !transaction) return reply({ error: 'transaction is required' }, 400, cors);
-    const res = await upstream(`${SENDER}?api-key=${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: '1',
-        method: 'sendTransaction',
-        params: [transaction, { encoding: 'base64', skipPreflight: true, maxRetries: 0 }],
-      }),
-    });
-    const data = await res.json().catch(() => ({})) as { result?: string; error?: { message?: string } };
-    if (data.error || !data.result) return reply({ error: data.error?.message ?? 'Sender error' }, 400, cors);
-    return reply({ signature: data.result }, 200, cors);
-  }
-
   return reply({ error: 'Not found' }, 404, cors);
 }
 
@@ -175,7 +149,31 @@ export function rpcAllowed(body: string): boolean {
   }
   const calls = Array.isArray(parsed) ? parsed : [parsed];
   return calls.length > 0 && calls.length <= 10
-    && calls.every((c) => typeof (c as { method?: unknown })?.method === 'string' && RPC_METHODS.has((c as { method: string }).method));
+    && calls.every((c) => isRpcCall(c) && RPC_METHODS.has(c.method));
+}
+
+function isRpcCall(value: unknown): value is { method: string; params?: unknown; id?: unknown; jsonrpc?: unknown } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const call = value as Record<string, unknown>;
+  if (typeof call.method !== 'string' || call.method.length > 64) return false;
+  if (call.jsonrpc !== undefined && call.jsonrpc !== '2.0') return false;
+  if (call.id !== undefined && !['string', 'number'].includes(typeof call.id)) return false;
+  if (call.params !== undefined && !Array.isArray(call.params) && (typeof call.params !== 'object' || call.params === null)) return false;
+  return call.params === undefined || JSON.stringify(call.params).length <= 16 * 1024;
+}
+
+/** Accept the object shape used by Helius without forwarding arbitrary nested payloads. */
+function validWalletRegistration(body: string): boolean {
+  try {
+    const parsed = JSON.parse(body) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+    const entries = Object.entries(parsed as Record<string, unknown>);
+    if (entries.length === 0 || entries.length > 32) return false;
+    return entries.every(([name, value]) => name.length <= 128 && ['string', 'number', 'boolean'].includes(typeof value)
+      && (typeof value !== 'string' || value.length <= 2048));
+  } catch {
+    return false;
+  }
 }
 
 /** The body as text, or null if it runs past the cap however it was sent. */
