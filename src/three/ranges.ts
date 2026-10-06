@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CELL, HAZE, POOL, RISE, SET, cellAt, inBand, place, shapeHeights, type RangeKind } from '../lib/ranges';
 import { noise2 } from './noise';
 import { snowShader } from './snow';
+import { curveShader, type CurveParams } from './curvature';
 
 /**
  * The mountains and valleys on the horizon.
@@ -173,7 +174,7 @@ export interface RangesHandles {
   dispose: () => void;
 }
 
-export function createRanges(o: { base: string; segments: number; envMap?: THREE.Texture }): RangesHandles {
+export function createRanges(o: { base: string; segments: number; envMap?: THREE.Texture; curve?: CurveParams }): RangesHandles {
   const group = new THREE.Group();
   group.visible = false;
   const amount = { value: 1 };
@@ -183,6 +184,7 @@ export function createRanges(o: { base: string; segments: number; envMap?: THREE
   material.onBeforeCompile = (shader) => {
     shader.uniforms.rangeAmount = amount;
     snowShader(shader, snow);
+    if (o.curve) curveShader(shader, o.curve);
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'uniform float rangeAmount;\nattribute vec3 lowColor;\nvarying float vRangeDist;\nvoid main() {')
       .replace(

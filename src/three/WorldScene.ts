@@ -20,6 +20,9 @@ import { createEngineFire } from './engineFire';
 import { createLightning } from './lightning';
 import { createUfoCraft, createWingBreak, type UfoPose, type WingBreak } from './ufoCraft';
 import { createThermalsCraft } from './thermalsCraft';
+import { createTwisterCraft } from './twisterCraft';
+import { curveShader, type CurveParams } from './curvature';
+import type { Twister } from '../lib/tornado';
 import type { Thermal } from '../lib/thermals';
 import type { Logo } from '../lib/logos';
 import type { WeatherKind } from '../lib/sky';
@@ -153,6 +156,15 @@ export interface ViewPose {
   thermals?: readonly Thermal[];
   /** The logos hung in the sky to be flown through (see lib/logos.ts). */
   logos?: readonly Logo[];
+  /** Tornado weather: the funnels about, relative to the aeroplane (see lib/tornado.ts). */
+  twisters?: readonly Twister[];
+  /**
+   * Metres: bend the ground into a world this round, so from high up it is
+   * a globe rather than a square of map (see curvature.ts). In space it
+   * stands in for the limb, so the country flown over stays the country.
+   * Unset, the ground is flat, as the rest of the site has it.
+   */
+  globe?: number;
   /** How hard each engine's afterburner is lit, 0–1: port and starboard. */
   boost?: readonly [number, number];
   /** The weather, overriding the sky's: the game deals its own. */
@@ -339,6 +351,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   let failedSide: -1 | 0 | 1 = 0;
   const ufo = options.damage ? createUfoCraft(`${import.meta.env.BASE_URL}ufo.glb`) : null;
   const thermals = options.damage ? createThermalsCraft() : null;
+  const twisterCraft = options.damage ? createTwisterCraft() : null;
   const boostFlame = options.damage || options.thrust ? createBoostFlame() : null;
   let wingBreak: WingBreak | null = null;
   let wingLost: -1 | 0 | 1 = 0;
@@ -425,6 +438,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     scene.add(bolt.group);
     if (ufo) scene.add(ufo.group);
     if (thermals) scene.add(thermals.group);
+    if (twisterCraft) scene.add(twisterCraft.group);
     if (logoCraft) scene.add(logoCraft.group);
   }
   /* The afterburners ride the airframe: the game's, or a boosted cruise's. */
@@ -736,7 +750,11 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     roughness: 1,
     metalness: 0,
   });
-  const groundGeometry = new THREE.PlaneGeometry(GROUND, GROUND);
+  /* Divided up, so it can be bent into a globe (see `pose.globe`): a vertex
+     every kilometre or so is plenty for a curve that gentle. */
+  const groundGeometry = new THREE.PlaneGeometry(GROUND, GROUND, 120, 120);
+  /** The world's curve, 1 / 2R: 0 is flat. */
+  const worldCurve: CurveParams = { value: 0 };
   const ground = new THREE.Mesh(groundGeometry, groundMat);
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
@@ -810,11 +828,13 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     noTileShader(shader, landNoTile, true, nearRim);
     lakeShader(shader, lakes);
     snowShader(shader, snowCover);
+    curveShader(shader, worldCurve);
   };
   groundMat.onBeforeCompile = (shader) => {
     noTileShader(shader, landNoTile, false);
     lakeShader(shader, lakes);
     snowShader(shader, snowCover);
+    curveShader(shader, worldCurve);
   };
   for (const mat of [groundMat, nearMat]) {
     mat.envMap = envRT.texture;
@@ -892,7 +912,10 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   sheen.visible = false;
   scene.add(sheen);
   // The incoming sea shuffles with the ground it comes in over.
-  seaMat.onBeforeCompile = (shader) => noTileShader(shader, waterNoTile, false);
+  seaMat.onBeforeCompile = (shader) => {
+    noTileShader(shader, waterNoTile, false);
+    curveShader(shader, worldCurve);
+  };
 
   /* ── Snowfall ─────────────────────────────────────────────────────────
      Over the snowfields it is snowing, in the air round whichever camera
@@ -924,7 +947,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      out where it is haze (see `ranges.ts`). They take the same envMap and the
      same fog as the ground, and sink out of sight over water and past the
      cloud. */
-  const ranges = createRanges({ base: import.meta.env.BASE_URL, segments: 128, envMap: envRT.texture });
+  const ranges = createRanges({ base: import.meta.env.BASE_URL, segments: 128, envMap: envRT.texture, curve: worldCurve });
   scene.add(ranges.group);
 
   /* ── What stands on it ────────────────────────────────────────────────
@@ -1025,6 +1048,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   const seaNoTile: NoTileParams = { value: new THREE.Vector3(9000, 16000, 0) };
   const cloudSeaShader = (displaced: boolean) => (shader: Parameters<NonNullable<THREE.Material['onBeforeCompile']>>[0]) => {
     noTileShader(shader, seaNoTile, displaced);
+    curveShader(shader, worldCurve);
     shader.uniforms.seaCover = seaCover;
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 seaCover;')
@@ -1390,11 +1414,17 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       : 1 - THREE.MathUtils.smoothstep(skyState.elevation, -8, 3);
     seaMat.emissiveIntensity = groundMat.emissiveIntensity;
     nearMat.emissiveIntensity = groundMat.emissiveIntensity;
-    ground.visible = !inSpace;
+    /* The game bends the ground into a globe; in space that globe is the
+       limb, so the country under the saucer is still the country it took
+       off from rather than a stand-in planet. */
+    const globe = pose.globe ?? 0;
+    worldCurve.value = globe > 0 ? 1 / (2 * globe) : 0;
+    ground.visible = !inSpace || globe > 0;
     // Above the deck the hills are three kilometres down and mostly under
     // cloud: the plate's own light and shade carries them.
     near.visible = !inSpace && !aboveClouds;
-    limb.visible = limbAir.mesh.visible = inSpace;
+    limb.visible = inSpace && globe <= 0;
+    limbAir.mesh.visible = inSpace;
     if (inSpace) {
       if (!limbDressed && earthly) {
         planetSurface(limbMat, earthly.macro, new THREE.Vector2(8, 4), new THREE.Vector4(0.16, 0.34, 0.72, 0.85));
@@ -1403,7 +1433,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       /* The radius shrinks as you climb, so the horizon bends further the
          higher the market cap goes — the curve is the altitude, read off the
          window rather than off a tape. */
-      const r = lerp(LIMB_R.low, LIMB_R.high, THREE.MathUtils.smoothstep(band.progress, 0, 0.85));
+      const r = globe > 0 ? globe : lerp(LIMB_R.low, LIMB_R.high, THREE.MathUtils.smoothstep(band.progress, 0, 0.85));
       limb.scale.setScalar(r);
       limb.position.y = -r;
       /* The air. Its pixels do the work — see `atmosphereShell` — so the
@@ -1418,7 +1448,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       limbAir.mesh.position.set(0, height, 0);
       limbAir.uniforms.planetCentre.value.set(0, -r, 0);
       limbAir.uniforms.planetRadius.value = r;
-      limbAir.uniforms.groundInset.value = r * LIMB_INSET;
+      limbAir.uniforms.groundInset.value = globe > 0 ? 0 : r * LIMB_INSET;
       limbAir.uniforms.sunDirection.value.copy(sunPos);
       /* Turn it under the aircraft rather than sliding a texture: on a sphere
          that is what travelling actually is, and it keeps the poles out of
@@ -2016,6 +2046,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       }
       wingBreak?.update(dt, -stepX, stepZ);
       thermals?.update(dt, pose.thermals, night);
+      twisterCraft?.update(dt, inWeather ? pose.twisters : undefined, underfoot.floor, cloudDeckY, night, stormFlash);
       logoCraft?.update(dt, pose.logos, night);
       if (ufo) {
         airframe.group.getWorldPosition(ufoBase);
@@ -2201,6 +2232,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       beacon.material.dispose();
     }
     beaconTex?.dispose();
+    twisterCraft?.dispose();
     bolt?.dispose();
     ufo?.dispose();
     wingBreak?.dispose();

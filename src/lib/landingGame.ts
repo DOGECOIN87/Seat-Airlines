@@ -28,6 +28,7 @@ import { planUfo, UFO, type DodgeLock, type UfoPlan } from './ufo';
 import { newAir, startAir, stepAir, type Air } from './thermals';
 import { newLogos, type LogoField } from './logos';
 import { newRams, RAMMER, type RamField } from './rammer';
+import { newTwisters, type TwisterField } from './tornado';
 
 export type Phase = 'idle' | 'intro' | 'flying' | 'crashed';
 export type FlightMode = 'airliner' | 'ufo';
@@ -51,7 +52,8 @@ export const MARS_FEET = 100_000_000;
 export type Cause = 'blast' | 'lightning';
 
 /** The weather a flight is dealt: it decides how rough the air is, and how often lightning takes an engine. */
-export type GameWeather = 'clear' | 'rain' | 'storm';
+/** The weather a flight is dealt; a tornado is a storm that has reached the ground. */
+export type GameWeather = 'clear' | 'rain' | 'storm' | 'tornado';
 
 /** -1 to 1 on each axis: x banks right, y climbs. */
 export interface Stick {
@@ -148,6 +150,8 @@ export interface FlightGame {
   scramble: number;
   /** The airliners coming for the saucer (see rammer.ts). */
   rams: RamField;
+  /** In tornado weather, the funnels about (see tornado.ts). */
+  twisters: TwisterField;
   /** Band-limited noise, -1 to 1: the buffet in roll and pitch, and the fire surging. */
   buffetRoll: number;
   buffetPitch: number;
@@ -211,8 +215,9 @@ export const GAME = {
   draftLift: 90,
   /** And how much of that it gives before anything has gone wrong, when it only helps the climb. */
   draftClimb: 0.6,
-  /** How often the weather is a storm, or rain; clear the rest of the time. */
-  stormOdds: 0.4,
+  /** How often the weather is tornadoes, a storm, or rain; clear the rest of the time. */
+  tornadoOdds: 0.12,
+  stormOdds: 0.3,
   rainOdds: 0.25,
   /** In a storm, lightning takes the engine this often. */
   stormLightningOdds: 0.65,
@@ -274,11 +279,11 @@ export const DASH = {
 } as const;
 
 /** How rough the air is, 0–1, in each weather. */
-export const TURBULENCE: Record<GameWeather, number> = { clear: 0.12, rain: 0.5, storm: 1 };
+export const TURBULENCE: Record<GameWeather, number> = { clear: 0.12, rain: 0.5, storm: 1, tornado: 1.25 };
 
 const between = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
 const cause = (w: GameWeather = 'clear'): Cause =>
-  Math.random() < (w === 'storm' ? GAME.stormLightningOdds : GAME.lightningOdds) ? 'lightning' : 'blast';
+  Math.random() < (w === 'storm' || w === 'tornado' ? GAME.stormLightningOdds : GAME.lightningOdds) ? 'lightning' : 'blast';
 
 export const newGame = (mode: FlightMode = 'airliner'): FlightGame => ({
   phase: 'idle',
@@ -328,6 +333,7 @@ export const newGame = (mode: FlightMode = 'airliner'): FlightGame => ({
   dash: 'forward',
   scramble: 0,
   rams: newRams(),
+  twisters: newTwisters(),
   buffetRoll: 0,
   buffetPitch: 0,
   surge: 0,
@@ -396,6 +402,7 @@ export function dealFailures(g: FlightGame): void {
   g.extra = 0;
   g.ufo = g.mode === 'ufo' || asked('noufo') ? null : planUfo(asked('ufohit') ? 'hit' : asked('ufo') ? 'seen' : 'none');
   g.rams = newRams();
+  g.twisters = newTwisters();
   // `?ram` on the address: the first airliner straight away, for anybody testing the saucer.
   if (asked('ram')) g.rams.next = 1;
   g.scramble = 0;
@@ -403,13 +410,14 @@ export function dealFailures(g: FlightGame): void {
 
 /**
  * The weather the flight is flown in, dealt as the controls are taken so the
- * dive is already in it: a storm, rain, or clear air. `?storm`, `?rain` and
- * `?clear` pick one.
+ * dive is already in it: tornadoes, a storm, rain, or clear air. `?tornado`,
+ * `?storm`, `?rain` and `?clear` pick one.
  */
 export function dealWeather(g: FlightGame): void {
   const roll = Math.random();
-  g.weather = asked('storm') ? 'storm' : asked('rain') ? 'rain' : asked('clear')
-    ? 'clear' : roll < GAME.stormOdds ? 'storm' : roll < GAME.stormOdds + GAME.rainOdds ? 'rain' : 'clear';
+  const t = GAME.tornadoOdds;
+  g.weather = asked('tornado') ? 'tornado' : asked('storm') ? 'storm' : asked('rain') ? 'rain' : asked('clear') ? 'clear'
+    : roll < t ? 'tornado' : roll < t + GAME.stormOdds ? 'storm' : roll < t + GAME.stormOdds + GAME.rainOdds ? 'rain' : 'clear';
 }
 
 /** Seconds into its warning clip that an engine goes, for what takes it. */

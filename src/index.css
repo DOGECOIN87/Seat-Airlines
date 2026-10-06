@@ -4369,6 +4369,12 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   background: radial-gradient(circle at 50% 58%, rgba(255, 244, 214, 0.85) 0%, rgba(255, 150, 50, 0.4) 34%, rgba(255, 90, 20, 0) 70%);
   animation: sa-landing-flash 0.6s ease-out forwards;
 }
+.sa-hud__warn--vortex {
+  top: 52%;
+  color: #C9B8FF;
+  text-shadow: 0 0 22px rgba(160, 130, 255, 0.75);
+  box-shadow: inset 0 0 0 2px rgba(180, 150, 255, 0.85);
+}
 .sa-hud__warn--stall {
   top: 52%;
   color: #FFB22E;
@@ -5350,6 +5356,8 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-hud__chip--storm, .sa-hud__chip--rain { padding-left: 0.7rem; }
 .sa-hud__chip--storm { color: #c9d2ff; box-shadow: inset 0 0 0 1px rgba(170, 185, 255, 0.45); }
 .sa-hud__chip--rain { color: #a9d8f5; }
+.sa-hud__chip--tornado { padding-left: 0.7rem; color: #ffd0a8; box-shadow: inset 0 0 0 1px rgba(255, 170, 110, 0.6); animation: sa-hud-warn 1.6s steps(1, end) infinite; }
+@media (prefers-reduced-motion: reduce) { .sa-hud__chip--tornado { animation: none; } }
 
 .sa-hud__logo-pop {
   position: absolute;

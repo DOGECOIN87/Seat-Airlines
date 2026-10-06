@@ -23,6 +23,7 @@ import {
   type Cause, type Drive, type GameWeather, type Phase,
 } from '../lib/landingGame';
 import { RAMMER } from '../lib/rammer';
+import { TWISTER } from '../lib/tornado';
 import { LOGOS } from '../lib/logos';
 import { createSfx, type Sfx } from '../lib/sfx';
 import {
@@ -120,7 +121,7 @@ const KEYS: Record<string, readonly [number, number]> = {
 /** Keys that light the afterburners. */
 const BOOST_KEYS = new Set(['Space', 'KeyB', 'ShiftLeft', 'ShiftRight']);
 /** What goes across the middle of the screen about a UFO — or, in UFO mode, an airliner. */
-type UfoCaption = 'warn' | 'hit' | 'dodged' | 'ram-warn' | 'ram-hit' | 'ram-dodged';
+type UfoCaption = 'warn' | 'hit' | 'dodged' | 'ram-warn' | 'ram-hit' | 'ram-dodged' | 'threaded';
 /** The ride flown last, kept across the remount that Play again does. */
 let lastPlayMode: PlayMode = 'airliner';
 /** The saucer's drive modes, as the selector shows them. */
@@ -276,7 +277,7 @@ export default function Landing({
   /** Exterior camera orbit, driven by right-mouse drag or a gamepad's right stick. */
   const cameraLook = useRef({ orbit: 0 });
   const [hud] = useState<LandingHud>(() => ({
-    bar: createRef(), alt: createRef(), warn: createRef(), stall: createRef(), score: createRef(), rate: createRef(),
+    bar: createRef(), alt: createRef(), warn: createRef(), stall: createRef(), vortex: createRef(), score: createRef(), rate: createRef(),
     speedNeedle: createRef(), speedText: createRef(), varioNeedle: createRef(), varioText: createRef(), horizon: createRef(),
     lift: createRef(), boost: createRef(), logos: createRef(),
   }));
@@ -645,6 +646,10 @@ export default function Landing({
       wow.currentTime = 0;
       void wow.play().catch(() => {});
     }
+  }, [sayUfo]);
+  const onThreaded = useCallback(() => {
+    sayUfo('threaded', undefined, 2400);
+    sfx.current?.chime(2);
   }, [sayUfo]);
   const onDodge = useCallback(() => {
     sayUfo('dodged', undefined, 2800);
@@ -1018,6 +1023,7 @@ export default function Landing({
               onRamWarn={onRamWarn}
               onRamHit={onRamHit}
               onRamDodge={onRamDodge}
+              onThreaded={onThreaded}
               onCrash={onCrash}
               onLogo={onLogo}
               onThunder={onThunder}
@@ -1256,7 +1262,7 @@ export default function Landing({
               {playMode === 'ufo' && <span className="sa-hud__chip sa-hud__chip--ufo" title="The pulse field bends your flight path">Pulse field</span>}
               {weather && weather !== 'clear' && (
                 <span className={`sa-hud__chip sa-hud__chip--${weather}`}>
-                  {weather === 'storm' ? 'Thunderstorm' : 'Rain'}
+                  {weather === 'tornado' ? 'Tornado warning' : weather === 'storm' ? 'Thunderstorm' : 'Rain'}
                 </span>
               )}
             </div>
@@ -1266,6 +1272,9 @@ export default function Landing({
           </button>
           <p ref={hud.warn} className="sa-hud__warn" aria-hidden>
             Pull up
+          </p>
+          <p ref={hud.vortex} className="sa-hud__warn sa-hud__warn--vortex" aria-hidden>
+            Vortex
           </p>
           <p ref={hud.stall} className="sa-hud__warn sa-hud__warn--stall" aria-hidden>
             Stall
@@ -1284,6 +1293,7 @@ export default function Landing({
                 'ram-warn': 'Airliner inbound',
                 'ram-hit': 'Rammed',
                 'ram-dodged': `Near miss +${RAMMER.bonus.toLocaleString('en-US')}`,
+                threaded: `Threaded +${TWISTER.bonus.toLocaleString('en-US')}`,
               }[ufoCaption.kind]}
               <small>
                 {{
@@ -1293,6 +1303,7 @@ export default function Landing({
                   'ram-warn': `${ufoCaption.from ?? ''} · boost to dash clear`,
                   'ram-hit': 'field scrambled · controls unstable',
                   'ram-dodged': 'it missed',
+                  threaded: 'past the vortex',
                 }[ufoCaption.kind]}
               </small>
             </p>

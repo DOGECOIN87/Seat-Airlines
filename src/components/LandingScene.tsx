@@ -12,6 +12,7 @@ import {
   type Cause, type FlightGame,
 } from '../lib/landingGame';
 import { RAMMER, stepRams } from '../lib/rammer';
+import { applyVortex, stepTwisters, TWISTER, type Vortex } from '../lib/tornado';
 import { LOGOS, stepLogos } from '../lib/logos';
 import { climbBonus, SCORING, survivalRate } from '../lib/scoring';
 import { FPM, KNOTS, speedAngle, ufoLiftAngle, ufoSpeedAngle, varioAngle } from '../lib/instruments';
@@ -41,6 +42,8 @@ export interface LandingHud {
   alt: RefObject<HTMLSpanElement | null>;
   warn: RefObject<HTMLParagraphElement | null>;
   stall: RefObject<HTMLParagraphElement | null>;
+  /** Lit while a tornado's wind has hold of it. */
+  vortex: RefObject<HTMLParagraphElement | null>;
   /** The running score, and the multiplier it is building at. */
   score: RefObject<HTMLSpanElement | null>;
   rate: RefObject<HTMLSpanElement | null>;
@@ -132,9 +135,20 @@ interface LandingSceneProps {
   onRamHit?: (side: -1 | 1) => void;
   /** It went past, close. */
   onRamDodge?: () => void;
+  /** Tornado weather: flown close past a funnel's core, and paid for it. */
+  onThreaded?: () => void;
 }
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
+/** 0–1: how far into a tornado's wind the aeroplane is, for the warning. */
+const twisterWind = (g: FlightGame) => {
+  let w = 0;
+  for (const t of g.twisters.list) {
+    const d = Math.hypot(t.x, t.z);
+    w = Math.max(w, Math.min(1, Math.max(0, (t.reach - d) / (t.reach - t.core))));
+  }
+  return w;
+};
 /** The bit an engine has in `ViewPose.struck`. */
 const bit = (side: number) => (side === -1 ? 1 : side === 1 ? 2 : 0);
 
@@ -196,7 +210,7 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 
 const LandingScene = ({
   feed, sky, band, controls, taken, playing, cameraLook, boost = 0, game, hud, sounds, shot,
-  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge,
+  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
@@ -204,8 +218,8 @@ const LandingScene = ({
   const boostNow = useRef(boost);
   boostNow.current = boost;
   latest.current = { sky, band };
-  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge });
-  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge };
+  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded });
+  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded };
   /** The last lightning flash already heard. */
   const heardFlash = useRef(0);
 
@@ -269,7 +283,7 @@ const LandingScene = ({
 
   const pose = useRef<ViewPose>({ seatIndex: 0, row: 1, yaw: 0, id: '1A', exterior: true, orbit: 0 });
   const flown = useRef<Attitude>({ pitch: 0, bank: 0, speed: 240, alt: 0, vs: 0, heading: 0, roll: 0 });
-  const shown = useRef({ feet: -1, warn: false, stall: false, score: -1, rate: -1, kt: -1, fpm: NaN, lift: false, charge: -1, burning: false });
+  const shown = useRef({ feet: -1, warn: false, stall: false, vortex: false, score: -1, rate: -1, kt: -1, fpm: NaN, lift: false, charge: -1, burning: false });
   const crowd = useRef({ on: false, gain: 0 });
   /** The wind in the thermals: how loud it is now. */
   const windGain = useRef(0);
@@ -403,6 +417,8 @@ const LandingScene = ({
       }
     } else {
       const live = g.phase === 'flying';
+      /** A tornado's wind on it this frame, if there is one about. */
+      let vortex: Vortex | null = null;
 
       /* Which engine is next to go, if one is: the first, on the way up;
          then the second, on the flights that lose it, a while after. */
@@ -564,6 +580,17 @@ const LandingScene = ({
             calls.current.onRamDodge?.();
           }
         }
+        /* Tornadoes: where they are, and what their wind is doing to it. */
+        if (g.weather === 'tornado') {
+          const v = stepTwisters(g.twisters, flyDt, way.speed, way.heading, g.agl);
+          vortex = v;
+          if (v.threaded) {
+            const points = v.threaded * TWISTER.bonus;
+            g.extra += points;
+            if (g.failed) g.score += points;
+            calls.current.onThreaded?.();
+          }
+        }
         /* Thunder, and the shove of a close strike's air. */
         const flash = w.lastFlash();
         if (flash && flash.at !== heardFlash.current) {
@@ -590,6 +617,7 @@ const LandingScene = ({
       const ix = live ? clampUnit(g.keys.x + g.stick.x + leftX) : 0;
       const iy = live ? clampUnit(g.keys.y + g.stick.y - leftY) : 0;
       const step = fly(g, ix, iy, flyDt);
+      if (vortex) step.vs = applyVortex(g, vortex, step.vs, flyDt);
       stall = step.stall;
       if (flyDt > 0) g.accel += ((step.vs - g.vs) / flyDt - g.accel) * (1 - Math.exp(-2 * flyDt));
       g.vs = step.vs;
@@ -605,7 +633,9 @@ const LandingScene = ({
     p.timeScale = g.slow;
     p.thermals = g.phase === 'flying' ? g.air.list : undefined;
     p.logos = g.phase === 'flying' ? g.logos.list : undefined;
-    p.weather = g.weather;
+    // The world draws a tornado's sky as a storm's; the funnels are its own.
+    p.weather = g.weather === 'tornado' ? 'storm' : g.weather;
+    p.twisters = g.weather === 'tornado' && g.phase === 'flying' ? g.twisters.list : undefined;
     /* The afterburners: out of whichever engines still run — or, with both
        gone, both, relit for as long as the burn lasts. */
     const burn = g.phase === 'flying' ? g.boostPower : 0;
@@ -736,7 +766,12 @@ const LandingScene = ({
       shown.current.warn = warn;
       hud.warn.current.classList.toggle('is-on', warn);
     }
-    const stalling = g.phase === 'flying' && stall > 0.5 && !warn;
+    const inVortex = g.phase === 'flying' && g.weather === 'tornado' && twisterWind(g) > 0.35;
+    if (inVortex !== shown.current.vortex && hud.vortex.current) {
+      shown.current.vortex = inVortex;
+      hud.vortex.current.classList.toggle('is-on', inVortex);
+    }
+    const stalling = g.phase === 'flying' && stall > 0.5 && !warn && !inVortex;
     if (stalling !== shown.current.stall && hud.stall.current) {
       shown.current.stall = stalling;
       hud.stall.current.classList.toggle('is-on', stalling);
