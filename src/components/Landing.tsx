@@ -182,7 +182,10 @@ export default function Landing({
   const [playMode, setPlayMode] = useState<PlayMode>('airliner');
   const [flapLevel, setFlapLevel] = useState(0);
   const [ridePickerOpen, setRidePickerOpen] = useState(false);
-  const ufoUnlocked = (tokenBalance ?? 0) >= 1_000_000;
+  // The local Vite preview is a test harness for both rides. Production builds
+  // (including the version pushed to main) still require 1,000,000 $SEAT.
+  const localTestMode = import.meta.env.DEV;
+  const ufoUnlocked = localTestMode || (tokenBalance ?? 0) >= 1_000_000;
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -492,12 +495,18 @@ export default function Landing({
   const confirmRide = useCallback(() => {
     if (playMode === 'ufo' && !ufoUnlocked) return;
     setRidePickerOpen(false);
+    // The local preview is deliberately playable without a wallet so both
+    // rides can be tested. The production path remains wallet-gated.
+    if (localTestMode) {
+      takeOff();
+      return;
+    }
     // Always use the shared connector when the visitor is not connected. This
     // lets Helius finish registering and open its own sign-in modal after the
     // pilot has selected a ride.
     if (wallet.address) start();
     else void connectAndFly();
-  }, [playMode, ufoUnlocked, wallet.address, start, connectAndFly]);
+  }, [playMode, ufoUnlocked, localTestMode, takeOff, wallet.address, start, connectAndFly]);
   const verifyWallet = useCallback(() => {
     makeSounds();
     void wallet.connect();
