@@ -7165,6 +7165,43 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   .sa-ride-modal__launch { width: auto; min-width: 9rem; padding: 0.5rem 0.75rem; }
   .sa-ride-modal__wallet { margin-top: 0.4rem; padding: 0.45rem 0.7rem; }
 }
+/* The hangar's picker is laid out in the page's flow, not pinned like the
+   old corner card: the phone rule that pinned that card left and right
+   must not push this one sideways off the screen. */
+.sa-aircraft-picker--fullscreen { left: auto; }
+/* A narrow phone: both rides are on screen, so no arrows; less scenery, and
+   badges that shorten rather than run out of their bays. */
+@media (max-width: 420px) {
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__arrow,
+  .sa-ride-modal__hero-copy p,
+  .sa-ride-modal__hero-copy span { display: none; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__stage { grid-template-columns: minmax(0, 1fr); margin-inline: 0; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__slot--active { min-height: 0; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: 6.5rem; min-height: 6.5rem; }
+  .sa-ride-modal__hero-copy { margin: 0.6rem 0 0.55rem; }
+  .sa-ride-modal__hero-copy h1 { font-size: 1.35rem; }
+  .sa-aircraft-picker--fullscreen { padding: 0.75rem 0.65rem 0.7rem; }
+}
+.sa-aircraft-picker__slot-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-aircraft-picker__aircraft-meta > span:first-child { min-width: 0; }
+.sa-aircraft-picker__aircraft-meta small { overflow: hidden; text-overflow: ellipsis; }
+/* Keys are no help on a touch screen. */
+@media (hover: none) and (pointer: coarse) { .sa-ride-modal__hint { display: none; } }
+
+/* A phone held upright: the gauges take the foot of the screen, Boost and
+   the flaps (or the saucer's drive) sit clear above them, and the help line
+   above those. */
+@media (max-width: 640px) and (min-height: 481px) {
+  .sa-boost,
+  .sa-flaps { bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.6rem)) + var(--gauge) + 3.75rem); }
+  .sa-landing.is-intro .sa-hud__help,
+  .sa-landing.is-flying .sa-hud__help { bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.6rem)) + var(--gauge) + 3.75rem + 5.6rem); }
+}
+/* Too narrow for the airline's name beside the way out, mid-flight: the mark alone. */
+@media (max-width: 400px) {
+  .sa-landing:not(.is-idle) .sa-landing__brand .sa-wordmark__name { display: none; }
+}
+
 /* A phone on its side: the gauges run across the foot of the screen, so the
    flaps (or the saucer's drive) stack over the boost in the corner instead
    of beside it, where they ran into the dials. */

@@ -216,8 +216,11 @@ export default function Landing({
   const [ridePickerOpen, setRidePickerOpen] = useState(false);
   /* Read by the key handler, which is not rebuilt when the picker opens. */
   const ridePickerUp = useRef(false);
+  const launchRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     ridePickerUp.current = ridePickerOpen;
+    // The launch button takes the keys — without scrolling the hangar's heading off a short screen.
+    if (ridePickerOpen) launchRef.current?.focus({ preventScroll: true });
   }, [ridePickerOpen]);
   // The local Vite preview is a test harness for both rides. Production builds
   // (including the version pushed to main) still require 1,000,000 $SEAT.
@@ -1175,7 +1178,7 @@ export default function Landing({
                 <strong>{playMode === 'ufo' ? 'UFO INTERCEPTOR' : 'SA350 · FLAGSHIP'}</strong>
                 <small>{playMode === 'ufo' ? 'Dash any way · dodge airliners · climb to the moon and Mars' : 'Flaps, boost and engine-out recovery'}</small>
               </div>
-              <button type="button" className="sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked} autoFocus>
+              <button type="button" className="sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked} ref={launchRef}>
                 <span>Confirm loadout</span>
                 <strong>{playMode === 'ufo' && !ufoUnlocked ? 'Hold 1M $SEAT to unlock' : wallet.address ? 'Launch flight →' : 'Connect & launch →'}</strong>
               </button>
