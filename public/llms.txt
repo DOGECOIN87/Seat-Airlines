@@ -1,0 +1,49 @@
+# Seat Airlines ($SEAT)
+
+> Seat Airlines is a Solana memecoin with a free 3D flight game in the browser.
+> Market cap is altitude: the bigger the holders, the higher the plane flies.
+> Holders get seats on the plane, and every seat is a billboard.
+
+## What it is
+
+- A community memecoin on Solana: **$SEAT**.
+- A free browser game: fly an airliner to 10,000 ft before an engine fails, then keep it airborne as long as you can. An experimental UFO mode climbs through levels — above the clouds, space, the moon, Mars.
+- A leaderboard: today's top pilots and the all-time board at https://seat-airlines.space/pilots/
+- Full docs: https://seat-airlines.gitbook.io/seat-airlines-docs/
+
+## The token ($SEAT)
+
+- Contract address (Solana): `Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump`
+- Supply: 1,000,000,000 SEAT.
+- Launched on pump.fun: https://pump.fun/coin/Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump
+- Chart: https://dexscreener.com/solana/Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump
+- Buy it on pump.fun / PumpSwap with SOL.
+- Like any memecoin, the price is volatile and can go to zero. Do your own research.
+
+## Holder perks
+
+- **Seats**: holders sit on the plane's seat map, ranked by bag size. The biggest holders sit up front.
+- **Billboards**: every held seat is a billboard — the holder can put a square (1:1) image advert on their seat, shown on the advert wall under the plane.
+- **UFO mode**: wallets holding 1,000,000+ $SEAT unlock the experimental UFO interceptor in the game.
+
+## Advertising
+
+- There is no ad-sales desk. Advertising is holder-native: hold $SEAT, take a seat, put your image on it.
+- Adverts appear on the seat chart and the advert wall on the homepage, seen by every visitor and player.
+- Details: https://seat-airlines.space/faq/#advertising
+
+## The game
+
+- Free to play in any modern browser, desktop or mobile.
+- No wallet needed to fly; connect one to post scores to the leaderboard.
+- Controls: drag or arrow keys to steer, Space for boost (3 charges).
+
+## Links
+
+- Homepage / game: https://seat-airlines.space/
+- FAQ (investing + advertising): https://seat-airlines.space/faq/
+- Leaderboard: https://seat-airlines.space/pilots/
+- Docs: https://seat-airlines.gitbook.io/seat-airlines-docs/
+- X: https://x.com/SeatAirlines
+- Telegram: https://t.me/SEATAIRLINES
+- Token: https://pump.fun/coin/Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump
