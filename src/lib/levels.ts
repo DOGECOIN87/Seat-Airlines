@@ -69,12 +69,24 @@ export function nextMark(level: Level, agl: number): { name: string; at: number;
 /** Metres climbed all told: the levels below, and the height over this one. */
 export const climbed = (level: Level, agl: number): number => LEVELS[level].base + Math.max(0, agl);
 
+/** The real Earth's radius, and the height from which the bend has to hide the edge of the map. */
+const EARTH_R = 6_371_000;
+const EDGE_FROM = 2_600;
+/** 2·R·h held at this, the horizon `sqrt(2·R·h)` stays 56 km out: inside the 60 km the ground reaches. */
+const HORIZON_SQ = 3.2e9;
+
 /**
  * The radius the ground is bent to, metres, seen from `agl` up: the real
- * Earth's down low, where nothing should look different, tightening as the
- * climb goes on so the edge of the map is always over the horizon — a
- * horizon `sqrt(2·R·h)` away stays inside the 60 km the ground reaches.
+ * Earth's down low, where nothing should look different, easing tighter
+ * through the top of the weather, and from there tight enough that the edge
+ * of the map is always over the horizon — so the higher it is seen from,
+ * the more it is a globe.
  */
 export function globeRadius(agl: number): number {
-  return Math.min(6_371_000, 1.5e9 / Math.max(1, agl - 1_500));
+  const h = Math.max(1, agl);
+  if (h >= EDGE_FROM) return HORIZON_SQ / (2 * h);
+  if (h <= 1_000) return EARTH_R;
+  const t = Math.min(1, Math.max(0, (h - 1_000) / (EDGE_FROM - 1_000)));
+  const k = t * t * (3 - 2 * t);
+  return Math.exp(Math.log(EARTH_R) + (Math.log(HORIZON_SQ / (2 * EDGE_FROM)) - Math.log(EARTH_R)) * k);
 }

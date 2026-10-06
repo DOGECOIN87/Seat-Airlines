@@ -29,6 +29,7 @@ import { newAir, startAir, stepAir, type Air } from './thermals';
 import { newLogos, type LogoField } from './logos';
 import { newRams, RAMMER, type RamField } from './rammer';
 import { newTwisters, type TwisterField } from './tornado';
+import { ARRIVE, LEVELS, type Level } from './levels';
 
 export type Phase = 'idle' | 'intro' | 'flying' | 'crashed';
 export type FlightMode = 'airliner' | 'ufo';
@@ -45,8 +46,6 @@ export type DashDir = 'forward' | 'up' | 'down' | 'left' | 'right';
 
 /** Feet in a metre. */
 export const FEET = 3.281;
-/** The ultimate ceiling: Mars is possible, but not a routine flight. */
-export const MARS_FEET = 100_000_000;
 
 /** What takes an engine: it lets go on its own, or lightning hits it. */
 export type Cause = 'blast' | 'lightning';
@@ -65,6 +64,8 @@ export interface FlightGame {
   phase: Phase;
   /** The aircraft loadout: the flagship or the experimental saucer. */
   mode: FlightMode;
+  /** The world it is flying over: Earth, and for a saucer that climbs far enough, the moon and Mars (see levels.ts). */
+  level: Level;
   /** When the phase began, on `performance.now()`. */
   phaseAt: number;
   /** What the keys are asking for. */
@@ -184,8 +185,12 @@ export const GAME = {
   introSeconds: 2.4,
   /** Where the dive levels out: low enough that the hills are a hazard. */
   startAlt: 430,
-  /** No higher than this: Mars is the hard ceiling, not the normal engine-out brief. */
-  ceiling: MARS_FEET / FEET,
+  /**
+   * No higher than this over any one world: the top of Earth's level. The
+   * saucer goes on from there to the moon, and from the moon's to Mars
+   * (see levels.ts); nothing with wings gets near it.
+   */
+  ceiling: LEVELS.earth.top,
   /** Closer to the ground than this and the engines are in the trees. */
   clearance: 12,
   /** Degrees of nose-up or nose-down at full stick. */
@@ -288,6 +293,7 @@ const cause = (w: GameWeather = 'clear'): Cause =>
 export const newGame = (mode: FlightMode = 'airliner'): FlightGame => ({
   phase: 'idle',
   mode,
+  level: 'earth',
   phaseAt: 0,
   keys: { x: 0, y: 0 },
   stick: { x: 0, y: 0 },
@@ -360,6 +366,9 @@ export const WASTED_AT = 1.25;
 
 const asked = (flag: string) => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has(flag);
 
+/** A flight started somewhere for testing (see `dealFailures`): practice, not a run for the board. */
+export const testFlight = (): boolean => ['space', 'moon', 'mars'].some(asked);
+
 /**
  * The height the brief names, metres above the ground: 10,000 ft, or 1,500
  * with `?mayday` on the address, for anybody who wants to get to it without
@@ -380,7 +389,7 @@ export function dealFailures(g: FlightGame): void {
   const brief = blastAltitude();
   const earliest = Math.min(brief, GAME.earliestFeet / FEET);
   g.blastAlt = g.mode === 'ufo'
-    ? GAME.ceiling
+    ? Infinity
     : Math.random() < GAME.earlyOdds ? between(earliest, brief - 500 / FEET) : brief;
   if (g.blastAlt < earliest) g.blastAlt = brief;
   g.causes = [asked('strike') ? 'lightning' : cause(g.weather), cause(g.weather)];
@@ -405,6 +414,14 @@ export function dealFailures(g: FlightGame): void {
   g.twisters = newTwisters();
   // `?ram` on the address: the first airliner straight away, for anybody testing the saucer.
   if (asked('ram')) g.rams.next = 1;
+  /* `?space`, `?moon` and `?mars`: the saucer starts up there, for anybody
+     testing the levels without the climb. Practice: nothing is posted. */
+  if (g.mode === 'ufo') {
+    if (asked('mars')) g.level = 'mars';
+    else if (asked('moon')) g.level = 'moon';
+    if (g.level !== 'earth') g.alt = ARRIVE;
+    else if (asked('space')) g.alt = 20_000;
+  }
   g.scramble = 0;
 }
 
@@ -619,8 +636,11 @@ function flySaucer(g: FlightGame, ix0: number, iy0: number, dt: number, rough: n
   // Scrambled, it spins and sinks.
   g.heading = (g.heading + sc * 85 * Math.sin(g.clock * 0.9) * dt + 360) % 360;
   const level = Math.max(0, Math.cos(g.bank * DEG));
-  vs += u * GAME.draftLift * GAME.draftClimb * level - sc * 45;
-  vs = Math.max(-GAME.maxClimb * 1.3, Math.min(GAME.maxClimb * 1.8, vs));
+  /* Out of the weather the air thins and it climbs faster for it: by
+     space, several times as fast, or the moon would be an hour off. */
+  const thin = 1 + Math.max(0, g.agl - 3_000) / 15_000;
+  vs = vs * thin + u * GAME.draftLift * GAME.draftClimb * level - sc * 45;
+  vs = Math.max(-GAME.maxClimb * 1.3 * thin, Math.min(GAME.maxClimb * 1.8 * thin, vs));
   return { vs: vs + dashVelocity(g).up, stall: 0 };
 }
 

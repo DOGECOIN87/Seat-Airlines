@@ -1,6 +1,8 @@
 import { useEffect, useId, useState } from 'react';
 import { fetchBoard, hasBoard, readBest, recentBoard, shortWallet, type BoardEntry } from '../lib/scoresApi';
 import ModalWindow from './ModalWindow';
+import { LEVELS } from '../lib/levels';
+import { FEET } from '../lib/landingGame';
 
 interface ScoresDialogProps {
   /** The visitor's wallet, to find them on the board. */
@@ -54,9 +56,9 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
       <div className="sa-modal__body">
         <div className="sa-scores__mission">
           <p className="sa-scores__lead">
-            Climb to 10,000 ft, survive the engine-out, dodge the saucer — then keep climbing. Mars is the hard ceiling.
+            Climb to 10,000 ft and survive the engine-out — or take the saucer up through space to the moon, and on to Mars.
           </p>
-          <span className="sa-scores__mission-chip">100,000,000 ft target</span>
+          <span className="sa-scores__mission-chip">Earth · Moon · Mars</span>
         </div>
 
         {board === undefined ? (
@@ -148,7 +150,7 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
         <div className="sa-scores__stats">
           <span><small>Your best</small><strong>{best > 0 ? best.toLocaleString('en-US') : '—'}</strong></span>
           <span><small>Board leader</small><strong>{topScore > 0 ? topScore.toLocaleString('en-US') : '—'}</strong></span>
-          <span><small>To Mars</small><strong>100M ft</strong></span>
+          <span><small>To Mars</small><strong>{Math.round((LEVELS.mars.base * FEET) / 1000).toLocaleString('en-US')}K ft</strong></span>
         </div>
         <p className="sa-scores__fine">
           Fly from the landing to score. Posting signs a message, never a transaction. Select a pilot to inspect their flight card.

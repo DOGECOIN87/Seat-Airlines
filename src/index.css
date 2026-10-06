@@ -7124,3 +7124,58 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-flaps__detents { grid-column: 1 / -1; display: flex; gap: 3px; margin-top: 0.35rem; }
 .sa-flaps__detents i { flex: 1; height: 3px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); }
 .sa-flaps__detents i.is-on { background: linear-gradient(90deg, #6CFFB4, #D27BFF); box-shadow: 0 0 6px rgba(108, 255, 180, 0.6); }
+
+/* UFO mode: the strip's goal is a world or a band, not a height. */
+.sa-strip__goal--world { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+
+/* ── Layout edge cases ───────────────────────────────────────────────────
+   The UFO-mode and weather captions run longer than the old ones: they
+   wrap rather than run off a phone, and come down a size there. */
+.sa-hud__bonus--ufo {
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  font-size: clamp(1.45rem, 6vw, 3.4rem);
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.sa-hud__bonus--ufo small { line-height: 1.4; }
+
+/* A short screen — a phone on its side, a laptop with the bars out: the
+   hangar drops its scenery and second headings so the two rides and the
+   launch button fit without scrolling. */
+@media (max-height: 560px) {
+  .sa-ride-modal__ceiling,
+  .sa-ride-modal__hangar-lines,
+  .sa-ride-modal__hero-copy p,
+  .sa-ride-modal__hero-copy span,
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__head,
+  .sa-ride-modal__hint { display: none; }
+  .sa-ride-modal__content { padding-top: max(0.5rem, var(--safe-top)); padding-bottom: 0.5rem; }
+  .sa-ride-modal__topline { position: absolute; top: max(0.4rem, var(--safe-top)); right: 0.5rem; width: auto; }
+  .sa-ride-modal__topline > span { display: none; }
+  .sa-ride-modal__hero-copy { margin: 0.2rem 0 0.45rem; }
+  .sa-ride-modal__hero-copy h1 { font-size: 1.15rem; }
+  .sa-aircraft-picker--fullscreen { padding: 0.5rem 0.7rem 0.55rem; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__stage { margin: 0 -0.35rem 0.4rem; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__slot--active { min-height: 0; padding-block: 0.4rem; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: min(6rem, 24vh); min-height: 0; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__mode { min-height: 0; padding: 0.35rem 0.55rem; }
+  .sa-ride-modal__launch-console { flex-direction: row; align-items: center; margin-top: 0.45rem; padding: 0.45rem 0.6rem; }
+  .sa-ride-modal__launch { width: auto; min-width: 9rem; padding: 0.5rem 0.75rem; }
+  .sa-ride-modal__wallet { margin-top: 0.4rem; padding: 0.45rem 0.7rem; }
+}
+/* A phone on its side: the gauges run across the foot of the screen, so the
+   flaps (or the saucer's drive) stack over the boost in the corner instead
+   of beside it, where they ran into the dials. */
+@media (max-height: 480px) {
+  .sa-boost { width: 4.9rem; height: 4.9rem; bottom: max(1rem, calc(var(--safe-bottom) + 0.75rem)); }
+  .sa-flaps {
+    right: clamp(1rem, 3vw, 2.25rem);
+    bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.75rem)) + 4.9rem + 0.45rem);
+    width: 4.9rem;
+    min-height: 0;
+    padding: 0.35rem 0.45rem;
+  }
+  .sa-flaps__wing { font-size: 1.1rem; }
+}

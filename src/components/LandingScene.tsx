@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type MutableRefObject, type RefObject } from 'react';
+import { useEffect, useRef, type MutableRefObject, type RefObject } from 'react';
 import { CAPTURE, captureState } from '../capture/flag';
 import { bandHeight, createWorld, type ViewPose, type WorldHandles } from '../three/WorldScene';
 import { cruiseBurn, cruiseSpeed } from '../lib/dexBoost';
@@ -13,6 +13,7 @@ import {
 } from '../lib/landingGame';
 import { RAMMER, stepRams } from '../lib/rammer';
 import { applyVortex, stepTwisters, TWISTER, type Vortex } from '../lib/tornado';
+import { ARRIVE, bandAt, climbed, globeRadius, LEVELS, nextMark, type Level } from '../lib/levels';
 import { LOGOS, stepLogos } from '../lib/logos';
 import { climbBonus, SCORING, survivalRate } from '../lib/scoring';
 import { FPM, KNOTS, speedAngle, ufoLiftAngle, ufoSpeedAngle, varioAngle } from '../lib/instruments';
@@ -137,6 +138,10 @@ interface LandingSceneProps {
   onRamDodge?: () => void;
   /** Tornado weather: flown close past a funnel's core, and paid for it. */
   onThreaded?: () => void;
+  /** The saucer has climbed off the top of one world's level and arrived over the next. */
+  onLevel?: (level: Level) => void;
+  /** The saucer's next goal has changed: the next band, or world, it is climbing for. */
+  onMark?: (name: string) => void;
 }
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -210,7 +215,7 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 
 const LandingScene = ({
   feed, sky, band, controls, taken, playing, cameraLook, boost = 0, game, hud, sounds, shot,
-  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded,
+  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
@@ -218,8 +223,8 @@ const LandingScene = ({
   const boostNow = useRef(boost);
   boostNow.current = boost;
   latest.current = { sky, band };
-  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded });
-  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded };
+  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark });
+  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark };
   /** The last lightning flash already heard. */
   const heardFlash = useRef(0);
 
@@ -272,14 +277,10 @@ const LandingScene = ({
     world.current?.setControls(playing ? HANDS_OFF : controls);
   }, [controls, playing]);
 
-  /* The game is flown in the weather, whatever the market says: that is
-     where there is ground to fly over, and to hit. */
-  const low = useMemo<BandState>(
-    () => ({ ...band, band: 'atmosphere', progress: 0.3, label: 'In the weather' }),
-    [band],
-  );
-  const lowRef = useRef(low);
-  lowRef.current = low;
+  /* The game is flown over its own ground, whatever the market says: in
+     the weather, and as high as it climbs, through the site's own bands
+     above it — and for a saucer, on to the moon and Mars (see levels.ts). */
+  const markShown = useRef<string | null>(null);
 
   const pose = useRef<ViewPose>({ seatIndex: 0, row: 1, yaw: 0, id: '1A', exterior: true, orbit: 0 });
   const flown = useRef<Attitude>({ pitch: 0, bank: 0, speed: 240, alt: 0, vs: 0, heading: 0, roll: 0 });
@@ -365,7 +366,7 @@ const LandingScene = ({
       const since = (now - g.phaseAt) / 1000 - WASTED_AT;
       p.freeze = true;
       p.dolly = smooth(Math.min(1, Math.max(0, since / 2.8)));
-      w.render(flown.current, skyState, lowRef.current, p);
+      w.render(flown.current, skyState, bandAt(g.level, g.agl), p);
       return;
     }
 
@@ -378,6 +379,7 @@ const LandingScene = ({
     if (g.phase === 'idle') {
       p.chase = 0;
       p.height = undefined;
+      p.globe = undefined;
       /* Boosted on DexScreener, and nobody flying it: cruise on afterburner,
          flickering, the ground going by nearly twice as fast. */
       const burn = cruiseBurn(now, boostNow.current);
@@ -621,7 +623,24 @@ const LandingScene = ({
       stall = step.stall;
       if (flyDt > 0) g.accel += ((step.vs - g.vs) / flyDt - g.accel) * (1 - Math.exp(-2 * flyDt));
       g.vs = step.vs;
-      g.alt = Math.min(GAME.ceiling, g.alt + step.vs * flyDt);
+      // The ground under it, as of the last frame.
+      const ground = g.alt - g.agl;
+      g.alt += step.vs * flyDt;
+      /* The top of this world's level: the saucer goes on to the next
+         world, arriving a couple of kilometres up; anything else, or a
+         saucer over Mars, goes no higher. */
+      const top = Math.min(GAME.ceiling, LEVELS[g.level].top);
+      const onward = LEVELS[g.level].next;
+      if (g.alt - ground >= top) {
+        if (live && g.mode === 'ufo' && onward) {
+          g.level = onward;
+          g.alt = ARRIVE;
+          g.agl = ARRIVE;
+          calls.current.onLevel?.(onward);
+        } else {
+          g.alt = ground + top;
+        }
+      }
       if (live) g.distance += travel(g).speed * flyDt;
       p.chase = 1;
     }
@@ -703,7 +722,8 @@ const LandingScene = ({
        while one is still to be taken — the engine has gone, or the ground is
        close — every frame is drawn rather than paced (see WorldScene). */
     p.mustDraw = !shot.current && (g.failed !== 0 || (g.phase === 'flying' && g.agl < 400));
-    w.render(f, skyState, lowRef.current, p);
+    p.globe = globeRadius(Math.max(0, g.agl));
+    w.render(f, skyState, bandAt(g.level, g.agl), p);
 
     /* The picture for the card, straight after the frame it is of: the
        fireball at its biggest, or the bolt at its brightest. */
@@ -730,7 +750,7 @@ const LandingScene = ({
       syncCrowd(g, impactIn(g, w.groundAt), dt);
       /* The score: height before the engine goes; after, time in the air,
          paid more for wings kept level and for flying low. */
-      const ft = agl * FEET;
+      const ft = climbed(g.level, agl) * FEET;
       if (!g.failed) {
         g.bestFeet = Math.max(g.bestFeet, ft);
         g.score = g.bestFeet * SCORING.perFoot + g.extra;
@@ -754,8 +774,19 @@ const LandingScene = ({
       }
     }
     // The readouts, written straight to the page: no React render a frame.
-    if (!g.failed && hud.bar.current) hud.bar.current.style.transform = `scaleX(${Math.min(1, Math.max(0, agl / g.blastAlt))})`;
-    const feet = Math.max(0, Math.round((agl * FEET) / 10) * 10);
+    /* The bar: the climb to the blast altitude — or, on the saucer, to the next world or band. */
+    const mark = g.mode === 'ufo' ? nextMark(g.level, agl) : null;
+    if (g.mode === 'ufo' && hud.bar.current) {
+      hud.bar.current.style.transform = `scaleX(${mark ? Math.min(1, Math.max(0, (agl - mark.from) / (mark.at - mark.from))) : 1})`;
+    } else if (!g.failed && hud.bar.current) {
+      hud.bar.current.style.transform = `scaleX(${Math.min(1, Math.max(0, agl / g.blastAlt))})`;
+    }
+    const markName = mark?.name ?? (g.mode === 'ufo' ? 'Mars' : null);
+    if (markName !== markShown.current) {
+      markShown.current = markName;
+      if (markName) calls.current.onMark?.(markName);
+    }
+    const feet = Math.max(0, Math.round((climbed(g.level, agl) * FEET) / 10) * 10);
     if (feet !== shown.current.feet && hud.alt.current) {
       shown.current.feet = feet;
       hud.alt.current.textContent = feet.toLocaleString('en-US');
