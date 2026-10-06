@@ -1,5 +1,5 @@
 import '@danfessler/trellis/style.css';
-import { useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Panel,
   Split,
@@ -8,14 +8,14 @@ import {
   ViewType,
   Workspace,
   WorkspaceProvider,
-  useWorkspaceSelector,
+  useOptionalWorkspace,
   type MenuEntry,
   type PanelMenuContext,
   type WorkspaceHandle,
 } from '@danfessler/trellis-react';
 import { DeckIcon } from './InstrumentDeck';
 import { PANELS, SectionDock, type PanelKey } from './SectionPanels';
-import { SIDE_SHARE, STAGE_ID, dockButton, isSection } from '../lib/deskSections';
+import { SIDE_SHARE, STAGE_ID, dockButton, isSection, sectionShown } from '../lib/deskSections';
 
 /**
  * The cockpit on a desk: the view and the sections as one docking workspace.
@@ -70,8 +70,16 @@ const TOKENS: Record<string, string> = {
 };
 const TABS = { fill: false, inset: 6 };
 /* Below this a section is drawn smaller rather than squeezed into a column
-   too narrow to read. */
-const SECTION_MIN = { width: 300, height: 220 };
+   too narrow to read: about the old side panel's narrowest. */
+const SECTION_MIN = { width: 420, height: 260 };
+/* The workspace's gap, in pixels, as in TOKENS. */
+const GAP = 14;
+/* What the workspace's own Float would size a panel to at most. */
+const FLOAT_MAX = { w: 560, h: 400 };
+/* The section's title takes focus when it opens, as it does in the side
+   panel: the workspace focuses `[autofocus]` first. Set as the attribute,
+   since React's autoFocus focuses on mount and leaves no attribute. */
+const titleFirst = (el: HTMLElement | null) => el?.setAttribute('autofocus', '');
 const dropMissing = () => 'drop' as const;
 
 interface DockProps {
@@ -96,6 +104,28 @@ interface CockpitWorkspaceProps {
 export default function CockpitWorkspace({ onHandle, view, section, dock, children }: CockpitWorkspaceProps) {
   const ws = useRef<WorkspaceHandle | null>(null);
   const unguard = useRef<(() => void) | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+
+  /* The workspace fills the first screen, from where it starts on the page
+     down to the tab bar. Where it starts — under the contract bar, the gate
+     sign and the hero's margin — is measured rather than assumed, so the
+     view's rail is clear of the tab bar on the way in. */
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => {
+      const top = `${Math.round(el.getBoundingClientRect().top + window.scrollY)}px`;
+      if (el.style.getPropertyValue('--ws-top') !== top) el.style.setProperty('--ws-top', top);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(document.body);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
 
   const setHandle = useCallback((handle: WorkspaceHandle | null) => {
     ws.current = handle;
@@ -104,23 +134,49 @@ export default function CockpitWorkspace({ onHandle, view, section, dock, childr
     onHandle(handle);
   }, [onHandle]);
 
-  const menu = useCallback(
-    (entries: MenuEntry[], { region }: PanelMenuContext): MenuEntry[] =>
-      /* The view has no menu: it is always there, and always in the middle. */
-      region === 'stage'
-        ? []
-        : [...entries, 'separator', { id: 'reset-layout', label: 'Reset layout', run: () => ws.current?.reset() }],
-    [],
-  );
-  /* "Hide" in a panel's menu sends it into its tab on the bar. */
+  const menu = useCallback((entries: MenuEntry[], { region, panelId }: PanelMenuContext): MenuEntry[] => {
+    /* The view has no menu: it is always there, and always in the middle. */
+    if (region === 'stage') return [];
+    return [
+      ...entries.map((entry) =>
+        entry !== 'separator' && entry.id === 'float' ? { ...entry, run: () => floatInside(ws.current, panelId) } : entry,
+      ),
+      'separator',
+      { id: 'reset-layout', label: 'Reset layout', run: () => ws.current?.reset() },
+    ];
+  }, []);
+  /* "Hide" in a panel's menu sends it into its tab on the bar, and keyboard
+     focus with it: otherwise it stays on a tab that is no longer there. */
   const toward = useCallback((panelId: string) => {
     const view = ws.current?.getSnapshot().views.find((v) => v.panelId === panelId && v.selected);
-    return view && isSection(view.type) ? dockButton(view.type) : undefined;
+    const button = view && isSection(view.type) ? dockButton(view.type) : undefined;
+    if (button) {
+      const rescue = () => {
+        const active = document.activeElement;
+        const lost = !active || active === document.body
+          || (ws.current?.element.contains(active) && (Boolean(active.closest('[inert]')) || !active.checkVisibility?.({ visibilityProperty: true })));
+        if (lost) button.focus({ preventScroll: true });
+      };
+      window.setTimeout(rescue, 0);
+      window.setTimeout(rescue, 420);
+    }
+    return button;
+  }, []);
+  /* The view's tab is never shown, so moving to its panel from the keyboard
+     (F6) has nothing to land on; its glass takes the focus instead. */
+  const onFocus = useCallback((viewId: string | null) => {
+    if (viewId !== 'view') return;
+    const root = ws.current?.element;
+    const active = document.activeElement;
+    if (!root || !active || !root.contains(active)) return;
+    const stage = root.querySelector<HTMLElement>('.sa-wsstage');
+    if (!stage || stage.contains(active)) return;
+    requestAnimationFrame(() => stage.querySelector<HTMLElement>('.sd-glass')?.focus({ preventScroll: true }));
   }, []);
 
   return (
     <WorkspaceProvider>
-      <div className="sa-wsbox">
+      <div ref={box} className="sa-wsbox">
         <Workspace
           ref={setHandle}
           className="sa-ws"
@@ -134,6 +190,7 @@ export default function CockpitWorkspace({ onHandle, view, section, dock, childr
           storageKey={STORAGE_KEY}
           version={LAYOUT_VERSION}
           onMissingType={dropMissing}
+          onFocus={onFocus}
         >
           <ViewType
             id="view"
@@ -159,7 +216,7 @@ export default function CockpitWorkspace({ onHandle, view, section, dock, childr
               minSize={SECTION_MIN}
               render={() => (
                 <div className="sa-wsview @container" data-scroll-root>
-                  <h2 className="sa-wsview__title">{p.title}</h2>
+                  <h2 ref={titleFirst} tabIndex={-1} className="sa-wsview__title">{p.title}</h2>
                   {section(p.key)}
                 </div>
               )}
@@ -182,17 +239,60 @@ export default function CockpitWorkspace({ onHandle, view, section, dock, childr
   );
 }
 
-/** The tab bar, lit for every section showing. */
+/**
+ * The tab bar, lit for every section on screen: in front in its panel, and
+ * not pushed out of sight by another panel that has been maximised.
+ */
 function Dock(props: DockProps) {
-  const key = useWorkspaceSelector((s) =>
-    s.views
-      .filter((v) => isSection(v.type) && v.selected && v.placement !== 'hidden')
-      .map((v) => v.type)
-      .sort()
-      .join(' '),
-  );
-  const shown = useMemo(() => (key ? (key.split(' ') as PanelKey[]) : []), [key]);
+  const ws = useOptionalWorkspace();
+  const [key, setKey] = useState('');
+  useEffect(() => {
+    if (!ws) return;
+    const watched = new Map<string, () => void>();
+    const update = () => {
+      const ids = new Set(ws.getSnapshot().views.filter((v) => isSection(v.type)).map((v) => v.id));
+      for (const [id, off] of watched) {
+        if (!ids.has(id)) {
+          off();
+          watched.delete(id);
+        }
+      }
+      for (const id of ids) {
+        const view = watched.has(id) ? null : ws.view(id);
+        if (view) watched.set(id, view.on('visibility', update));
+      }
+      setKey(PANELS.filter((p) => sectionShown(ws, p.key)).map((p) => p.key).join(' '));
+    };
+    update();
+    const stop = ws.subscribe(update);
+    return () => {
+      stop();
+      watched.forEach((off) => off());
+    };
+  }, [ws]);
+  const shown = (key ? key.split(' ') : []) as PanelKey[];
   return <SectionDock open={null} shown={shown} {...props} />;
+}
+
+/**
+ * Float a panel from its menu, kept inside the workspace.
+ *
+ * The workspace's own Float drops the panel a little right of and below
+ * where it was docked, which for a section docked against the right-hand
+ * edge puts its border and its menu past the edge. This floats it to the
+ * same size, offset to the left instead, and held within the gap.
+ */
+function floatInside(ws: WorkspaceHandle | null, panelId: string): void {
+  if (!ws) return;
+  const root = ws.element.getBoundingClientRect();
+  const el = ws.element.querySelector(`[data-trellis-part="panel"][data-panel="${CSS.escape(panelId)}"]`);
+  const at = el?.getBoundingClientRect() ?? root;
+  const w = Math.min(at.width, FLOAT_MAX.w, root.width - GAP * 2);
+  const h = Math.min(at.height, FLOAT_MAX.h, root.height - GAP * 2);
+  const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+  const x = clamp(at.left - root.left + (at.width - w) / 2 - 24, GAP, root.width - GAP - w);
+  const y = clamp(at.top - root.top + (at.height - h) / 2 + 24, GAP, root.height - GAP - h);
+  ws.float(panelId, { x: x / root.width, y: y / root.height, w: w / root.width, h: h / root.height });
 }
 
 /**

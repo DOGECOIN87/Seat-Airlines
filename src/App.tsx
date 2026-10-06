@@ -17,7 +17,7 @@ import SeatTicker, { type TickerItem } from './components/SeatTicker';
 import Landing from './components/Landing';
 import { SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
 import type { WorkspaceHandle } from '@danfessler/trellis-react';
-import { DESK_QUERY, hideSections, openSection, toggleSection } from './lib/deskSections';
+import { DESK_QUERY, hideSections, openSection, sectionInUse, sectionShown, toggleSection } from './lib/deskSections';
 import { useMatch } from './lib/useMatch';
 import type { LogEntry } from './components/RadioLog';
 import {
@@ -165,6 +165,13 @@ type Camera = 'exterior' | 'deck' | 'seat' | 'hold';
 const clockNow = () => {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+/** The desk cockpit's workspace comes up to meet a section opened in it, as the side panel's view does. */
+const bringWorkspaceUp = () => {
+  const box = document.querySelector('.sa-wsbox');
+  const top = box?.getBoundingClientRect().top ?? 0;
+  if (box && (top > 120 || top < -80)) box.scrollIntoView({ behavior: glide(), block: 'start' });
 };
 
 /** How the page scrolls itself: smoothly, unless the visitor has asked for less motion. */
@@ -592,9 +599,18 @@ export default function App() {
   /* A section asked for before the workspace is up — from its anchor, or
      from the landing's Claim — opens once it is. */
   const pendingSection = useRef<PanelKey | null>(null);
+  /* The section in use on the desk, kept as it changes, so that leaving the
+     desk for the narrower layout (a window made smaller) opens it there. */
+  const inUse = useRef<PanelKey | null>(null);
+  const stopWatching = useRef<(() => void) | null>(null);
   const onWorkspace = useCallback((ws: WorkspaceHandle | null) => {
     workspace.current = ws;
+    stopWatching.current?.();
+    stopWatching.current = null;
     if (!ws) return;
+    const watch = () => { inUse.current = sectionInUse(ws); };
+    watch();
+    stopWatching.current = ws.subscribe(watch);
     /* After the commit, so a workspace StrictMode makes twice in
        development opens the section in the one that stays. */
     window.setTimeout(() => {
@@ -605,13 +621,20 @@ export default function App() {
       openSection(live, key);
     }, 0);
   }, []);
-  /* Crossing to a desk with a section open carries it across. */
+  /* Crossing to or from a desk with a section open carries it across. */
+  const wasDesk = useRef(desk);
   useEffect(() => {
-    if (!desk) return;
-    setPanel((open) => {
-      if (open) pendingSection.current = open;
-      return null;
-    });
+    if (desk === wasDesk.current) return;
+    wasDesk.current = desk;
+    if (desk) {
+      setPanel((open) => {
+        if (open) pendingSection.current = open;
+        return null;
+      });
+      return;
+    }
+    if (inUse.current) setPanel(inUse.current);
+    inUse.current = null;
   }, [desk]);
   /* The panel and the tabs stick under the gate sign, whose height is its
      content's — one row on a desk, two on a phone — so it is measured
@@ -633,10 +656,7 @@ export default function App() {
       const ws = workspace.current;
       if (ws) openSection(ws, key);
       else pendingSection.current = key;
-      /* The workspace comes up to meet it, as the panel's view does below. */
-      const box = document.querySelector('.sa-wsbox');
-      const top = box?.getBoundingClientRect().top ?? 0;
-      if (box && (top > 120 || top < -80)) box.scrollIntoView({ behavior: glide(), block: 'start' });
+      bringWorkspaceUp();
       return;
     }
     setPanel(key);
@@ -670,8 +690,17 @@ export default function App() {
   const togglePanel = useCallback(
     (key: PanelKey) => {
       if (deskRef.current) {
-        if (workspace.current) toggleSection(workspace.current, key);
-        else pendingSection.current = key;
+        const ws = workspace.current;
+        if (!ws) {
+          pendingSection.current = key;
+          return;
+        }
+        /* Opened from the tab bar while scrolled down to the wall: the
+           workspace comes up to show it, rather than lighting a button for a
+           section off the top of the screen. Putting one away stays put. */
+        const opening = !sectionShown(ws, key);
+        toggleSection(ws, key);
+        if (opening) bringWorkspaceUp();
         return;
       }
       if (panel === key) closePanel();

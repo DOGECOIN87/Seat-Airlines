@@ -464,7 +464,7 @@ const NetworkingHub = ({ manifest, address, viewerZone, sign, part = 'all' }: Ne
       )}
 
       {showDirectory && (
-      <div className="grid gap-5 p-5 sm:p-7 @4xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 p-5 sm:p-7 @4xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
         <div className="space-y-3">
           <PassengerFilters query={searchQuery} offering={offeringFilter} onQuery={setSearchQuery} onOffering={setOfferingFilter}
             offeringsDisabled={!directory.session || directory.loading} />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react';
 import { DeckIcon } from './InstrumentDeck';
 
 /**
@@ -150,13 +150,18 @@ const ViewFrame = ({ children, label, actions, onZoomOutBeyond, zoomOutHint }: V
      is fixed inside it, so the overlay alone would fill only its own panel.
      There the browser's own full screen lifts the frame out instead, and
      leaving that (Escape, or the browser's own control) leaves this. */
+  const [inWorkspace, setInWorkspace] = useState(false);
+  useLayoutEffect(() => {
+    setInWorkspace(Boolean(rootRef.current?.closest('.trellis')));
+  }, []);
+  /* Where the browser will not go full screen (a frame without permission),
+     the workspace has no full screen to offer: the overlay would fill only
+     its own panel. */
+  const canFull = !inWorkspace || (typeof document !== 'undefined' && document.fullscreenEnabled);
   const toggleFull = () => {
     const root = rootRef.current;
-    if (!full && root?.closest('.trellis') && document.fullscreenEnabled) {
-      root.requestFullscreen().then(
-        () => setFull(true),
-        () => setFull(true),
-      );
+    if (!full && inWorkspace) {
+      if (root && document.fullscreenEnabled) root.requestFullscreen().then(() => setFull(true), () => {});
       return;
     }
     if (full && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
@@ -273,7 +278,7 @@ const ViewFrame = ({ children, label, actions, onZoomOutBeyond, zoomOutHint }: V
           >
             <DeckIcon name="reset" />
           </button>
-          <button
+          {canFull && <button
             type="button"
             onClick={toggleFull}
             aria-pressed={full}
@@ -282,7 +287,7 @@ const ViewFrame = ({ children, label, actions, onZoomOutBeyond, zoomOutHint }: V
             className="ui-round"
           >
             <DeckIcon name={full ? 'shrink' : 'expand'} />
-          </button>
+          </button>}
         </div>
         {actions}
       </div>
