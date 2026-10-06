@@ -6910,6 +6910,11 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-ride-modal__launch:hover { filter: brightness(1.16); transform: translateY(-2px); box-shadow: 0 0 32px rgba(71, 223, 178, 0.25); }
 .sa-ride-modal__launch span { font-size: 8px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.72; }
 .sa-ride-modal__launch strong { font-size: 0.78rem; letter-spacing: 0.05em; }
+.sa-ride-modal__wallet { width: min(100%, 42rem); margin-top: 0.7rem; padding: 0.65rem 0.9rem; border: 1px solid rgba(255, 190, 120, 0.35); border-radius: 0.75rem; background: rgba(40, 20, 6, 0.55); color: #ffe2c2; font-size: 12px; }
+.sa-ride-modal__wallet p { margin: 0; }
+.sa-ride-modal__wallet-links { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.sa-ride-modal__wallet-links a { padding: 0.35rem 0.65rem; border: 1px solid rgba(255, 214, 170, 0.4); border-radius: 0.45rem; color: #fff1e0; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; text-decoration: none; }
+.sa-ride-modal__wallet-links a:hover, .sa-ride-modal__wallet-links a:focus-visible { background: rgba(255, 200, 140, 0.16); }
 .sa-ride-modal__hint { margin: 0.75rem 0 0; color: rgba(175, 217, 229, 0.5); font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
 .sa-ride-modal__hint kbd { display: inline-block; margin: 0 0.16rem; padding: 0.15rem 0.3rem; border: 1px solid rgba(180, 223, 236, 0.25); border-radius: 0.25rem; color: #d7f5ff; }
 @media (max-width: 640px) {

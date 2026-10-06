@@ -50,11 +50,19 @@ function makeFallbackUfo(): THREE.Group {
 
 /** A small, responsive Three.js viewport used by the hangar roster. */
 export default function AircraftModelPreview({ model }: AircraftModelPreviewProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const host = hostRef.current;
+    if (!host) return;
+    /* A canvas of its own each time: the context is given back on the way
+       out (see below), and a lost one cannot be had again from the same
+       element — which StrictMode's second mount would otherwise ask for. */
+    const canvas = document.createElement('canvas');
+    canvas.style.display = 'block';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    host.appendChild(canvas);
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -72,10 +80,12 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
     rim.position.set(-7, 2, -5);
     scene.add(rim);
 
+    /* What spins: the model is centred on it, so it turns about its middle. */
+    const pivot = new THREE.Group();
+    scene.add(pivot);
     let root: THREE.Object3D;
     let airframe: AirframeHandles | null = null;
     let fallback: THREE.Group | null = null;
-    let rootBaseY = 0;
     let disposed = false;
     const clock = new THREE.Clock();
     const loader = new GLTFLoader();
@@ -83,25 +93,24 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
     if (model === 'airliner') {
       airframe = createAirframe();
       root = airframe.group;
-      fitModel(root, 18);
       root.rotation.y = Math.PI;
-      rootBaseY = root.position.y;
-      scene.add(root);
+      fitModel(root, 18);
+      pivot.add(root);
     } else {
       const ufoRoot = new THREE.Group();
       fallback = makeFallbackUfo();
       fitModel(fallback, 10.5);
       ufoRoot.add(fallback);
       root = ufoRoot;
-      scene.add(root);
+      pivot.add(root);
       void loader.loadAsync(`${import.meta.env.BASE_URL}ufo.glb`).then((gltf) => {
         if (disposed) {
           disposeObject(gltf.scene);
           return;
         }
         const actual = gltf.scene;
-        fitModel(actual, 10.5);
         actual.rotation.x = -0.15;
+        fitModel(actual, 10.5);
         actual.traverse((node) => {
           const mesh = node as THREE.Mesh;
           if (!mesh.isMesh) return;
@@ -137,8 +146,8 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
     const animate = () => {
       if (disposed) return;
       const dt = Math.min(0.05, clock.getDelta());
-      root.rotation.y += dt * (model === 'ufo' ? 0.72 : 0.28);
-      root.position.y = rootBaseY + Math.sin(clock.elapsedTime * 1.6) * 0.16;
+      pivot.rotation.y += dt * (model === 'ufo' ? 0.72 : 0.28);
+      pivot.position.y = Math.sin(clock.elapsedTime * 1.6) * 0.16;
       airframe?.update(dt, { contrail: 0, stream: 0, bank: Math.sin(clock.elapsedTime) * 3, pitch: 2, night: 0.12, cabin: 0.65, mood: 0, calm: true });
       renderer.render(scene, camera);
       frame = requestAnimationFrame(animate);
@@ -152,9 +161,12 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
       airframe?.dispose();
       if (!airframe) disposeObject(root);
       renderer.dispose();
+      // Browsers keep only so many contexts; past that the oldest — the flight's — is the one lost.
+      renderer.forceContextLoss();
+      canvas.remove();
       scene.clear();
     };
   }, [model]);
 
-  return <canvas ref={canvasRef} className="sa-aircraft-picker__model-canvas" aria-label={`${model === 'ufo' ? 'UFO interceptor' : 'SA350 airliner'} 3D preview`} />;
+  return <div ref={hostRef} className="sa-aircraft-picker__model-canvas" role="img" aria-label={`${model === 'ufo' ? 'UFO interceptor' : 'SA350 airliner'} 3D preview`} />;
 }

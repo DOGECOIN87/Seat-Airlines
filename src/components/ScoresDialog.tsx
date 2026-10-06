@@ -70,11 +70,11 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
         ) : (
           <>
             <div className="sa-scores__toolbar">
-              <div className="sa-scores__tabs" role="tablist" aria-label="Leaderboard view">
-                <button type="button" role="tab" aria-selected={view === 'podium'} className={view === 'podium' ? 'is-active' : undefined} onClick={() => setView('podium')}>
+              <div className="sa-scores__tabs" role="group" aria-label="Leaderboard view">
+                <button type="button" aria-pressed={view === 'podium'} className={view === 'podium' ? 'is-active' : undefined} onClick={() => setView('podium')}>
                   Podium
                 </button>
-                <button type="button" role="tab" aria-selected={view === 'ladder'} className={view === 'ladder' ? 'is-active' : undefined} onClick={() => setView('ladder')}>
+                <button type="button" aria-pressed={view === 'ladder'} className={view === 'ladder' ? 'is-active' : undefined} onClick={() => setView('ladder')}>
                   Full ladder
                 </button>
               </div>
@@ -82,13 +82,12 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
             </div>
 
             {view === 'podium' ? (
-              <div className="sa-scores__podium" role="list" aria-label="Top three pilots">
+              <div className="sa-scores__podium" role="group" aria-label="Top three pilots">
                 {board.slice(0, 3).map((row, i) => {
                   const you = row.address === address;
                   return (
                     <button
                       type="button"
-                      role="listitem"
                       key={row.address}
                       className={`sa-scores__podium-card sa-scores__podium-card--${i + 1}${you ? ' is-you' : ''}${selected === i ? ' is-selected' : ''}`}
                       onClick={() => setSelected(i)}
@@ -136,7 +135,7 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
                   <strong>{shortWallet(selectedRow.address)}{selectedRow.address === address ? ' · you' : ''}</strong>
                   <small>
                     {selectedRow.survived > 0
-                      ? `${Math.round(selectedRow.survived)} seconds after engine-out · ${Math.round(selectedRow.climb).toLocaleString('en-US')} ft climb`
+                      ? `${Math.round(selectedRow.survived)} s after engine-out · climbed to the blast in ${Math.round(selectedRow.climb)} s`
                       : 'Run ended before the 10,000 ft brief'}
                   </small>
                 </div>

@@ -116,6 +116,8 @@ const KEYS: Record<string, readonly [number, number]> = {
 
 /** Keys that light the afterburners. */
 const BOOST_KEYS = new Set(['Space', 'KeyB', 'ShiftLeft', 'ShiftRight']);
+/** The ride flown last, kept across the remount that Play again does. */
+let lastPlayMode: PlayMode = 'airliner';
 /** Seconds between two logos for the second to count as a run. */
 const LOGO_RUN = 4;
 
@@ -179,13 +181,34 @@ export default function Landing({
   feed, sky, band, marketCap, controls, taken, wallet, onEnter, onPlayAgain, replay = false, manifest, banners, onClaim, boosts, tokenBalance, tokenBalanceLoading, soundEnabled, onSoundToggle,
 }: LandingProps) {
   const [phase, setPhase] = useState<Phase>('idle');
-  const [playMode, setPlayMode] = useState<PlayMode>('airliner');
+  // Play again remounts the landing: start from the ride flown last.
+  const [playMode, setPlayModeState] = useState<PlayMode>(() => lastPlayMode);
+  const setPlayMode = useCallback((mode: PlayMode) => {
+    lastPlayMode = mode;
+    setPlayModeState(mode);
+  }, []);
   const [flapLevel, setFlapLevel] = useState(0);
   const [ridePickerOpen, setRidePickerOpen] = useState(false);
+  /* Read by the key handler, which is not rebuilt when the picker opens. */
+  const ridePickerUp = useRef(false);
+  useEffect(() => {
+    ridePickerUp.current = ridePickerOpen;
+  }, [ridePickerOpen]);
   // The local Vite preview is a test harness for both rides. Production builds
   // (including the version pushed to main) still require 1,000,000 $SEAT.
   const localTestMode = import.meta.env.DEV;
   const ufoUnlocked = localTestMode || (tokenBalance ?? 0) >= 1_000_000;
+  const ufoUnlockedRef = useRef(ufoUnlocked);
+  useEffect(() => {
+    ufoUnlockedRef.current = ufoUnlocked;
+    // A remembered saucer the wallet no longer holds the pass for goes back to the airliner.
+    if (!ufoUnlocked && !tokenBalanceLoading && game.current.phase === 'idle') setPlayMode('airliner');
+  }, [ufoUnlocked, tokenBalanceLoading, setPlayMode]);
+  /** Pick a ride, if it is one this pilot can fly. */
+  const chooseRide = useCallback((mode: PlayMode) => {
+    if (mode === 'ufo' && !ufoUnlockedRef.current) return;
+    setPlayMode(mode);
+  }, [setPlayMode]);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -437,10 +460,14 @@ export default function Landing({
   };
 
   const takeOff = useCallback(() => {
-    const current = game.current;
-    if (!ready || current.phase !== 'idle' || gone.current) return;
-    game.current = newGame(playMode);
     const g = game.current;
+    if (!ready || g.phase !== 'idle' || gone.current) return;
+    /* The same game, not a new one: at rest it has been tracking the
+       cruise's heading, attitude and height, which is where the dive starts. */
+    const mode = playMode === 'ufo' && ufoUnlockedRef.current ? 'ufo' : 'airliner';
+    if (mode !== playMode) setPlayMode(mode);
+    g.mode = mode;
+    g.flaps = 0;
     setFlapLevel(0);
     cameraLook.current.orbit = 0;
     makeSounds();
@@ -449,7 +476,7 @@ export default function Landing({
     dealWeather(g);
     setWeather(g.weather);
     setPhase('intro');
-  }, [playMode, ready]);
+  }, [playMode, setPlayMode, ready]);
   /** The secondary flight control: three detents, useful on a touch screen and on a keyboard. */
   const cycleFlaps = useCallback(() => {
     const g = game.current;
@@ -507,6 +534,18 @@ export default function Landing({
     if (wallet.address) start();
     else void connectAndFly();
   }, [playMode, ufoUnlocked, localTestMode, takeOff, wallet.address, start, connectAndFly]);
+  /* Each wallet's own "open this page in my browser" link, for a phone with
+     no wallet in the browser it is in. */
+  const [walletLinks] = useState(() => {
+    if (typeof window === 'undefined') return { phantom: '', solflare: '', backpack: '' };
+    const here = encodeURIComponent(window.location.href);
+    const ref = encodeURIComponent(window.location.origin);
+    return {
+      phantom: `https://phantom.app/ul/browse/${here}?ref=${ref}`,
+      solflare: `https://solflare.com/ul/v1/browse/${here}?ref=${ref}`,
+      backpack: `https://backpack.app/ul/v1/browse/${here}?ref=${ref}`,
+    };
+  });
   const verifyWallet = useCallback(() => {
     makeSounds();
     void wallet.connect();
@@ -757,9 +796,16 @@ export default function Landing({
         clearSplash();
         return;
       }
-      if (ridePickerOpen) {
+      if (ridePickerUp.current) {
         // The hangar owns the launch flow; Escape closes it without starting a run.
         if (e.key === 'Escape') setRidePickerOpen(false);
+        else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+          e.preventDefault();
+          chooseRide('airliner');
+        } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+          e.preventDefault();
+          chooseRide('ufo');
+        }
         return;
       }
       // The high scores window closes itself on Escape; everything else is its own.
@@ -799,7 +845,7 @@ export default function Landing({
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', drop);
     };
-  }, [start, leave, clearSplash, boost, cycleFlaps]);
+  }, [start, leave, clearSplash, boost, cycleFlaps, chooseRide]);
 
   /* The stick, for a touch screen (or a mouse): press anywhere and drag.
      Up climbs, down dives, sideways banks, measured from where the press
@@ -1040,7 +1086,7 @@ export default function Landing({
             <AircraftCarousel
               fullscreen
               mode={playMode}
-              onModeChange={setPlayMode}
+              onModeChange={chooseRide}
               ufoUnlocked={ufoUnlocked}
               tokenBalance={tokenBalance}
               balanceLoading={tokenBalanceLoading}
@@ -1053,11 +1099,39 @@ export default function Landing({
                 <strong>{playMode === 'ufo' ? 'UFO INTERCEPTOR' : 'SA350 · FLAGSHIP'}</strong>
                 <small>{playMode === 'ufo' ? 'Zero engines · maximum weird' : 'Flaps, boost and engine-out recovery'}</small>
               </div>
-              <button type="button" className="sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked}>
+              <button type="button" className="sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked} autoFocus>
                 <span>Confirm loadout</span>
                 <strong>{playMode === 'ufo' && !ufoUnlocked ? 'Hold 1M $SEAT to unlock' : wallet.address ? 'Launch flight →' : 'Connect & launch →'}</strong>
               </button>
             </div>
+            {/* Connecting failed, or there is nothing to connect: say so, and where to get one. */}
+            {!wallet.address && !localTestMode && (wallet.unavailable || wallet.error) && (
+              <div className="sa-ride-modal__wallet" role="alert">
+                {wallet.unavailable ? (
+                  <>
+                    <p>{touch ? 'No wallet here. Open this page in your wallet’s browser.' : 'No wallet found. Install Phantom, Solflare, Backpack or Nightly, then come back.'}</p>
+                    <div className="sa-ride-modal__wallet-links">
+                      {touch ? (
+                        <>
+                          <a href={walletLinks.phantom}>Open in Phantom</a>
+                          <a href={walletLinks.solflare}>Open in Solflare</a>
+                          <a href={walletLinks.backpack}>Open in Backpack</a>
+                        </>
+                      ) : (
+                        <>
+                          <a href="https://phantom.com" target="_blank" rel="noopener noreferrer">Get Phantom</a>
+                          <a href="https://solflare.com" target="_blank" rel="noopener noreferrer">Get Solflare</a>
+                          <a href="https://backpack.app" target="_blank" rel="noopener noreferrer">Get Backpack</a>
+                          <a href="https://nightly.app" target="_blank" rel="noopener noreferrer">Get Nightly</a>
+                        </>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p>{wallet.error}</p>
+                )}
+              </div>
+            )}
             <p className="sa-ride-modal__hint"><kbd>←</kbd><kbd>→</kbd> rotate fleet · choose a bay · confirm to taxi</p>
           </div>
         </div>
