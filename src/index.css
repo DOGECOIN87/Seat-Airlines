@@ -6715,3 +6715,9 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 }
 /* The browser's full screen, entered from inside the workspace. */
 .sd-full:fullscreen { width: 100%; height: 100%; }
+
+/* A tab the keyboard is on shows it, selected or not. */
+.sa-ws [data-trellis-part="tab"]:focus-visible {
+  outline: 2px solid var(--accent-deep);
+  outline-offset: -2px;
+}

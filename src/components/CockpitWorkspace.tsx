@@ -207,6 +207,8 @@ function guardScroll(root: HTMLElement): () => void {
   const onScroll = (e: Event) => {
     const box = e.target;
     if (!(box instanceof HTMLElement)) return;
+    /* The tab strip scrolls on purpose, when its tabs overflow. */
+    if (box.getAttribute('data-trellis-part') === 'tabs') return;
     if (box !== root && !box.hasAttribute('data-trellis-part') && !box.classList.contains('trellis-layer')) return;
     if (box.scrollTop) box.scrollTop = 0;
     if (box.scrollLeft) box.scrollLeft = 0;
