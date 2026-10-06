@@ -33,7 +33,7 @@ function contentSecurityPolicy(env: Record<string, string>): Plugin {
     origin(env.VITE_DIRECTORY_API),
     origin(env.VITE_BANNERS_URL),
     origin(env.VITE_HOLDERS_URL),
-    origin(env.VITE_RPC_URL),
+    origin(env.VITE_RPC_URL_PUBLIC),
     origin(env.VITE_MARKET_URL) ?? 'https://api.jup.ag',
     'https://api.open-meteo.com',
     // The plane's afterburner: the Boosts running on the token's pair (src/lib/dexBoost.ts).

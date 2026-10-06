@@ -20,6 +20,13 @@
       rel="stylesheet"
     />
     <meta name="theme-color" content="#0F1725" />
+    <!-- GitHub Pages cannot emit frame headers; this is only defense in depth.
+         The deployment headers in public/_headers are authoritative on hosts
+         that support them. -->
+    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'none'" />
+    <script>
+      if (window.top !== window.self) window.top.location = window.self.location;
+    </script>
     <meta property="og:site_name" content="Seat Airlines" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="Seat Airlines ($SEAT) — the flight simulator flown by market cap" />

@@ -111,13 +111,24 @@ await check('rpc passes the calls a wallet makes and refuses the expensive ones,
   assert.equal(up.calls.length, 0);
 });
 
-await check('send goes through Sender and answers the signature', async () => {
+await check('transaction submission is not exposed by the relay', async () => {
   const up = upstream({ result: 'sig' });
   const res = await handleHelius(req('send', { method: 'POST', body: JSON.stringify({ transaction: 'AQ==' }) }), env, cors, true, up);
-  assert.deepEqual(await res.json(), { signature: 'sig' });
-  assert.ok(up.calls[0].url.startsWith('https://sender.helius-rpc.com/fast'));
-  const none = await handleHelius(req('send', { method: 'POST', body: '{}' }), env, cors, true, up);
-  assert.equal(none.status, 400);
+  assert.equal(res.status, 404);
+  assert.equal(up.calls.length, 0);
+});
+
+await check('rpc rejects malformed calls and nested parameter abuse', () => {
+  assert.equal(rpcAllowed('{"jsonrpc":"1.0","method":"getBalance"}'), false);
+  assert.equal(rpcAllowed('{"method":"getBalance","id":{}}'), false);
+  assert.equal(rpcAllowed(`{"method":"getBalance","params":["${'x'.repeat(16 * 1024)}"]}`), false);
+});
+
+await check('wallet registration rejects arbitrary nested JSON', async () => {
+  const up = upstream();
+  const res = await handleHelius(req('waas/wallets', { method: 'POST', body: JSON.stringify({ nested: { attacker: true } }) }), env, cors, true, up);
+  assert.equal(res.status, 400);
+  assert.equal(up.calls.length, 0);
 });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

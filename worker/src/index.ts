@@ -154,6 +154,8 @@ export interface Env extends XEnv, HeliusEnv {
    * costs a metered RPC call per wallet not on the holder list. Unbound, no cap.
    */
   HOLDING_LIMIT?: RateLimit;
+  /** Caps Helius relay calls by Cloudflare source IP and route. */
+  HELIUS_LIMIT?: RateLimit;
 }
 
 
@@ -822,6 +824,11 @@ async function handle(request: Request, env: Env): Promise<Response> {
     }
 
     if (isHeliusPath(url.pathname)) {
+      if (url.pathname !== '/helius/status' && env.HELIUS_LIMIT) {
+        const source = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+        const result = await env.HELIUS_LIMIT.limit({ key: `${source}:${url.pathname}` });
+        if (!result.success) return json({ error: 'Helius relay rate limit exceeded.' }, 429, cors);
+      }
       return handleHelius(request, env, cors, trustedOrigin(env.ALLOWED_ORIGINS, request.headers.get('origin')));
     }
 
@@ -901,7 +908,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     /* One wallet's balance.
 
        ── Why the page does not read this itself ────────────────────────────
-       It used to, and that is why `VITE_RPC_URL` existed. Vite inlines every
+       It used to, and that is why a browser RPC variable existed. Vite inlines every
        VITE_ value into the bundle it ships, so an endpoint carrying an API
        key — which is what a paid RPC is — was readable by anyone who opened
        the site. The documented defence was to restrict the key by domain at
@@ -1861,35 +1868,29 @@ async function handle(request: Request, env: Env): Promise<Response> {
           return json({ error: 'That holder is in another cabin. Introductions stay within your own.' }, 403, priv);
         }
 
-        /* The PA is rationed by the day rather than by the hour, because a
-           thing said once a day is listened to and a thing said twenty times
-           is weather. The boarding pass has promised exactly this since
-           before the directory existed. */
-        if (announcing) {
-          const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-          const already = await db
-            .prepare('SELECT COUNT(*) AS said FROM messages WHERE sender = ? AND recipient = ? AND sent_at > ?')
-            .bind(me, ANNOUNCEMENT, dayAgo)
-            .first<{ said: number }>();
-          if ((already?.said ?? 0) >= ANNOUNCEMENTS_PER_DAY) {
-            return json({ error: 'One announcement a day. Use it well.' }, 429, priv);
-          }
-        }
-
+        /* Quotas live inside the INSERT rather than a preceding SELECT COUNT.
+           D1 serializes the write, so concurrent requests cannot all observe
+           the same pre-quota count and then insert. */
         const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        const recent = await db
-          .prepare('SELECT COUNT(*) AS sent FROM messages WHERE sender = ? AND sent_at > ?')
-          .bind(me, hourAgo)
-          .first<{ sent: number }>();
-        if ((recent?.sent ?? 0) >= MESSAGES_PER_HOUR) {
-          return json({ error: 'That is enough for one hour.' }, 429, priv);
-        }
-
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const message = { id: messageId(), from: me, to, body: parsed.body, sentAt: new Date().toISOString() };
-        await db
-          .prepare('INSERT INTO messages (id, sender, recipient, body, sent_at) VALUES (?, ?, ?, ?, ?)')
-          .bind(message.id, message.from, message.to, message.body, message.sentAt)
+        const announcementQuota = announcing
+          ? ' AND (SELECT COUNT(*) FROM messages WHERE sender = ? AND recipient = ? AND sent_at > ?) < ?'
+          : '';
+        const binds = announcing
+          ? [message.id, message.from, message.to, message.body, message.sentAt, message.from, hourAgo, MESSAGES_PER_HOUR, message.from, ANNOUNCEMENT, dayAgo, ANNOUNCEMENTS_PER_DAY]
+          : [message.id, message.from, message.to, message.body, message.sentAt, message.from, hourAgo, MESSAGES_PER_HOUR];
+        const inserted = await db
+          .prepare(
+            `INSERT INTO messages (id, sender, recipient, body, sent_at)
+             SELECT ?, ?, ?, ?, ?
+             WHERE (SELECT COUNT(*) FROM messages WHERE sender = ? AND sent_at > ?) < ?${announcementQuota}`,
+          )
+          .bind(...binds)
           .run();
+        if (!inserted.meta.changes) {
+          return json({ error: announcing ? 'One announcement a day. Use it well.' : 'That is enough for one hour.' }, 429, priv);
+        }
 
         return json(message, 200, priv);
       }

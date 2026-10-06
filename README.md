@@ -309,7 +309,7 @@ Every setting is optional, and every `VITE_` value is **public** — Vite writes
 | `VITE_DOCS_URL` | Where the footer's *Docs on GitBook* link goes |
 
 > [!WARNING]
-> Leave `VITE_RPC_URL` unset in production. Its URL — key and all — would ship to every visitor. The Worker holds the RPC endpoint as a secret instead.
+> Leave browser RPC configuration unset in production when a Worker is available. If a fallback is needed, use only an unkeyed `VITE_RPC_URL_PUBLIC`; keyed RPC endpoints belong in the Worker secret.
 
 The full list, and the Worker's bindings and secrets: [Configuration](docs/for-developers/configuration.md).
 

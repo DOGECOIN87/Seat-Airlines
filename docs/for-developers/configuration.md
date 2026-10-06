@@ -22,7 +22,7 @@ Everything is optional — a build with none of them set flies the committed tok
 | `VITE_MARKET_URL` | Jupiter's `tokens/v2/search` for the mint | Any JSON endpoint carrying market cap, the five-minute change and the holder count. Fields are found by name, at any depth. |
 | `VITE_MANIFEST_SIZE` | 178 — the whole cabin | How many holders are seated. Must match the Worker's `MANIFEST_SIZE`. |
 | `VITE_DOCS_URL` | these docs, published on GitBook | Where the footer's **Docs on GitBook** link goes. Set it only if the site's address changes — the committed default in `src/lib/docs.ts` is the published site. |
-| `VITE_RPC_URL` | none | A Solana RPC the **browser** calls. **Leave it unset in production**: its URL, key and all, ships to every visitor. When set, the page also uses it as a fallback for reading holders. |
+| `VITE_RPC_URL_PUBLIC` | none | An intentionally public, unkeyed Solana RPC the **browser** may call as a fallback. Never put an API key, token, secret, or credential query parameter in it; CI rejects those values. |
 
 A blank variable counts as unset, so passing an empty repository variable through the deploy workflow is harmless.
 
