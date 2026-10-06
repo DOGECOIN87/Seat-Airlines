@@ -27,9 +27,20 @@
 import { planUfo, UFO, type DodgeLock, type UfoPlan } from './ufo';
 import { newAir, startAir, stepAir, type Air } from './thermals';
 import { newLogos, type LogoField } from './logos';
+import { newRams, RAMMER, type RamField } from './rammer';
 
 export type Phase = 'idle' | 'intro' | 'flying' | 'crashed';
 export type FlightMode = 'airliner' | 'ufo';
+/**
+ * How the saucer's stick moves it, chosen on the selector that is the
+ * airliner's flaps: flown like an aircraft, nose and bank; straight up and
+ * down, turning where it hangs; or sliding sideways, the stick's up and
+ * down for its speed.
+ */
+export type Drive = 'forward' | 'vertical' | 'strafe';
+export const DRIVES: readonly Drive[] = ['forward', 'vertical', 'strafe'];
+/** Which way a dash goes: the stick's way, snapped to one of five. */
+export type DashDir = 'forward' | 'up' | 'down' | 'left' | 'right';
 
 /** Feet in a metre. */
 export const FEET = 3.281;
@@ -123,6 +134,20 @@ export interface FlightGame {
   rollRate: number;
   /** Trailing-edge flaps, in three useful detents: 0, half and full. */
   flaps: number;
+  /** The saucer's drive mode (see Drive). */
+  drive: Drive;
+  /** The stick as `fly` last read it, gamepad and all: a dash goes its way. */
+  input: Stick;
+  /** The saucer's sideways speed, m/s, right positive, before any dash. */
+  strafe: number;
+  /** The saucer's climb rate in the vertical drive, m/s, eased toward the stick's. */
+  lift: number;
+  /** The way the dash under way is going, or the last one went. */
+  dash: DashDir;
+  /** 0–1: how scrambled the saucer's field is by an airliner hitting it. */
+  scramble: number;
+  /** The airliners coming for the saucer (see rammer.ts). */
+  rams: RamField;
   /** Band-limited noise, -1 to 1: the buffet in roll and pitch, and the fire surging. */
   buffetRoll: number;
   buffetPitch: number;
@@ -231,6 +256,23 @@ export const BOOST = {
   extraClimb: 110,
 } as const;
 
+/**
+ * The saucer's dash: what the boost is on it. Short, and faster than
+ * anything with wings: the way it is going is the stick's, snapped to
+ * straight ahead, straight up or down, or straight out to one side.
+ */
+export const DASH = {
+  seconds: 0.8,
+  /** Metres a second it adds, at full power, each way. */
+  forward: 2600,
+  vertical: 1000,
+  strafe: 1500,
+  /** Less stick than this, either way, and it goes straight ahead. */
+  deadZone: 0.3,
+  /** A dash down stops short of the ground: metres it holds off at. */
+  floor: 30,
+} as const;
+
 /** How rough the air is, 0–1, in each weather. */
 export const TURBULENCE: Record<GameWeather, number> = { clear: 0.12, rain: 0.5, storm: 1 };
 
@@ -279,6 +321,13 @@ export const newGame = (mode: FlightMode = 'airliner'): FlightGame => ({
   speed: 120,
   rollRate: 0,
   flaps: 0,
+  drive: 'forward',
+  input: { x: 0, y: 0 },
+  strafe: 0,
+  lift: 0,
+  dash: 'forward',
+  scramble: 0,
+  rams: newRams(),
   buffetRoll: 0,
   buffetPitch: 0,
   surge: 0,
@@ -346,6 +395,10 @@ export function dealFailures(g: FlightGame): void {
   g.dodged = false;
   g.extra = 0;
   g.ufo = g.mode === 'ufo' || asked('noufo') ? null : planUfo(asked('ufohit') ? 'hit' : asked('ufo') ? 'seen' : 'none');
+  g.rams = newRams();
+  // `?ram` on the address: the first airliner straight away, for anybody testing the saucer.
+  if (asked('ram')) g.rams.next = 1;
+  g.scramble = 0;
 }
 
 /**
@@ -380,15 +433,63 @@ export const airspeedAt = (agl: number): number => Math.min(150, 122 + Math.max(
 
 export const clampUnit = (v: number): number => Math.max(-1, Math.min(1, v));
 
+/** The saucer's dash, as metres a second ahead, to the right and up, at the power it is at. */
+export function dashVelocity(g: FlightGame): { ahead: number; right: number; up: number } {
+  const p = g.mode === 'ufo' ? g.boostPower : 0;
+  if (p < 1e-3) return { ahead: 0, right: 0, up: 0 };
+  switch (g.dash) {
+    case 'up': return { ahead: 0, right: 0, up: DASH.vertical * p };
+    // Straight down, braking as the ground comes up: it holds off at DASH.floor.
+    case 'down': return { ahead: 0, right: 0, up: -Math.min(DASH.vertical * p, Math.max(0, g.agl - DASH.floor) * 6) };
+    case 'left': return { ahead: 0, right: -DASH.strafe * p, up: 0 };
+    case 'right': return { ahead: 0, right: DASH.strafe * p, up: 0 };
+    default: return { ahead: DASH.forward * p, right: 0, up: 0 };
+  }
+}
+
 /** What the ground goes by at: the airspeed, and with both engines whatever a burn adds to it. */
 export const groundSpeed = (g: FlightGame): number =>
-  g.mode === 'ufo' ? g.speed : g.failed ? g.speed : airspeedAt(g.agl) + BOOST.dash * g.boostPower;
+  g.mode === 'ufo' ? g.speed + dashVelocity(g).ahead : g.failed ? g.speed : airspeedAt(g.agl) + BOOST.dash * g.boostPower;
+
+/**
+ * Over the ground: how fast, and which way. The same as the speed and the
+ * heading for anything with wings; the saucer can slide sideways too.
+ */
+export function travel(g: FlightGame): { speed: number; heading: number } {
+  const ahead = groundSpeed(g);
+  const right = g.mode === 'ufo' ? g.strafe + dashVelocity(g).right : 0;
+  if (Math.abs(right) < 1e-3) return { speed: ahead, heading: g.heading };
+  return {
+    speed: Math.hypot(ahead, right),
+    heading: (g.heading + Math.atan2(right, ahead) / DEG + 360) % 360,
+  };
+}
+
+/** Which way a dash fired now would go: the stick's way, snapped to an axis; no stick, straight ahead. */
+export function dashFor(stick: Stick): DashDir {
+  const ax = Math.abs(stick.x);
+  const ay = Math.abs(stick.y);
+  if (Math.max(ax, ay) < DASH.deadZone) return 'forward';
+  if (ay >= ax) return stick.y > 0 ? 'up' : 'down';
+  return stick.x > 0 ? 'right' : 'left';
+}
+
+/** The saucer's next drive mode, round the three. */
+export function cycleDrive(g: FlightGame): Drive {
+  g.drive = DRIVES[(DRIVES.indexOf(g.drive) + 1) % DRIVES.length];
+  return g.drive;
+}
 
 /** Light the afterburners, if there is a burn in the tank and one is not already going. */
 export function fireBoost(g: FlightGame): boolean {
   if (g.phase !== 'flying' || g.boost > 0 || g.boosts < 1) return false;
   g.boosts -= 1;
-  g.boost = BOOST.seconds;
+  if (g.mode === 'ufo') {
+    g.dash = dashFor(g.input);
+    g.boost = DASH.seconds;
+  } else {
+    g.boost = BOOST.seconds;
+  }
   return true;
 }
 
@@ -397,7 +498,9 @@ export function stepBoost(g: FlightGame, dt: number): void {
   g.boost = Math.max(0, g.boost - dt);
   if (g.boost === 0) g.boosts = Math.min(BOOST.charges, g.boosts + dt / BOOST.recharge);
   const want = g.boost > 0 ? 1 : 0;
-  g.boostPower += (want - g.boostPower) * (1 - Math.exp(-(want ? 7 : 2.2) * dt));
+  // The saucer's dash is on and off like a switch; an afterburner lights and dies down.
+  const rate = g.mode === 'ufo' ? (want ? 22 : 7) : want ? 7 : 2.2;
+  g.boostPower += (want - g.boostPower) * (1 - Math.exp(-rate * dt));
 }
 
 const DEG = Math.PI / 180;
@@ -450,6 +553,69 @@ const drift = (v: number, rate: number, dt: number) => v + (Math.random() * 2 - 
  * as the wings are level, so it is worth most to whoever is flying best,
  * and the smoother air over the wing gives the stick back some of its bite.
  */
+/**
+ * The saucer, flown. Not an airliner with a different skin: its pulse field
+ * constantly bends the flight line, so good pilots surf the pulse and timid
+ * inputs get thrown about. The drive mode decides what the stick does (see
+ * Drive); a dash, whichever way it goes, goes on top of all of it.
+ *
+ * An airliner hitting it scrambles the field: the stick turns away from the
+ * way it is pushed, by up to most of a half-turn and back, it shakes, the
+ * saucer spins and sinks, and the answer to the stick goes soft — wearing
+ * off over several seconds.
+ */
+function flySaucer(g: FlightGame, ix0: number, iy0: number, dt: number, rough: number): { vs: number; stall: number } {
+  const t = travel(g);
+  const u = stepAir(g.air, dt, t.speed, t.heading, g.alt);
+  g.updraft = u;
+  g.scramble = Math.max(0, g.scramble - dt / RAMMER.scrambleSeconds);
+  const sc = g.scramble;
+  const twist = sc * Math.PI * 0.85 * Math.sin(g.clock * 1.7 + 0.6);
+  const ix = clampUnit(ix0 * Math.cos(twist) - iy0 * Math.sin(twist) + sc * 0.55 * Math.sin(g.clock * 7.3));
+  const iy = clampUnit(ix0 * Math.sin(twist) + iy0 * Math.cos(twist) + sc * 0.45 * Math.sin(g.clock * 5.1 + 1.9));
+  const pulse = Math.sin(g.clock * 2.35) * 0.62 + Math.sin(g.clock * 5.8 + 1.1) * 0.28;
+  const snap = Math.sin(g.clock * 8.7) * 0.1;
+  const k = 1 - Math.exp(-5.6 * (1 - 0.6 * sc) * dt);
+  const ease = 1 - Math.exp(-2.4 * dt);
+  const shake = sc * 30 * Math.sin(g.clock * 6.1);
+  const gust = g.gustRoll * 20 * rough;
+  let vs: number;
+  if (g.drive === 'vertical') {
+    // Straight up and down, held level; sideways turns it where it hangs.
+    g.pitch += ((pulse * 2 + snap) - g.pitch) * k;
+    g.bank += ((ix * 14 + pulse * 6 + snap * 5 + gust + shake) - g.bank) * k;
+    g.heading += ix * 75 * dt;
+    g.speed += ((70 + pulse * 10) - g.speed) * ease;
+    g.strafe += (0 - g.strafe) * ease;
+    g.lift += ((iy * 190 + pulse * 14) - g.lift) * k;
+    vs = g.lift;
+  } else if (g.drive === 'strafe') {
+    // Sideways, the nose held where it points; up and down on the stick is faster and slower.
+    g.lift += (0 - g.lift) * ease;
+    g.pitch += ((-iy * 6 + pulse * 2) - g.pitch) * k;
+    g.bank += ((ix * 28 + pulse * 8 + snap * 6 + gust + shake) - g.bank) * k;
+    g.heading += pulse * 4 * dt;
+    g.speed += ((205 + iy * 130 + pulse * 18) - g.speed) * ease;
+    g.strafe += ((ix * 220 + pulse * 12) - g.strafe) * k;
+    vs = pulse * 14 + g.gustLift * 22 * rough;
+  } else {
+    // Flown like an aircraft: the nose and the bank, and the bank turns it.
+    g.lift += (0 - g.lift) * ease;
+    g.strafe += (0 - g.strafe) * ease;
+    g.pitch += ((iy * GAME.maxPitch * 1.65 + pulse * 3.8 + snap * 2) - g.pitch) * k;
+    g.bank += (ix * GAME.maxBank * 1.85 + pulse * 13 + snap * 11 + gust + shake - g.bank) * k;
+    g.heading += g.bank * GAME.turnRate * 1.7 * dt;
+    g.speed += ((205 + pulse * 18) - g.speed) * ease;
+    vs = Math.sin(g.pitch * DEG) * g.speed * 2.4 + pulse * 16 + g.gustLift * 22 * rough;
+  }
+  // Scrambled, it spins and sinks.
+  g.heading = (g.heading + sc * 85 * Math.sin(g.clock * 0.9) * dt + 360) % 360;
+  const level = Math.max(0, Math.cos(g.bank * DEG));
+  vs += u * GAME.draftLift * GAME.draftClimb * level - sc * 45;
+  vs = Math.max(-GAME.maxClimb * 1.3, Math.min(GAME.maxClimb * 1.8, vs));
+  return { vs: vs + dashVelocity(g).up, stall: 0 };
+}
+
 export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; stall: number } {
   const lost = g.wingLost;
   // In the UFO's slow motion the aeroplane answers the stick sharply and steadily: 0 normally, 1 in it.
@@ -459,28 +625,8 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   const rough = TURBULENCE[g.weather];
   g.gustRoll = drift(g.gustRoll, 1.8, dt);
   g.gustLift = drift(g.gustLift, 0.9, dt);
-  if (g.mode === 'ufo') {
-    const u = stepAir(g.air, dt, g.speed, g.heading, g.alt);
-    g.updraft = u;
-    // The saucer is not an airliner with a different skin: its pulse field
-    // constantly bends the flight line. Good pilots surf the pulse; timid
-    // inputs get thrown into a bank and lose height.
-    const pulse = Math.sin(g.clock * 2.35) * 0.62 + Math.sin(g.clock * 5.8 + 1.1) * 0.28;
-    const snap = Math.sin(g.clock * 8.7) * 0.1;
-    const response = 5.6 * (1 + 1.5 * assist);
-    g.pitch += ((iy * GAME.maxPitch * 1.65 + pulse * 3.8 + snap * 2 + g.flaps * 2) - g.pitch) * (1 - Math.exp(-response * dt));
-    g.bank += (ix * GAME.maxBank * 1.85 + pulse * 13 + snap * 11 + g.gustRoll * 20 * rough - g.bank) * (1 - Math.exp(-response * dt));
-    g.heading = (g.heading + g.bank * GAME.turnRate * 1.7 * dt + 360) % 360;
-    g.speed = 205 + pulse * 18 + power * (BOOST.dash + 70);
-    const level = Math.max(0, Math.cos(g.bank * DEG));
-    const vs = Math.sin(g.pitch * DEG) * g.speed * 2.4
-      + u * GAME.draftLift * GAME.draftClimb * level
-      + g.flaps * 12
-      + g.gustLift * 22 * rough
-      + pulse * 16
-      + power * BOOST.lift;
-    return { vs: Math.max(-GAME.maxClimb * 1.3, Math.min(GAME.maxClimb * 1.8, vs)), stall: 0 };
-  }
+  g.input = { x: ix, y: iy };
+  if (g.mode === 'ufo') return flySaucer(g, ix, iy, dt, rough);
   if (g.failed === 0) {
     const u0 = stepAir(g.air, dt, groundSpeed(g), g.heading, g.alt);
     g.updraft = u0;

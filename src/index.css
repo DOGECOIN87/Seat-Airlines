@@ -7040,3 +7040,79 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   .sa-aircraft-picker__slot-badge { font-size: 7px; letter-spacing: 0.08em; }
   .sa-aircraft-picker__aircraft-meta small { font-size: 7px; }
 }
+
+/* ── The saucer's instruments (UfoInstruments) ─────────────────────────
+   The same cluster and sizes as the airliner's, in the builders' colours:
+   a green that glows, a violet, and faces that are nearly black. */
+.sa-gauges--xeno .sa-gauges__row {
+  background: linear-gradient(180deg, rgba(22, 8, 40, 0.78), rgba(4, 2, 10, 0.86));
+  box-shadow:
+    inset 0 1px 0 rgba(170, 255, 210, 0.12),
+    inset 0 0 0 1px rgba(150, 110, 255, 0.28),
+    0 0 26px rgba(120, 255, 190, 0.12),
+    0 18px 40px rgba(0, 0, 0, 0.45);
+}
+.sa-xeno { filter: drop-shadow(0 0 4px rgba(120, 255, 190, 0.35)); }
+.sa-xeno__rim { fill: #05030B; stroke: rgba(160, 120, 255, 0.55); stroke-width: 1; }
+.sa-xeno__segment { fill: none; stroke: #6CFFB4; stroke-width: 1.4; stroke-linecap: round; opacity: 0.55; }
+.sa-xeno__band { fill: none; stroke: #6CFFB4; stroke-width: 2.6; opacity: 0.45; }
+.sa-xeno__band.is-hot { stroke: #D27BFF; opacity: 0.85; }
+.sa-xeno__band.is-down { stroke: #D27BFF; opacity: 0.45; }
+.sa-xeno__orbit { fill: none; stroke: rgba(108, 255, 180, 0.22); stroke-width: 0.6; stroke-dasharray: 1.5 2.5; }
+.sa-xeno__tick { stroke: rgba(108, 255, 180, 0.5); stroke-width: 0.9; }
+.sa-xeno__tick.is-major { stroke: #B7FFDA; stroke-width: 1.5; }
+.sa-xeno__glyph { fill: none; stroke: #9DFFD0; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.sa-xeno__needle { fill: #E9FFF4; stroke: rgba(108, 255, 180, 0.9); stroke-width: 0.6; filter: drop-shadow(0 0 2px #6CFFB4); }
+.sa-xeno__hub { fill: #12081F; stroke: #D27BFF; stroke-width: 1.3; }
+.sa-xeno__core { fill: #6CFFB4; }
+.sa-xeno__read {
+  fill: #CFFFE7;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: #05030B;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.sa-xeno__read.is-small { font-size: 9px; }
+.sa-xeno__grid { stroke: rgba(108, 255, 180, 0.35); stroke-width: 0.6; }
+.sa-xeno__horizon { stroke: #6CFFB4; stroke-width: 1.4; filter: drop-shadow(0 0 2px #6CFFB4); }
+.sa-xeno__dot { fill: #B7FFDA; }
+.sa-xeno__index { fill: #D27BFF; }
+.sa-xeno__craft { fill: rgba(210, 123, 255, 0.25); stroke: #E7C2FF; stroke-width: 1.4; }
+.sa-xeno__craft.is-dome { fill: none; }
+.sa-xeno__glass { fill: none; stroke: rgba(0, 0, 0, 0.6); stroke-width: 2.5; }
+.sa-xeno__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(10, 4, 20, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(150, 110, 255, 0.4);
+  color: #CFFFE7;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+.sa-xeno__lamp { width: 7px; height: 7px; border-radius: 50%; background: #6CFFB4; box-shadow: 0 0 8px rgba(108, 255, 180, 0.9); }
+.sa-xeno__script { width: 1.15rem; height: 0.6rem; fill: none; stroke: #9DFFD0; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; }
+.sa-xeno__state.is-scrambled { background: rgba(80, 6, 40, 0.86); box-shadow: inset 0 0 0 1px rgba(255, 90, 160, 0.8), 0 0 16px rgba(255, 60, 140, 0.35); color: #FFD3E8; }
+.sa-xeno__state.is-scrambled .sa-xeno__lamp { background: #FF5AA0; box-shadow: 0 0 10px rgba(255, 90, 160, 0.95); animation: sa-hud-warn 0.6s steps(1, end) infinite; }
+.sa-xeno__state.is-scrambled .sa-xeno__script { stroke: #FFB3D6; }
+@media (prefers-reduced-motion: reduce) { .sa-xeno__state.is-scrambled .sa-xeno__lamp { animation: none; } }
+
+/* ── The saucer's drive selector, on the flaps' button ── */
+.sa-flaps--drive { background: linear-gradient(145deg, rgba(46, 20, 84, 0.9), rgba(10, 4, 22, 0.86)); box-shadow: inset 0 0 0 1px rgba(150, 110, 255, 0.55), 0 8px 26px rgba(0, 0, 0, 0.28), 0 0 18px rgba(108, 255, 180, 0.12); }
+.sa-flaps--drive .sa-flaps__wing { color: #6CFFB4; transform: none; font-size: 1.25rem; }
+.sa-flaps--drive.is-vertical .sa-flaps__wing { color: #D27BFF; }
+.sa-flaps--drive.is-strafe .sa-flaps__wing { color: #7FE3F7; }
+.sa-flaps__detents { grid-column: 1 / -1; display: flex; gap: 3px; margin-top: 0.35rem; }
+.sa-flaps__detents i { flex: 1; height: 3px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); }
+.sa-flaps__detents i.is-on { background: linear-gradient(90deg, #6CFFB4, #D27BFF); box-shadow: 0 0 6px rgba(108, 255, 180, 0.6); }

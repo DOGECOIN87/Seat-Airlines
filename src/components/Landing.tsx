@@ -19,8 +19,10 @@ import { formatCap, type BandState } from '../lib/flightModel';
 import type { SkyState } from '../lib/sky';
 import type { ManualControls } from '../lib/manualControls';
 import {
-  blastAltitude, BOOST, clampUnit, dealWeather, FEET, fireBoost, newGame, type Cause, type GameWeather, type Phase,
+  blastAltitude, BOOST, clampUnit, cycleDrive, dealWeather, DRIVES, FEET, fireBoost, newGame,
+  type Cause, type Drive, type GameWeather, type Phase,
 } from '../lib/landingGame';
+import { RAMMER } from '../lib/rammer';
 import { LOGOS } from '../lib/logos';
 import { createSfx, type Sfx } from '../lib/sfx';
 import {
@@ -30,6 +32,7 @@ import {
 import { recordVideo, videoType } from '../lib/shareVideo';
 import { connectX, disconnectX, onXLinkChange, postToX, xStatus, type XStatus } from '../lib/xPost';
 import FlightInstruments, { type EngineState } from './FlightInstruments';
+import UfoInstruments from './UfoInstruments';
 import { UFO } from '../lib/ufo';
 import { fetchBoard, hasBoard, keepBest, postScore, readBest, startRun, type BoardEntry, type Posted } from '../lib/scoresApi';
 import type { WalletState } from '../lib/useWallet';
@@ -116,8 +119,19 @@ const KEYS: Record<string, readonly [number, number]> = {
 
 /** Keys that light the afterburners. */
 const BOOST_KEYS = new Set(['Space', 'KeyB', 'ShiftLeft', 'ShiftRight']);
+/** What goes across the middle of the screen about a UFO — or, in UFO mode, an airliner. */
+type UfoCaption = 'warn' | 'hit' | 'dodged' | 'ram-warn' | 'ram-hit' | 'ram-dodged';
 /** The ride flown last, kept across the remount that Play again does. */
 let lastPlayMode: PlayMode = 'airliner';
+/** The saucer's drive modes, as the selector shows them. */
+const DRIVE_NAME: Record<Drive, { short: string; long: string; icon: string }> = {
+  forward: { short: 'FWD', long: 'Forward flight', icon: '➤' },
+  vertical: { short: 'VERT', long: 'Straight up and down', icon: '⇅' },
+  strafe: { short: 'SIDE', long: 'Strafe sideways', icon: '⇆' },
+};
+/** Where an airliner is coming from, in words, from its bearing off the nose. */
+const fromWords = (bearing: number) =>
+  Math.abs(bearing) < 30 ? 'dead ahead' : Math.abs(bearing) > 150 ? 'from behind' : bearing > 0 ? 'from the right' : 'from the left';
 /** Seconds between two logos for the second to count as a run. */
 const LOGO_RUN = 4;
 
@@ -188,6 +202,11 @@ export default function Landing({
     setPlayModeState(mode);
   }, []);
   const [flapLevel, setFlapLevel] = useState(0);
+  /** The saucer's drive mode, for the selector (the game holds the real one). */
+  const [drive, setDrive] = useState<Drive>('forward');
+  /** An airliner hit the saucer: its field is scrambled for a while. */
+  const [scrambled, setScrambled] = useState(false);
+  const scrambleTimer = useRef<number | null>(null);
   const [ridePickerOpen, setRidePickerOpen] = useState(false);
   /* Read by the key handler, which is not rebuilt when the picker opens. */
   const ridePickerUp = useRef(false);
@@ -243,10 +262,10 @@ export default function Landing({
   /** The UFO took a wing: which. */
   const [wingHit, setWingHit] = useState<-1 | 1 | null>(null);
   /** What the UFO is doing, said across the middle of the screen while it matters. */
-  const [ufoCaption, setUfoCaption] = useState<{ kind: 'warn' | 'hit' | 'dodged'; side?: -1 | 1 } | null>(null);
+  const [ufoCaption, setUfoCaption] = useState<{ kind: UfoCaption; side?: -1 | 1; from?: string } | null>(null);
   const captionTimer = useRef<number | null>(null);
-  const sayUfo = useCallback((kind: 'warn' | 'hit' | 'dodged', side?: -1 | 1, ms = 3000) => {
-    setUfoCaption({ kind, side });
+  const sayUfo = useCallback((kind: UfoCaption, side?: -1 | 1, ms = 3000, from?: string) => {
+    setUfoCaption({ kind, side, from });
     if (captionTimer.current !== null) window.clearTimeout(captionTimer.current);
     captionTimer.current = window.setTimeout(() => setUfoCaption(null), ms);
     timers.current.push(captionTimer.current);
@@ -468,7 +487,9 @@ export default function Landing({
     if (mode !== playMode) setPlayMode(mode);
     g.mode = mode;
     g.flaps = 0;
+    g.drive = 'forward';
     setFlapLevel(0);
+    setDrive('forward');
     cameraLook.current.orbit = 0;
     makeSounds();
     g.phase = 'intro';
@@ -477,10 +498,17 @@ export default function Landing({
     setWeather(g.weather);
     setPhase('intro');
   }, [playMode, setPlayMode, ready]);
-  /** The secondary flight control: three detents, useful on a touch screen and on a keyboard. */
+  /**
+   * The secondary control, on F or its button: the flaps' three detents on
+   * the airliner, and on the saucer, its drive mode.
+   */
   const cycleFlaps = useCallback(() => {
     const g = game.current;
     if (g.phase !== 'intro' && g.phase !== 'flying') return;
+    if (g.mode === 'ufo') {
+      setDrive(cycleDrive(g));
+      return;
+    }
     const next = g.flaps < 0.25 ? 0.5 : g.flaps < 0.75 ? 1 : 0;
     g.flaps = next;
     setFlapLevel(next);
@@ -594,6 +622,29 @@ export default function Landing({
     setStruck(true);
     timers.current.push(window.setTimeout(() => setStruck(false), 700));
     timers.current.push(window.setTimeout(() => setBlasted(false), 900));
+  }, [sayUfo]);
+  /* UFO mode: the airline's own aeroplanes, coming for the saucer. */
+  const onRamWarn = useCallback((bearing: number) => {
+    sayUfo('ram-warn', undefined, 2600, fromWords(bearing));
+    sfx.current?.chime(1);
+  }, [sayUfo]);
+  const onRamHit = useCallback((side: -1 | 1) => {
+    sayUfo('ram-hit', side, 3200);
+    sfx.current?.thunder(150);
+    setBlasted(true);
+    setScrambled(true);
+    if (scrambleTimer.current !== null) window.clearTimeout(scrambleTimer.current);
+    scrambleTimer.current = window.setTimeout(() => setScrambled(false), RAMMER.scrambleSeconds * 1000);
+    timers.current.push(scrambleTimer.current);
+    timers.current.push(window.setTimeout(() => setBlasted(false), 900));
+  }, [sayUfo]);
+  const onRamDodge = useCallback(() => {
+    sayUfo('ram-dodged', undefined, 2400);
+    const wow = sounds.current?.wow;
+    if (wow) {
+      wow.currentTime = 0;
+      void wow.play().catch(() => {});
+    }
   }, [sayUfo]);
   const onDodge = useCallback(() => {
     sayUfo('dodged', undefined, 2800);
@@ -964,6 +1015,9 @@ export default function Landing({
               onUfoWarn={onUfoWarn}
               onStrike={onStrike}
               onDodge={onDodge}
+              onRamWarn={onRamWarn}
+              onRamHit={onRamHit}
+              onRamDodge={onRamDodge}
               onCrash={onCrash}
               onLogo={onLogo}
               onThunder={onThunder}
@@ -1097,7 +1151,7 @@ export default function Landing({
               <div>
                 <span className="sa-ride-modal__console-label">Selected loadout</span>
                 <strong>{playMode === 'ufo' ? 'UFO INTERCEPTOR' : 'SA350 · FLAGSHIP'}</strong>
-                <small>{playMode === 'ufo' ? 'Zero engines · maximum weird' : 'Flaps, boost and engine-out recovery'}</small>
+                <small>{playMode === 'ufo' ? 'Three drive modes · dash any way · airliners inbound' : 'Flaps, boost and engine-out recovery'}</small>
               </div>
               <button type="button" className="sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked} autoFocus>
                 <span>Confirm loadout</span>
@@ -1153,7 +1207,7 @@ export default function Landing({
           <div className="sa-hud__top">
             {/* One slim strip: the height, the brief (or what has gone wrong), and the points. */}
             <div
-              className={`sa-strip${failure || wingHit ? ` is-alert${
+              className={`sa-strip${failure || wingHit || scrambled ? ` is-alert${
                 failure ? (failure.cause === 'lightning' && !failure.both ? ' is-struck' : '') : ' is-ufo'}` : ''}`}
             >
               <div className="sa-strip__cell">
@@ -1164,15 +1218,15 @@ export default function Landing({
                 </span>
               </div>
               <div className="sa-strip__mid">
-                {failure || wingHit ? (
+                {failure || wingHit || scrambled ? (
                   <span className="sa-strip__alert" role="alert">
                     <span className="sa-strip__key">
                       {!failure
-                        ? 'UFO strike'
+                        ? (wingHit ? 'UFO strike' : 'Airliner impact')
                         : failure.both ? 'Both engines' : failure.cause === 'lightning' ? 'Lightning strike' : 'Master warning'}
                     </span>
                     <span className="sa-strip__alarm">
-                      {!failure ? 'Wing damage' : failure.both ? 'ENG 1 · 2 fire' : `ENG ${engineNo} fire`}
+                      {!failure ? (wingHit ? 'Wing damage' : 'Field scrambled') : failure.both ? 'ENG 1 · 2 fire' : `ENG ${engineNo} fire`}
                     </span>
                   </span>
                 ) : (
@@ -1223,13 +1277,23 @@ export default function Landing({
               className={`sa-hud__bonus sa-hud__bonus--ufo is-${ufoCaption.kind}`}
               aria-live="assertive"
             >
-              {ufoCaption.kind === 'warn' ? 'Dodge!' : ufoCaption.kind === 'hit' ? 'UFO strike' : `Dodged +${UFO.dodgeBonus.toLocaleString('en-US')}`}
+              {{
+                warn: 'Dodge!',
+                hit: 'UFO strike',
+                dodged: `Dodged +${UFO.dodgeBonus.toLocaleString('en-US')}`,
+                'ram-warn': 'Airliner inbound',
+                'ram-hit': 'Rammed',
+                'ram-dodged': `Near miss +${RAMMER.bonus.toLocaleString('en-US')}`,
+              }[ufoCaption.kind]}
               <small>
-                {ufoCaption.kind === 'warn'
-                  ? 'climb, dive or bank away'
-                  : ufoCaption.kind === 'hit'
-                    ? `${ufoCaption.side === -1 ? 'left' : 'right'} wing gone`
-                    : 'it missed'}
+                {{
+                  warn: 'climb, dive or bank away',
+                  hit: `${ufoCaption.side === -1 ? 'left' : 'right'} wing gone`,
+                  dodged: 'it missed',
+                  'ram-warn': `${ufoCaption.from ?? ''} · boost to dash clear`,
+                  'ram-hit': 'field scrambled · controls unstable',
+                  'ram-dodged': 'it missed',
+                }[ufoCaption.kind]}
               </small>
             </p>
           )}
@@ -1257,10 +1321,12 @@ export default function Landing({
           {!failure && (phase === 'intro' || phase === 'flying') && (
             <p className="sa-hud__help">
               {touch ? (
-                playMode === 'ufo' ? 'Surf the pulse field · tap boost to dash · fly through logos' : 'Drag up to climb · sideways to turn · tap flaps · fly through logos'
+                playMode === 'ufo' ? 'Drag to steer · Drive changes how · boost dashes the way you drag' : 'Drag up to climb · sideways to turn · tap flaps · fly through logos'
               ) : (
                 <>
-                  {playMode === 'ufo' ? <><kbd>WASD</kbd> surf the pulse field · <kbd>Space</kbd> dash · </> : <><kbd>WASD</kbd> / <kbd>left stick</kbd> fly · <kbd>F</kbd> flaps · </>}<kbd>right mouse</kbd> / <kbd>right stick</kbd> look {playMode === 'ufo' ? '· fly through logos' : <>· <kbd>Space</kbd> boost · fly through logos</>}
+                  {playMode === 'ufo'
+                    ? <><kbd>WASD</kbd> steer · <kbd>F</kbd> drive mode · <kbd>Space</kbd> dash the way you steer · <kbd>right mouse</kbd> look</>
+                    : <><kbd>WASD</kbd> / <kbd>left stick</kbd> fly · <kbd>F</kbd> flaps · <kbd>right mouse</kbd> / <kbd>right stick</kbd> look · <kbd>Space</kbd> boost · fly through logos</>}
                 </>
               )}
             </p>
@@ -1268,7 +1334,9 @@ export default function Landing({
         </div>
       )}
 
-      {inGame && phase !== 'crashed' && <FlightInstruments hud={hud} engines={engines} />}
+      {inGame && phase !== 'crashed' && (playMode === 'ufo'
+        ? <UfoInstruments hud={hud} drive={drive} scrambled={scrambled} />
+        : <FlightInstruments hud={hud} engines={engines} />)}
       {inGame && phase !== 'crashed' && (
         <button
           ref={hud.boost}
@@ -1296,7 +1364,32 @@ export default function Landing({
           </span>
         </button>
       )}
-      {inGame && phase !== 'crashed' && (
+      {inGame && phase !== 'crashed' && playMode === 'ufo' && (
+        /* The saucer has no flaps: the same button picks what its stick does. */
+        <button
+          type="button"
+          className={`sa-flaps sa-flaps--drive is-${drive}`}
+          aria-label={`Drive mode: ${DRIVE_NAME[drive].long}. Change`}
+          title="Drive mode (F)"
+          disabled={phase !== 'flying' && phase !== 'intro'}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            cycleFlaps();
+          }}
+          onClick={(e) => {
+            if (e.detail === 0) cycleFlaps();
+          }}
+        >
+          <span className="sa-flaps__wing" aria-hidden>{DRIVE_NAME[drive].icon}</span>
+          <span className="sa-flaps__label">Drive</span>
+          <strong>{DRIVE_NAME[drive].short}</strong>
+          <span className="sa-flaps__detents" aria-hidden>
+            {DRIVES.map((d) => <i key={d} className={d === drive ? 'is-on' : undefined} />)}
+          </span>
+        </button>
+      )}
+      {inGame && phase !== 'crashed' && playMode !== 'ufo' && (
         <button
           type="button"
           className={`sa-flaps${flapLevel > 0 ? ' is-deployed' : ''}${flapLevel === 1 ? ' is-full' : ''}`}

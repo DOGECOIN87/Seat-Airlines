@@ -11,7 +11,7 @@ import { lakeShader, noTileShader, type LakeParams, type NoTileParams } from './
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import { CABIN, cabinLevel, createCabin, rowZ } from './cabin';
 import { createFlightDeck, type DeckReadout } from './flightDeck';
-import { createAirframe, ENGINE_AT, WING_CUT } from './airframe';
+import { createAirframe, ENGINE_AT, WING_CUT, type AirframeHandles } from './airframe';
 import { createScenery } from './scenery';
 import { createRanges } from './ranges';
 import { precompiler } from './precompile';
@@ -139,6 +139,14 @@ export interface ViewPose {
   ufo?: UfoPose;
   /** Render the saucer at the aircraft's position as the player's vehicle. */
   playerUfo?: boolean;
+  /**
+   * Degrees: the way it is going over the ground, when that is not the way
+   * the nose points — the saucer can slide sideways. The ground goes by
+   * along it.
+   */
+  track?: number;
+  /** UFO mode: the airliners coming for the saucer, metres from it on the world's axes, and how fast (see lib/rammer.ts). */
+  rams?: readonly RamPose[];
   /** The outer wing it took: -1 port, 1 starboard, 0 or absent neither. */
   wingLost?: -1 | 0 | 1;
   /** The thermals about, relative to the aeroplane (see lib/thermals.ts). */
@@ -178,6 +186,16 @@ export interface ViewPose {
    * size in the frame while everything behind it looms.
    */
   dolly?: number;
+}
+
+/** An airliner in the sky, from the aeroplane the camera rides: x east, y up, z south, and its velocity. */
+export interface RamPose {
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
 }
 
 export interface WorldOptions {
@@ -368,6 +386,33 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     }
   });
   const logoCraft = options.damage ? createLogoCraft(`${import.meta.env.BASE_URL}icon-512.png`, envRT.texture) : null;
+  /* UFO mode's airliners: the airline's own aeroplane, built the first time
+     one comes for the saucer, each with a beacon that carries through the
+     haze from two kilometres out. */
+  const rammers: { craft: AirframeHandles; beacon: THREE.Sprite }[] = [];
+  const beaconTex = options.damage ? radialTexture(0.08) : null;
+  const addRammer = () => {
+    const craft = createAirframe();
+    craft.group.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[] | undefined;
+      for (const mat of Array.isArray(m) ? m : m ? [m] : []) {
+        if ('envMapIntensity' in mat) {
+          mat.envMap = envRT.texture;
+          mat.envMapIntensity = 0.55;
+          mat.needsUpdate = true;
+        }
+      }
+    });
+    const beacon = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: beaconTex, color: 0xff5a4a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+    }));
+    beacon.scale.setScalar(70);
+    beacon.renderOrder = 4;
+    craft.group.add(beacon);
+    craft.group.visible = false;
+    scene.add(craft.group);
+    rammers.push({ craft, beacon });
+  };
   if (fires && bolt) {
     /* The wing that can come away: its clip goes on the airframe's own
        materials, so it is built before anything else rides on the airframe. */
@@ -1483,7 +1528,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
        z, so these signs send the ground the opposite way to the nose. Held
        fixed to the world instead, the flow only stayed nose-to-tail while
        the heading did — and the aircraft turns now, on purpose. */
-    const hdg = THREE.MathUtils.degToRad(a.heading);
+    const hdg = THREE.MathUtils.degToRad(pose.track ?? a.heading);
     const stepX = groundSpeed * Math.sin(hdg) * dt;
     const stepZ = groundSpeed * Math.cos(hdg) * dt;
     shift.x += stepX;
@@ -1994,9 +2039,32 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       }
     }
 
+    /* The airliners coming for the saucer: nose along the way each is going. */
+    const rams = options.damage && pose.rams ? pose.rams.slice(0, 2) : [];
+    while (rammers.length < rams.length) addRammer();
+    rammers.forEach(({ craft, beacon }, i) => {
+      const r = rams[i];
+      craft.group.visible = Boolean(r);
+      if (!r) return;
+      craft.group.position.set(r.x, height + r.y, r.z);
+      const flat = Math.hypot(r.vx, r.vz);
+      craft.group.rotation.set(Math.atan2(r.vy, flat), -Math.atan2(r.vx, -r.vz), 0, 'YXZ');
+      craft.update(dt, {
+        contrail: 0.7, stream: Math.hypot(flat, r.vy), bank: 0, pitch: 0, night, cabin: cabinLit, mood: cabinNight, calm,
+      });
+      // The beacon breathes, and fades as it closes so the aeroplane itself takes over.
+      const d = Math.hypot(r.x, r.y, r.z);
+      (beacon.material as THREE.SpriteMaterial).opacity = THREE.MathUtils.smoothstep(d, 150, 700) * (0.65 + 0.35 * Math.sin(now / 90) ** 2);
+    });
+
     /* The aeroplane's lights are shaded where the camera sees them, so they
        are placed once the aeroplane and the camera are both posed. */
     camera.updateWorldMatrix(true, false);
+    for (const { craft } of rammers) {
+      if (!craft.group.visible) continue;
+      craft.group.updateWorldMatrix(true, false);
+      craft.place(camera);
+    }
     if (airframe.group.visible) {
       airframe.group.updateWorldMatrix(true, false);
       airframe.place(camera);
@@ -2128,6 +2196,11 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     cabin.dispose();
     deck.dispose();
     fires?.forEach((e) => e.fire.dispose());
+    for (const { craft, beacon } of rammers) {
+      craft.dispose();
+      beacon.material.dispose();
+    }
+    beaconTex?.dispose();
     bolt?.dispose();
     ufo?.dispose();
     wingBreak?.dispose();

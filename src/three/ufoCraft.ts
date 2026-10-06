@@ -26,6 +26,10 @@ export interface UfoPose {
   strike?: { side: -1 | 1; p: number };
   /** How far the aeroplane has moved off the line the UFO was aimed along, metres right and up. */
   dev?: { right: number; up: number };
+  /** Times the scout's size: the player's own saucer is bigger. */
+  size?: number;
+  /** Degrees of pitch and bank to hold it at, on the heading, instead of leaning it into its motion. */
+  attitude?: { pitch: number; bank: number };
 }
 
 /** Across the saucer, metres: a small scout next to the airliner —
@@ -149,12 +153,20 @@ export function createUfoCraft(url: string): UfoCraft {
     group.visible = true;
     // It blinks into being, a touch too big and back.
     const pop = pose.scale < 1 ? pose.scale * (1 + 0.25 * Math.sin(pose.scale * Math.PI)) : 1;
-    tilt.scale.setScalar(Math.max(0.001, pop));
-    // The glow carries it at a distance, where the saucer itself is a speck.
-    glow.scale.setScalar(DIAMETER * (3.2 + 0.8 * pose.dash) * Math.max(0.001, pop));
+    const size = pose.size ?? 1;
+    tilt.scale.setScalar(Math.max(0.001, pop) * size);
+    // The glow carries it at a distance, where the saucer itself is a speck; close up, less of it.
+    const halo = size > 1 ? 1.5 + 0.6 * pose.dash : 3.2 + 0.8 * pose.dash;
+    glow.scale.setScalar(DIAMETER * size * halo * Math.max(0.001, pop));
     (glow.material as THREE.SpriteMaterial).opacity = 0.55 + 0.35 * Math.sin(clock * 9) ** 2;
     // Spinning, and tipped into the way it is going — hard, while it dashes.
     spin.rotation.y += dt * 7;
+    if (pose.attitude) {
+      group.rotation.y = -h;
+      tilt.rotation.set(THREE.MathUtils.degToRad(pose.attitude.pitch), 0, THREE.MathUtils.degToRad(-pose.attitude.bank));
+      return;
+    }
+    group.rotation.y = 0;
     const speed = Math.hypot(vel.x, vel.z);
     const lean = Math.min(0.45, speed / 2400);
     if (speed > 1) {

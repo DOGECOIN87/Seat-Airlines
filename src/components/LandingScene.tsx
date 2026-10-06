@@ -8,12 +8,13 @@ import type { SkyState } from '../lib/sky';
 import { useAttitude, type Attitude } from '../lib/useAttitude';
 import { HANDS_OFF, type ManualControls } from '../lib/manualControls';
 import {
-  BOOST, clampUnit, dealFailures, FEET, fly, GAME, groundSpeed, leadFor, speedAt, stepBoost, TURBULENCE, WASTED_AT,
+  BOOST, clampUnit, DASH, dashVelocity, dealFailures, FEET, fly, GAME, groundSpeed, leadFor, speedAt, stepBoost, travel, TURBULENCE, WASTED_AT,
   type Cause, type FlightGame,
 } from '../lib/landingGame';
+import { RAMMER, stepRams } from '../lib/rammer';
 import { LOGOS, stepLogos } from '../lib/logos';
 import { climbBonus, SCORING, survivalRate } from '../lib/scoring';
-import { FPM, KNOTS, speedAngle, varioAngle } from '../lib/instruments';
+import { FPM, KNOTS, speedAngle, ufoLiftAngle, ufoSpeedAngle, varioAngle } from '../lib/instruments';
 import { dodge, planeTimeScale, slowAt, ufoAt, UFO } from '../lib/ufo';
 
 /**
@@ -125,6 +126,12 @@ interface LandingSceneProps {
   onLogo: (count: number) => void;
   /** Lightning, `metres` off: for the thunder. */
   onThunder: (metres: number) => void;
+  /** UFO mode: an airliner is about to arrive, from this many degrees off the nose. */
+  onRamWarn?: (bearing: number) => void;
+  /** It hit the saucer, on this side. */
+  onRamHit?: (side: -1 | 1) => void;
+  /** It went past, close. */
+  onRamDodge?: () => void;
 }
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -189,7 +196,7 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 
 const LandingScene = ({
   feed, sky, band, controls, taken, playing, cameraLook, boost = 0, game, hud, sounds, shot,
-  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder,
+  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
@@ -197,8 +204,8 @@ const LandingScene = ({
   const boostNow = useRef(boost);
   boostNow.current = boost;
   latest.current = { sky, band };
-  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder });
-  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder };
+  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge });
+  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge };
   /** The last lightning flash already heard. */
   const heardFlash = useRef(0);
 
@@ -529,14 +536,33 @@ const LandingScene = ({
 
       if (live) {
         stepBoost(g, flyDt);
+        const way = travel(g);
         /* The logos: flown through, they pay and put boost back in the tank. */
-        const got = stepLogos(g.logos, flyDt, groundSpeed(g), g.heading, g.alt, g.vs, w.groundAt() + 45);
+        const got = stepLogos(g.logos, flyDt, way.speed, way.heading, g.alt, g.vs, w.groundAt() + 45);
         if (got) {
           const points = got * LOGOS.points;
           g.extra += points;
           if (g.failed) g.score += points;
           g.boosts = Math.min(BOOST.charges, g.boosts + got * BOOST.perLogo);
           calls.current.onLogo(g.logos.count);
+        }
+        /* UFO mode: the airline's own aeroplanes, coming for the saucer. */
+        if (g.mode === 'ufo') {
+          const h = (way.heading * Math.PI) / 180;
+          const ram = stepRams(g.rams, flyDt, { x: way.speed * Math.sin(h), y: g.vs, z: -way.speed * Math.cos(h) }, g.heading);
+          if (ram.warn !== null) calls.current.onRamWarn?.(ram.warn);
+          if (ram.hit) {
+            g.scramble = Math.min(1, g.scramble + RAMMER.scramble);
+            // The blow itself: thrown over and knocked down.
+            g.bank += ram.hit * -40;
+            g.pitch -= 8;
+            g.boosts = Math.max(0, g.boosts - 1);
+            calls.current.onRamHit?.(ram.hit);
+          }
+          if (ram.dodged) {
+            g.extra += RAMMER.bonus;
+            calls.current.onRamDodge?.();
+          }
         }
         /* Thunder, and the shove of a close strike's air. */
         const flash = w.lastFlash();
@@ -568,7 +594,7 @@ const LandingScene = ({
       if (flyDt > 0) g.accel += ((step.vs - g.vs) / flyDt - g.accel) * (1 - Math.exp(-2 * flyDt));
       g.vs = step.vs;
       g.alt = Math.min(GAME.ceiling, g.alt + step.vs * flyDt);
-      if (live) g.distance += groundSpeed(g) * flyDt;
+      if (live) g.distance += travel(g).speed * flyDt;
       p.chase = 1;
     }
 
@@ -586,7 +612,7 @@ const LandingScene = ({
     const relit = g.failed === 0 || g.both;
     p.boost = [relit || g.failed !== -1 ? burn : 0, relit || g.failed !== 1 ? burn : 0];
     p.speedScale = undefined;
-    p.shake = g.phase === 'flying' ? TURBULENCE[g.weather] * 0.55 + burn * 0.5 : 0;
+    p.shake = g.phase === 'flying' ? TURBULENCE[g.weather] * 0.55 + burn * 0.5 + g.scramble * 0.8 : 0;
     /* The flaps, as a crew would set them: a notch for the climb out of the
        dive, out further as the speed bleeds away on a dead engine — lift for
        less airspeed — and all the way in for a burn. */
@@ -596,22 +622,35 @@ const LandingScene = ({
       ? Math.max(0.35, g.flaps)
       : Math.max(g.flaps * (1 - burn), slowing * 0.85, climbing) * (1 - burn);
     if (g.phase === 'flying' || g.phase === 'intro') {
-      const saucer = g.mode === 'ufo'
-        ? {
+      if (g.mode === 'ufo') {
+        /* The player's own saucer, where the airliner would be: three times
+           the scout's size, so it fills the shot the airliner was framed for,
+           and tipped the way it is flying — hard into a dash. */
+        const d = dashVelocity(g);
+        p.ufo = {
           visible: true,
-          right: Math.sin(g.clock * 2.35) * 8 + Math.sin(g.clock * 5.8) * 3,
-          up: Math.sin(g.clock * 3.1 + 0.7) * 2.8,
-          ahead: 7 + Math.cos(g.clock * 1.6) * 4,
-          scale: 1 + Math.sin(g.clock * 8.7) * 0.07,
+          right: 0,
+          up: 0,
+          ahead: 0,
+          scale: 1,
+          size: 3,
           dash: Math.min(1, g.boostPower + Math.abs(Math.sin(g.clock * 2.35)) * 0.18),
-        }
-        : ufoAt(g.ufo, g.clock);
-      // Off the line it was aimed along: while it closes, and as it goes past.
-      const miss = g.dodgeLock && g.ufo?.strike ? dodge(g.dodgeLock, g.ufo.strike, g.alt, g.bank) : g.ufoMiss;
-      p.ufo = g.mode === 'ufo' ? saucer : miss ? { ...saucer, dev: { right: miss.right, up: miss.up } } : saucer;
+          attitude: {
+            pitch: g.pitch * 0.6 - (d.ahead / DASH.forward) * 18,
+            bank: g.bank * 0.7 + (d.right / DASH.strafe) * 30 + (g.strafe / 220) * 12,
+          },
+        };
+      } else {
+        const saucer = ufoAt(g.ufo, g.clock);
+        // Off the line it was aimed along: while it closes, and as it goes past.
+        const miss = g.dodgeLock && g.ufo?.strike ? dodge(g.dodgeLock, g.ufo.strike, g.alt, g.bank) : g.ufoMiss;
+        p.ufo = miss ? { ...saucer, dev: { right: miss.right, up: miss.up } } : saucer;
+      }
     } else {
       p.ufo = undefined;
     }
+    /* The airliners coming for the saucer, on the world's axes from it. */
+    p.rams = g.mode === 'ufo' && g.phase === 'flying' ? g.rams.list : undefined;
     p.wingLost = g.wingLost;
     p.failed = g.failed;
     p.both = g.both;
@@ -619,7 +658,9 @@ const LandingScene = ({
     p.fury = g.damage;
     /* The ground goes by at the airspeed, not the height's speed, once the
        dive is over: so low down it rushes, and at 10,000 ft it drifts. */
-    p.speed = g.failed || g.phase === 'flying' ? groundSpeed(g) : undefined;
+    const way = travel(g);
+    p.speed = g.failed || g.phase === 'flying' ? way.speed : undefined;
+    p.track = way.heading;
     // The sideslip is the good engine's doing: none once it has gone too.
     p.slip = g.failed ? g.failed * (3 + 4 * g.damage) * g.thrust : 0;
     /* After the blast the camera eases round over the burning engine's
@@ -702,16 +743,17 @@ const LandingScene = ({
     }
 
     /* The instruments: the airspeed the ground goes by at. */
-    const kt = Math.round(groundSpeed(g) * KNOTS);
+    const ufoDials = g.mode === 'ufo';
+    const kt = Math.round(way.speed * KNOTS);
     if (kt !== shown.current.kt) {
       shown.current.kt = kt;
-      hud.speedNeedle.current?.setAttribute('transform', `rotate(${speedAngle(kt).toFixed(1)} 50 50)`);
+      hud.speedNeedle.current?.setAttribute('transform', `rotate(${(ufoDials ? ufoSpeedAngle(kt) : speedAngle(kt)).toFixed(1)} 50 50)`);
       if (hud.speedText.current) hud.speedText.current.textContent = String(kt);
     }
     const fpm = Math.round((g.vs * FPM) / 50) * 50;
     if (fpm !== shown.current.fpm) {
       shown.current.fpm = fpm;
-      hud.varioNeedle.current?.setAttribute('transform', `rotate(${varioAngle(fpm).toFixed(1)} 50 50)`);
+      hud.varioNeedle.current?.setAttribute('transform', `rotate(${(ufoDials ? ufoLiftAngle(fpm) : varioAngle(fpm)).toFixed(1)} 50 50)`);
       if (hud.varioText.current) {
         hud.varioText.current.textContent = `${fpm > 0 ? '+' : fpm < 0 ? '−' : ''}${(Math.abs(fpm) / 1000).toFixed(1)}`;
       }
