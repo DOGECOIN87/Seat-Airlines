@@ -17,19 +17,19 @@ React/Vite frontend on GitHub Pages; Cloudflare Worker using KV, R2, and D1; Git
 | Frontend build | `npm run build` | PASS | Vite production build completed |
 | Frontend tests | `npm test` | PASS | Existing suites passed |
 | Frontend audit | `npm run audit:frontend` | PASS | Script reports documented upstream exception through 2027-01-31 |
-| Frontend dependencies | `npm audit --audit-level=high` | FAIL / 5 findings | 1 high `source-map-js`; 4 moderate including transitive `uuid`; remediation or risk acceptance required |
+| Frontend dependencies | `npm audit --audit-level=high` | PASS / 0 findings | `source-map-js` and nested `uuid` upgraded/overridden; verified locally |
 | Worker typecheck | `cd worker && npm run typecheck` | PASS | Run locally |
 | Worker tests | `cd worker && npm test` | PASS | Existing Worker suites passed |
-| Worker dependencies | `cd worker && npm audit --audit-level=high` | FAIL / 3 high findings | `sharp` via `wrangler`/`miniflare`; `npm audit fix --force` indicates breaking change; owner decision required |
+| Worker dependencies | `cd worker && npm audit --audit-level=high` | PASS / 0 findings | Wrangler refreshed; `sharp` pinned to patched 0.35.5 override; verified locally |
 | Worker X E2E | `cd worker && npm run test:x` with synthetic local Worker/X | PASS | 16 passed, 0 failed; no production credentials or data used |
 | Secret scan | `git grep` credential-pattern scan | PASS with review note | No private-key/provider-token literal found; placeholders and public configuration reviewed |
-| Repository settings | `gh repo view`; branch protection API | GAP | Public repo; main branch reported “Branch not protected”; secrets/variables API returned 403 and are unverified |
+| Repository settings | `gh repo view`; branch protection API | PASS for branch protection / GAP for secret inventory | `main` protected with required CODEOWNER review, conversation resolution, no force pushes/deletions; secret inventory remains unavailable via CLI |
 
 ## Initial findings
 1. **Fixed in this change:** Worker CORS previously fell back to wildcard/echo behavior when the allowlist was empty. It now emits `Access-Control-Allow-Origin` only for an explicit match.
 2. **Fixed in this change:** X OAuth token encryption was derived from the browser-held handle. It now requires the server-held `X_TOKEN_ENCRYPTION_KEY` secret.
-3. **Remaining:** dependency vulnerabilities need compatible upgrades or time-bounded risk acceptance.
-4. **Remaining:** branch protection, CODEOWNERS assignment, GitHub secret/variable inventory, Cloudflare backup evidence, access reviews, vendor contracts, and auditor selection require human/provider action.
+3. **Fixed in this change:** dependency audits now report zero vulnerabilities locally after safe lockfile upgrades and targeted overrides.
+4. **Remaining:** GitHub secret/variable inventory, Cloudflare backup evidence, access reviews, vendor contracts, privacy/legal approvals, and auditor selection require human/provider action.
 5. **Remaining:** the production Worker secret must be set with `wrangler secret put X_TOKEN_ENCRYPTION_KEY`; the local test value is not for production.
 
 ## System boundary and data inventory
