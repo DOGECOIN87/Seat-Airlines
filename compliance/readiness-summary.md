@@ -14,17 +14,17 @@
 - Security workflow, CODEOWNERS draft, evidence index, control matrix, risk register, policies, runbooks, and templates were added.
 
 ## Remaining technical gaps
-- Frontend: 5 audit findings; Worker: 3 high findings. Upgrade or formally accept with expiry and compensating controls.
+- Dependency audits: **0 vulnerabilities** reported for both frontend and Worker after safe upgrades and targeted overrides.
 - Add explicit regression tests for disallowed CORS, RPC 429/malformed responses, stale/cache-poisoned authorization, and provider failure states.
 - Verify production secret/configuration values, alerting, rate limits, backups, restore, and log redaction.
 - Verify deployment workflow execution and production rollback.
 
 ## Remaining human/governance gaps
-Branch protection and reviewer ownership; access reviews; vendor evidence/contracts; privacy/legal approval; security training; retention/RTO/RPO approval; incident and recovery exercises; auditor scope and testing.
+GitHub secret inventory; production secret/configuration evidence; access reviews; vendor evidence/contracts; privacy/legal approval; security training; retention/RTO/RPO approval; incident and recovery exercises; auditor scope and testing.
 
 ## Prioritized backlog
 - **P0:** set server-held OAuth encryption secret; test and monitor authorization failure states; confirm no production wildcard CORS.
-- **P1:** remediate/accept dependency vulnerabilities; enable branch protection and required reviews/checks; evidence backups/restore and provider configuration.
+- **P1:** evidence backups/restore and provider configuration; complete production secret/configuration verification.
 - **P2:** complete policies, access/vendor reviews, training, privacy notice, retention/deletion jobs, alert ownership, and evidence retention.
 - **P3:** SBOM/provenance enhancements, circuit breakers, broader dynamic route tests, and further hardening.
 

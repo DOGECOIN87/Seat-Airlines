@@ -14,6 +14,10 @@ try {
 }
 const allowed = new Set(['uuid', 'jayson', '@solana/web3.js', 'helius-wallet-kit']);
 const vulnerabilities = Object.entries(report.vulnerabilities ?? {});
+if (vulnerabilities.length === 0) {
+  console.log('Frontend audit passed; no production dependency vulnerabilities reported.');
+  process.exit(0);
+}
 const unexpected = vulnerabilities.filter(([name]) => !allowed.has(name));
 if (unexpected.length) {
   console.error('Unexpected production dependency advisories:');

@@ -26,7 +26,9 @@
     "helius-wallet-kit": "^1.1.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.4",
-    "three": "^0.185.1"
+    "source-map-js": "1.2.2",
+    "three": "^0.185.1",
+    "uuid": "14.0.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.0",
@@ -44,7 +46,8 @@
   },
   "overrides": {
     "jayson": {
-      "stream-json": "3.7.0"
+      "stream-json": "3.7.0",
+      "uuid": "11.1.1"
     }
   }
 }
