@@ -43,5 +43,6 @@ simple = { limit = 20, period = 60 }
 [vars]
 PUBLIC_IMAGE_BASE = "https://pub-example.r2.dev"
 ALLOWED_ORIGINS = "http://localhost:3000"
+X_TOKEN_ENCRYPTION_KEY = "local-only-test-key-not-for-production"
 HOLDERS_URL = "http://127.0.0.1:8788/holders"
 LADDER_CACHE_MS = "1000"

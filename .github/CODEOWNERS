@@ -1,0 +1,9 @@
+# Draft ownership map — replace placeholders with approved GitHub teams/users.
+# Human action: assign reviewers with least privilege before relying on this file.
+
+* @ASSIGN-REPOSITORY-OWNER
+/worker/src/ @ASSIGN-SECURITY-OWNER
+/worker/migrations/ @ASSIGN-DATABASE-OWNER
+/.github/workflows/ @ASSIGN-DEVSECOPS-OWNER
+/compliance/ @ASSIGN-COMPLIANCE-OWNER
+/public/_headers @ASSIGN-SECURITY-OWNER

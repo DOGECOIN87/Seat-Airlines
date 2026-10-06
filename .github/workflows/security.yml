@@ -1,0 +1,47 @@
+name: Security checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Frontend typecheck and security audit
+        run: |
+          npm run typecheck
+          npm run audit:frontend
+          npm audit --audit-level=critical
+      - name: Worker checks and security audit
+        working-directory: worker
+        run: |
+          npm ci --ignore-scripts
+          npm run typecheck
+          npm test
+          npm audit --audit-level=critical
+      - name: Reject private key material and credential-shaped literals
+        shell: bash
+        run: |
+          ! git grep -n -I -E 'BEGIN (RSA|OPENSSH|EC|PGP) PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]+|sk-[A-Za-z0-9]{20,}' -- . ':!compliance/evidence-index.md'
+      - name: Verify required static headers
+        shell: bash
+        run: |
+          test -f public/_headers
+          for header in 'Content-Security-Policy' 'X-Frame-Options' 'X-Content-Type-Options' 'Strict-Transport-Security' 'Referrer-Policy' 'Permissions-Policy'; do
+            grep -q "$header" public/_headers
+          done
+      - name: Reject wildcard CORS fallback in Worker
+        shell: bash
+        run: |
+          ! grep -n "allowed\[0\].*\*" worker/src/index.ts

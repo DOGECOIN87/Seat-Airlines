@@ -56,3 +56,9 @@ OWNER_CACHE_MS = "200"
 # to prove the operator gets in, and signs with the other wallets to prove
 # nobody else can tell the route exists.
 ADMIN_WALLET = "Ame7HoqEdhPsyuhtKR98J5onwUcQm96bNCViGfHprh8D"
+X_TOKEN_ENCRYPTION_KEY = "local-only-test-key-not-for-production"
+X_CLIENT_ID = "test-client"
+X_CLIENT_SECRET = "test-secret"
+X_MEDIA = "video"
+X_API_BASE = "http://127.0.0.1:8789"
+X_AUTHORIZE_URL = "http://127.0.0.1:8789/authorize"

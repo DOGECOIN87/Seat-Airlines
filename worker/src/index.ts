@@ -305,14 +305,18 @@ async function holdsToken(env: Env, owner: string): Promise<boolean> {
 
 function corsHeaders(env: Env, origin: string | null): Record<string, string> {
   const allowed = (env.ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
-  const ok = origin && (allowed.length === 0 || allowed.includes(origin));
-  return {
-    'access-control-allow-origin': ok && origin ? origin : allowed[0] ?? '*',
+  const ok = Boolean(origin && allowed.includes(origin));
+  const headers: Record<string, string> = {
     'access-control-allow-methods': 'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS',
     'access-control-allow-headers': 'content-type,authorization,x-sa-issued,x-sa-signature',
     'access-control-max-age': '86400',
     vary: 'Origin',
   };
+  // Never echo arbitrary origins and never fall back to wildcard CORS. Same-origin
+  // requests do not need this header; cross-origin requests must match the explicit
+  // deployment allowlist.
+  if (ok && origin) headers['access-control-allow-origin'] = origin;
+  return headers;
 }
 
 const json = (body: unknown, status: number, headers: Record<string, string>) =>

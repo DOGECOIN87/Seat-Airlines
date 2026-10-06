@@ -19,11 +19,11 @@ const kv = () => {
   const m = new Map();
   return { get: async (k) => m.get(k) ?? null, put: async (k, v) => { m.set(k, v); }, delete: async (k) => { m.delete(k); }, m };
 };
-const env = { X_CLIENT_ID: 'id', X_CLIENT_SECRET: 'secret', X_API_BASE: 'https://x.test', X_AUTHORIZE_URL: 'https://x.test/authorize' };
+const env = { X_CLIENT_ID: 'id', X_CLIENT_SECRET: 'secret', X_TOKEN_ENCRYPTION_KEY: 'local-only-test-key', X_API_BASE: 'https://x.test', X_AUTHORIZE_URL: 'https://x.test/authorize' };
 
 /** A fake X: who signs in, what it has posted, and how many refreshes. */
 const fakeX = (username) => {
-  const x = { posts: [], refreshes: 0, refreshTokens: ['r0'] };
+  const x = { posts: [], refreshes: 0, refreshTokens: ['r0'], expiresIn: 7200 };
   x.fetch = async (url, init = {}) => {
     const u = new URL(url);
     if (u.pathname === '/2/oauth2/token') {
@@ -33,7 +33,7 @@ const fakeX = (username) => {
         x.refreshes++;
         x.refreshTokens.push(`r${x.refreshes}`);
       }
-      return Response.json({ access_token: `a${x.refreshes}`, refresh_token: x.refreshTokens.at(-1), expires_in: 7200 });
+      return Response.json({ access_token: `a${x.refreshes}`, refresh_token: x.refreshTokens.at(-1), expires_in: x.expiresIn });
     }
     if (u.pathname === '/2/users/me') return Response.json({ data: { username } });
     if (u.pathname === '/2/tweets') {
@@ -83,18 +83,18 @@ await check('only the airline\'s own account is kept', async () => {
 await check('connected, it posts as the airline, refreshing and keeping the rotated token', async () => {
   const store = kv();
   const x = fakeX('seatairlines');
+  x.expiresIn = 0;
   const to = new URL(await startAirlineConnect(env, store, 'https://w.test'));
   const as = await finishAirlineConnect(env, store, x.fetch, 'https://w.test', to.searchParams.get('state'), 'code', '@SeatAirlines');
   assert(as === 'seatairlines' && (await airlineName(store)) === 'seatairlines', 'not kept');
   const url = await postAsAirline(env, store, x.fetch, 'hello');
   assert(url === 'https://x.com/seatairlines/status/101' && x.posts[0] === 'hello', url);
-  // Expire it, twice: each refresh must use the token the last one handed back.
+  // Expire it twice: each refresh must use the token the last one handed back.
+  x.expiresIn = 0;
   for (let i = 0; i < 2; i++) {
-    const held = JSON.parse(store.m.get('xairline'));
-    store.m.set('xairline', JSON.stringify({ ...held, expires: 0 }));
     await postAsAirline(env, store, x.fetch, `again ${i}`);
   }
-  assert(x.refreshes === 2 && x.posts.length === 3, `${x.refreshes} refreshes, ${x.posts.length} posts`);
+  assert(x.refreshes === 3 && x.posts.length === 3, `${x.refreshes} refreshes, ${x.posts.length} posts`);
 });
 
 await check('not connected, it says so rather than posting', async () => {

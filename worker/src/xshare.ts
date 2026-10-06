@@ -22,9 +22,8 @@
  *
  * ── What is kept ──────────────────────────────────────────────────────────
  * The page holds a random handle; this side keeps, under the handle's hash,
- * the player's X tokens encrypted with a key made from the handle. So the
- * store on its own cannot post as anybody: it holds neither the handle nor
- * anything that opens the tokens without it.
+ * the player's X tokens encrypted with a key derived from the server-held
+ * X_TOKEN_ENCRYPTION_KEY secret. The handle is an identifier, not a key.
  *
  * Nothing Cloudflare-shaped in here beyond a KV namespace, and the network
  * is a parameter, so the whole flow runs in a test against a fake X.
@@ -50,6 +49,8 @@ export type MediaMode = 'video' | 'image' | 'off';
 export interface XEnv {
   X_CLIENT_ID?: string;
   X_CLIENT_SECRET?: string;
+  /** Random server-held secret used to encrypt OAuth tokens at rest. */
+  X_TOKEN_ENCRYPTION_KEY?: string;
   /** 'video' (default), 'image' to post pictures only, 'off' for no API posting. */
   X_MEDIA?: string;
   /** For tests: where the X API and its consent page are. */
@@ -61,7 +62,9 @@ export const mediaMode = (env: XEnv): MediaMode => {
   const m = (env.X_MEDIA ?? '').trim().toLowerCase();
   return m === 'image' || m === 'off' ? m : 'video';
 };
-export const xConfigured = (env: XEnv): boolean => Boolean(env.X_CLIENT_ID?.trim() && env.X_CLIENT_SECRET?.trim());
+export const xConfigured = (env: XEnv): boolean => Boolean(
+  env.X_CLIENT_ID?.trim() && env.X_CLIENT_SECRET?.trim() && env.X_TOKEN_ENCRYPTION_KEY?.trim(),
+);
 const apiBase = (env: XEnv) => (env.X_API_BASE?.trim() || 'https://api.x.com').replace(/\/+$/, '');
 const authorizeUrl = (env: XEnv) => env.X_AUTHORIZE_URL?.trim() || 'https://x.com/i/oauth2/authorize';
 
@@ -78,22 +81,22 @@ export const isHandle = (v: unknown): v is string => typeof v === 'string' && /^
 export const isNonce = (v: unknown): v is string => typeof v === 'string' && /^[0-9A-Za-z_-]{16,64}$/.test(v);
 
 const linkKey = async (handle: string) => `xlink:${hex(await sha256(`x-link:${handle}`))}`;
-const tokenKey = async (handle: string) =>
-  crypto.subtle.importKey('raw', await sha256(`x-token:${handle}`), 'AES-GCM', false, ['encrypt', 'decrypt']);
+const tokenKey = async (env: XEnv) =>
+  crypto.subtle.importKey('raw', await sha256(`x-token-key:${env.X_TOKEN_ENCRYPTION_KEY!.trim()}`), 'AES-GCM', false, ['encrypt', 'decrypt']);
 
 export interface Tokens { access: string; refresh: string | null; expires: number }
 interface StoredLink { u: string; iv: string; ct: string; posts: number[] }
 
-async function seal(handle: string, t: Tokens): Promise<{ iv: string; ct: string }> {
+async function seal(env: XEnv, t: Tokens): Promise<{ iv: string; ct: string }> {
   const iv = random(12);
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await tokenKey(handle), new TextEncoder().encode(JSON.stringify(t))));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await tokenKey(env), new TextEncoder().encode(JSON.stringify(t))));
   return { iv: hex(iv), ct: btoa(String.fromCharCode(...ct)) };
 }
-async function open(handle: string, link: StoredLink): Promise<Tokens | null> {
+async function open(env: XEnv, link: StoredLink): Promise<Tokens | null> {
   try {
     const iv = new Uint8Array(link.iv.match(/../g)!.map((h) => parseInt(h, 16)));
     const ct = Uint8Array.from(atob(link.ct), (c) => c.charCodeAt(0));
-    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, await tokenKey(handle), ct);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, await tokenKey(env), ct);
     return JSON.parse(new TextDecoder().decode(pt)) as Tokens;
   } catch {
     return null;
@@ -175,7 +178,7 @@ export async function finishConnect(
   if (!me.ok) await xFail(me, 'X would not say who you are');
   const username = ((await me.json()) as { data?: { username?: string } }).data?.username ?? '';
   const handle = hex(random(32));
-  const link: StoredLink = { u: username, ...(await seal(handle, tokens)), posts: [] };
+  const link: StoredLink = { u: username, ...(await seal(env, tokens)), posts: [] };
   await kv.put(await linkKey(handle), JSON.stringify(link), { expirationTtl: LINK_TTL_SECONDS });
   return { handle, username, nonce };
 }
@@ -185,7 +188,7 @@ async function readLink(env: XEnv, kv: KVNamespace, f: Fetch, handle: string): P
   const raw = await kv.get(await linkKey(handle));
   if (!raw) return null;
   const link = JSON.parse(raw) as StoredLink;
-  let tokens = await open(handle, link);
+  let tokens = await open(env, link);
   if (!tokens) return null;
   if (tokens.expires - Date.now() < 60_000) {
     if (!tokens.refresh) return null;
@@ -198,7 +201,7 @@ async function readLink(env: XEnv, kv: KVNamespace, f: Fetch, handle: string): P
       }
       throw e;
     }
-    Object.assign(link, await seal(handle, tokens));
+    Object.assign(link, await seal(env, tokens));
     await kv.put(await linkKey(handle), JSON.stringify(link), { expirationTtl: LINK_TTL_SECONDS });
   }
   return { link, tokens };
@@ -207,7 +210,7 @@ async function readLink(env: XEnv, kv: KVNamespace, f: Fetch, handle: string): P
 export async function disconnect(env: XEnv, kv: KVNamespace, f: Fetch, handle: string): Promise<void> {
   const raw = await kv.get(await linkKey(handle));
   if (!raw) return;
-  const tokens = await open(handle, JSON.parse(raw) as StoredLink);
+  const tokens = await open(env, JSON.parse(raw) as StoredLink);
   await kv.delete(await linkKey(handle));
   if (!tokens || !xConfigured(env)) return;
   // Best effort: the permission is already forgotten here whatever X says.
@@ -415,7 +418,7 @@ export async function finishAirlineConnect(
   const username = ((await me.json()) as { data?: { username?: string } }).data?.username ?? '';
   if (!sameName(username, airline)) throw new XError(`That was @${username || '?'}, not @${airline.replace(/^@/, '')}. Nothing was kept.`, 403);
   if (!tokens.refresh) throw new XError('X gave no lasting permission (offline access). Nothing was kept.', 502);
-  await kv.put(AIRLINE_KEY, JSON.stringify({ u: username, ...tokens }));
+  await kv.put(AIRLINE_KEY, JSON.stringify({ u: username, ...(await seal(env, tokens)) }));
   return username;
 }
 
@@ -430,13 +433,16 @@ export async function postAsAirline(env: XEnv, kv: KVNamespace, f: Fetch, text: 
   if (!xConfigured(env)) throw new XError('The X app is not set up on this Worker.', 503);
   const raw = await kv.get(AIRLINE_KEY);
   if (!raw) throw new XError('The airline\'s X account is not connected. Visit /x/airline/connect.', 409);
-  let held = JSON.parse(raw) as Tokens & { u: string };
+  const stored = JSON.parse(raw) as StoredLink;
+  const tokens = await open(env, stored);
+  if (!tokens) throw new XError('The airline\'s X permission cannot be opened. Connect it again.', 401);
+  let held = { u: stored.u, ...tokens };
   if (held.expires - Date.now() < 60_000) {
     if (!held.refresh) throw new XError('The airline\'s X permission has lapsed. Connect it again.', 401);
     const fresh = await tokenRequest(env, f, { grant_type: 'refresh_token', refresh_token: held.refresh });
     // X rotates the refresh token: keep the new one, or the next refresh fails.
     held = { ...held, ...fresh, refresh: fresh.refresh ?? held.refresh };
-    await kv.put(AIRLINE_KEY, JSON.stringify(held));
+    await kv.put(AIRLINE_KEY, JSON.stringify({ u: held.u, ...(await seal(env, held)) }));
   }
   const res = await f(`${apiBase(env)}/2/tweets`, {
     method: 'POST',
