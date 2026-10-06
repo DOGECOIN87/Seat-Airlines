@@ -837,6 +837,8 @@ export default function App() {
           manifest={manifest}
           banners={banners}
           boosts={boosts}
+          tokenBalance={holding?.balance ?? null}
+          tokenBalanceLoading={loadingHolding}
           onClaim={() => (wallet.unavailable && !wallet.address ? openPanel('check-in') : startClaim())}
           soundEnabled={aircraftAudio.enabled}
           onSoundToggle={aircraftAudio.toggle}

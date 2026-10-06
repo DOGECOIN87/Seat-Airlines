@@ -1,0 +1,5 @@
+{
+  "routes": [
+    { "path": "/", "route": "index.html" }
+  ]
+}

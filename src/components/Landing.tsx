@@ -8,6 +8,7 @@ import Flyover from './Flyover';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
 import SeatOverview from './SeatOverview';
+import AircraftCarousel, { type PlayMode } from './AircraftCarousel';
 import type { Manifest } from '../lib/manifest';
 import type { BannerSet } from '../lib/banners';
 import { DEXSCREENER_URL } from '../lib/social';
@@ -87,6 +88,9 @@ interface LandingProps {
   onClaim: () => void;
   /** Boosts running on DexScreener: while there are any, the plane burns. */
   boosts: number;
+  /** Current whole-token balance used for the experimental UFO holder gate. */
+  tokenBalance: number | null;
+  tokenBalanceLoading: boolean;
   soundEnabled: boolean;
   onSoundToggle: () => void;
 }
@@ -172,9 +176,13 @@ const OVERVIEW_AFTER = 3000;
 const SPLASH_FADE = 800;
 
 export default function Landing({
-  feed, sky, band, marketCap, controls, taken, wallet, onEnter, onPlayAgain, replay = false, manifest, banners, onClaim, boosts, soundEnabled, onSoundToggle,
+  feed, sky, band, marketCap, controls, taken, wallet, onEnter, onPlayAgain, replay = false, manifest, banners, onClaim, boosts, tokenBalance, tokenBalanceLoading, soundEnabled, onSoundToggle,
 }: LandingProps) {
   const [phase, setPhase] = useState<Phase>('idle');
+  const [playMode, setPlayMode] = useState<PlayMode>('airliner');
+  const [flapLevel, setFlapLevel] = useState(0);
+  const [ridePickerOpen, setRidePickerOpen] = useState(false);
+  const ufoUnlocked = (tokenBalance ?? 0) >= 1_000_000;
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -306,29 +314,6 @@ export default function Landing({
     return () => window.clearTimeout(id);
   }, [splash]);
 
-  /* A Solana wallet is the ticket: nobody takes the controls without one
-     connected. Asking to fly without one brings up a card that connects it
-     — or, with no wallet installed, says where to get one, and on a phone
-     opens this page in a wallet's own browser, which is where a phone's
-     wallet lives. */
-  const [preflight, setPreflight] = useState<'off' | 'ask' | 'connecting'>('off');
-  const [preflightNote, setPreflightNote] = useState<string | null>(null);
-  const preflightOpen = useRef(false);
-  useEffect(() => {
-    preflightOpen.current = preflight !== 'off';
-  }, [preflight]);
-  const [walletLinks] = useState(() => {
-    if (typeof window === 'undefined') return { phantom: '', solflare: '', backpack: '' };
-    const here = encodeURIComponent(window.location.href);
-    const ref = encodeURIComponent(window.location.origin);
-    /* Each wallet's own "open this page in my browser" link. Nightly has no
-       such link to give, so a phone is sent to get it instead. */
-    return {
-      phantom: `https://phantom.app/ul/browse/${here}?ref=${ref}`,
-      solflare: `https://solflare.com/ul/v1/browse/${here}?ref=${ref}`,
-      backpack: `https://backpack.app/ul/v1/browse/${here}?ref=${ref}`,
-    };
-  });
 
   /* Going in fades the landing out first, so the site arrives from black
      rather than cutting in. Once only, however many ways it is asked. */
@@ -449,17 +434,27 @@ export default function Landing({
   };
 
   const takeOff = useCallback(() => {
+    const current = game.current;
+    if (!ready || current.phase !== 'idle' || gone.current) return;
+    game.current = newGame(playMode);
     const g = game.current;
-    if (!ready || g.phase !== 'idle' || gone.current) return;
+    setFlapLevel(0);
     cameraLook.current.orbit = 0;
     makeSounds();
-    setPreflight('off');
     g.phase = 'intro';
     g.phaseAt = performance.now();
     dealWeather(g);
     setWeather(g.weather);
     setPhase('intro');
-  }, [ready]);
+  }, [playMode, ready]);
+  /** The secondary flight control: three detents, useful on a touch screen and on a keyboard. */
+  const cycleFlaps = useCallback(() => {
+    const g = game.current;
+    if (g.phase !== 'intro' && g.phase !== 'flying') return;
+    const next = g.flaps < 0.25 ? 0.5 : g.flaps < 0.75 ? 1 : 0;
+    g.flaps = next;
+    setFlapLevel(next);
+  }, []);
   /* The afterburners: a key, or the button. */
   const boost = useCallback(() => {
     if (fireBoost(game.current)) sfx.current?.boost(BOOST.seconds);
@@ -468,10 +463,9 @@ export default function Landing({
   const start = useCallback(() => {
     if (!ready || game.current.phase !== 'idle' || gone.current) return;
     if (!wallet.address) {
-      // Made now, inside the click or key: the take-off comes after the wallet, outside it.
+      // Keyboard launch follows the same full-screen ride-selection path as Fly.
       makeSounds();
-      setPreflightNote(null);
-      setPreflight((p) => (p === 'off' ? 'ask' : p));
+      setRidePickerOpen(true);
       return;
     }
     takeOff();
@@ -482,26 +476,32 @@ export default function Landing({
   }, [replay, ready, wallet.address, takeOff]);
   const connectAndFly = useCallback(async () => {
     makeSounds();
-    setPreflight('connecting');
-    setPreflightNote(null);
     const address = await wallet.connect();
-    // Put away while the wallet was up: connected, but not flying.
-    if (!preflightOpen.current) return;
     if (address) {
       takeOff();
       return;
     }
-    setPreflight('ask');
-    setPreflightNote('No wallet connected.');
+    // Keep the user in the selector if the wallet was closed or unavailable.
+    setRidePickerOpen(true);
   }, [wallet, takeOff]);
   /* The Fly button: straight to the wallet when there is one to ask. */
   const onFly = useCallback(() => {
+    if (!ready || game.current.phase !== 'idle' || gone.current) return;
+    setRidePickerOpen(true);
+  }, [ready]);
+  const confirmRide = useCallback(() => {
+    if (playMode === 'ufo' && !ufoUnlocked) return;
+    setRidePickerOpen(false);
     // Always use the shared connector when the visitor is not connected. This
-    // lets Helius finish registering and open its own sign-in modal instead of
-    // racing into the generic "install a wallet" card on a fresh page load.
+    // lets Helius finish registering and open its own sign-in modal after the
+    // pilot has selected a ride.
     if (wallet.address) start();
     else void connectAndFly();
-  }, [wallet.address, start, connectAndFly]);
+  }, [playMode, ufoUnlocked, wallet.address, start, connectAndFly]);
+  const verifyWallet = useCallback(() => {
+    makeSounds();
+    void wallet.connect();
+  }, [wallet]);
 
   const onReady = useCallback(() => setReady(true), []);
   const onFail = useCallback(() => setFailed(true), []);
@@ -691,9 +691,8 @@ export default function Landing({
   }, []);
 
   /* Posting a score. Wanting to post stops the site taking over on its own;
-     a wallet is connected if there is none yet (the preflight will usually
-     have seen to that), then asked to sign a short message naming the
-     score — never a transaction. */
+     a wallet is connected if there is none yet, then asked to sign a short
+     message naming the score — never a transaction. */
   const signAndPost = useCallback(async (address: string) => {
     if (!result || !runId.current) {
       armLeave();
@@ -749,9 +748,9 @@ export default function Landing({
         clearSplash();
         return;
       }
-      if (preflightOpen.current) {
-        // The card has the focus and its buttons take Enter; Escape puts it away.
-        if (e.key === 'Escape') setPreflight('off');
+      if (ridePickerOpen) {
+        // The hangar owns the launch flow; Escape closes it without starting a run.
+        if (e.key === 'Escape') setRidePickerOpen(false);
         return;
       }
       // The high scores window closes itself on Escape; everything else is its own.
@@ -759,6 +758,11 @@ export default function Landing({
       if (BOOST_KEYS.has(e.code) && game.current.phase !== 'idle') {
         e.preventDefault();
         if (!e.repeat) boost();
+        return;
+      }
+      if (e.code === 'KeyF' && game.current.phase !== 'idle') {
+        e.preventDefault();
+        if (!e.repeat) cycleFlaps();
         return;
       }
       if (KEYS[e.code]) {
@@ -786,7 +790,7 @@ export default function Landing({
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', drop);
     };
-  }, [start, leave, clearSplash, boost]);
+  }, [start, leave, clearSplash, boost, cycleFlaps]);
 
   /* The stick, for a touch screen (or a mouse): press anywhere and drag.
      Up climbs, down dives, sideways banks, measured from where the press
@@ -870,7 +874,7 @@ export default function Landing({
   };
   const engines: [EngineState, EngineState] = [engineState(-1), engineState(1)];
   /** The seat overview is up: the words beside or under it make room. */
-  const showOverview = overview && !inGame && preflight === 'off' && !scoresOpen;
+  const showOverview = overview && !inGame && !ridePickerOpen && !scoresOpen;
 
   return (
     <div
@@ -929,7 +933,7 @@ export default function Landing({
         {!inGame && <DocsLink night />}
       </header>
 
-      {!inGame && preflight === 'off' && (
+      {!inGame && !ridePickerOpen && (
         <main className="sa-landing__hero">
           <h1 className="sa-landing__title">
             Hold more.
@@ -937,7 +941,9 @@ export default function Landing({
             Fly higher.
           </h1>
           <p className="sa-landing__lead">
-            Market cap is altitude. The biggest holders sit up front.
+            {playMode === 'ufo'
+              ? 'Experimental saucer mode is armed. Chase the horizon, dodge the ground, and push for Mars.'
+              : 'Market cap is altitude. The biggest holders sit up front.'}
           </p>
           <div className="sa-landing__actions">
             <button type="button" onClick={leave} className="sa-landing__enter">
@@ -948,7 +954,7 @@ export default function Landing({
                 <svg viewBox="0 0 24 24" aria-hidden className="sa-landing__fly-icon">
                   <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" />
                 </svg>
-                {wallet.address ? 'Fly' : 'Connect & fly'}
+                {playMode === 'ufo' ? (wallet.address ? 'Launch UFO' : 'Connect & launch') : (wallet.address ? 'Fly' : 'Connect & fly')}
               </button>
             )}
             {/* Boost the token on DexScreener — its page, where the Boost
@@ -1001,81 +1007,57 @@ export default function Landing({
             <p className="sa-landing__hint">
               {!ready
                 ? 'Warming up…'
-                : `${!wallet.address ? 'Solana wallet required' : touch ? 'Drag to fly' : 'WASD / left stick to fly'}\u00a0· climb to ${goalFeet.toLocaleString('en-US')}\u00a0ft`}
+                : `${!wallet.address ? 'Solana wallet required' : touch ? 'Drag to fly · tap flaps' : 'WASD / left stick to fly · F flaps'}\u00a0· ${playMode === 'ufo' ? 'push for Mars' : `climb to ${goalFeet.toLocaleString('en-US')} ft`}`}
             </p>
           )}
         </main>
+      )}
+      {ridePickerOpen && !inGame && (
+        <div className="sa-ride-modal" role="dialog" aria-modal="true" aria-label="Choose your ride">
+          <div className="sa-ride-modal__ceiling" aria-hidden>
+            <i /><i /><i /><i /><i /><i />
+          </div>
+          <div className="sa-ride-modal__hangar-lines" aria-hidden />
+          <div className="sa-ride-modal__content">
+            <div className="sa-ride-modal__topline">
+              <span><i aria-hidden /> HANGAR 01 · FLIGHT DECK</span>
+              <button type="button" className="sa-ride-modal__close" onClick={() => setRidePickerOpen(false)} aria-label="Close ride selector">×</button>
+            </div>
+            <div className="sa-ride-modal__hero-copy">
+              <p>Pre-flight systems online</p>
+              <h1>Select your aircraft</h1>
+              <span>Configure your ride before entering the climb.</span>
+            </div>
+            <AircraftCarousel
+              fullscreen
+              mode={playMode}
+              onModeChange={setPlayMode}
+              ufoUnlocked={ufoUnlocked}
+              tokenBalance={tokenBalance}
+              balanceLoading={tokenBalanceLoading}
+              walletConnected={Boolean(wallet.address)}
+              onConnect={verifyWallet}
+            />
+            <div className="sa-ride-modal__launch-console">
+              <div>
+                <span className="sa-ride-modal__console-label">Selected loadout</span>
+                <strong>{playMode === 'ufo' ? 'UFO INTERCEPTOR' : 'SA350 · FLAGSHIP'}</strong>
+                <small>{playMode === 'ufo' ? 'Zero engines · maximum weird' : 'Flaps, boost and engine-out recovery'}</small>
+              </div>
+              <button type="button" className="sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked}>
+                <span>Confirm loadout</span>
+                <strong>{playMode === 'ufo' && !ufoUnlocked ? 'Hold 1M $SEAT to unlock' : wallet.address ? 'Launch flight →' : 'Connect & launch →'}</strong>
+              </button>
+            </div>
+            <p className="sa-ride-modal__hint"><kbd>←</kbd><kbd>→</kbd> rotate fleet · choose a bay · confirm to taxi</p>
+          </div>
+        </div>
       )}
       {showOverview && (
         <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
       )}
       {/* The airline elsewhere: one even row along the foot of the screen. */}
-      {!inGame && preflight === 'off' && <SocialLinks night className="sa-landing__social" />}
-      {!inGame && preflight !== 'off' && (
-        <div className="sa-preflight" role="dialog" aria-modal="true" aria-labelledby="sa-preflight-title">
-          <div className="sa-preflight__card">
-            <p className="sa-preflight__eyebrow">Wallet required</p>
-            {wallet.unavailable && !wallet.address ? (
-              <>
-                <h2 id="sa-preflight-title" className="sa-preflight__title">Get a Solana wallet</h2>
-                <p className="sa-preflight__text">
-                  {touch ? 'Open this page in your wallet’s browser.' : 'Install Phantom, Solflare, Backpack or Nightly, then come back.'}
-                </p>
-                <div className="sa-preflight__actions">
-                  {touch ? (
-                    <>
-                      <a href={walletLinks.phantom} className="sa-preflight__connect">Open in Phantom</a>
-                      <a href={walletLinks.solflare} className="sa-preflight__skip">Open in Solflare</a>
-                      <a href={walletLinks.backpack} className="sa-preflight__skip">Open in Backpack</a>
-                      <a href="https://nightly.app/download" target="_blank" rel="noopener noreferrer" className="sa-preflight__skip">Get Nightly</a>
-                    </>
-                  ) : (
-                    <>
-                      <a href="https://phantom.com" target="_blank" rel="noopener noreferrer" className="sa-preflight__connect">
-                        Get Phantom
-                      </a>
-                      <a href="https://solflare.com" target="_blank" rel="noopener noreferrer" className="sa-preflight__skip">
-                        Get Solflare
-                      </a>
-                      <a href="https://backpack.app" target="_blank" rel="noopener noreferrer" className="sa-preflight__skip">
-                        Get Backpack
-                      </a>
-                      <a href="https://nightly.app" target="_blank" rel="noopener noreferrer" className="sa-preflight__skip">
-                        Get Nightly
-                      </a>
-                    </>
-                  )}
-                  <button type="button" onClick={() => setPreflight('off')} className="sa-preflight__later">
-                    Not now
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 id="sa-preflight-title" className="sa-preflight__title">Connect to fly</h2>
-                {preflightNote && <p className="sa-preflight__note" role="alert">{wallet.error ?? preflightNote}</p>}
-                <div className="sa-preflight__actions">
-                  <button
-                    type="button"
-                    onClick={() => void connectAndFly()}
-                    disabled={preflight === 'connecting'}
-                    className="sa-preflight__connect"
-                    autoFocus
-                  >
-                    {preflight === 'connecting' ? 'Check your wallet…' : 'Connect wallet'}
-                  </button>
-                  <button type="button" onClick={() => setPreflight('off')} className="sa-preflight__later">
-                    Not now
-                  </button>
-                </div>
-              </>
-            )}
-            <p className="sa-preflight__fine">
-              Shares your address only. Signing is never a transaction.
-            </p>
-          </div>
-        </div>
-      )}
+      {!inGame && !ridePickerOpen && <SocialLinks night className="sa-landing__social" />}
       {/* Its own Suspense, as in the site: nothing shows while the chunk loads. */}
       {scoresOpen && (
         <Suspense fallback={null}>
@@ -1134,6 +1116,7 @@ export default function Landing({
                 <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" className="sa-hud__chip-logo" />
                 <span ref={hud.logos}>0</span>
               </span>
+              {playMode === 'ufo' && <span className="sa-hud__chip sa-hud__chip--ufo" title="The pulse field bends your flight path">Pulse field</span>}
               {weather && weather !== 'clear' && (
                 <span className={`sa-hud__chip sa-hud__chip--${weather}`}>
                   {weather === 'storm' ? 'Thunderstorm' : 'Rain'}
@@ -1185,16 +1168,16 @@ export default function Landing({
           )}
           {failure && phase === 'flying' && (
             <p key="mayday" className="sa-hud__help sa-hud__help--mayday">
-              {touch ? 'Tap boost to climb out' : 'Space to boost'} · ride updrafts ×1.5 · wings level ×1.5 · under 500 ft ×2
+              {playMode === 'ufo' ? (touch ? 'Tap boost to dash' : 'Space to dash') : (touch ? 'Tap boost to climb out' : 'Space to boost')} · ride updrafts ×1.5 · wings level ×1.5 · under 500 ft ×2
             </p>
           )}
           {!failure && (phase === 'intro' || phase === 'flying') && (
             <p className="sa-hud__help">
               {touch ? (
-                'Drag up to climb · sideways to turn · fly through logos'
+                playMode === 'ufo' ? 'Surf the pulse field · tap boost to dash · fly through logos' : 'Drag up to climb · sideways to turn · tap flaps · fly through logos'
               ) : (
                 <>
-                  <kbd>WASD</kbd> / <kbd>left stick</kbd> fly · <kbd>right mouse</kbd> / <kbd>right stick</kbd> look · <kbd>Space</kbd> boost · fly through logos
+                  {playMode === 'ufo' ? <><kbd>WASD</kbd> surf the pulse field · <kbd>Space</kbd> dash · </> : <><kbd>WASD</kbd> / <kbd>left stick</kbd> fly · <kbd>F</kbd> flaps · </>}<kbd>right mouse</kbd> / <kbd>right stick</kbd> look {playMode === 'ufo' ? '· fly through logos' : <>· <kbd>Space</kbd> boost · fly through logos</>}
                 </>
               )}
             </p>
@@ -1228,6 +1211,29 @@ export default function Landing({
           <span className="sa-boost__tank" aria-hidden>
             {Array.from({ length: BOOST.charges }, (_, i) => <span key={i} className="sa-boost__pip" style={{ ['--i' as string]: i }} />)}
           </span>
+        </button>
+      )}
+      {inGame && phase !== 'crashed' && (
+        <button
+          type="button"
+          className={`sa-flaps${flapLevel > 0 ? ' is-deployed' : ''}${flapLevel === 1 ? ' is-full' : ''}`}
+          aria-label={`Flaps ${flapLevel === 0 ? 'up' : flapLevel === 0.5 ? 'half' : 'full'}`}
+          aria-pressed={flapLevel > 0}
+          title="Flaps (F)"
+          disabled={phase !== 'flying' && phase !== 'intro'}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            cycleFlaps();
+          }}
+          onClick={(e) => {
+            if (e.detail === 0) cycleFlaps();
+          }}
+        >
+          <span className="sa-flaps__wing" aria-hidden>⌁</span>
+          <span className="sa-flaps__label">Flaps</span>
+          <strong>{flapLevel === 0 ? 'UP' : flapLevel === 0.5 ? '½' : 'FULL'}</strong>
+          <span className="sa-flaps__track" aria-hidden><span style={{ transform: `scaleX(${flapLevel})` }} /></span>
         </button>
       )}
       {blasted && !struck && <div className="sa-landing__blast" aria-hidden />}

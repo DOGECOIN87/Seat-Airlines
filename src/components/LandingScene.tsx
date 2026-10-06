@@ -334,6 +334,7 @@ const LandingScene = ({
     g.last = now;
     const { sky: skyState, band: bandState } = latest.current;
     const p = pose.current;
+    p.playerUfo = g.mode === 'ufo' && g.phase !== 'idle';
 
     if (g.phase === 'crashed') {
       /* Down. The world stops where it is — the smoke hanging, the flames
@@ -591,12 +592,23 @@ const LandingScene = ({
        less airspeed — and all the way in for a burn. */
     const slowing = g.failed ? Math.min(1, Math.max(0, (GAME.stallSpeed + 45 - g.speed) / 40)) : 0;
     const climbing = !g.failed && g.pitch > 6 ? 0.3 : 0;
-    p.flaps = g.phase === 'intro' ? 0.35 : Math.max(slowing * 0.85, climbing) * (1 - burn);
-    if (g.phase === 'flying') {
-      const saucer = ufoAt(g.ufo, g.clock);
+    p.flaps = g.phase === 'intro'
+      ? Math.max(0.35, g.flaps)
+      : Math.max(g.flaps * (1 - burn), slowing * 0.85, climbing) * (1 - burn);
+    if (g.phase === 'flying' || g.phase === 'intro') {
+      const saucer = g.mode === 'ufo'
+        ? {
+          visible: true,
+          right: Math.sin(g.clock * 2.35) * 8 + Math.sin(g.clock * 5.8) * 3,
+          up: Math.sin(g.clock * 3.1 + 0.7) * 2.8,
+          ahead: 7 + Math.cos(g.clock * 1.6) * 4,
+          scale: 1 + Math.sin(g.clock * 8.7) * 0.07,
+          dash: Math.min(1, g.boostPower + Math.abs(Math.sin(g.clock * 2.35)) * 0.18),
+        }
+        : ufoAt(g.ufo, g.clock);
       // Off the line it was aimed along: while it closes, and as it goes past.
       const miss = g.dodgeLock && g.ufo?.strike ? dodge(g.dodgeLock, g.ufo.strike, g.alt, g.bank) : g.ufoMiss;
-      p.ufo = miss ? { ...saucer, dev: { right: miss.right, up: miss.up } } : saucer;
+      p.ufo = g.mode === 'ufo' ? saucer : miss ? { ...saucer, dev: { right: miss.right, up: miss.up } } : saucer;
     } else {
       p.ufo = undefined;
     }

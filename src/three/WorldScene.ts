@@ -137,6 +137,8 @@ export interface ViewPose {
   fury?: number;
   /** The UFO, when there is one out there (see lib/ufo.ts). */
   ufo?: UfoPose;
+  /** Render the saucer at the aircraft's position as the player's vehicle. */
+  playerUfo?: boolean;
   /** The outer wing it took: -1 port, 1 starboard, 0 or absent neither. */
   wingLost?: -1 | 0 | 1;
   /** The thermals about, relative to the aeroplane (see lib/thermals.ts). */
@@ -1824,7 +1826,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
         camera.clearViewOffset();
       }
 
-      airframe.group.visible = true;
+      airframe.group.visible = !pose.playerUfo;
       // Sunlight from above, and the ground throwing light back at the belly —
       // without the bounce the underside goes black and the aeroplane reads as
       // a sticker rather than a solid.
