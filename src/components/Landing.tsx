@@ -27,6 +27,7 @@ import { TWISTER } from '../lib/tornado';
 import { LEVELS, type Level } from '../lib/levels';
 import { LOGOS } from '../lib/logos';
 import { createSfx, type Sfx } from '../lib/sfx';
+import { createLandingAudio, type LandingAudio } from '../lib/audioSprite';
 import {
   canShareFile, cardAssets, cardJpeg, composeCard, hostCard, hostsCards, intentUrl, saveFile, shareFile, shareText, SITE_URL,
   type SharedFlight,
@@ -320,10 +321,17 @@ export default function Landing({
   const logoRun = useRef({ at: 0, run: 0 });
   /** The synthesised sounds: the burn, the chime and the thunder. */
   const sfx = useRef<Sfx | null>(null);
+  const gameAudio = useRef<LandingAudio | null>(null);
   const soundOn = useRef(soundEnabled);
   soundOn.current = soundEnabled;
-  useEffect(() => sfx.current?.setEnabled(soundEnabled), [soundEnabled]);
-  useEffect(() => () => sfx.current?.close(), []);
+  useEffect(() => {
+    sfx.current?.setEnabled(soundEnabled);
+    gameAudio.current?.setEnabled(soundEnabled);
+  }, [soundEnabled]);
+  useEffect(() => () => {
+    sfx.current?.close();
+    gameAudio.current?.close();
+  }, []);
   /** The scene's picture of the moment the engine went, for the card. */
   const shot = useRef<HTMLCanvasElement | null>(null);
   /* Sharing the flight: the card as a picture as soon as the flight is
@@ -473,41 +481,15 @@ export default function Landing({
     return () => window.clearInterval(id);
   }, [counting]);
 
-  /* The game's sounds, made inside the click or key that starts it:
-     each is played once, muted, there and then, which is what a browser
-     wants to see before it lets a page make a noise later on its own. */
+  /* One shared recording and one context for both recorded and generated
+     game effects, unlocked inside the click or key that starts the game. */
   const makeSounds = () => {
     if (sounds.current) return;
-    const load = (file: string, volume: number) => {
-      const a = new Audio(`${import.meta.env.BASE_URL}${file}`);
-      a.preload = 'auto';
-      a.volume = volume;
-      a.muted = true;
-      void a.play().then(() => {
-        a.pause();
-        a.currentTime = 0;
-        a.muted = false;
-      }, () => {
-        a.muted = false;
-      });
-      return a;
-    };
-    sounds.current = {
-      blast: load('engine-blast.mp3', 0.9),
-      lightning: load('lightning-strike.mp3', 1),
-      ufo: load('ufo-appear.mp3', 0.85),
-      wind: (() => {
-        const a = load('updraft-wind.mp3', 0);
-        a.loop = true;
-        return a;
-      })(),
-      wasted: load('wasted.mp3', 1),
-      fahh: load('fail-fahh.mp3', 0.7),
-      trombone: load('fail-trombone.mp3', 0.9),
-      wow: load('wow.mp3', 0.9),
-      crowd: load('crash-crowd.mp3', 0.9),
-    };
-    sfx.current = createSfx();
+    const audio = createLandingAudio(soundOn.current);
+    if (!audio) return;
+    gameAudio.current = audio;
+    sounds.current = audio.sounds;
+    sfx.current = createSfx(audio.ctx);
     sfx.current?.setEnabled(soundOn.current);
   };
 

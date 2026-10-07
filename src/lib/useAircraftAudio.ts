@@ -24,6 +24,7 @@ const INTERCOM_FILES = [
 
 interface AudioRig {
   ctx: AudioContext;
+  controller: AbortController;
   master: GainNode;
   recording: AudioBufferSourceNode;
   seatbeltBuffer: AudioBuffer;
@@ -62,6 +63,8 @@ const playBuffer = (
   rig.activeSources.add(source);
   source.onended = () => {
     rig.activeSources.delete(source);
+    source.disconnect();
+    gain.disconnect();
     onEnded?.();
   };
   source.start();
@@ -71,7 +74,7 @@ const playBuffer = (
 const loadIntercom = (rig: AudioRig, index: number): Promise<AudioBuffer | null> => {
   let loading = rig.intercomBuffers.get(index);
   if (!loading) {
-    loading = fetch(`/intercom/${INTERCOM_FILES[index]}`)
+    loading = fetch(`${import.meta.env.BASE_URL}audio/intercom/${INTERCOM_FILES[index]}`, { signal: rig.controller.signal })
       .then(async (r) => (r.ok ? rig.ctx.decodeAudioData(await r.arrayBuffer()) : null))
       .catch(() => null);
     rig.intercomBuffers.set(index, loading);
@@ -154,14 +157,22 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
   const wanted = useRef(enabled);
   wanted.current = enabled;
   const starting = useRef(false);
+  const pending = useRef<{ ctx: AudioContext; controller: AbortController } | null>(null);
   const rig = useRef<AudioRig | null>(null);
   const previous = useRef({ seatbelt: lamps.seatbelt, oxygen: lamps.oxygen, brace: lamps.brace, band });
 
   const stop = useCallback(() => {
+    const loading = pending.current;
+    pending.current = null;
+    if (loading) {
+      loading.controller.abort();
+      void loading.ctx.close().catch(() => {});
+    }
     const current = rig.current;
     rig.current = null;
     if (!current) return;
     current.stopped = true;
+    current.controller.abort();
     if (current.intercomTimer !== null) window.clearTimeout(current.intercomTimer);
     if (current.occasionalSeatbeltTimer !== null) window.clearTimeout(current.occasionalSeatbeltTimer);
     current.recording.stop();
@@ -184,84 +195,93 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
 
   const begin = async (AudioContextClass: typeof AudioContext) => {
     const ctx = new AudioContextClass();
-    /* Mobile browsers (Android/iOS) keep an AudioContext suspended even after
-       resume() resolves unless a real buffer plays inside the user gesture.
-       Playing one silent frame inside the same call stack as the tap is the
-       standard unlock; without it resume() appears to succeed but ctx.state
-       stays 'suspended' and nothing is ever heard. */
+    const session = { ctx, controller: new AbortController() };
+    pending.current = session;
     try {
-      const unlock = ctx.createBufferSource();
-      unlock.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
-      unlock.connect(ctx.destination);
-      unlock.start(0);
-    } catch { /* ignore — desktop contexts don't need this */ }
-    /* Without the visitor's say-so a context stays suspended and resuming
-       it never settles; give up after a moment rather than wait forever,
-       and the next click or key tries again. */
-    await Promise.race([ctx.resume(), new Promise((r) => window.setTimeout(r, 1500))]);
-    if (ctx.state !== 'running' || !wanted.current) {
-      void ctx.close();
-      return;
-    }
-    const master = ctx.createGain();
-    master.gain.value = 0.12;
-    master.connect(ctx.destination);
-
-    const recordingResponse = await fetch('/flight-cabin-ambience-loop.mp3');
-    if (!recordingResponse.ok) throw new Error('Flight cabin ambience could not be loaded.');
-    const recording = ctx.createBufferSource();
-    recording.buffer = await ctx.decodeAudioData(await recordingResponse.arrayBuffer());
-    recording.loop = true;
-    /* The cabin's hum, wherever the camera is: the landing, outside the
-       aeroplane or in a seat all sound like the same flight. */
-    recording.connect(master);
-
-    if (!wanted.current) { void ctx.close(); return; }
-
-    // Ambient starts now. The seatbelt chimes load in the background, and the
-    // intercom announcements one at a time, each just before it is played.
-    const silence = ctx.createBuffer(1, 1, ctx.sampleRate);
-    const nextRig: AudioRig = {
-      ctx,
-      master,
-      recording,
-      seatbeltBuffer: silence,
-      occasionalSeatbeltBuffer: silence,
-      intercomBuffers: new Map(),
-      intercomOrder: [],
-      lastIntercomIndex: null,
-      intercomTimer: null,
-      occasionalSeatbeltTimer: null,
-      activeSources: new Set(),
-      stopped: false,
-    };
-
-    recording.start();
-    rig.current = nextRig;
-
-    // Load the rest in parallel without blocking playback.
-    void (async () => {
+      /* Mobile browsers (Android/iOS) keep an AudioContext suspended even after
+         resume() resolves unless a real buffer plays inside the user gesture.
+         Playing one silent frame inside the same call stack as the tap is the
+         standard unlock; without it resume() appears to succeed but ctx.state
+         stays 'suspended' and nothing is ever heard. */
       try {
-        const decode = async (url: string) => {
-          const r = await fetch(url);
-          if (!r.ok) return null;
-          return ctx.decodeAudioData(await r.arrayBuffer());
-        };
-        /* The sign's chime and the occasional one are the same recording —
-           they were two byte-identical files, fetched and decoded twice. */
-        const chime = await decode('/seatbelt-warning.mp3');
-        const target = rig.current;
-        if (!target || target.stopped) return;
-        if (chime) {
-          target.seatbeltBuffer = chime;
-          target.occasionalSeatbeltBuffer = chime;
+        const unlock = ctx.createBufferSource();
+        unlock.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+        unlock.connect(ctx.destination);
+        unlock.start(0);
+      } catch { /* ignore — desktop contexts don't need this */ }
+      /* Without the visitor's say-so a context stays suspended and resuming
+         it never settles; give up after a moment rather than wait forever,
+         and the next click or key tries again. */
+      await Promise.race([ctx.resume(), new Promise((r) => window.setTimeout(r, 1500))]);
+      if (ctx.state !== 'running' || !wanted.current || pending.current !== session) return;
+      const master = ctx.createGain();
+      master.gain.value = 0.12;
+      master.connect(ctx.destination);
+
+      const recordingResponse = await fetch(`${import.meta.env.BASE_URL}audio/flight-cabin-ambience-loop.mp3`, { signal: session.controller.signal });
+      if (!recordingResponse.ok) throw new Error('Flight cabin ambience could not be loaded.');
+      const recording = ctx.createBufferSource();
+      recording.buffer = await ctx.decodeAudioData(await recordingResponse.arrayBuffer());
+      recording.loop = true;
+      /* The cabin's hum, wherever the camera is: the landing, outside the
+         aeroplane or in a seat all sound like the same flight. */
+      recording.connect(master);
+
+      if (!wanted.current || pending.current !== session) return;
+
+      // Ambient starts now. The seatbelt chimes load in the background, and the
+      // intercom announcements one at a time, each just before it is played.
+      const silence = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const nextRig: AudioRig = {
+        ctx,
+        controller: session.controller,
+        master,
+        recording,
+        seatbeltBuffer: silence,
+        occasionalSeatbeltBuffer: silence,
+        intercomBuffers: new Map(),
+        intercomOrder: [],
+        lastIntercomIndex: null,
+        intercomTimer: null,
+        occasionalSeatbeltTimer: null,
+        activeSources: new Set(),
+        stopped: false,
+      };
+
+      recording.start();
+      rig.current = nextRig;
+      pending.current = null;
+
+      // Load the rest in parallel without blocking playback.
+      void (async () => {
+        try {
+          const decode = async (url: string) => {
+            const r = await fetch(url, { signal: session.controller.signal });
+            if (!r.ok) return null;
+            return ctx.decodeAudioData(await r.arrayBuffer());
+          };
+          /* The sign's chime and the occasional one are the same recording —
+             they were two byte-identical files, fetched and decoded twice. */
+          const chime = await decode(`${import.meta.env.BASE_URL}audio/seatbelt-warning.mp3`);
+          const target = rig.current;
+          if (target !== nextRig || target.stopped) return;
+          if (chime) {
+            target.seatbeltBuffer = chime;
+            target.occasionalSeatbeltBuffer = chime;
+          }
+          scheduleIntercom(target, true);
+          scheduleOccasionalSeatbelt(target);
+        } catch {
+          // Secondary audio unavailable — ambient keeps playing.
         }
-        scheduleIntercom(target, true);
-        scheduleOccasionalSeatbelt(target);
-      } catch {
-        // Secondary audio unavailable — ambient keeps playing.
+      })();
+    } finally {
+      if (pending.current === session) pending.current = null;
+      if (rig.current?.ctx !== ctx) {
+        session.controller.abort();
+        if (ctx.state !== 'closed') void ctx.close().catch(() => {});
       }
-    })();
+    }
   };
 
   const toggle = useCallback(() => {
@@ -283,8 +303,7 @@ export function useAircraftAudio(lamps: Annunciators, _change5m: number, band: F
     const detach = () => events.forEach((type) => window.removeEventListener(type, go, true));
     function go() {
       if (!activated() || rig.current) return;
-      detach();
-      void start().catch(() => {});
+      void start().then(() => { if (rig.current) detach(); }).catch(() => {});
     }
     events.forEach((type) => window.addEventListener(type, go, true));
     return detach;

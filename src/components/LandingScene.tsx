@@ -1,3 +1,5 @@
+import type { LandingSounds } from '../lib/audioSprite';
+export type { LandingSounds } from '../lib/audioSprite';
 import { useEffect, useRef, type MutableRefObject, type RefObject } from 'react';
 import { CAPTURE, captureState } from '../capture/flag';
 import { bandHeight, createWorld, type ViewPose, type WorldHandles } from '../three/WorldScene';
@@ -63,22 +65,6 @@ export interface LandingHud {
 }
 
 
-/** The sound effects, made on the gesture that started the game so they are allowed to play. */
-export interface LandingSounds {
-  blast: HTMLAudioElement;
-  lightning: HTMLAudioElement;
-  /** When the UFO blinks into being. */
-  ufo: HTMLAudioElement;
-  /** Wind, looping, as loud as the rising air the aeroplane is in. */
-  wind: HTMLAudioElement;
-  /** The crash: one of these three, picked each time (see Landing). */
-  wasted: HTMLAudioElement;
-  fahh: HTMLAudioElement;
-  trombone: HTMLAudioElement;
-  /** Getting away with something: a UFO dodged. */
-  wow: HTMLAudioElement;
-  crowd: HTMLAudioElement;
-}
 
 /**
  * A picture of the moment the engine went — the fireball, or the bolt — or,
@@ -296,7 +282,7 @@ const LandingScene = ({
      will be, so it is predicted every frame (see impactIn), and the clip
      started as far into itself as puts its cut-off on the prediction. While
      it plays it is kept on it: a little faster or slower as the ground comes
-     sooner or later — pitch held, so it is never audible — and a jump only
+     sooner or later, with smooth rate changes, and a jump only
      if the prediction moves by seconds. Pull out of the dive and it fades;
      start another and it comes back. */
   const syncCrowd = (g: FlightGame, tti: number, dt: number) => {
@@ -317,7 +303,7 @@ const LandingScene = ({
       }
       return;
     }
-    if (clip.ended) {
+    if (clip.ended || clip.paused) {
       c.on = false;
       return;
     }
