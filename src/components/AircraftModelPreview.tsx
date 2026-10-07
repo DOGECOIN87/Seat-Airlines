@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { createAirframe, type AirframeHandles } from '../three/airframe';
+import { previewBounds, previewDistance } from '../three/previewBounds';
 
 export type PreviewModel = 'airliner' | 'ufo';
 
@@ -11,7 +12,8 @@ interface AircraftModelPreviewProps {
 
 function fitModel(root: THREE.Object3D, targetSize: number): void {
   root.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(root);
+  const box = previewBounds(root);
+  if (box.isEmpty()) return;
   const size = box.getSize(new THREE.Vector3());
   const centre = box.getCenter(new THREE.Vector3());
   const scale = targetSize / Math.max(size.x, size.y, size.z, 0.001);
@@ -25,7 +27,12 @@ function disposeObject(root: THREE.Object3D): void {
     const mesh = node as THREE.Mesh;
     mesh.geometry?.dispose();
     const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
-    materials.forEach((material) => material.dispose());
+    materials.forEach((material) => {
+      Object.values(material).forEach((value) => {
+        if (value instanceof THREE.Texture) value.dispose();
+      });
+      material.dispose();
+    });
   });
 }
 
@@ -44,6 +51,7 @@ function makeFallbackUfo(): THREE.Group {
     new THREE.TorusGeometry(1.7, 0.12, 10, 32),
     new THREE.MeshBasicMaterial({ color: 0x7df7ff }),
   );
+  ring.rotation.x = Math.PI / 2;
   fallback.add(saucer, dome, ring);
   return fallback;
 }
@@ -63,15 +71,28 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     host.appendChild(canvas);
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
+    } catch {
+      canvas.remove();
+      return; // Keep the labelled fallback and ride selection usable without WebGL.
+    }
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setClearColor(0x000000, 0);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    const contextLost = (event: Event) => {
+      event.preventDefault();
+      delete host.dataset.ready;
+    };
+    canvas.addEventListener('webglcontextlost', contextLost);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
     camera.position.set(model === 'ufo' ? 0 : 9.5, model === 'ufo' ? 7.2 : 5.2, model === 'ufo' ? 15 : 13.5);
     camera.lookAt(0, 0, 0);
+    const viewDirection = camera.position.clone().normalize();
     scene.add(new THREE.HemisphereLight(0xbbeeff, 0x071425, 2.1));
     const key = new THREE.DirectionalLight(0xffffff, 3.4);
     key.position.set(7, 12, 9);
@@ -89,9 +110,21 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
     let disposed = false;
     const clock = new THREE.Clock();
     const loader = new GLTFLoader();
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let radius = 1;
+    const frameModel = () => {
+      const bounds = previewBounds(root);
+      radius = bounds.isEmpty() ? 1 : bounds.getBoundingSphere(new THREE.Sphere()).radius;
+      camera.position.copy(viewDirection).multiplyScalar(previewDistance(radius, camera.fov, camera.aspect));
+      camera.far = camera.position.length() + radius * 4;
+      camera.updateProjectionMatrix();
+    };
 
     if (model === 'airliner') {
       airframe = createAirframe();
+      // Set the effects' visibility before measuring. Box3.setFromObject also
+      // includes invisible contrails, shrinking and moving the plane out of its bay.
+      airframe.update(0, { contrail: 0, stream: 0, bank: 0, pitch: 0, night: 0.12, cabin: 0.65, mood: 0, calm: true });
       root = airframe.group;
       root.rotation.y = Math.PI;
       fitModel(root, 18);
@@ -127,29 +160,34 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
           fallback = null;
         }
         ufoRoot.add(actual);
+        frameModel();
       }).catch(() => { /* The local fallback remains usable if the optional GLB cannot load. */ });
     }
 
     const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const width = Math.max(1, rect.width);
-      const height = Math.max(1, rect.height);
+      const width = Math.max(1, host.clientWidth);
+      const height = Math.max(1, host.clientHeight);
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
-      camera.updateProjectionMatrix();
+      frameModel();
     };
     resize();
     const observer = new ResizeObserver(resize);
-    observer.observe(canvas);
+    observer.observe(host);
 
     let frame = 0;
     const animate = () => {
       if (disposed) return;
       const dt = Math.min(0.05, clock.getDelta());
-      pivot.rotation.y += dt * (model === 'ufo' ? 0.72 : 0.28);
-      pivot.position.y = Math.sin(clock.elapsedTime * 1.6) * 0.16;
-      airframe?.update(dt, { contrail: 0, stream: 0, bank: Math.sin(clock.elapsedTime) * 3, pitch: 2, night: 0.12, cabin: 0.65, mood: 0, calm: true });
-      renderer.render(scene, camera);
+      if (!document.hidden && !renderer.getContext().isContextLost()) {
+        if (!motion.matches) {
+          pivot.rotation.y += dt * (model === 'ufo' ? 0.72 : 0.28);
+          pivot.position.y = Math.sin(clock.elapsedTime * 1.6) * 0.16;
+        }
+        airframe?.update(motion.matches ? 0 : dt, { contrail: 0, stream: 0, bank: 0, pitch: 2, night: 0.12, cabin: 0.65, mood: 0, calm: true });
+        renderer.render(scene, camera);
+        host.dataset.ready = 'true';
+      }
       frame = requestAnimationFrame(animate);
     };
     animate();
@@ -158,6 +196,7 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
       disposed = true;
       cancelAnimationFrame(frame);
       observer.disconnect();
+      canvas.removeEventListener('webglcontextlost', contextLost);
       airframe?.dispose();
       if (!airframe) disposeObject(root);
       renderer.dispose();
@@ -165,8 +204,15 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
       renderer.forceContextLoss();
       canvas.remove();
       scene.clear();
+      delete host.dataset.ready;
     };
   }, [model]);
 
-  return <div ref={hostRef} className="sa-aircraft-picker__model-canvas" role="img" aria-label={`${model === 'ufo' ? 'UFO interceptor' : 'SA350 airliner'} 3D preview`} />;
+  return (
+    <div ref={hostRef} className="sa-aircraft-picker__model-canvas" role="img" aria-label={`${model === 'ufo' ? 'UFO interceptor' : 'SA350 airliner'} 3D preview`}>
+      {model === 'airliner'
+        ? <img className="sa-aircraft-picker__fallback" src={`${import.meta.env.BASE_URL}plane-top.svg`} alt="" />
+        : <span className="sa-aircraft-picker__fallback" aria-hidden>◉</span>}
+    </div>
+  );
 }

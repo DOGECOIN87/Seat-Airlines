@@ -32,7 +32,7 @@ export default function AircraftCarousel({
           <p className="sa-aircraft-picker__eyebrow">Fleet roster</p>
           <h2 className="sa-aircraft-picker__title">Choose your ride</h2>
         </div>
-        <span className="sa-aircraft-picker__counter">02 / 02</span>
+        <span className="sa-aircraft-picker__counter">{mode === 'airliner' ? '01' : '02'} / 02</span>
       </header>
 
       <div className="sa-aircraft-picker__stage">
@@ -65,7 +65,7 @@ export default function AircraftCarousel({
             className={`sa-aircraft-picker__slot sa-aircraft-picker__slot--active sa-aircraft-picker__slot--ufo${mode === 'ufo' ? ' is-selected' : ''}${!ufoUnlocked ? ' is-locked' : ''}`}
             onClick={selectUfo}
             aria-pressed={mode === 'ufo'}
-            aria-disabled={!ufoUnlocked}
+            disabled={!ufoUnlocked && walletConnected}
           >
             <span className="sa-aircraft-picker__slot-badge sa-aircraft-picker__slot-badge--ufo">
               {ufoUnlocked ? 'Test flight ready' : 'Holder locked'}
@@ -83,7 +83,7 @@ export default function AircraftCarousel({
             </div>
           </button>
         </div>
-        <button type="button" className="sa-aircraft-picker__arrow" onClick={selectUfo} aria-label="Choose UFO">
+        <button type="button" className="sa-aircraft-picker__arrow" onClick={selectUfo} disabled={!ufoUnlocked && walletConnected} aria-label={!ufoUnlocked && !walletConnected ? 'Connect to verify UFO access' : 'Choose UFO'}>
           ›
         </button>
       </div>
@@ -107,7 +107,6 @@ export default function AircraftCarousel({
           disabled={!ufoUnlocked && walletConnected}
           onClick={selectUfo}
           aria-pressed={mode === 'ufo'}
-          aria-disabled={!ufoUnlocked}
         >
           <span aria-hidden>◉</span>
           {mode === 'ufo' ? 'Armed' : !walletConnected && !ufoUnlocked ? 'Connect to verify' : balanceLoading ? 'Checking…' : ufoUnlocked ? 'Try UFO' : 'Locked'}

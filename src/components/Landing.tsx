@@ -217,10 +217,34 @@ export default function Landing({
   /* Read by the key handler, which is not rebuilt when the picker opens. */
   const ridePickerUp = useRef(false);
   const launchRef = useRef<HTMLButtonElement>(null);
+  const rideDialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ridePickerUp.current = ridePickerOpen;
-    // The launch button takes the keys — without scrolling the hangar's heading off a short screen.
-    if (ridePickerOpen) launchRef.current?.focus({ preventScroll: true });
+    if (!ridePickerOpen) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = rideDialogRef.current;
+    dialog?.querySelector<HTMLButtonElement>('.sa-ride-modal__close')?.focus({ preventScroll: true });
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !dialog) return;
+      const items = [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]')]
+        .filter((item) => item.getClientRects().length > 0);
+      const first = items[0], last = items[items.length - 1];
+      if (!first || !last) return;
+      const outside = !dialog.contains(document.activeElement);
+      if (event.shiftKey && (outside || document.activeElement === first)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (outside || document.activeElement === last)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', trapFocus);
+    return () => {
+      window.removeEventListener('keydown', trapFocus);
+      if (opener?.isConnected && opener !== document.body) opener.focus({ preventScroll: true });
+      else document.querySelector<HTMLButtonElement>('.sa-landing__fly')?.focus({ preventScroll: true });
+    };
   }, [ridePickerOpen]);
   // The local Vite preview is a test harness for both rides. Production builds
   // (including the version pushed to main) still require 1,000,000 $SEAT.
@@ -1068,6 +1092,7 @@ export default function Landing({
       </header>
 
       {!inGame && !ridePickerOpen && (
+        <div className="sa-landing__lobby">
         <main className="sa-landing__hero">
           <h1 className="sa-landing__title">
             Hold more.
@@ -1080,6 +1105,7 @@ export default function Landing({
               : 'Market cap is altitude. The biggest holders sit up front.'}
           </p>
           <div className="sa-landing__actions">
+            <div className="sa-landing__primary-actions">
             <button type="button" onClick={leave} className="sa-landing__enter">
               See who’s on board <span aria-hidden>→</span>
             </button>
@@ -1091,6 +1117,8 @@ export default function Landing({
                 {playMode === 'ufo' ? (wallet.address ? 'Launch UFO' : 'Connect & launch') : (wallet.address ? 'Fly' : 'Connect & fly')}
               </button>
             )}
+            </div>
+            <div className="sa-landing__utility-actions">
             {/* Boost the token on DexScreener — its page, where the Boost
                 button is. While a boost runs, the plane behind is on
                 afterburner, so this says so. */}
@@ -1136,6 +1164,7 @@ export default function Landing({
               <DeckIcon name={soundEnabled ? 'sound' : 'mute'} className="sa-pilots__icon" />
               <span className="sa-pilots__label">{soundEnabled ? 'Sound' : 'Muted'}</span>
             </button>
+            </div>
           </div>
           {!failed && (
             <p className="sa-landing__hint">
@@ -1145,9 +1174,14 @@ export default function Landing({
             </p>
           )}
         </main>
+        {showOverview && (
+          <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
+        )}
+        <SocialLinks night className="sa-landing__social" />
+        </div>
       )}
       {ridePickerOpen && !inGame && (
-        <div className="sa-ride-modal" role="dialog" aria-modal="true" aria-label="Choose your ride">
+        <div ref={rideDialogRef} className="sa-ride-modal" role="dialog" aria-modal="true" aria-label="Choose your ride">
           <div className="sa-ride-modal__ceiling" aria-hidden>
             <i /><i /><i /><i /><i /><i />
           </div>
@@ -1215,11 +1249,6 @@ export default function Landing({
           </div>
         </div>
       )}
-      {showOverview && (
-        <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
-      )}
-      {/* The airline elsewhere: one even row along the foot of the screen. */}
-      {!inGame && !ridePickerOpen && <SocialLinks night className="sa-landing__social" />}
       {/* Its own Suspense, as in the site: nothing shows while the chunk loads. */}
       {scoresOpen && (
         <Suspense fallback={null}>
