@@ -3,6 +3,8 @@ import { fetchBoard, hasBoard, readBest, recentBoard, shortWallet, type BoardEnt
 import ModalWindow from './ModalWindow';
 import { LEVELS } from '../lib/levels';
 import { FEET } from '../lib/landingGame';
+import { useFomoProfiles } from '../hooks/useFomoProfiles';
+import ProfilePicture from './ProfilePicture';
 
 interface ScoresDialogProps {
   /** The visitor's wallet, to find them on the board. */
@@ -26,6 +28,7 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
   const [best] = useState(readBest);
   const [view, setView] = useState<BoardView>('podium');
   const [selected, setSelected] = useState(0);
+  const profiles = useFomoProfiles(board?.map(row => row.address) ?? []);
 
   useEffect(() => {
     if (!hasBoard || cached) return;
@@ -96,7 +99,9 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
                       aria-pressed={selected === i}
                     >
                       <span className="sa-scores__podium-rank">{i + 1}</span>
+                      <ProfilePicture profile={profiles[row.address]} fallback={row.address.slice(0, 2)} className="sa-scores__profile sa-scores__profile--podium" />
                       <strong>{shortWallet(row.address)}</strong>
+                      {profiles[row.address]?.handle && <small className="sa-scores__handle">@{profiles[row.address]?.handle}</small>}
                       <span>{row.score.toLocaleString('en-US')}</span>
                       {you && <small>You</small>}
                     </button>
@@ -111,11 +116,13 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
                     <li key={row.address} className={`${you ? 'is-you ' : ''}${selected === i ? 'is-selected' : ''}`}>
                       <button type="button" onClick={() => setSelected(i)} aria-pressed={selected === i}>
                         <span className={`sa-scores__rank${i < 3 ? ` sa-scores__rank--${i + 1}` : ''}`}>{i + 1}</span>
+                        <ProfilePicture profile={profiles[row.address]} fallback={row.address.slice(0, 2)} className="sa-scores__profile" />
                         <span className="sa-scores__who">
                           <span className="sa-scores__wallet">
                             {shortWallet(row.address)}
                             {you && <span className="sa-scores__you">You</span>}
                           </span>
+                          {profiles[row.address]?.handle && <span className="sa-scores__handle">@{profiles[row.address]?.handle}</span>}
                           <span className="sa-scores__meta">
                             {row.survived > 0 ? `${Math.round(row.survived)} s on one engine` : 'Short of 10,000 ft'}
                           </span>
@@ -131,7 +138,7 @@ export default function ScoresDialog({ address, onClose }: ScoresDialogProps) {
 
             {selectedRow && (
               <div className="sa-scores__pilot-card" aria-live="polite">
-                <div className="sa-scores__pilot-avatar" aria-hidden>{selected + 1}</div>
+                <ProfilePicture profile={profiles[selectedRow.address]} fallback={selected + 1} className="sa-scores__pilot-avatar" />
                 <div className="sa-scores__pilot-copy">
                   <span className="sa-scores__pilot-kicker">Selected pilot · rank #{selected + 1}</span>
                   <strong>{shortWallet(selectedRow.address)}{selectedRow.address === address ? ' · you' : ''}</strong>

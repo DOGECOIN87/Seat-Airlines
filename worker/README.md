@@ -14,6 +14,19 @@ The wall:
 | `GET /holders` | who is aboard, and the supply — what the page seats from |
 | `GET /holding` | one wallet's balance, so the page needs no RPC key of its own |
 | `GET /images/…` | the artwork, when it is kept in KV rather than R2 |
+| `GET /fomo/profiles?wallets=…` | public Fomo pictures for up to 12 wallet addresses |
+
+Fomo pictures use the independent, open-source community index at
+`https://fomo-public.pootracker.app/v2/users/wallet/{address}` ([API reference](https://github.com/deladevsol/fomo-api/blob/main/docs/api.md)).
+No key or account is required. Only an exact `solanaAddress` match is used;
+missing or unindexed wallets keep the existing seat/rank placeholder.
+Profiles are cached for an hour in memory and KV; a failed refresh can use a
+previous picture for up to 30 days. Missing profiles cache for 15 minutes.
+An upstream outage or rate limit pauses requests for at least a minute.
+The index was unreachable during integration on October 8, 2026, so the
+live app may show placeholders until it recovers. Published adverts always
+take priority over profile pictures, and profile lookup grants no seat or
+directory permissions.
 
 The landing's leaderboard:
 

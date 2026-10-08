@@ -7235,3 +7235,20 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-seat--unknown, .sa-key--unknown { background: var(--ui-sink); box-shadow: none; outline: 1px dashed var(--ui-faint); outline-offset: -2px; }
 .sa-seat--unknown::after { content: '?'; position: absolute; right: 3px; top: 1px; color: var(--ui-faint); font-size: 10px; }
 .sa-map__availability { margin: 0 0 12px; padding: 12px; color: var(--ui-soft); font-size: 12px; line-height: 1.5; border: 1px solid var(--ui-faint); border-radius: 8px; }
+
+/* Wallet profile pictures decorate the existing seats and score rows. */
+.sa-profile-picture { display: inline-grid; place-items: center; flex: none; overflow: hidden; }
+.sa-profile-picture > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.sa-seat__profile { position: absolute; inset: 0; border-radius: inherit; }
+.sa-map__profile, .sa-seatwin__profile { width: 100%; height: 100%; }
+.sa-seatwin__profile > .sa-seatwin__tile { width: 100%; height: 100%; }
+.sa-scores__profile { width: 2rem; height: 2rem; border-radius: 50%; background: var(--ui-sink); color: var(--ui-ink); font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10px; }
+.sa-scores__profile--podium { width: 2.75rem; height: 2.75rem; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
+.sa-scores__handle { display: block; overflow: hidden; max-width: 100%; color: var(--ui-soft); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.sa-scores__list li > button { grid-template-columns: 1.5rem 2rem minmax(0, 1fr) auto; gap: 0.55rem; }
+.sa-scores__podium-card strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 400px) {
+  .sa-scores__list li > button { grid-template-columns: 1.1rem 1.6rem minmax(0, 1fr) auto; gap: 0.35rem; padding-inline: 0.35rem; }
+  .sa-scores__list .sa-scores__profile { width: 1.6rem; height: 1.6rem; }
+  .sa-scores__wallet, .sa-scores__score { font-size: 10px; }
+}

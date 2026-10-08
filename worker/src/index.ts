@@ -73,6 +73,8 @@ import {
 } from './xshare';
 import { airlineName, finishAirlineConnect, postAsAirline, startAirlineConnect, XError } from './xshare';
 import { dailyText, dayTop, utcDay } from './daily';
+import { readFomoProfiles } from './fomo';
+import { FOMO_PROFILE_BATCH } from '../../src/lib/fomoProfile';
 import { handleHelius, heliusConfigured, isHeliusPath, trustedOrigin, type HeliusEnv } from './helius';
 import {
   ANNOUNCEMENT, canAnnounce, canMessage, canPostToChannel, canViewContact,
@@ -114,10 +116,9 @@ export interface Env extends XEnv, HeliusEnv {
    *
    * The same feed the page reads, and pointing both at one URL is what keeps
    * the two seating charts identical. Optional in the same way it is optional
-   * for the page: without it the ladder falls back to the twenty largest
-   * accounts from `RPC_URL`, which fills the front of the aircraft and leaves
-   * the rest empty. With neither, the directory cannot tell one cabin from
-   * another and withholds everything but your own card.
+   * for the page: without it the ladder requests a complete holder scan
+   * from the configured RPC. An incomplete or failed read keeps the last
+   * verified seating; without one, occupancy is unavailable.
    */
   HOLDERS_URL?: string;
   /**
@@ -815,6 +816,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const cors = corsHeaders(env, request.headers.get('origin'));
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+
+    if (request.method === 'GET' && url.pathname === '/fomo/profiles') {
+      const addresses = [...new Set((url.searchParams.get('wallets') ?? '').split(',').filter(Boolean))];
+      if (!addresses.length || addresses.length > FOMO_PROFILE_BATCH || !addresses.every(isAddress)) {
+        return json({ error: `Supply 1–${FOMO_PROFILE_BATCH} valid wallet addresses.` }, 400, cors);
+      }
+      const result = await readFomoProfiles(addresses, env.BANNERS);
+      return json(result, 200, { ...cors, 'cache-control': result.available ? 'public, max-age=300' : 'no-store' });
+    }
 
     // Keep oversized bodies out of parsing and signature verification. The
     // client sends a compressed 384px image, so this is intentionally well

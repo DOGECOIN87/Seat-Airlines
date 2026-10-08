@@ -6,6 +6,9 @@ import { formatShare, formatTokens } from '../lib/seatLadder';
 import SeatDialog from './SeatDialog';
 import AircraftRow from './AircraftRow';
 import { reveal } from '../lib/reveal';
+import { useFomoProfiles } from '../hooks/useFomoProfiles';
+import type { FomoProfile } from '../lib/fomoProfile';
+import ProfilePicture from './ProfilePicture';
 
 /**
  * The cabin, from above.
@@ -35,6 +38,7 @@ interface SeatProps {
   entry: ManifestEntry | null;
   occupancyKnown: boolean;
   banner: Banner | null;
+  profile: FomoProfile | null;
   mine: boolean;
   /** Just found: pulsed while the map brings it into view. */
   found?: boolean;
@@ -42,7 +46,7 @@ interface SeatProps {
   onInspect: (id: string | null) => void;
 }
 
-const Seat = ({ id, zone, entry, occupancyKnown, banner, mine, found = false, onOpen, onInspect }: SeatProps) => {
+const Seat = ({ id, zone, entry, occupancyKnown, banner, profile, mine, found = false, onOpen, onInspect }: SeatProps) => {
   const lavatory = (LAVATORY_SEATS as readonly string[]).includes(id);
   const sold = entry !== null;
   /* An advert whose picture will not load is drawn as a held seat without
@@ -96,10 +100,10 @@ const Seat = ({ id, zone, entry, occupancyKnown, banner, mine, found = false, on
       ) : sold ? (
         // No advert up yet, so the seat advertises itself: rank, then the
         // seat number under it, at a size somebody can actually read.
-        <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+        <ProfilePicture profile={profile} className="sa-seat__profile" fallback={<span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
           <span className="sa-seat__rank font-mono text-[length:clamp(12px,calc(var(--seat)*0.34),22px)] font-semibold">{entry.rank}</span>
           <span className="sa-seat__id mt-[0.15em] font-mono text-[length:clamp(11px,calc(var(--seat)*0.2),13px)]">{id}</span>
-        </span>
+        </span>} />
       ) : (
         <span className="sa-seat__id absolute inset-0 grid place-items-center font-mono text-[length:clamp(11px,calc(var(--seat)*0.2),13px)] opacity-70">
           {id}
@@ -129,6 +133,7 @@ const sectionOf = (id: string): string | undefined => CABIN_SECTIONS.find(({ row
   [...row.left, ...row.right].some((c) => (row.n === null ? c : `${row.n}${c}`) === id)))?.id;
 
 const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, onAdvertise, owner, sign }: SeatMapProps) {
+  const profiles = useFomoProfiles(manifest.entries.map(entry => entry.address));
   const [inspecting, setInspecting] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   /** The seat open in its own window, over the page. */
@@ -290,6 +295,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                             entry={manifest.bySeat.get(id) ?? null}
                             occupancyKnown={manifest.live}
                             banner={banners[id] ?? null}
+                            profile={profiles[manifest.bySeat.get(id)?.address ?? ''] ?? null}
                             mine={mine === id}
                             found={found === id}
                             onOpen={openSeat}
@@ -342,10 +348,10 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
           <p className="sa-map__label">{resting ? 'Best placement on board' : 'Seat'}</p>
 
           <div className="sa-map__preview">
-            {banner ? (
+            {banner && !banner.house ? (
               <img src={banner.image} alt={banner.alt} />
             ) : (
-              <span className="sa-map__preview-empty">{entry ? 'No advert yet' : 'Seat open'}</span>
+              <ProfilePicture profile={entry ? profiles[entry.address] : null} className="sa-map__profile" fallback={banner ? <img src={banner.image} alt={banner.alt} /> : <span className="sa-map__preview-empty">{entry ? 'No advert yet' : manifest.live ? 'Seat open' : 'Occupancy unavailable'}</span>} />
             )}
           </div>
 

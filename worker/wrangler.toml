@@ -61,7 +61,7 @@ PUBLIC_IMAGE_BASE = "https://pub-7bcf6d5d613c464da99814dd49b0f3ff.r2.dev"
 
 # The origins allowed to call this. Left empty the Worker echoes whatever
 # origin asks, which is fine locally and careless in production.
-ALLOWED_ORIGINS = "https://seat-airlines.space,https://www.seat-airlines.space"
+ALLOWED_ORIGINS = "https://seat-airlines.space,https://www.seat-airlines.space,https://seat-airlines-trellis-preview.mobleymatthew210.chatgpt.site"
 
 # Posting flights to X for players who connect their account (src/xshare.ts).
 # "video" posts the flight's video, and the card if X will not take it;

@@ -8,6 +8,8 @@ import { formatShare, formatTokens } from '../lib/seatLadder';
 import ModalWindow from './ModalWindow';
 import AccountIcon from './AccountIcon';
 import OfferingTags from './OfferingTags';
+import { useFomoProfiles } from '../hooks/useFomoProfiles';
+import ProfilePicture from './ProfilePicture';
 
 interface SeatDialogProps {
   id: string;
@@ -51,6 +53,8 @@ export default function SeatDialog({
   const [copied, setCopied] = useState(false);
   const [publicProfile, setPublicProfile] = useState<{ address: string; profile: PublicSeatProfile } | null>(null);
   const address = entry?.address;
+  const fomoProfiles = useFomoProfiles([address]);
+  const fomo = address ? fomoProfiles[address] : null;
   useEffect(() => {
     if (!address) return;
     const controller = new AbortController();
@@ -109,13 +113,13 @@ export default function SeatDialog({
       <div className="sa-seatwin__body">
         {/* ── The square ── */}
         <div className="sa-seatwin__media">
-          {banner ? (
+          {banner && !banner.house ? (
             <img src={banner.image} alt={banner.alt} />
           ) : entry ? (
-            <span className="sa-seatwin__tile">
+            <ProfilePicture profile={fomo} className="sa-seatwin__profile" fallback={banner ? <img src={banner.image} alt={banner.alt} /> : <span className="sa-seatwin__tile">
               <span className="sa-seatwin__tile-rank">#{entry.rank}</span>
               <span className="sa-seatwin__tile-id">{id} · No advert yet</span>
-            </span>
+            </span>} />
           ) : (
             <span className="sa-seatwin__socket">
               <span className="sa-seatwin__tile-id">{id}</span>

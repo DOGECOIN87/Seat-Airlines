@@ -15,6 +15,7 @@ on:
       - 'src/content/cabin.ts'
       - 'src/lib/seating.ts'
       - 'src/lib/holderList.ts'
+      - 'src/lib/fomoProfile.ts'
       - 'src/lib/manualControls.ts'
       - 'src/lib/scoring.ts'
   workflow_dispatch:

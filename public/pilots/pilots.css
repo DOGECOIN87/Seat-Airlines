@@ -8,3 +8,7 @@
 .pilot { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0.9rem; }
 .day { color: var(--soft); font-size: 0.9rem; font-weight: 500; }
 .note { color: var(--soft); font-size: 0.9rem; }
+.pilot-identity { display: flex; align-items: center; gap: 0.5rem; }
+.pilot-avatar { display: grid; place-items: center; flex: none; width: 1.8rem; height: 1.8rem; overflow: hidden; border-radius: 50%; background: var(--line, #e5edf4); color: var(--soft); font-size: 10px; }
+.pilot-avatar img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 400px) { .pilot-identity { gap: 0.3rem; } .pilot-avatar { width: 1.4rem; height: 1.4rem; } .pilot { font-size: 0.72rem; } }
