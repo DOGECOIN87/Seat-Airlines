@@ -222,10 +222,10 @@ export default function Landing({
     // The launch button takes the keys — without scrolling the hangar's heading off a short screen.
     if (ridePickerOpen) launchRef.current?.focus({ preventScroll: true });
   }, [ridePickerOpen]);
-  // The local Vite preview is a test harness for both rides. Production builds
-  // (including the version pushed to main) still require 1,000,000 $SEAT.
+  // The UFO is an entitlement, not a development/demo flag: only a verified
+  // balance of at least 1,000,000 $SEAT can arm it.
   const localTestMode = import.meta.env.DEV;
-  const ufoUnlocked = localTestMode || (tokenBalance ?? 0) >= 1_000_000;
+  const ufoUnlocked = (tokenBalance ?? 0) >= 1_000_000;
   const ufoUnlockedRef = useRef(ufoUnlocked);
   useEffect(() => {
     ufoUnlockedRef.current = ufoUnlocked;

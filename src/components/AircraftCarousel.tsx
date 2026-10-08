@@ -68,7 +68,7 @@ export default function AircraftCarousel({
             aria-disabled={!ufoUnlocked}
           >
             <span className="sa-aircraft-picker__slot-badge sa-aircraft-picker__slot-badge--ufo">
-              {ufoUnlocked ? 'Test flight ready' : 'Holder locked'}
+              {ufoUnlocked ? 'Test flight ready' : 'Hold 1M $SEAT'}
             </span>
             <div className="sa-aircraft-picker__model" aria-hidden>
               <div className="sa-aircraft-picker__model-glow sa-aircraft-picker__model-glow--ufo" />
@@ -95,10 +95,10 @@ export default function AircraftCarousel({
           <small>
             {balanceLoading
               ? 'Verifying $SEAT balance…'
-              : !walletConnected && !ufoUnlocked
-                ? 'Connect a wallet to verify your holder pass'
-                : ufoUnlocked
-                  ? 'Saucer controls armed · launch from the pad'
+              : ufoUnlocked
+                ? 'Saucer controls armed · launch from the pad'
+                : !walletConnected
+                  ? 'Connect a wallet to verify · hold 1,000,000 $SEAT to unlock'
                   : `Hold 1,000,000 $SEAT to unlock · ${Math.floor(tokenBalance ?? 0).toLocaleString('en-US')} held`}
           </small>
         </div>

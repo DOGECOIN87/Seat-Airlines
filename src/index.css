@@ -6942,6 +6942,10 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-ride-modal__launch:disabled:hover { filter: none; transform: none; }
 
 .sa-aircraft-picker__model-canvas { position: relative; z-index: 1; display: block; width: 100%; height: 4.9rem; min-height: 4.9rem; border-radius: 0.55rem; filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.35)); }
+.sa-aircraft-picker__model-canvas canvas { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
+.sa-aircraft-picker__model-canvas .sa-aircraft-picker__fallback { position: absolute; inset: 15%; z-index: 0; display: grid; place-items: center; width: 70%; height: 70%; object-fit: contain; opacity: 0.78; }
+.sa-aircraft-picker__model-canvas[data-ready='true'] .sa-aircraft-picker__fallback { display: none; }
+.sa-aircraft-picker__model-canvas .sa-aircraft-picker__fallback[aria-hidden] { color: #c89cff; font-size: 3rem; }
 .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: 7rem; min-height: 7rem; }
 @media (max-width: 640px) { .sa-aircraft-picker__model-canvas { height: 4rem; min-height: 4rem; } .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: 5.5rem; min-height: 5.5rem; } }
 
