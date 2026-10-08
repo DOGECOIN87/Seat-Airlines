@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CAPTURE, captureState, useCaptureVersion } from './capture/flag';
+import FractalWorkspace from './components/FractalWorkspace';
 import ContractBar from './components/ContractBar';
 import ViewFrame from './components/ViewFrame';
 import Annunciators from './components/Annunciators';
@@ -15,10 +16,7 @@ import SocialLinks from './components/SocialLinks';
 import SeatChange from './components/SeatChange';
 import SeatTicker, { type TickerItem } from './components/SeatTicker';
 import Landing from './components/Landing';
-import { SectionDock, SectionPanel, SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
-import type { WorkspaceHandle } from '@danfessler/trellis-react';
-import { DESK_QUERY, hideSections, openSection, sectionInUse, sectionShown, toggleSection } from './lib/deskSections';
-import { useMatch } from './lib/useMatch';
+import { SHEET_QUERY, panelFromHash, type PanelKey } from './components/SectionPanels';
 import type { LogEntry } from './components/RadioLog';
 import {
   ALL_SEATS,
@@ -82,8 +80,6 @@ const BoardingPass = lazy(() => import('./components/BoardingPass'));
 const NetworkingHub = lazy(() => import('./components/NetworkingHub'));
 const RadioLog = lazy(() => import('./components/RadioLog'));
 const ScoresDialog = lazy(() => import('./components/ScoresDialog'));
-/* The desk cockpit's workspace: a desk-only download (see CockpitWorkspace). */
-const CockpitWorkspace = lazy(() => import('./components/CockpitWorkspace'));
 const prefetchFlightDeck = () => { void loadFlightDeck(); };
 const prefetchSeatMap = () => { void loadSeatMap(); };
 
@@ -167,13 +163,6 @@ const clockNow = () => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-/** The desk cockpit's workspace comes up to meet a section opened in it, as the side panel's view does. */
-const bringWorkspaceUp = () => {
-  const box = document.querySelector('.sa-wsbox');
-  const top = box?.getBoundingClientRect().top ?? 0;
-  if (box && (top > 120 || top < -80)) box.scrollIntoView({ behavior: glide(), block: 'start' });
-};
-
 /** How the page scrolls itself: smoothly, unless the visitor has asked for less motion. */
 const glide = (): ScrollBehavior =>
   window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
@@ -209,7 +198,6 @@ const ZONE_ICON: Record<ZoneKey, DeckIconName> = {
 
 /* The tabs without a seat: the directory and the rooms are a cabin's, so
    they appear with one. Their links still open them, to say as much. */
-const VISITOR_PANELS: readonly PanelKey[] = ['wall', 'check-in'];
 
 const SceneLoading = ({ exterior = false }: { exterior?: boolean }) => (
   <div
@@ -546,6 +534,7 @@ export default function App() {
     if (!wallet.connecting) void wallet.connect();
   };
   const showWall = () => {
+    window.dispatchEvent(new Event('sa:workspace-on-board'));
     window.dispatchEvent(new Event(SHOW_CHART_EVENT));
     document.getElementById('on-board')?.scrollIntoView({ behavior: glide(), block: 'start' });
   };
@@ -564,6 +553,7 @@ export default function App() {
      straight there instead. */
   const [entered, setEntered] = useState(
     () => typeof window === 'undefined'
+      || new URLSearchParams(window.location.search).has('workspace')
       || LOGBOOK_HASH.test(window.location.hash)
       || panelFromHash(window.location.hash) !== null,
   );
@@ -591,54 +581,6 @@ export default function App() {
      still on the screen. Their old anchors still open them. */
   const [panel, setPanel] = useState<PanelKey | null>(null);
   const cockpitRef = useRef<HTMLDivElement>(null);
-  /* On a desk with a mouse the sections are panels in a workspace around
-     the view (see CockpitWorkspace), and these open and put them away
-     there. Not while filming: the capture scripts frame the page as it is
-     everywhere else. */
-  const desk = useMatch(DESK_QUERY) && !CAPTURE;
-  const deskRef = useRef(desk);
-  deskRef.current = desk;
-  const workspace = useRef<WorkspaceHandle | null>(null);
-  /* A section asked for before the workspace is up — from its anchor, or
-     from the landing's Claim — opens once it is. */
-  const pendingSection = useRef<PanelKey | null>(null);
-  /* The section in use on the desk, kept as it changes, so that leaving the
-     desk for the narrower layout (a window made smaller) opens it there. */
-  const inUse = useRef<PanelKey | null>(null);
-  const stopWatching = useRef<(() => void) | null>(null);
-  const onWorkspace = useCallback((ws: WorkspaceHandle | null) => {
-    workspace.current = ws;
-    stopWatching.current?.();
-    stopWatching.current = null;
-    if (!ws) return;
-    const watch = () => { inUse.current = sectionInUse(ws); };
-    watch();
-    stopWatching.current = ws.subscribe(watch);
-    /* After the commit, so a workspace StrictMode makes twice in
-       development opens the section in the one that stays. */
-    window.setTimeout(() => {
-      const live = workspace.current;
-      const key = pendingSection.current;
-      if (!live || !key) return;
-      pendingSection.current = null;
-      openSection(live, key);
-    }, 0);
-  }, []);
-  /* Crossing to or from a desk with a section open carries it across. */
-  const wasDesk = useRef(desk);
-  useEffect(() => {
-    if (desk === wasDesk.current) return;
-    wasDesk.current = desk;
-    if (desk) {
-      setPanel((open) => {
-        if (open) pendingSection.current = open;
-        return null;
-      });
-      return;
-    }
-    if (inUse.current) setPanel(inUse.current);
-    inUse.current = null;
-  }, [desk]);
   /* The panel and the tabs stick under the gate sign, whose height is its
      content's — one row on a desk, two on a phone — so it is measured
      rather than guessed. */
@@ -655,14 +597,8 @@ export default function App() {
     /* The bar is not there on the landing: measured once the site is entered. */
   }, [entered]);
   const openPanel = useCallback((key: PanelKey) => {
-    if (deskRef.current) {
-      const ws = workspace.current;
-      if (ws) openSection(ws, key);
-      else pendingSection.current = key;
-      bringWorkspaceUp();
-      return;
-    }
     setPanel(key);
+    window.dispatchEvent(new CustomEvent('sa:workspace-section', { detail: key }));
     /* On a desk the panel opens beside the view, so the view comes up to
        meet it: the pair fill the screen under the gate sign. A phone's
        sheet covers the page wherever it is scrolled to. */
@@ -683,34 +619,12 @@ export default function App() {
   }, [openPanel]);
   const closePanel = useCallback(() => {
     setPanel(null);
-    if (deskRef.current && workspace.current) hideSections(workspace.current);
     /* A section opened from its anchor leaves the anchor in the address
        bar; closing takes it back out, without a step in the history. */
     if (panelFromHash(window.location.hash)) {
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
     }
   }, []);
-  const togglePanel = useCallback(
-    (key: PanelKey) => {
-      if (deskRef.current) {
-        const ws = workspace.current;
-        if (!ws) {
-          pendingSection.current = key;
-          return;
-        }
-        /* Opened from the tab bar while scrolled down to the wall: the
-           workspace comes up to show it, rather than lighting a button for a
-           section off the top of the screen. Putting one away stays put. */
-        const opening = !sectionShown(ws, key);
-        toggleSection(ws, key);
-        if (opening) bringWorkspaceUp();
-        return;
-      }
-      if (panel === key) closePanel();
-      else openPanel(key);
-    },
-    [panel, openPanel, closePanel],
-  );
   /* The high scores: a window over the page, opened from the tab bar. */
   const [scoresOpen, setScoresOpen] = useState(false);
   const openScores = useCallback(() => setScoresOpen(true), []);
@@ -1058,7 +972,7 @@ export default function App() {
 
   return (
     <Suspense fallback={<SceneLoading />}>
-      <div className="sa-app relative min-h-screen text-ui-ink">
+      <div className="sa-app sa-app--fractal relative min-h-screen text-ui-ink">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="sa-ground absolute inset-0" />
         <div className="sa-ground__pattern absolute inset-0" />
@@ -1107,7 +1021,7 @@ export default function App() {
               /* Direction is the one thing on the page a single accent cannot
                  carry, so it keeps a sign as well as a colour. */
               { k: '5m', v: formatChange(tick.change5m), tone: tick.change5m >= 0 ? 'text-ui-deep' : 'text-ui-soft' },
-              { k: 'Seated', v: `${manifest.entries.length}/${MANIFEST_SIZE}`, tone: 'text-ui-ink' },
+              { k: 'Seated', v: manifest.live ? `${manifest.entries.length}/${MANIFEST_SIZE}` : '—', tone: 'text-ui-ink' },
             ].map((f) => (
               <div key={f.k} className="sa-topbar__fig shrink-0">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ui-faint">{f.k}</dt>
@@ -1139,43 +1053,18 @@ export default function App() {
               its right edge. A section opens between the view and the tabs
               and the view narrows to make room, so looking from a seat on the
               wall happens beside the wall rather than a scroll above it. */}
-          {desk ? (
-            /* On a desk with a mouse, the view and the sections are one
-               docking workspace (see CockpitWorkspace), with the wall and the
-               deck under it at the page's full width. */
-            <Suspense fallback={<div className="sa-wsbox" role="status" aria-label="Loading the cockpit" />}>
-              <CockpitWorkspace
-                onHandle={onWorkspace}
-                view={viewport}
-                section={section}
-                dock={{
-                  onToggle: togglePanel,
-                  onScores: openScores,
-                  scoresOpen,
-                  panels: seated ? undefined : VISITOR_PANELS,
-                }}
-              >
-                {wall}
-                {deck}
-              </CockpitWorkspace>
-            </Suspense>
-          ) : (
-          <div ref={cockpitRef} className={`sa-cockpit${panel ? ' is-open' : ''}`}>
-          <div className="sa-cockpit__main">
-          {viewport}
-          {wall}
-          {deck}
+          <div ref={cockpitRef} className="sa-fractal-root">
+            <FractalWorkspace
+              aircraft={viewport}
+              instruments={deck}
+              wall={wall}
+              activeSection={panel}
+              renderSection={section}
+              onSection={openPanel}
+              onScores={openScores}
+              seated={seated}
+            />
           </div>
-          <SectionPanel open={panel} onClose={closePanel} render={section} />
-          <SectionDock
-            open={panel}
-            onToggle={togglePanel}
-            onScores={openScores}
-            scoresOpen={scoresOpen}
-            panels={seated ? undefined : VISITOR_PANELS}
-          />
-          </div>
-          )}
         </section>
 
       </main>

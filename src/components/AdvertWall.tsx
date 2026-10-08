@@ -278,6 +278,7 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
           mine={mine === open.id}
           canAdvertise={canAdvertise === open.id}
           seated={manifest.entries.length}
+          occupancyKnown={manifest.live}
           onAdvertise={() => { setOpen(null); onAdvertise(open.id); }}
           onClose={closeSeat}
           owner={owner}

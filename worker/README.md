@@ -300,7 +300,7 @@ middle of row 4 unless somebody wired up an indexer.
 There is a way to get the rest out of a plain RPC, and it is the one every
 explorer uses: ask the token program for every account it owns whose mint
 field is this mint. Not capped, and pinned by indexed filters so it is not a
-scan of every token on Solana. `holderList.ts` tries four sources in order:
+scan of every token on Solana. `holderList.ts` tries three complete sources in order:
 
 1. `HOLDERS_URL`, an indexer. Still the best answer, still uncapped.
 2. **Helius `getTokenAccounts`**, when `RPC_URL` is a Helius endpoint: every
@@ -309,8 +309,16 @@ scan of every token on Solana. `holderList.ts` tries four sources in order:
    not know the method and this step is skipped.
 3. Every token account for the mint, summed by owner — the whole aircraft,
    from the mint alone, no indexer required.
-4. The twenty largest accounts, for endpoints that refuse the scan. Several
-   public ones do.
+A refused or interrupted full read keeps the last complete seating chart.
+The twenty-largest-token-accounts RPC is not used for occupancy: it cannot
+prove wallet ranks or that the other seats are vacant. With no valid snapshot,
+`GET /holders` returns 503 and the page shows unverified occupancy.
+
+When `RPC_URL` is unset, an existing server-side `HELIUS_API_KEY` is reused for
+DAS reads before falling back to Solana's public RPC. The key stays on the
+Worker. Pagination continues to an empty final page, and program accounts are
+filtered until all 178 seats are filled or all holders have been checked.
+`GET /holders` includes `coverage: "complete"` on a successful read.
 
 Whichever answers, the accounts owned by a program — a bonding curve, an AMM
 pool — are taken out before anybody is seated. Helius's list is not

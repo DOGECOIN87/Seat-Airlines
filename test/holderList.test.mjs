@@ -47,7 +47,7 @@ const ownerAddress = (n) => '1'.repeat(31) + B58[n];
 
 /** A fake chain. Records every call so the batching is observable. */
 function chain({
-  holders = [], programOwned = [], failPage = -1, largest = [],
+  holders = null, programOwned = [], failPage = -1, largest = [],
   tokenAccounts = null, decimals = 0, mintOwner = TOKEN, helius = null,
 } = {}) {
   const calls = [];
@@ -132,15 +132,15 @@ await check('a contract is not a passenger, whichever batch it is in', async () 
 
 await check('one unanswered batch is not a half-read aircraft', async () => {
   /* The whole list is a guess if any page of it is, and guessing seats a
-     bonding curve in 1A. Falling back to the largest accounts is the honest
-     answer — so the fallback is what should appear here, not 100 of 150. */
+     bonding curve in 1A. An incomplete read must fail so the caller keeps
+     the previous complete manifest. */
   chain({
     holders: people(150),
     failPage: 1,
     largest: [{ address: 'tokenacct1', amount: '500', decimals: 0, uiAmount: 500 }],
   });
   const list = await readHolderList({ holdersUrl: INDEXER, rpcUrl: RPC, mint: 'MINT', manifestSize: 178 });
-  assert(list === null || list.holders.length !== 100, 'a partial read was passed off as the manifest');
+  assert(list === null, 'a partial read was passed off as the manifest');
 });
 
 await check('with no indexer the whole cabin still comes off the chain', async () => {
@@ -222,7 +222,7 @@ await check('a mint owned by neither token program is not scanned at all', async
 
   assert(!calls.some((c) => c.method === 'getProgramAccounts'),
     'a program that owns no token accounts was scanned anyway');
-  assert(list?.holders.length === 1, 'it did not fall through to the largest accounts');
+  assert(list === null, 'an unsupported mint produced a partial manifest');
 });
 
 await check('a wallet holding two token accounts gets one seat, for the total', async () => {
@@ -248,17 +248,28 @@ await check('balances arrive in whole tokens, and an empty account is nobody', a
   assert(list.holders[0].balance === 1.5, `the token's decimals were not applied: ${list.holders[0].balance}`);
 });
 
-await check('an endpoint that refuses the scan still seats the front of the aircraft', async () => {
-  const calls = chain({
-    largest: Array.from({ length: 20 }, (_, i) => ({
-      address: `tokenacct${i}`, amount: String(100 - i), decimals: 0, uiAmount: 100 - i,
-    })),
-  });
+await check('a refused full scan cannot mark the unread seats vacant', async () => {
+  const calls = chain({ largest: Array.from({ length: 20 }, (_, i) => ({
+    address: `tokenacct${i}`, amount: String(100 - i), decimals: 0, uiAmount: 100 - i,
+  })) });
   const list = await readHolderList({ rpcUrl: RPC, mint: 'MINT', manifestSize: 178 });
-  assert(calls.some((c) => c.method === 'getProgramAccounts'), 'the uncapped path was never tried');
-  assert(list, 'the RPC fallback returned nothing');
-  assert(list.holders.length === 20, `expected the RPC cap of 20, got ${list.holders.length}`);
-  assert(list.holders[0].address === 'owner-of-tokenacct0', `token account not resolved: ${list.holders[0].address}`);
+  assert(calls.some((c) => c.method === 'getProgramAccounts'), 'the full scan was not attempted');
+  assert(list === null, 'twenty token accounts were passed off as complete occupancy');
+  assert(!calls.some((c) => c.method === 'getTokenLargestAccounts'), 'the unsafe partial fallback is still used');
+});
+
+await check('more than ten contracts cannot leave eligible passengers unseated', async () => {
+  chain({ holders: people(220), programOwned: Array.from({ length: 30 }, (_, i) => `wallet${i}`) });
+  const list = await readHolderList({ holdersUrl: INDEXER, rpcUrl: RPC, mint: 'MINT', manifestSize: 178 });
+  assert(list?.holders.length === 178, `expected a full cabin, got ${list?.holders.length}`);
+  assert(list.holders[0].address === 'wallet30', 'a contract was seated');
+  assert(list.holders.at(-1).address === 'wallet207', 'eligible wallets after the original candidate cutoff were missed');
+});
+
+await check('a successful empty full scan is a verified empty cabin', async () => {
+  chain({ tokenAccounts: [] });
+  const list = await readHolderList({ rpcUrl: RPC, mint: 'MINT', manifestSize: 178 });
+  assert(list?.live && list.holders.length === 0, 'a verified empty list was confused with an unavailable feed');
 });
 
 await check('an indexer is still preferred to scanning the chain', async () => {
@@ -296,7 +307,7 @@ await check('and every page of it is read, not just the first thousand', async (
   const calls = chain({ helius });
   const list = await readHolderList({ rpcUrl: RPC, mint: 'MINT', manifestSize: 178 });
 
-  assert(calls.filter((c) => c.method === 'getTokenAccounts').length === 2, 'the second page was never asked for');
+  assert(calls.filter((c) => c.method === 'getTokenAccounts').length === 3, 'pagination did not reach the final empty page');
   assert(list.holders[0].address === 'whale', `the largest holder was missed; 1A went to ${list.holders[0]?.address}`);
 });
 

@@ -25,15 +25,15 @@
  * it is not capped at twenty. It is only expensive — a scan the RPC has to do
  * — so some endpoints refuse it and none of them enjoy it.
  *
- * So there are three sources, tried in that order:
+ * Complete sources are tried in this order:
  *
  *   holdersUrl    JSON `[{ address, balance }, …]` from an indexer, uncapped
  *   rpcUrl+mint   every token account for the mint, summed by owner: the
  *                 whole aircraft, from the mint alone, no indexer required
- *   …and failing  the twenty largest accounts, which fills the front of the
- *   that          aircraft and leaves the rest empty
+ *   A failed full read returns null; partial token-account lists cannot
+ *   establish wallet ranks or prove that the remaining seats are vacant.
  *
- * All three then drop accounts owned by a program, because a bonding curve is
+ * All complete sources drop accounts owned by a program, because a bonding curve is
  * not a passenger.
  */
 
@@ -42,7 +42,7 @@ import type { Holder } from './seating';
 export interface HolderSource {
   /** An indexer returning `[{ address, balance }, …]`. The uncapped path. */
   holdersUrl?: string;
-  /** Solana JSON-RPC. Without an indexer this caps the cabin at twenty. */
+  /** Solana JSON-RPC supporting DAS pagination or full token-account scans. */
   rpcUrl?: string;
   /** The SPL mint being flown. */
   mint?: string;
@@ -62,7 +62,6 @@ interface TokenAmount {
   uiAmount: number | null;
 }
 
-interface LargestAccount { address: string; amount: string; decimals: number; uiAmount: number | null }
 
 /* A seat is for a person. The largest "holder" of a pump.fun token is its
    bonding curve, holding most of the supply until the token graduates, and
@@ -188,7 +187,7 @@ function rpcCallObjectParams(rpcUrl: string) {
 }
 
 const HELIUS_PAGE = 1000;
-const HELIUS_MAX_PAGES = 50;
+const HELIUS_MAX_PAGES = 1000;
 
 /**
  * Helius `getTokenAccounts` — their DAS index returns every token account for
@@ -219,7 +218,7 @@ async function fromHeliusTokenAccounts(
   for (let page = 1; page <= HELIUS_MAX_PAGES; page++) {
     const result = await rpc<{
       token_accounts?: { owner: string; amount: number }[];
-    }>('getTokenAccounts', { mint, page, limit: HELIUS_PAGE });
+    }>('getTokenAccounts', { mint, page, limit: HELIUS_PAGE, options: { showZeroBalance: false } });
 
     // null here means either a network error or an unsupported method — fall
     // through to getProgramAccounts rather than giving up entirely.
@@ -230,10 +229,13 @@ async function fromHeliusTokenAccounts(
       byOwner.set(acct.owner, (byOwner.get(acct.owner) ?? 0) + acct.amount / 10 ** decimals);
     }
 
-    if (result.token_accounts.length < HELIUS_PAGE) break;
+    if (result.token_accounts.length === 0) {
+      return [...byOwner].map(([address, balance]) => ({ address, balance }));
+    }
   }
 
-  return byOwner.size > 0 ? [...byOwner].map(([address, balance]) => ({ address, balance })) : null;
+  // The safety limit was reached before the complete list was read.
+  return null;
 }
 
 /**
@@ -278,21 +280,25 @@ async function peopleOnly(
   });
 }
 
-/** Token accounts belong to owners; the manifest names owners, not accounts. */
-async function ownersOf(
-  rpc: <T>(method: string, params: unknown[]) => Promise<T | null>,
-  accounts: string[],
-): Promise<(string | null)[]> {
-  const pages = await Promise.all(inBatches(accounts).map((batch) =>
-    rpc<{ value: ({ data: { parsed: { info: { owner: string } } } } | null)[] }>(
-      'getMultipleAccounts', [batch, { encoding: 'jsonParsed' }],
-    )));
-  return pages.flatMap((page, i) => (
-    page
-      ? page.value.map((a) => a?.data?.parsed?.info?.owner ?? null)
-      // A page that failed is that batch's worth of unknowns, not everyone's.
-      : inBatches(accounts)[i].map(() => null)
-  ));
+/** Filter ranked candidates until the cabin is full or all candidates are checked. */
+async function rankedPeople(
+  rpc: (<T>(method: string, params: unknown[]) => Promise<T | null>) | null,
+  holders: readonly Holder[],
+  size: number,
+): Promise<Holder[] | null> {
+  const ranked = [...holders].filter(holder => holder.balance > 0)
+    .sort((a, b) => b.balance - a.balance || a.address.localeCompare(b.address));
+  if (!rpc) return ranked.slice(0, size);
+  const result: Holder[] = [];
+  for (let offset = 0; offset < ranked.length && result.length < size;) {
+    const count = Math.min(ACCOUNTS_PER_CALL, size - result.length);
+    const batch = ranked.slice(offset, offset + count);
+    const people = await peopleOnly(rpc, batch);
+    if (!people) return null;
+    result.push(...people);
+    offset += batch.length;
+  }
+  return result;
 }
 
 /**
@@ -315,7 +321,7 @@ async function ownersOf(
  * cached by both callers, and the slice above keeps the response to 40 bytes
  * of account data rather than a parsed object each. Endpoints that refuse the
  * call outright — several public ones do — return nothing, which reads here
- * as "could not be asked" and falls through to the twenty.
+ * as "could not be asked" and keeps the previous complete seating.
  *
  * Summed by owner, because one wallet can hold the same mint in several token
  * accounts and a manifest names people, not accounts. A wallet with two bags
@@ -417,7 +423,8 @@ async function fromIndexer(holdersUrl: string | undefined): Promise<IndexedList 
     if (!res.ok) return null;
     const body: unknown = await res.json();
 
-    const wrapped = body as { holders?: unknown; supply?: unknown };
+    const wrapped = body as { coverage?: unknown; holders?: unknown; supply?: unknown };
+    if (wrapped.coverage && wrapped.coverage !== 'complete') return null;
     const rows = Array.isArray(body) ? body : Array.isArray(wrapped.holders) ? wrapped.holders : null;
     if (!rows) return null;
 
@@ -462,16 +469,12 @@ export async function readHolderList(source: HolderSource): Promise<HolderList |
   }
 
   const indexed = await fromIndexer(holdersUrl);
-  if (indexed && indexed.holders.length) {
-    // Only as many as could be seated, with room for the contracts that will
-    // drop out. The account lookup batches, so this is no longer pinned to
-    // getMultipleAccounts' hundred.
-    const top = [...indexed.holders].sort((a, b) => b.balance - a.balance).slice(0, manifestSize + 10);
+  if (indexed) {
     /* With no RPC there is nothing to check accounts against — which is the
        state a page is in once it reads holders from the Worker rather than
        the chain. Nothing is lost by it: that feed has already dropped the
        contracts, because the Worker had an RPC when it built the list. */
-    const people = rpc ? await peopleOnly(rpc, top) : top;
+    const people = await rankedPeople(rpc, indexed.holders, manifestSize);
     if (people) return { holders: people, supply: supply || indexed.supply, live: true };
   }
 
@@ -483,37 +486,22 @@ export async function readHolderList(source: HolderSource): Promise<HolderList |
      for the scan below. On any other RPC this returns null and the standard
      path takes over. */
   const heliusHolders = rpcUrl ? await fromHeliusTokenAccounts(rpcUrl, mint, decimals) : null;
-  if (heliusHolders && heliusHolders.length) {
-    const top = [...heliusHolders].sort((a, b) => b.balance - a.balance).slice(0, manifestSize + 10);
-    const people = await peopleOnly(rpc, top);
+  if (heliusHolders) {
+    const people = await rankedPeople(rpc, heliusHolders, manifestSize);
     if (people) return { holders: people, supply, live: true };
   }
 
-  /* The whole aircraft, off the chain. Only as many as could be seated, with
-     room for the contracts that will drop out — the same slice the indexer
-     path takes, and for the same reason: a row nobody can be shown is a row
-     not worth looking up. */
+  /* The whole aircraft, off the chain. Filter ranked wallets until enough
+     eligible holders have been verified to fill the cabin. */
   const program = await mintProgram(rpc, mint);
   const everybody = program ? await fromTokenAccounts(rpc, mint, decimals, program) : null;
-  if (everybody && everybody.length) {
-    const top = [...everybody].sort((a, b) => b.balance - a.balance).slice(0, manifestSize + 10);
-    const people = await peopleOnly(rpc, top);
+  if (everybody) {
+    const people = await rankedPeople(rpc, everybody, manifestSize);
     if (people) return { holders: people, supply, live: true };
   }
 
-  const largest = await rpc<{ value: LargestAccount[] }>('getTokenLargestAccounts', [mint]);
-  if (!largest) return null;
-
-  const rows = largest.value.slice(0, manifestSize);
-  const owners = await ownersOf(rpc, rows.map((r) => r.address));
-  const holders = rows
-    .map((r, i) => ({
-      address: owners[i] ?? r.address,
-      balance: r.uiAmount ?? Number(r.amount) / 10 ** r.decimals,
-    }))
-    .filter((h) => h.balance > 0);
-
-  const people = await peopleOnly(rpc, holders);
-  if (!people) return null;
-  return { holders: people, supply, live: true };
+  /* Twenty token accounts cannot establish the holder ranking. A wallet
+     may have several accounts, and unread accounts can belong to a larger
+     holder. Keep the previous complete manifest instead of inventing vacancies. */
+  return null;
 }

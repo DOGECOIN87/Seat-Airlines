@@ -7230,3 +7230,8 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-landing.is-embed .sa-landing__scene { inset: 0; }
 .sa-landing.is-embed .sa-hud { inset: 0.5rem; }
 .sa-landing.is-embed .sa-hud__top { padding-top: 0; }
+
+/* Unread occupancy remains inspectable, without an open-seat appearance. */
+.sa-seat--unknown, .sa-key--unknown { background: var(--ui-sink); box-shadow: none; outline: 1px dashed var(--ui-faint); outline-offset: -2px; }
+.sa-seat--unknown::after { content: '?'; position: absolute; right: 3px; top: 1px; color: var(--ui-faint); font-size: 10px; }
+.sa-map__availability { margin: 0 0 12px; padding: 12px; color: var(--ui-soft); font-size: 12px; line-height: 1.5; border: 1px solid var(--ui-faint); border-radius: 8px; }

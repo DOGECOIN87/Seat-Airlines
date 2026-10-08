@@ -1028,39 +1028,21 @@ await check('with no indexer, the cabin is seated off the chain', async () => {
   scanAccounts = [];
 });
 
-await check('an aircraft that fills to a fraction of itself says so', async () => {
-  /* The failure the `seated`/`cabin` pair exists for, and the one a
-     deployment actually lands in. With no indexer and an endpoint that
-     refuses `getProgramAccounts` — which is what Solana's public endpoint
-     does, and an unset `RPC_URL` is how a deployment ends up on it — the
-     reading falls back to `getTokenLargestAccounts` and seats at most twenty
-     of a hundred and seventy-eight.
-
-     Nothing about that is visible from the directory. It works, correctly,
-     for the handful of people it can place, and does not exist for anybody
-     else. `sections` is true and should be: the cabins genuinely can be told
-     apart. The number is the only tell, which is why it is reported. */
-  const first = await wallet();
-  const second = await wallet();
+await check('a refused full scan keeps the previous complete occupancy', async () => {
+  const before = await (await fetch(`${BASE}/holders`, { headers: { origin: ORIGIN } })).json();
   indexerDown = true;
-  scanAccounts = [];
-  largestAccounts = [
-    { address: first.address, uiAmount: 900_000, amount: '900000', decimals: 0 },
-    { address: second.address, uiAmount: 100_000, amount: '100000', decimals: 0 },
-  ];
-  // Past LADDER_CACHE_MS, so the seating is read again rather than reused.
-  await new Promise((r) => setTimeout(r, 1300));
-
-  const body = await (await fetch(`${BASE}/health`, { headers: { origin: ORIGIN } })).json();
-  assert(body.sections === true, 'the cabins can still be told apart, so this is not a sections failure');
-  assert(body.configured === true, 'the mint and the feed are both still configured');
-  assert(body.seated === 2, `the capped fallback seats 2, and /health reported ${body.seated}`);
-  assert(body.cabin === 178, `the aircraft is still 178 seats, reported as ${body.cabin}`);
-  assert(body.seated < body.cabin, 'a partly full aircraft must not read as a full one');
-
+  scanAccounts = null;
+  largestAccounts = [{ address: 'partial-token-account', uiAmount: 900000, amount: '900000', decimals: 0 }];
+  await new Promise(resolve => setTimeout(resolve, 1300));
+  const response = await fetch(`${BASE}/holders`, { headers: { origin: ORIGIN } });
+  assert(response.status === 200, 'the previous complete snapshot was discarded');
+  const after = await response.json();
+  assert(after.coverage === 'complete', 'the response did not identify complete occupancy');
+  assert(JSON.stringify(after.holders) === JSON.stringify(before.holders), 'a failed read replaced complete occupancy with a partial list');
   indexerDown = false;
+  scanAccounts = [];
   largestAccounts = null;
-  await new Promise((r) => setTimeout(r, 1300));
+  await new Promise(resolve => setTimeout(resolve, 1300));
 });
 
 await check('the preflight allows the headers the directory needs', async () => {

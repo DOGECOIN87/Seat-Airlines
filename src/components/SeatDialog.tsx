@@ -20,6 +20,7 @@ interface SeatDialogProps {
   canAdvertise: boolean;
   /** How many holders are seated: what an open seat costs is out-holding the last of them. */
   seated: number;
+  occupancyKnown: boolean;
   onAdvertise: () => void;
   onClose: () => void;
   /** The connected wallet and its signer, for sharing this seat's card to X. */
@@ -42,7 +43,7 @@ const WHERE: Record<string, string> = { window: 'Window seat', middle: 'Middle s
  * reads its owner's opted-in public links once, without asking the chain.
  */
 export default function SeatDialog({
-  id, zone, entry, banner, mine, canAdvertise, seated, onAdvertise, onClose, owner, sign,
+  id, zone, entry, banner, mine, canAdvertise, seated, occupancyKnown, onAdvertise, onClose, owner, sign,
 }: SeatDialogProps) {
   const [sharing, setSharing] = useState(false);
   const [shared, setShared] = useState<ShareOutcome | null>(null);
@@ -118,7 +119,7 @@ export default function SeatDialog({
           ) : (
             <span className="sa-seatwin__socket">
               <span className="sa-seatwin__tile-id">{id}</span>
-              Seat open
+              {occupancyKnown ? 'Seat open' : 'Occupancy unavailable'}
             </span>
           )}
         </div>
@@ -128,7 +129,7 @@ export default function SeatDialog({
           <p className="sa-modal__eyebrow">{cabin.name} · {where}</p>
           <h2 id={title} className="sa-seatwin__title">
             Seat {id}
-            {entry ? <span className="sa-map__rank">#{entry.rank}</span> : <span className="sa-map__unsold">Unsold</span>}
+            {entry ? <span className="sa-map__rank">#{entry.rank}</span> : <span className="sa-map__unsold">{occupancyKnown ? 'Open' : 'Unverified'}</span>}
           </h2>
           {mine && <p className="sa-seatwin__yours">Your seat</p>}
 
@@ -182,7 +183,7 @@ export default function SeatDialog({
             </>
           ) : (
             <p className="sa-map__note">
-              Nobody holds this seat. Out-hold #{seated || 1} and it is yours.
+              {occupancyKnown ? `Nobody holds this seat. Out-hold #${seated || 1} and it is yours.` : 'Occupancy could not be verified. This seat may already be held. Try again when the holder list is available.'}
             </p>
           )}
           {lavatory && <p className="sa-map__note">{LAVATORY_NOTE}</p>}

@@ -73,7 +73,10 @@ const PUBLIC_RPC = 'https://api.mainnet-beta.solana.com';
  */
 export function rpcUrl(env: LadderEnv): string | undefined {
   // No mint means no token to read, so there is nothing to point an RPC at.
-  return env.RPC_URL || (env.TOKEN_MINT ? PUBLIC_RPC : undefined);
+  if (env.RPC_URL?.trim()) return env.RPC_URL.trim();
+  if (!env.TOKEN_MINT) return undefined;
+  const key = env.HELIUS_API_KEY?.trim();
+  return key ? `https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(key)}` : PUBLIC_RPC;
 }
 
 /**
@@ -134,6 +137,8 @@ export interface LadderEnv {
    * remembered, and why you should still set it.
    */
   RPC_URL?: string;
+  /** Existing server-side Helius key, used for complete DAS reads when RPC_URL is unset. */
+  HELIUS_API_KEY?: string;
   TOKEN_MINT?: string;
   MANIFEST_SIZE?: string;
   /** How long seating is cached, in milliseconds. Defaults to two minutes. */
@@ -291,8 +296,8 @@ async function readShared(db: D1Database | undefined, mint: string): Promise<Sha
   try {
     const row = await db.prepare('SELECT body, read_at FROM seating_cache WHERE id = 1').first<{ body: string; read_at: number }>();
     if (!row) return null;
-    const body = JSON.parse(row.body) as { mint?: unknown; holders?: unknown; supply?: unknown };
-    if (body.mint !== mint) return null;
+    const body = JSON.parse(row.body) as { coverage?: unknown; mint?: unknown; holders?: unknown; supply?: unknown };
+    if (body.mint !== mint || body.coverage !== 'complete-v1') return null;
     if (!Array.isArray(body.holders) || typeof body.supply !== 'number') return null;
     const holders = body.holders.filter(
       (h): h is Holder => !!h && typeof (h as Holder).address === 'string' && Number.isFinite((h as Holder).balance),
@@ -305,7 +310,7 @@ async function readShared(db: D1Database | undefined, mint: string): Promise<Sha
 
 async function writeShared(db: D1Database | undefined, mint: string, holders: readonly Holder[], supply: number, readAt: number): Promise<void> {
   if (!db) return;
-  const body = JSON.stringify({ mint, holders, supply });
+  const body = JSON.stringify({ coverage: 'complete-v1', mint, holders, supply });
   const upsert = () => db
     .prepare(`INSERT INTO seating_cache (id, body, read_at) VALUES (1, ?1, ?2)
       ON CONFLICT(id) DO UPDATE SET body = excluded.body, read_at = excluded.read_at`)

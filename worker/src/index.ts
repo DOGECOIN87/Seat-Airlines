@@ -900,10 +900,11 @@ async function handle(request: Request, env: Env): Promise<Response> {
        for, exactly as it did before there was one. */
     if (request.method === 'GET' && url.pathname === '/holders') {
       const ladder = await readLadder(env);
+      if (!ladder.live) return json({ error: 'Seat occupancy is temporarily unavailable.' }, 503, { ...cors, 'cache-control': 'no-store' });
       /* The supply rides along because the page needs both in the same breath
          — a bag is only interesting as a share of something — and because it
          is the second thing the page used to open an RPC of its own for. */
-      return json({ holders: ladder.holders, supply: ladder.supply }, 200, {
+      return json({ holders: ladder.holders, supply: ladder.supply, coverage: 'complete' }, 200, {
         ...cors,
         'cache-control': 'public, max-age=30, stale-while-revalidate=120',
       });

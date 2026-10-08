@@ -33,6 +33,7 @@ interface SeatProps {
   id: string;
   zone: ZoneKey;
   entry: ManifestEntry | null;
+  occupancyKnown: boolean;
   banner: Banner | null;
   mine: boolean;
   /** Just found: pulsed while the map brings it into view. */
@@ -41,7 +42,7 @@ interface SeatProps {
   onInspect: (id: string | null) => void;
 }
 
-const Seat = ({ id, zone, entry, banner, mine, found = false, onOpen, onInspect }: SeatProps) => {
+const Seat = ({ id, zone, entry, occupancyKnown, banner, mine, found = false, onOpen, onInspect }: SeatProps) => {
   const lavatory = (LAVATORY_SEATS as readonly string[]).includes(id);
   const sold = entry !== null;
   /* An advert whose picture will not load is drawn as a held seat without
@@ -57,6 +58,8 @@ const Seat = ({ id, zone, entry, banner, mine, found = false, onOpen, onInspect 
     ? 'sa-seat--mine'
     : sold
       ? (picture ? 'sa-seat--advert' : 'sa-seat--sold')
+      : !occupancyKnown
+        ? 'sa-seat--unknown'
       : zone === 'exit'
         ? 'sa-seat--open sa-seat--exit'
         : lavatory
@@ -65,6 +68,7 @@ const Seat = ({ id, zone, entry, banner, mine, found = false, onOpen, onInspect 
 
   const label = sold
     ? `Seat ${id}, rank ${entry.rank}, ${shortAddress(entry.address)}${banner ? `. Advert: ${banner.alt}` : ''}`
+    : !occupancyKnown ? `Seat ${id}, occupancy unavailable`
     : `Seat ${id}, open${lavatory ? ', middle seat by the lavatory, does not recline' : ''}`;
 
   return (
@@ -129,14 +133,10 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
   const [selected, setSelected] = useState<string | null>(null);
   /** The seat open in its own window, over the page. */
   const [open, setOpen] = useState<{ id: string; zone: ZoneKey } | null>(null);
-  /* Which cabins are open. None, to begin with: the wall opens on its five
-     cabin headers and a cabin's seats are drawn only when somebody taps it.
-     Economy alone is 126 seats, and drawing all 178 — each a button, most
-     of them adverts — on every open of the panel was a long scroll on a
-     phone and a lot of work for seats nobody had asked to see. */
-  /* Keyed by section, not cabin: economy is two sections either side of the
-     exit rows, and opening one used to open (or close) the other with it. */
-  const [openZones, setOpenZones] = useState<ReadonlySet<string>>(() => new Set());
+  /* Show the complete cabin beside the aircraft on wide screens.
+     Phones start folded; each section can still be opened independently. */
+  const [openZones, setOpenZones] = useState<ReadonlySet<string>>(() =>
+    new Set(window.matchMedia('(min-width: 1024px)').matches ? CABIN_SECTIONS.map(section => section.id) : []));
   const toggleZone = useCallback((zone: string) => {
     setOpenZones((current) => {
       const next = new Set(current);
@@ -218,6 +218,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
       style={{ '--seat-base': 'clamp(26px, calc((100cqi - 9rem) / 6.2), 78px)', '--seat': 'var(--seat-base)', '--cabin-w': 'min(100%, 41rem)' } as CSSProperties}
     >
       <div className="sa-map__body">
+        {!manifest.live && <p className="sa-map__availability" role="status">Seat occupancy is unavailable. You can inspect seats while the holder list loads.</p>}
         {/* ── Nose ── */}
         <svg viewBox="0 0 320 54" preserveAspectRatio="none" className="mx-auto block h-11 w-full max-w-[var(--cabin-w)]" aria-hidden>
           <path
@@ -261,7 +262,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                             letter by letter. The count is non-breaking; a dash
                             is followed by a word joiner so a range never splits. */}
                         <span className="sa-zone-head__visual">
-                          {`${held}\u00a0of\u00a0${total}\u00a0taken\u00a0`}
+                          {manifest.live ? `${held}\u00a0of\u00a0${total}\u00a0taken\u00a0` : 'Not verified'}
                           <span aria-hidden>· </span>
                           {note.replace(/–/g, '–\u2060')}
                         </span>
@@ -287,6 +288,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                             id={id}
                             zone={zone.key}
                             entry={manifest.bySeat.get(id) ?? null}
+                            occupancyKnown={manifest.live}
                             banner={banners[id] ?? null}
                             mine={mine === id}
                             found={found === id}
@@ -354,7 +356,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                 {entry ? (
                   <span className="sa-map__rank">#{entry.rank}</span>
                 ) : (
-                  <span className="sa-map__unsold">Unsold</span>
+                  <span className="sa-map__unsold">{manifest.live ? 'Open' : 'Unverified'}</span>
                 )}
               </p>
               {entry ? (
@@ -376,7 +378,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                 </>
               ) : (
                 <p className="sa-map__note">
-                  Nobody holds this seat. Out-hold #{manifest.entries.length || 1} and it is yours.
+                  {manifest.live ? `Nobody holds this seat. Out-hold #${manifest.entries.length || 1} and it is yours.` : 'Occupancy could not be verified. This seat may already be held.'}
                 </p>
               )}
 
@@ -408,10 +410,10 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
 
         {/* ── Legend ── */}
         <ul className="sa-map__legend">
-          <li><span aria-hidden className="sa-key sa-key--open" /> Open</li>
+          <li><span aria-hidden className={`sa-key ${manifest.live ? 'sa-key--open' : 'sa-key--unknown'}`} /> {manifest.live ? 'Open' : 'Unverified'}</li>
           <li><span aria-hidden className="sa-key sa-key--held" /> Held</li>
           <li><span aria-hidden className="sa-key sa-key--mine" /> Yours</li>
-          <li className="sa-map__count tabular-nums">{manifest.entries.length} seated · {manifest.open} open</li>
+          <li className="sa-map__count tabular-nums">{manifest.live ? `${manifest.entries.length} seated · ${manifest.open} open` : 'Occupancy unavailable'}</li>
         </ul>
 
         </div>
@@ -426,6 +428,7 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
           mine={mine === open.id}
           canAdvertise={canAdvertise === open.id}
           seated={manifest.entries.length}
+          occupancyKnown={manifest.live}
           onAdvertise={() => { setOpen(null); onAdvertise(open.id); }}
           onClose={closeSeat}
           owner={owner}
