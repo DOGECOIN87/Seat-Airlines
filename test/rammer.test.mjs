@@ -129,20 +129,22 @@ check('it calls out where it is coming from', () => {
   assert(Math.abs(bearing(-100, 0, 90) - 180) < 1 || Math.abs(bearing(-100, 0, 90) + 180) < 1, 'behind, heading east');
 });
 
-check('they come sooner, and faster, as the flight goes on', () => {
+check('attacks keep their cooldown throughout the flight and never overlap', () => {
   const field = newRams();
   const v = { x: 0, y: 0, z: -205 };
   const times = [];
   let t = 0;
-  while (times.length < 8 && t < 200) {
+  while (times.length < 8 && t < 320) {
     const before = field.count;
     stepRams(field, DT, v, 0, true);
+    assert(field.list.filter(r => !r.done).length <= RAMMER.maxActive, 'too many active attackers');
     if (field.count > before) times.push(t);
     t += DT;
   }
   const gaps = times.slice(1).map((x, i) => x - times[i]);
   assert(times[0] >= RAMMER.first[0] - 0.1 && times[0] <= RAMMER.first[1] + 0.1, `the first came at ${times[0]?.toFixed(1)} s`);
-  assert(gaps.at(-1) < gaps[0], `gaps ${gaps.map((x) => x.toFixed(1)).join(', ')}`);
+  assert(times.length >= 6, 'the cooldown must still allow encounters');
+  assert(gaps.every(gap => gap >= RAMMER.gapFloor), `an attack skipped the cooldown: ${gaps}`);
 });
 
 check('a hit scrambles the field, and it wears off', () => {

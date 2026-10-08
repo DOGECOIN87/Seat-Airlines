@@ -30,9 +30,10 @@ import { newLogos, type LogoField } from './logos';
 import { newRams, RAMMER, type RamField } from './rammer';
 import { newTwisters, type TwisterField } from './tornado';
 import { ARRIVE, LEVELS, type Level } from './levels';
+import { JET, newAerial, soundSpeed, type AerialState } from './aerialCombat';
 
 export type Phase = 'idle' | 'intro' | 'flying' | 'crashed';
-export type FlightMode = 'airliner' | 'ufo';
+export type FlightMode = 'airliner' | 'jet' | 'ufo';
 /**
  * How the saucer's stick moves it, chosen on the selector that is the
  * airliner's flaps: flown like an aircraft, nose and bank; straight up and
@@ -62,8 +63,11 @@ export interface Stick {
 
 export interface FlightGame {
   phase: Phase;
-  /** The aircraft loadout: the flagship or the experimental saucer. */
+  /** The aircraft loadout: flagship, fighter or experimental saucer. */
   mode: FlightMode;
+  aerial: AerialState;
+  /** A blimp collision damages the elevator for the rest of this flight. */
+  tailDamage: number;
   /** The world it is flying over: Earth, and for a saucer that climbs far enough, the moon and Mars (see levels.ts). */
   level: Level;
   /** When the phase began, on `performance.now()`. */
@@ -293,6 +297,8 @@ const cause = (w: GameWeather = 'clear'): Cause =>
 export const newGame = (mode: FlightMode = 'airliner'): FlightGame => ({
   phase: 'idle',
   mode,
+  aerial: newAerial(),
+  tailDamage: 0,
   level: 'earth',
   phaseAt: 0,
   keys: { x: 0, y: 0 },
@@ -393,7 +399,7 @@ export function dealFailures(g: FlightGame): void {
     : Math.random() < GAME.earlyOdds ? between(earliest, brief - 500 / FEET) : brief;
   if (g.blastAlt < earliest) g.blastAlt = brief;
   g.causes = [asked('strike') ? 'lightning' : cause(g.weather), cause(g.weather)];
-  g.secondAfter = g.mode === 'ufo' ? Infinity : asked('dual') || Math.random() < GAME.secondOdds ? between(GAME.secondFrom, GAME.secondTo) : Infinity;
+  g.secondAfter = g.mode !== 'airliner' ? Infinity : asked('dual') || Math.random() < GAME.secondOdds ? between(GAME.secondFrom, GAME.secondTo) : Infinity;
   g.air = newAir();
   // Rising air from the start: it helps the climb, and it is worth more once it matters.
   startAir(g.air);
@@ -409,7 +415,7 @@ export function dealFailures(g: FlightGame): void {
   g.ufoMiss = null;
   g.dodged = false;
   g.extra = 0;
-  g.ufo = g.mode === 'ufo' || asked('noufo') ? null : planUfo(asked('ufohit') ? 'hit' : asked('ufo') ? 'seen' : 'none');
+  g.ufo = g.mode === 'ufo' || asked('noufo') ? null : planUfo(asked('ufohit') ? 'hit' : g.mode === 'jet' || asked('ufo') ? 'seen' : 'none');
   g.rams = newRams();
   g.twisters = newTwisters();
   // `?ram` on the address: the first airliner straight away, for anybody testing the saucer.
@@ -474,7 +480,15 @@ export function dashVelocity(g: FlightGame): { ahead: number; right: number; up:
 
 /** What the ground goes by at: the airspeed, and with both engines whatever a burn adds to it. */
 export const groundSpeed = (g: FlightGame): number =>
-  g.mode === 'ufo' ? g.speed + dashVelocity(g).ahead : g.failed ? g.speed : airspeedAt(g.agl) + BOOST.dash * g.boostPower;
+  g.mode === 'ufo' ? g.speed + dashVelocity(g).ahead
+    : g.mode === 'jet' ? g.failed ? g.speed : jetSpeed(g)
+    : g.failed ? g.speed : airspeedAt(g.agl) + BOOST.dash * g.boostPower;
+
+/** A full jet burn reaches local Mach 1; cruise uses the SA350's actual airspeed scale. */
+export function jetSpeed(g: FlightGame): number {
+  const cruise = airspeedAt(g.agl) * JET.cruiseScale;
+  return cruise + (soundSpeed(g.alt) - cruise) * Math.min(1, g.boostPower / 0.97);
+}
 
 /**
  * Over the ground: how fast, and which way. The same as the speed and the
@@ -513,7 +527,7 @@ export function fireBoost(g: FlightGame): boolean {
     g.dash = dashFor(g.input);
     g.boost = DASH.seconds;
   } else {
-    g.boost = BOOST.seconds;
+    g.boost = g.mode === 'jet' ? JET.boostSeconds : BOOST.seconds;
   }
   return true;
 }
@@ -644,6 +658,30 @@ function flySaucer(g: FlightGame, ix0: number, iy0: number, dt: number, rough: n
   return { vs: vs + dashVelocity(g).up, stall: 0 };
 }
 
+function flyJet(g: FlightGame, ix: number, iy: number, dt: number, rough: number): { vs: number; stall: number } {
+  const tail = g.tailDamage;
+  const damage = g.failed ? g.damage : 0;
+  const power = g.boostPower;
+  const speed = groundSpeed(g);
+  const u = stepAir(g.air, dt, speed, g.heading, g.alt);
+  g.updraft = u;
+  const authority = (1 - tail * 0.55) * (1 - damage * 0.45);
+  const flutter = tail * (Math.sin(g.clock * 3.1) * 2.6 + Math.sin(g.clock * 6.3));
+  g.pitch += (iy * 26 * authority + flutter - tail * 2 - damage * 4 - g.pitch) * (1 - Math.exp(-5 * authority * dt));
+  g.bank += (ix * 65 * (1 - tail * 0.25) + g.wingLost * 22 + tail * Math.sin(g.clock * 2.2) * 7 + g.gustRoll * rough * 8 - g.bank)
+    * (1 - Math.exp(-5.5 * (1 - tail * 0.35) * dt));
+  g.heading = (g.heading + g.bank * GAME.turnRate * 1.6 * (1 - tail * 0.15) * dt + 360) % 360;
+  const level = Math.max(0, Math.cos(g.bank * DEG));
+  const sink = tail * 10 + Math.abs(g.wingLost) * 8 + (g.failed ? 22 + damage * 20 : 0);
+  const vs = Math.sin(g.pitch * DEG) * speed * 1.7 + u * GAME.draftLift * 0.6 * level ** 2
+    + power * 35 * level - sink - (1 - level) * 12 + g.gustLift * rough * 10;
+  if (g.failed) {
+    g.damage = Math.min(1, g.damage + dt / 40);
+    g.speed = Math.max(55, Math.min(soundSpeed(g.alt), g.speed + (-9.81 * Math.sin(g.pitch * DEG) - 3 - damage * 3 + power * BOOST.accel) * dt));
+  } else g.speed = speed;
+  return { vs: Math.max(-180, Math.min(220, vs)), stall: g.failed ? smoothstep(90, 60, g.speed) : 0 };
+}
+
 export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: number; stall: number } {
   const lost = g.wingLost;
   // In the UFO's slow motion the aeroplane answers the stick sharply and steadily: 0 normally, 1 in it.
@@ -655,19 +693,23 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   g.gustLift = drift(g.gustLift, 0.9, dt);
   g.input = { x: ix, y: iy };
   if (g.mode === 'ufo') return flySaucer(g, ix, iy, dt, rough);
+  if (g.mode === 'jet') return flyJet(g, ix, iy, dt, rough);
+  const tail = g.tailDamage;
   if (g.failed === 0) {
     const u0 = stepAir(g.air, dt, groundSpeed(g), g.heading, g.alt);
     g.updraft = u0;
-    g.pitch += (iy * GAME.maxPitch + g.flaps * 1.5 - g.pitch) * (1 - Math.exp(-3.2 * (1 + 1.5 * assist) * dt));
+    g.pitch += (iy * GAME.maxPitch * (1 - 0.55 * tail) + g.flaps * 1.5 + tail * (Math.sin(g.clock * 3.1) * 2 - 2) - g.pitch)
+      * (1 - Math.exp(-3.2 * (1 + 1.5 * assist) * (1 - tail * 0.5) * dt));
     // At the ceiling the nose will not come up any further.
     if (g.alt >= GAME.ceiling && g.pitch > 0) g.pitch *= 1 - Math.min(1, dt * 6);
     // A wing short: it banks toward the short side unless the stick holds it off.
-    g.bank += (ix * GAME.maxBank + lost * 18 + g.gustRoll * 9 * rough - g.bank) * (1 - Math.exp(-3.5 * (1 + 1.5 * assist) * dt));
+    g.bank += (ix * GAME.maxBank * (1 - tail * 0.2) + lost * 18 + tail * Math.sin(g.clock * 2.2) * 6 + g.gustRoll * 9 * rough - g.bank)
+      * (1 - Math.exp(-3.5 * (1 + 1.5 * assist) * (1 - tail * 0.35) * dt));
     g.heading = (g.heading + g.bank * GAME.turnRate * dt + 360) % 360;
     g.speed = speedAt(g.alt);
     g.rollRate = 0;
     const level0 = Math.max(0, Math.cos(g.bank * DEG)) ** 2;
-    const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain - Math.abs(lost) * 6
+    const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain - Math.abs(lost) * 6 - tail * 10
       + u0 * GAME.draftLift * GAME.draftClimb * level0
       + g.gustLift * 14 * rough + g.flaps * 7;
     const top = GAME.maxClimb + BOOST.extraClimb * power;
@@ -704,7 +746,7 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // stall push it. Full stick outruns the push to begin with, only just
   // outruns it once the fire is at its worst, and loses to it as the wing goes.
   const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.9 * u) * (lost ? 0.88 : 1) * (1 + 0.8 * assist) * (1 + 1.2 * power);
-  const commanded = ix * 80 * authority;
+  const commanded = ix * 80 * authority * (1 - tail * 0.25);
   // The good engine's pull goes with its thrust; the burning wing's does not; nor does a missing wingtip's.
   const push = (dead * ((32 + 10 * k) * t + 30 * w) * (1 + 0.5 * g.surge) + lost * 24) * (1 - 0.6 * power) * (1 - 0.4 * u * caught)
     + g.gustRoll * 26 * rough;
@@ -713,9 +755,9 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   g.bank = wrap180(g.bank + g.rollRate * dt);
   const lift = Math.cos(g.bank * DEG);
   // Pitch: softer elevator, heavier nose; it falls in a bank, and drops outright in a stall.
-  const aim = iy * GAME.maxPitch * (0.8 - 0.3 * k + 0.4 * power) - (1 - lift) * 18 - stall * 20 - 4 * k - 10 * w
+  const aim = iy * GAME.maxPitch * (0.8 - 0.3 * k + 0.4 * power) * (1 - tail * 0.55) - tail * 3 - (1 - lift) * 18 - stall * 20 - 4 * k - 10 * w
     + g.buffetPitch * (2 + 4 * k) + power * 7;
-  g.pitch += (aim - g.pitch) * (1 - Math.exp(-2.4 * dt));
+  g.pitch += (aim - g.pitch) * (1 - Math.exp(-2.4 * (1 - tail * 0.5) * dt));
   g.pitch = Math.max(-60, Math.min(20, g.pitch));
   // Heading: the bank turns it while the wing still lifts, and the good engine yaws it toward the dead one.
   g.heading = (g.heading + (g.bank * GAME.turnRate * Math.max(0, lift) + dead * (5 + 5 * k) * t) * dt + 360) % 360;

@@ -27,6 +27,9 @@ import type { Thermal } from '../lib/thermals';
 import type { Logo } from '../lib/logos';
 import type { WeatherKind } from '../lib/sky';
 import { createBoostFlame } from './boostFlame';
+import { createFighterJet } from './fighterJet';
+import { createAerialCraft } from './aerialCraft';
+import type { AerialState, Point } from '../lib/aerialCombat';
 import { createLogoCraft } from './logoCraft';
 import { createStorm } from './storm';
 
@@ -142,6 +145,9 @@ export interface ViewPose {
   ufo?: UfoPose;
   /** Render the saucer at the aircraft's position as the player's vehicle. */
   playerUfo?: boolean;
+  playerJet?: boolean;
+  aerial?: AerialState;
+  tailDamage?: number;
   /**
    * Degrees: the way it is going over the ground, when that is not the way
    * the nose points — the saucer can slide sideways. The ground goes by
@@ -247,6 +253,7 @@ export interface WorldHandles {
    * canvas: for framing a picture of it.
    */
   planeOnScreen: () => { x: number; y: number };
+  targetOnScreen: (point: Point) => { x: number; y: number; visible: boolean };
   /** What the flight deck's screens and cabin signs show, beyond the attitude. */
   setDeckReadout: (r: DeckReadout) => void;
   /** The last lightning flash in a storm, for the thunder: when, on `performance.now()`, and metres off. */
@@ -386,6 +393,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   envTex.colorSpace = THREE.SRGBColorSpace;
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envRT = pmrem.fromEquirectangular(envTex);
+  envRT.texture.name = 'shared-environment';
   envTex.dispose();
   pmrem.dispose();
   airframe.group.traverse((o) => {
@@ -399,6 +407,13 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     }
   });
   const logoCraft = options.damage ? createLogoCraft(`${import.meta.env.BASE_URL}icon-512.png`, envRT.texture) : null;
+  const fighter = options.damage ? createFighterJet(envRT.texture) : null;
+  const aerialCraft = options.damage ? createAerialCraft() : null;
+  const aerialBase = new THREE.Vector3();
+  const targetProjection = new THREE.Vector3();
+  let aerialAltitude = 0;
+  if (fighter) { fighter.group.visible = false; fighter.group.position.z = CG_Z; aircraft.add(fighter.group); }
+  if (aerialCraft) scene.add(aerialCraft.group);
   /* UFO mode's airliners: the airline's own aeroplane, built the first time
      one comes for the saucer, each with a beacon that carries through the
      haze from two kilometres out. */
@@ -1807,6 +1822,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       stream: groundSpeed,
       bank: a.bank - a.roll,
       pitch: a.pitch,
+      tailDamage: pose.tailDamage ?? 0,
       slip: pose.exterior ? pose.slip ?? 0 : 0,
       night,
       cabin: cabinLit,
@@ -1847,6 +1863,10 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       // planform is a line. From above it is a shape.
       extPos.set(Math.cos(a) * radius, lerp(9.6, 12.5 + (pose.chaseLift ?? 0), chase), 11 + Math.sin(a) * radius);
       extTarget.set(0, lerp(0.35, 1.5, chase), lerp(10.8, -20, chase));
+      if (pose.playerJet) {
+        extPos.z -= CG_Z; extPos.multiplyScalar(0.45); extPos.z += CG_Z;
+        extTarget.z -= CG_Z; extTarget.multiplyScalar(0.45); extTarget.z += CG_Z;
+      }
       extDir.copy(extTarget).sub(extPos);
       /* The dolly: back along the line of sight by as much again as the
          aeroplane is away, times the pull, with the field narrowed below by
@@ -1901,7 +1921,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
         camera.clearViewOffset();
       }
 
-      airframe.group.visible = !pose.playerUfo;
+      airframe.group.visible = !pose.playerUfo && !pose.playerJet;
       // Sunlight from above, and the ground throwing light back at the belly —
       // without the bounce the underside goes black and the aeroplane reads as
       // a sticker rather than a solid.
@@ -2000,8 +2020,20 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
        frame an engine goes, the flames and the smoke every frame after —
        and whatever is still in the air played out once it is over. */
     boostFlame?.update(dt, pose.boost?.[0] ?? 0, pose.boost?.[1] ?? 0);
+    if (fighter) {
+      fighter.group.visible = !!pose.playerJet && !!pose.exterior;
+      if (fighter.group.visible) {
+        void fighter.load();
+        fighter.group.rotation.copy(airframe.group.rotation);
+        fighter.update(dt, pose.boost?.[0] ?? 0, pose.aerial?.ammo ?? [true, true], pose.tailDamage ?? 0, !!pose.failed);
+      }
+    }
+    aerialBase.set(0, 0, CG_Z);
+    aircraft.localToWorld(aerialBase);
+    aerialAltitude = height;
+    aerialCraft?.update(pose.aerial, height, aerialBase);
     if (fires && bolt) {
-      const first = pose.failed ?? 0;
+      const first = pose.playerJet ? 0 : pose.failed ?? 0;
       // A new flight: everything still burning or in the air goes at once.
       if (first === 0 && failedSide !== 0) {
         for (const e of fires) e.fire.reset();
@@ -2049,7 +2081,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       twisterCraft?.update(dt, inWeather ? pose.twisters : undefined, underfoot.floor, cloudDeckY, night, stormFlash);
       logoCraft?.update(dt, pose.logos, night);
       if (ufo) {
-        airframe.group.getWorldPosition(ufoBase);
+        if (pose.playerJet) ufoBase.copy(aerialBase);
+        else airframe.group.getWorldPosition(ufoBase);
         const side = pose.ufo?.strike?.side ?? 1;
         // Its inner rim through the wing just inboard of the cut.
         ufoTarget.set(side * (WING_CUT + 6.5), 0.4, 14.2);
@@ -2239,6 +2272,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     thermals?.dispose();
     logoCraft?.dispose();
     boostFlame?.dispose();
+    fighter?.dispose();
+    aerialCraft?.dispose();
     storm.dispose();
     airframe.dispose();
     farmland.day.dispose();
@@ -2310,5 +2345,10 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     return { x: (onScreen.x + 1) / 2, y: (1 - onScreen.y) / 2 };
   };
 
-  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, groundAt, planeOnScreen, setDeckReadout: deck.setReadout, lastFlash: () => storm.lastFlash, flash: storm.flash, dispose };
+  const targetOnScreen = (point: Point) => {
+    targetProjection.set(point.x + aerialBase.x, point.y - aerialAltitude + aerialBase.y, point.z + aerialBase.z).project(camera);
+    return { x: (targetProjection.x + 1) / 2, y: (1 - targetProjection.y) / 2,
+      visible: targetProjection.z > -1 && targetProjection.z < 1 && Math.abs(targetProjection.x) <= 1 && Math.abs(targetProjection.y) <= 1 };
+  };
+  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, groundAt, planeOnScreen, targetOnScreen, setDeckReadout: deck.setReadout, lastFlash: () => storm.lastFlash, flash: storm.flash, dispose };
 }

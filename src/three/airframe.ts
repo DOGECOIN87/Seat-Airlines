@@ -784,6 +784,7 @@ export interface AirframeFrame {
   bank: number;
   /** The pitch being flown, degrees: the elevators fly it. */
   pitch?: number;
+  tailDamage?: number;
   /** Degrees the nose is yawed off its path by a dead engine: the rudder holds against it. */
   slip?: number;
   /** 0 by day to 1 after dark. The lights come up with it. */
@@ -1317,7 +1318,7 @@ export function createAirframe(): AirframeHandles {
   ]) lamps.light(material);
 
   const setRowsLit = (isLit: (row: number) => boolean) => lamps.setRowsLit(isLit);
-  const update = (dt: number, { contrail, stream, bank, pitch = 0, slip = 0, night, cabin, mood, calm }: AirframeFrame) => {
+  const update = (dt: number, { contrail, stream, bank, pitch = 0, slip = 0, tailDamage = 0, night, cabin, mood, calm }: AirframeFrame) => {
     /* The fans. Slow enough not to strobe against the frame rate, fast
        enough that the intake plainly holds a turning machine — and each
        engine a hair off its neighbour's speed, which is true of real pairs
@@ -1374,7 +1375,10 @@ export function createAirframe(): AirframeHandles {
          trailing edge up on one wing and down on the other — which is
          exactly what a pair of ailerons does. */
       for (const aileron of ailerons) aileron.group.quaternion.setFromAxisAngle(aileron.axis, rad(-aileronDeg));
-      for (const { hinge, side } of elevators) hinge.group.quaternion.setFromAxisAngle(hinge.axis, rad(-side * elevatorDeg));
+      for (const { hinge, side } of elevators) {
+        hinge.group.visible = !(side === -1 && tailDamage > 0.5);
+        hinge.group.quaternion.setFromAxisAngle(hinge.axis, rad(-side * elevatorDeg));
+      }
       rudder.group.quaternion.setFromAxisAngle(rudder.axis, rad(rudderDeg));
     }
   };

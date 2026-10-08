@@ -42,16 +42,17 @@ export interface RamField {
   list: Rammer[];
   /** Seconds until the next one turns up. */
   next: number;
-  /** How many have come so far: each comes sooner after the last, and faster. */
+  /** How many have come so far: speed can rise, attack frequency cannot. */
   count: number;
 }
 
 export const RAMMER = {
   /** When the first one turns up, seconds after the controls are handed over. */
-  first: [5, 8] as const,
-  /** Seconds between one and the next, coming down with each one to the floor. */
-  gap: [7, 12] as const,
-  gapFloor: 3,
+  first: [12, 18] as const,
+  /** Rest after the previous attack settles. Never shrinks during a run. */
+  gap: [18, 28] as const,
+  gapFloor: 18,
+  maxActive: 1,
   /** How far out it turns up, metres. */
   spawn: [1900, 2500] as const,
   /** Metres a second it closes at — more with every one, to the cap. */
@@ -186,12 +187,11 @@ export function stepRams(
   }
   // Gone well past, or too long about: off the scene.
   field.list = field.list.filter((r) => !(r.done && Math.hypot(r.x, r.y, r.z) > 2600) && r.age < 25);
-  if (live) {
+  if (live && field.list.filter(r => !r.done).length < RAMMER.maxActive) {
     field.next -= dt;
     if (field.next <= 0) {
       field.list.push(spawnRammer(field, heading, v));
-      const shrink = Math.max(0.35, 1 - field.count * 0.08);
-      field.next = Math.max(RAMMER.gapFloor, between(...RAMMER.gap) * shrink);
+      field.next = Math.max(RAMMER.gapFloor, between(...RAMMER.gap));
     }
   }
   return out;

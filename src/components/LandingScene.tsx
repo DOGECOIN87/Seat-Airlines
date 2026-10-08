@@ -20,6 +20,7 @@ import { LOGOS, stepLogos } from '../lib/logos';
 import { climbBonus, SCORING, survivalRate } from '../lib/scoring';
 import { FPM, KNOTS, speedAngle, ufoLiftAngle, ufoSpeedAngle, varioAngle } from '../lib/instruments';
 import { dodge, planeTimeScale, slowAt, ufoAt, UFO } from '../lib/ufo';
+import { aerialTargets, fireMissile, noseDirection, scoutPose, soundSpeed, startAerial, stepAerial, type AerialEvents } from '../lib/aerialCombat';
 
 /**
  * The landing page's aeroplane: the exterior scene, full screen, and — when
@@ -62,6 +63,13 @@ export interface LandingHud {
   boost: RefObject<HTMLButtonElement | null>;
   /** How many logos have been flown through. */
   logos: RefObject<HTMLSpanElement | null>;
+  targetReticle: RefObject<HTMLDivElement | null>;
+  targetAim: RefObject<HTMLDivElement | null>;
+  targetName: RefObject<HTMLSpanElement | null>;
+  targetLock: RefObject<HTMLSpanElement | null>;
+  ammo: RefObject<HTMLSpanElement | null>;
+  fire: RefObject<HTMLButtonElement | null>;
+  mach: RefObject<HTMLSpanElement | null>;
 }
 
 
@@ -128,6 +136,9 @@ interface LandingSceneProps {
   onLevel?: (level: Level) => void;
   /** The saucer's next goal has changed: the next band, or world, it is climbing for. */
   onMark?: (name: string) => void;
+  onAerialEvent?: (events: AerialEvents) => void;
+  onMach?: () => void;
+  onMissileFire?: () => void;
 }
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -201,7 +212,7 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 
 const LandingScene = ({
   feed, sky, band, controls, taken, playing, cameraLook, boost = 0, game, hud, sounds, shot,
-  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark,
+  onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark, onAerialEvent, onMach, onMissileFire,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
@@ -209,8 +220,10 @@ const LandingScene = ({
   const boostNow = useRef(boost);
   boostNow.current = boost;
   latest.current = { sky, band };
-  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark });
-  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark };
+  const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark, onAerialEvent, onMach, onMissileFire });
+  calls.current = { onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark, onAerialEvent, onMach, onMissileFire };
+  const machReached = useRef(false);
+  const padButtons = useRef({ fire: false });
   /** The last lightning flash already heard. */
   const heardFlash = useRef(0);
 
@@ -343,6 +356,7 @@ const LandingScene = ({
     const { sky: skyState, band: bandState } = latest.current;
     const p = pose.current;
     p.playerUfo = g.mode === 'ufo' && g.phase !== 'idle';
+    p.playerJet = g.mode === 'jet' && g.phase !== 'idle';
 
     if (g.phase === 'crashed') {
       /* Down. The world stops where it is — the smoke hanging, the flames
@@ -400,6 +414,9 @@ const LandingScene = ({
         g.distance = 0;
         g.speed = speedAt(g.alt);
         dealFailures(g);
+        startAerial(g, w.groundAt(1000));
+        machReached.current = false;
+        if (g.mode === 'jet') g.speed = groundSpeed(g);
         shot.current = null;
         calls.current.onFlying();
       }
@@ -424,7 +441,7 @@ const LandingScene = ({
         const clip = (cause === 'lightning' ? sounds.current?.lightning : sounds.current?.blast) ?? null;
         const coming = second
           ? (now - g.failedAt) / 1000 + lead >= g.secondAfter
-          : g.agl + Math.max(0, g.vs) * lead >= g.blastAlt;
+          : g.agl + Math.max(0, g.vs) * lead >= g.blastAlt && (g.mode !== 'jet' || g.clock >= SCORING.firstFailure);
         if (!g.warned && coming) {
           g.warned = true;
           g.warnedAt = now;
@@ -439,7 +456,7 @@ const LandingScene = ({
           if ((heard !== null && heard >= lead) || waited >= lead + (heard !== null ? 1.2 : 0)) {
             g.warned = false;
             if (!second) {
-              g.failed = Math.random() < 0.5 ? -1 : 1;
+              g.failed = g.mode === 'jet' ? -1 : Math.random() < 0.5 ? -1 : 1;
               g.failedAt = now;
               g.damage = 0.5;
               g.decay = 0;
@@ -448,7 +465,7 @@ const LandingScene = ({
               g.bonus = SCORING.reached + climbBonus(g.climbTime, (g.blastAlt * FEET) / GAME.blastFeet);
               g.score = g.bestFeet * SCORING.perFoot + g.bonus + g.extra;
               // Half the thrust gone: from here it flies at an airliner's speed, not the height's.
-              g.speed = GAME.failSpeed;
+              g.speed = g.mode === 'jet' ? groundSpeed(g) : GAME.failSpeed;
               // The blast itself: a violent roll toward the dead engine, and the nose knocked down.
               g.rollRate = g.failed * 60;
               g.pitch -= 5;
@@ -467,6 +484,10 @@ const LandingScene = ({
 
       /* The UFO: where it is on the flight's own clock, the slow motion
          around the moment it hits, and the hit itself. */
+      if (live) {
+        const aerial = stepAerial(g, flyDt, travel(g).speed);
+        if (aerial.blimpCollision || aerial.missileHits.length) calls.current.onAerialEvent?.(aerial);
+      }
       const u = g.ufo;
       if (live) {
         g.clock += dt;
@@ -600,6 +621,9 @@ const LandingScene = ({
       const leftX = dead(pad?.axes[0] ?? 0);
       const leftY = dead(pad?.axes[1] ?? 0);
       const rightX = dead(pad?.axes[2] ?? 0);
+      const trigger = pad?.buttons[7]?.pressed ?? false;
+      if (trigger && !padButtons.current.fire && fireMissile(g)) calls.current.onMissileFire?.();
+      padButtons.current.fire = trigger;
       if (rightX) cameraLook.current.orbit = Math.max(-75, Math.min(75, cameraLook.current.orbit + rightX * 80 * realDt));
       p.orbit = cameraLook.current.orbit;
       const ix = live ? clampUnit(g.keys.x + g.stick.x + leftX) : 0;
@@ -635,6 +659,8 @@ const LandingScene = ({
     f.bank = g.bank;
     f.heading = g.heading;
     p.height = g.alt;
+    p.aerial = g.phase === 'flying' || g.phase === 'intro' ? g.aerial : undefined;
+    p.tailDamage = g.tailDamage;
     p.timeScale = g.slow;
     p.thermals = g.phase === 'flying' ? g.air.list : undefined;
     p.logos = g.phase === 'flying' ? g.logos.list : undefined;
@@ -645,7 +671,8 @@ const LandingScene = ({
        gone, both, relit for as long as the burn lasts. */
     const burn = g.phase === 'flying' ? g.boostPower : 0;
     const relit = g.failed === 0 || g.both;
-    p.boost = [relit || g.failed !== -1 ? burn : 0, relit || g.failed !== 1 ? burn : 0];
+    p.boost = g.mode === 'jet' ? [burn, 0]
+      : [relit || g.failed !== -1 ? burn : 0, relit || g.failed !== 1 ? burn : 0];
     p.speedScale = undefined;
     p.shake = g.phase === 'flying' ? TURBULENCE[g.weather] * 0.55 + burn * 0.5 + g.scramble * 0.8 : 0;
     /* The flaps, as a crew would set them: a notch for the climb out of the
@@ -676,10 +703,12 @@ const LandingScene = ({
           },
         };
       } else {
-        const saucer = ufoAt(g.ufo, g.clock);
-        // Off the line it was aimed along: while it closes, and as it goes past.
-        const miss = g.dodgeLock && g.ufo?.strike ? dodge(g.dodgeLock, g.ufo.strike, g.alt, g.bank) : g.ufoMiss;
-        p.ufo = miss ? { ...saucer, dev: { right: miss.right, up: miss.up } } : saucer;
+        if (g.mode === 'jet') p.ufo = { ...scoutPose(g), strike: undefined };
+        else {
+          const saucer = ufoAt(g.ufo, g.clock);
+          const miss = g.dodgeLock && g.ufo?.strike ? dodge(g.dodgeLock, g.ufo.strike, g.alt, g.bank) : g.ufoMiss;
+          p.ufo = miss ? { ...saucer, dev: { right: miss.right, up: miss.up } } : saucer;
+        }
       }
     } else {
       p.ufo = undefined;
@@ -710,6 +739,41 @@ const LandingScene = ({
     p.mustDraw = !shot.current && (g.failed !== 0 || (g.phase === 'flying' && g.agl < 400));
     p.globe = globeRadius(Math.max(0, g.agl));
     w.render(f, skyState, bandAt(g.level, g.agl), p);
+
+    if (g.mode === 'jet') {
+      const a = g.aerial;
+      if (a.target) a.target = aerialTargets(g).find(target => target.id === a.target?.id) ?? null;
+      const locked = a.lock >= 1 && !!a.target;
+      const ammo = a.ammo.filter(Boolean).length;
+      if (hud.targetName.current) hud.targetName.current.textContent = a.target?.name ?? 'Find a target';
+      if (hud.targetLock.current) hud.targetLock.current.textContent = locked ? 'LOCKED' : a.target ? `LOCK ${Math.round(a.lock * 100)}%` : 'Scan ahead';
+      if (hud.ammo.current) hud.ammo.current.textContent = `${ammo} / 2`;
+      if (hud.fire.current) {
+        hud.fire.current.disabled = g.phase !== 'flying' || !locked || ammo === 0 || a.cooldown > 0;
+        hud.fire.current.setAttribute('aria-label', ammo === 0 ? 'Missiles spent' : locked ? `Fire missile at ${a.target?.name}` : 'Acquire a target to fire a missile');
+      }
+      const marker = hud.targetReticle.current;
+      if (marker) {
+        const screen = a.target ? w.targetOnScreen(a.target) : null;
+        marker.hidden = !screen?.visible;
+        marker.classList.toggle('is-locked', locked);
+        if (screen) { marker.style.left = `${screen.x * 100}%`; marker.style.top = `${screen.y * 100}%`; }
+      }
+      const aim = hud.targetAim.current;
+      if (aim) {
+        const nose = noseDirection(g);
+        const screen = w.targetOnScreen({ x: nose.x * 2000, y: g.alt + nose.y * 2000, z: nose.z * 2000 });
+        aim.hidden = !screen.visible;
+        aim.style.left = `${screen.x * 100}%`; aim.style.top = `${screen.y * 100}%`;
+      }
+      const mach = groundSpeed(g) / soundSpeed(g.alt);
+      if (hud.mach.current) {
+        hud.mach.current.textContent = `MACH ${Math.min(1, mach).toFixed(2)}`;
+        hud.mach.current.classList.toggle('is-sonic', mach >= 0.995);
+      }
+      if (mach >= 0.995 && !machReached.current) { machReached.current = true; calls.current.onMach?.(); }
+      if (g.boost === 0 && mach < 0.85) machReached.current = false;
+    }
 
     /* The picture for the card, straight after the frame it is of: the
        fireball at its biggest, or the bolt at its brightest. */
@@ -799,7 +863,7 @@ const LandingScene = ({
     const kt = Math.round(way.speed * KNOTS);
     if (kt !== shown.current.kt) {
       shown.current.kt = kt;
-      hud.speedNeedle.current?.setAttribute('transform', `rotate(${(ufoDials ? ufoSpeedAngle(kt) : speedAngle(kt)).toFixed(1)} 50 50)`);
+      hud.speedNeedle.current?.setAttribute('transform', `rotate(${(ufoDials ? ufoSpeedAngle(kt) : speedAngle(kt, g.mode === 'jet' ? 800 : 400)).toFixed(1)} 50 50)`);
       if (hud.speedText.current) hud.speedText.current.textContent = String(kt);
     }
     const fpm = Math.round((g.vs * FPM) / 50) * 50;

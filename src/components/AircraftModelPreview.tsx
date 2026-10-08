@@ -3,8 +3,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { createAirframe, type AirframeHandles } from '../three/airframe';
 import { previewBounds, previewDistance } from '../three/previewBounds';
+import { createFighterJet } from '../three/fighterJet';
 
-export type PreviewModel = 'airliner' | 'ufo';
+export type PreviewModel = 'airliner' | 'jet' | 'ufo';
 
 interface AircraftModelPreviewProps {
   model: PreviewModel;
@@ -121,6 +122,7 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
     scene.add(pivot);
     let root: THREE.Object3D;
     let airframe: AirframeHandles | null = null;
+    let fighter: ReturnType<typeof createFighterJet> | null = null;
     let fallback: THREE.Group | null = null;
     let disposed = false;
     const clock = new THREE.Clock();
@@ -145,6 +147,17 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
       fitModel(root, 18);
       configurePreviewMaterials(root);
       pivot.add(root);
+    } else if (model === 'jet') {
+      fighter = createFighterJet();
+      root = fighter.group;
+      root.rotation.y = Math.PI;
+      pivot.add(root);
+      void fighter.load().then(() => {
+        if (disposed) return;
+        fighter?.update(0, 0, [true, true], 0, false);
+        fitModel(root, 16);
+        frameModel();
+      });
     } else {
       const ufoRoot = new THREE.Group();
       fallback = makeFallbackUfo();
@@ -215,7 +228,8 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
       observer.disconnect();
       canvas.removeEventListener('webglcontextlost', contextLost);
       airframe?.dispose();
-      if (!airframe) disposeObject(root);
+      fighter?.dispose();
+      if (!airframe && !fighter) disposeObject(root);
       renderer.dispose();
       // Browsers keep only so many contexts; past that the oldest — the flight's — is the one lost.
       renderer.forceContextLoss();
@@ -226,7 +240,7 @@ export default function AircraftModelPreview({ model }: AircraftModelPreviewProp
   }, [model]);
 
   return (
-    <div ref={hostRef} className="sa-aircraft-picker__model-canvas" role="img" aria-label={`${model === 'ufo' ? 'UFO interceptor' : 'SA350 airliner'} 3D preview`}>
+    <div ref={hostRef} className="sa-aircraft-picker__model-canvas" role="img" aria-label={`${model === 'ufo' ? 'UFO interceptor' : model === 'jet' ? 'F35 fighter jet' : 'SA350 airliner'} 3D preview`}>
         {model === 'airliner'
           ? <img className="sa-aircraft-picker__fallback" src={`${import.meta.env.BASE_URL}plane-top.svg`} alt="" />
           : <span className="sa-aircraft-picker__fallback" aria-hidden>◉</span>}

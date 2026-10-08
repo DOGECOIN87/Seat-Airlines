@@ -26,6 +26,7 @@ interface Props {
   hud: LandingHud;
   /** Port (ENG 1) and starboard (ENG 2). */
   engines: readonly [EngineState, EngineState];
+  jet?: boolean;
 }
 
 /** A point on a dial: `r` from the middle, `deg` clockwise from twelve o'clock. */
@@ -74,19 +75,20 @@ function Needle({ refTo }: { refTo: LandingHud['speedNeedle'] }) {
   );
 }
 
-const Airspeed = memo(({ hud }: { hud: LandingHud }) => {
-  const a = speedAngle;
-  const minor = Array.from({ length: SPEED_DIAL.max / 20 + 1 }, (_, i) => i * 20);
+const Airspeed = memo(({ hud, jet = false }: { hud: LandingHud; jet?: boolean }) => {
+  const max = jet ? 800 : SPEED_DIAL.max;
+  const a = (kt: number) => speedAngle(kt, max);
+  const minor = Array.from({ length: max / 20 + 1 }, (_, i) => i * 20);
   return (
     <svg viewBox="0 0 100 100" className="sa-gauge" aria-hidden>
       <Bezel id="asi" />
       <path d={arc(41, a(0), a(STALL_KT))} className="sa-gauge__band is-red" />
       <path d={arc(41, a(STALL_KT), a(HOLD_KT))} className="sa-gauge__band is-amber" />
-      <path d={arc(41, a(HOLD_KT), a(SPEED_DIAL.max))} className="sa-gauge__band is-green" />
+      <path d={arc(41, a(HOLD_KT), a(max))} className="sa-gauge__band is-green" />
       {minor.map((kt) => (
         <path key={kt} d={tick(kt % 100 ? 40 : 37, 44, a(kt))} className={kt % 100 ? 'sa-gauge__tick' : 'sa-gauge__tick is-major'} />
       ))}
-      {[0, 100, 200, 300, 400].map((kt) => {
+      {(jet ? [0, 200, 400, 600, 800] : [0, 100, 200, 300, 400]).map((kt) => {
         const [x, y] = at(29.5, a(kt));
         return <text key={kt} x={x} y={y} className="sa-gauge__num">{kt / 100}</text>;
       })}
@@ -175,7 +177,7 @@ function Engine({ n, e }: { n: 1 | 2; e: EngineState }) {
   );
 }
 
-export default function FlightInstruments({ hud, engines }: Props) {
+export default function FlightInstruments({ hud, engines, jet = false }: Props) {
   return (
     <div className="sa-gauges" aria-hidden>
       <p ref={hud.lift} className="sa-gauges__lift">
@@ -183,13 +185,13 @@ export default function FlightInstruments({ hud, engines }: Props) {
         Updraft
       </p>
       <div className="sa-gauges__row">
-        <Airspeed hud={hud} />
+        <Airspeed hud={hud} jet={jet} />
         <Attitude hud={hud} />
         <Vario hud={hud} />
       </div>
       <div className="sa-gauges__engines">
         <Engine n={1} e={engines[0]} />
-        <Engine n={2} e={engines[1]} />
+        {!jet && <Engine n={2} e={engines[1]} />}
       </div>
     </div>
   );

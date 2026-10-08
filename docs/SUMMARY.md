@@ -50,3 +50,4 @@
 * [Deploying](for-developers/deploying.md)
 * [The departure board](for-developers/departure-board.md)
 * [Engineering notes](for-developers/engineering-notes.md)
+* [Minigame fleet](for-developers/minigame-fleet.md)

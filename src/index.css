@@ -7146,7 +7146,7 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-hud__bonus--ufo small { line-height: 1.4; }
 
 /* A short screen — a phone on its side, a laptop with the bars out: the
-   hangar drops its scenery and second headings so the two rides and the
+   hangar drops its scenery and second headings so the roster and the
    launch button fit without scrolling. */
 @media (max-height: 560px) {
   .sa-ride-modal__ceiling,
@@ -7173,7 +7173,7 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
    old corner card: the phone rule that pinned that card left and right
    must not push this one sideways off the screen. */
 .sa-aircraft-picker--fullscreen { left: auto; }
-/* A narrow phone: both rides are on screen, so no arrows; less scenery, and
+/* A narrow phone: two bays fit at once, with the rest scrolling; less scenery, and
    badges that shorten rather than run out of their bays. */
 @media (max-width: 420px) {
   .sa-aircraft-picker--fullscreen .sa-aircraft-picker__arrow,
@@ -7251,4 +7251,39 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   .sa-scores__list li > button { grid-template-columns: 1.1rem 1.6rem minmax(0, 1fr) auto; gap: 0.35rem; padding-inline: 0.35rem; }
   .sa-scores__list .sa-scores__profile { width: 1.6rem; height: 1.6rem; }
   .sa-scores__wallet, .sa-scores__score { font-size: 10px; }
+}
+
+/* Three aircraft bays; phones scroll the roster instead of squeezing the models. */
+.sa-aircraft-picker__track { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sa-aircraft-picker__slot--jet { background: radial-gradient(circle at 50% 45%, rgba(35, 95, 127, 0.65), rgba(5, 20, 37, 0.94) 70%); }
+.sa-aircraft-picker__slot--jet.is-selected { box-shadow: inset 0 0 0 2px #87edff, 0 0 30px rgba(63, 219, 255, 0.25); }
+.sa-jet-weapons { position: absolute; z-index: 4; left: max(1rem, var(--safe-left)); bottom: max(1.4rem, calc(var(--safe-bottom) + 1rem)); width: 9.5rem; display: grid; gap: 0.35rem; padding: 0.6rem; border: 1px solid rgba(126, 228, 255, 0.5); border-radius: 0.8rem; background: rgba(5, 19, 35, 0.88); font-family: 'IBM Plex Mono', ui-monospace, monospace; color: #c0f4ff; pointer-events: auto; }
+.sa-jet-weapons > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.65rem; }
+.sa-jet-mach { color: #fff; font-weight: 700; letter-spacing: 0.08em; }
+.sa-jet-mach.is-sonic { color: #8cffe2; text-shadow: 0 0 14px #24dbc2; }
+.sa-jet-lock { color: #88ceea; text-transform: uppercase; }
+.sa-jet-fire { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; border: 1px solid #95f2d6; border-radius: 0.5rem; background: #113f42; color: #e5fff4; font: 700 0.75rem 'IBM Plex Mono', monospace; cursor: pointer; white-space: nowrap; touch-action: none; }
+.sa-jet-fire:disabled { opacity: 0.4; cursor: default; }
+.sa-jet-fire:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.sa-jet-reticle { position: absolute; z-index: 3; width: 52px; height: 52px; border: 2px dashed #ffd775; border-radius: 5px; transform: translate(-50%, -50%); pointer-events: none; box-shadow: 0 0 10px rgba(255, 192, 85, 0.35); }
+.sa-jet-reticle[hidden] { display: none; }
+.sa-jet-reticle.is-locked { border-style: solid; border-color: #80ffd0; box-shadow: 0 0 14px rgba(74, 255, 171, 0.65); }
+.sa-jet-aim { position: absolute; z-index: 3; left: 50%; top: 42%; width: 22px; height: 22px; transform: translate(-50%, -50%); border: 1px solid rgba(160, 242, 255, 0.6); border-radius: 50%; pointer-events: none; }
+.sa-jet-aim i { position: absolute; top: 10px; left: -5px; width: 30px; height: 1px; background: rgba(160, 242, 255, 0.8); }
+.sa-jet-aim i + i { transform: rotate(90deg); }
+.sa-hud__chip--tail { color: #ffd18c; border-color: rgba(255, 158, 83, 0.5); }
+@media (max-width: 640px) {
+  .sa-aircraft-picker__track { display: flex; overflow-x: auto; padding: 0.3rem; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; }
+  .sa-aircraft-picker__slot--active { flex: 0 0 max(145px, calc((100% - 0.5rem) / 2)); scroll-snap-align: center; }
+  .sa-jet-weapons { width: 7.1rem; left: max(0.7rem, var(--safe-left)); padding: 0.45rem; }
+}
+@media (max-width: 640px) and (min-height: 481px) {
+  .sa-jet-weapons { bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.6rem)) + var(--gauge) + 3.75rem); }
+  .sa-landing.is-jet .sa-hud__help { bottom: calc(max(1rem, calc(var(--safe-bottom) + 0.6rem)) + var(--gauge) + 3.75rem + 8.7rem); }
+}
+@media (max-height: 480px) {
+  .sa-jet-weapons { width: 7.8rem; bottom: max(0.7rem, calc(var(--safe-bottom) + 0.5rem)); padding: 0.4rem; gap: 0.2rem; }
+  .sa-jet-fire { min-height: 44px; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: 5rem; min-height: 5rem; }
+  .sa-landing.is-jet .sa-hud__help { display: none; }
 }

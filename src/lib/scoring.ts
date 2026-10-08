@@ -59,6 +59,10 @@ export const SCORING = {
   maxSurvival: 900,
   /** For getting out of a UFO's way. */
   ufoDodge: 2500,
+  /** One blimp per flight, paid once on collision or a missile hit. */
+  blimp: 5000,
+  /** A destroyed UFO scout; no more than two missiles in a loadout. */
+  missileTarget: 1000,
   /** Added to the rate on one engine while riding rising air. */
   lift: 0.5,
   /** For each logo flown through, and the least time between two turning up. */
@@ -100,9 +104,10 @@ export function scoreCeiling(elapsedMs: number): number {
   const slack = (points: number) => Math.round(points * 1.1 + 300);
   // Every logo there could have been, flown through.
   const logos = (Math.floor(seconds / SCORING.logoGap) + 1) * SCORING.logo;
-  if (seconds < SCORING.firstFailure) return slack(SCORING.maxHeightPoints + logos);
+  const aerial = SCORING.blimp + SCORING.missileTarget * 2;
+  if (seconds < SCORING.firstFailure) return slack(SCORING.maxHeightPoints + logos + aerial);
   const flying = Math.min(SCORING.maxSurvival, seconds - SCORING.firstFailure);
-  return slack(SCORING.maxHeightPoints + SCORING.reached + climbBonus(SCORING.climbFloor) + SCORING.ufoDodge + logos + flying * MAX_RATE);
+  return slack(SCORING.maxHeightPoints + SCORING.reached + climbBonus(SCORING.climbFloor) + SCORING.ufoDodge + aerial + logos + flying * MAX_RATE);
 }
 
 /** What the wallet signs to post a score. Readable on purpose: it is what the wallet shows. */

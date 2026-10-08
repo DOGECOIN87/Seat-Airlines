@@ -8,7 +8,9 @@ import Flyover from './Flyover';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
 import SeatOverview from './SeatOverview';
-import AircraftCarousel, { type PlayMode } from './AircraftCarousel';
+import AircraftCarousel, { RIDES, type PlayMode } from './AircraftCarousel';
+import JetWeapons from './JetWeapons';
+import { BLIMP, fireMissile, type AerialEvents } from '../lib/aerialCombat';
 import type { Manifest } from '../lib/manifest';
 import type { BannerSet } from '../lib/banners';
 import { DEXSCREENER_URL } from '../lib/social';
@@ -125,7 +127,7 @@ const KEYS: Record<string, readonly [number, number]> = {
 /** Keys that light the afterburners. */
 const BOOST_KEYS = new Set(['Space', 'KeyB', 'ShiftLeft', 'ShiftRight']);
 /** What goes across the middle of the screen about a UFO — or, in UFO mode, an airliner. */
-type UfoCaption = 'warn' | 'hit' | 'dodged' | 'ram-warn' | 'ram-hit' | 'ram-dodged' | 'threaded' | 'arrived';
+type UfoCaption = 'warn' | 'hit' | 'dodged' | 'ram-warn' | 'ram-hit' | 'ram-dodged' | 'threaded' | 'arrived' | 'blimp' | 'target-hit';
 /** The ride flown last, kept across the remount that Play again does. */
 let lastPlayMode: PlayMode = 'airliner';
 /** The saucer's drive modes, as the selector shows them. */
@@ -259,12 +261,17 @@ export default function Landing({
   useEffect(() => {
     ufoUnlockedRef.current = ufoUnlocked;
     // A remembered saucer the wallet no longer holds the pass for goes back to the airliner.
-    if (!ufoUnlocked && !tokenBalanceLoading && game.current.phase === 'idle') setPlayMode('airliner');
+    if (!ufoUnlocked && !tokenBalanceLoading && game.current.phase === 'idle' && lastPlayMode === 'ufo') setPlayMode('airliner');
   }, [ufoUnlocked, tokenBalanceLoading, setPlayMode]);
   /** Pick a ride, if it is one this pilot can fly. */
   const chooseRide = useCallback((mode: PlayMode) => {
     if (mode === 'ufo' && !ufoUnlockedRef.current) return;
     setPlayMode(mode);
+  }, [setPlayMode]);
+  const cycleRide = useCallback((direction: number) => {
+    const available = ufoUnlockedRef.current ? RIDES : RIDES.filter(mode => mode !== 'ufo');
+    const index = Math.max(0, available.indexOf(lastPlayMode));
+    setPlayMode(available[(index + direction + available.length) % available.length]);
   }, [setPlayMode]);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -299,6 +306,7 @@ export default function Landing({
   const [struck, setStruck] = useState(false);
   /** The UFO took a wing: which. */
   const [wingHit, setWingHit] = useState<-1 | 1 | null>(null);
+  const [tailHit, setTailHit] = useState(false);
   /** What the UFO is doing, said across the middle of the screen while it matters. */
   const [ufoCaption, setUfoCaption] = useState<{ kind: UfoCaption; side?: -1 | 1; from?: string } | null>(null);
   const captionTimer = useRef<number | null>(null);
@@ -317,6 +325,7 @@ export default function Landing({
     bar: createRef(), alt: createRef(), warn: createRef(), stall: createRef(), vortex: createRef(), score: createRef(), rate: createRef(),
     speedNeedle: createRef(), speedText: createRef(), varioNeedle: createRef(), varioText: createRef(), horizon: createRef(),
     lift: createRef(), boost: createRef(), logos: createRef(),
+    targetReticle: createRef(), targetAim: createRef(), targetName: createRef(), targetLock: createRef(), ammo: createRef(), fire: createRef(), mach: createRef(),
   }));
   /** The weather this flight was dealt, for the HUD's tag. */
   const [weather, setWeather] = useState<GameWeather | null>(null);
@@ -502,7 +511,7 @@ export default function Landing({
     if (!ready || g.phase !== 'idle' || gone.current) return;
     /* The same game, not a new one: at rest it has been tracking the
        cruise's heading, attitude and height, which is where the dive starts. */
-    const mode = playMode === 'ufo' && ufoUnlockedRef.current ? 'ufo' : 'airliner';
+    const mode = playMode === 'ufo' && !ufoUnlockedRef.current ? 'airliner' : playMode;
     if (mode !== playMode) setPlayMode(mode);
     g.mode = mode;
     g.flaps = 0;
@@ -530,6 +539,7 @@ export default function Landing({
       setDrive(cycleDrive(g));
       return;
     }
+    if (g.mode === 'jet') return;
     const next = g.flaps < 0.25 ? 0.5 : g.flaps < 0.75 ? 1 : 0;
     g.flaps = next;
     setFlapLevel(next);
@@ -538,6 +548,18 @@ export default function Landing({
   const boost = useCallback(() => {
     if (fireBoost(game.current)) sfx.current?.boost(BOOST.seconds);
   }, []);
+  const onMissileFire = useCallback(() => { sfx.current?.boost(0.4); }, []);
+  const shoot = useCallback(() => { if (fireMissile(game.current)) onMissileFire(); }, [onMissileFire]);
+  const onMach = useCallback(() => { sfx.current?.thunder(500); }, []);
+  const onAerialEvent = useCallback((event: AerialEvents) => {
+    if (event.blimpCollision || event.missileHits.includes('blimp')) {
+      if (event.blimpCollision && game.current.mode !== 'ufo') setTailHit(true);
+      sayUfo('blimp', undefined, 3300, event.blimpCollision && game.current.mode !== 'ufo' ? 'Tail flap damaged · reduced control' : 'Target destroyed');
+    } else if (event.missileHits.length) sayUfo('target-hit', undefined, 2200);
+    sfx.current?.thunder(150);
+    setBlasted(true);
+    timers.current.push(window.setTimeout(() => setBlasted(false), 700));
+  }, [sayUfo]);
   /* An arrow key, or Fly with no wallet installed: the card. */
   const start = useCallback(() => {
     if (!ready || game.current.phase !== 'idle' || gone.current) return;
@@ -575,8 +597,8 @@ export default function Landing({
   const confirmRide = useCallback(() => {
     if (playMode === 'ufo' && !ufoUnlocked) return;
     setRidePickerOpen(false);
-    // The local preview is deliberately playable without a wallet so both
-    // rides can be tested. The production path remains wallet-gated.
+    // The local preview is deliberately playable without a wallet so
+    // the fleet can be tested. The production path remains wallet-gated.
     if (localTestMode) {
       takeOff();
       return;
@@ -888,15 +910,20 @@ export default function Landing({
         if (e.key === 'Escape') setRidePickerOpen(false);
         else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
           e.preventDefault();
-          chooseRide('airliner');
+          if (!e.repeat) cycleRide(-1);
         } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
           e.preventDefault();
-          chooseRide('ufo');
+          if (!e.repeat) cycleRide(1);
         }
         return;
       }
       // The high scores window closes itself on Escape; everything else is its own.
       if (scoresUp.current) return;
+      if (e.code === 'KeyR' && game.current.phase !== 'idle') {
+        e.preventDefault();
+        if (!e.repeat) shoot();
+        return;
+      }
       if (BOOST_KEYS.has(e.code) && game.current.phase !== 'idle') {
         e.preventDefault();
         if (!e.repeat) boost();
@@ -932,7 +959,7 @@ export default function Landing({
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', drop);
     };
-  }, [start, leave, clearSplash, boost, cycleFlaps, chooseRide]);
+  }, [start, leave, clearSplash, boost, cycleFlaps, cycleRide, shoot]);
 
   /* The stick, for a touch screen (or a mouse): press anywhere and drag.
      Up climbs, down dives, sideways banks, measured from where the press
@@ -1020,7 +1047,7 @@ export default function Landing({
 
   return (
     <div
-      className={`sa-landing${embed ? ' is-embed' : ''} is-${phase}${leaving ? ' is-leaving' : ''}${ready ? ' is-ready' : ''}${
+      className={`sa-landing${embed ? ' is-embed' : ''} is-${phase}${playMode === 'jet' ? ' is-jet' : ''}${leaving ? ' is-leaving' : ''}${ready ? ' is-ready' : ''}${
         failure ? ' is-failing' : ''}${blasted ? ' is-blast' : ''}${splash === 'on' ? ' is-splash' : ''}${showOverview ? ' has-ov' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -1057,6 +1084,9 @@ export default function Landing({
               onThreaded={onThreaded}
               onLevel={onLevel}
               onMark={onMark}
+              onAerialEvent={onAerialEvent}
+              onMach={onMach}
+              onMissileFire={onMissileFire}
               onCrash={onCrash}
               onLogo={onLogo}
               onThunder={onThunder}
@@ -1199,8 +1229,8 @@ export default function Landing({
             <div className="sa-ride-modal__launch-console">
               <div>
                 <span className="sa-ride-modal__console-label">Selected loadout</span>
-                <strong>{playMode === 'ufo' ? 'UFO INTERCEPTOR' : 'SA350 · FLAGSHIP'}</strong>
-                <small>{playMode === 'ufo' ? 'Dash any way · dodge airliners · climb to the moon and Mars' : 'Flaps, boost and engine-out recovery'}</small>
+                <strong>{playMode === 'ufo' ? 'UFO INTERCEPTOR' : playMode === 'jet' ? 'F35 · FIGHTER' : 'SA350 · FLAGSHIP'}</strong>
+                <small>{playMode === 'ufo' ? 'Dash any way · dodge airliners · climb to the moon and Mars' : playMode === 'jet' ? 'Mach 1 boost · target lock · two guided missiles' : 'Flaps, boost and engine-out recovery'}</small>
               </div>
               <button type="button" className="sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked} ref={launchRef}>
                 <span>Confirm loadout</span>
@@ -1262,15 +1292,15 @@ export default function Landing({
                 </span>
               </div>
               <div className="sa-strip__mid">
-                {failure || wingHit || scrambled ? (
+                {failure || wingHit || scrambled || tailHit ? (
                   <span className="sa-strip__alert" role="alert">
                     <span className="sa-strip__key">
                       {!failure
-                        ? (wingHit ? 'UFO strike' : 'Airliner impact')
+                        ? (tailHit ? 'Blimp impact' : wingHit ? 'UFO strike' : 'Airliner impact')
                         : failure.both ? 'Both engines' : failure.cause === 'lightning' ? 'Lightning strike' : 'Master warning'}
                     </span>
                     <span className="sa-strip__alarm">
-                      {!failure ? (wingHit ? 'Wing damage' : 'Field scrambled') : failure.both ? 'ENG 1 · 2 fire' : `ENG ${engineNo} fire`}
+                      {!failure ? (tailHit ? 'Tail damage' : wingHit ? 'Wing damage' : 'Field scrambled') : failure.both ? 'ENG 1 · 2 fire' : `ENG ${engineNo} fire`}
                     </span>
                   </span>
                 ) : (
@@ -1302,6 +1332,7 @@ export default function Landing({
                 <span ref={hud.logos}>0</span>
               </span>
               {playMode === 'ufo' && <span className="sa-hud__chip sa-hud__chip--ufo" title="The pulse field bends your flight path">Pulse field</span>}
+              {tailHit && <span className="sa-hud__chip sa-hud__chip--tail" role="status">Tail flap damaged</span>}
               {weather && weather !== 'clear' && (
                 <span className={`sa-hud__chip sa-hud__chip--${weather}`}>
                   {weather === 'tornado' ? 'Tornado warning' : weather === 'storm' ? 'Thunderstorm' : 'Rain'}
@@ -1337,6 +1368,8 @@ export default function Landing({
                 'ram-dodged': `Near miss +${RAMMER.bonus.toLocaleString('en-US')}`,
                 threaded: `Threaded +${TWISTER.bonus.toLocaleString('en-US')}`,
                 arrived: ufoCaption.from ?? '',
+                blimp: `Blimp +${BLIMP.points.toLocaleString('en-US')}`,
+                'target-hit': 'UFO destroyed +1,000',
               }[ufoCaption.kind]}
               <small>
                 {{
@@ -1348,6 +1381,8 @@ export default function Landing({
                   'ram-dodged': 'it missed',
                   threaded: 'past the vortex',
                   arrived: ufoCaption.from === 'Mars' ? 'the last world · keep climbing' : 'new world · keep climbing',
+                  blimp: ufoCaption.from ?? '',
+                  'target-hit': 'Missile impact confirmed',
                 }[ufoCaption.kind]}
               </small>
             </p>
@@ -1376,11 +1411,12 @@ export default function Landing({
           {!failure && (phase === 'intro' || phase === 'flying') && (
             <p className="sa-hud__help">
               {touch ? (
-                playMode === 'ufo' ? 'Drag to steer · Drive changes how · boost dashes the way you drag' : 'Drag up to climb · sideways to turn · tap flaps · fly through logos'
+                playMode === 'ufo' ? 'Drag to steer · Drive changes how · boost dashes the way you drag' : playMode === 'jet' ? 'Drag to fly · aim at a target to lock · tap FIRE · Boost for Mach 1' : 'Drag up to climb · sideways to turn · tap flaps · fly through logos'
               ) : (
                 <>
                   {playMode === 'ufo'
                     ? <><kbd>WASD</kbd> steer · <kbd>F</kbd> drive mode · <kbd>Space</kbd> dash the way you steer · <kbd>right mouse</kbd> look</>
+                    : playMode === 'jet' ? <><kbd>WASD</kbd> fly · aim to lock · <kbd>R</kbd> / <kbd>RT</kbd> fire one missile · <kbd>Space</kbd> Mach 1</>
                     : <><kbd>WASD</kbd> / <kbd>left stick</kbd> fly · <kbd>F</kbd> flaps · <kbd>right mouse</kbd> / <kbd>right stick</kbd> look · <kbd>Space</kbd> boost · fly through logos</>}
                 </>
               )}
@@ -1391,14 +1427,15 @@ export default function Landing({
 
       {inGame && phase !== 'crashed' && (playMode === 'ufo'
         ? <UfoInstruments hud={hud} drive={drive} scrambled={scrambled} />
-        : <FlightInstruments hud={hud} engines={engines} />)}
+        : <FlightInstruments hud={hud} engines={engines} jet={playMode === 'jet'} />)}
+      {inGame && phase !== 'crashed' && playMode === 'jet' && <JetWeapons hud={hud} onFire={shoot} />}
       {inGame && phase !== 'crashed' && (
         <button
           ref={hud.boost}
           type="button"
           className="sa-boost"
-          aria-label="Boost"
-          title="Boost (Space)"
+          aria-label={playMode === 'jet' ? 'Mach 1 boost' : 'Boost'}
+          title={playMode === 'jet' ? 'Mach 1 boost (Space)' : 'Boost (Space)'}
           disabled={phase !== 'flying'}
           onPointerDown={(e) => {
             e.stopPropagation();
@@ -1413,7 +1450,7 @@ export default function Landing({
           <svg viewBox="0 0 24 24" aria-hidden className="sa-boost__icon">
             <path d="M13.5 1.5s1 3.2-1.6 6.1C9.6 10.2 7 12 7 15.6A5 5 0 0 0 12 21a5 5 0 0 0 5-5.3c0-2.4-1.3-4-1.3-4s-.4 2.1-2 2.7c0 0 1.4-4.5-.2-9.4zM12 19.2a2.6 2.6 0 0 1-2.6-2.7c0-1.8 1.6-2.7 2.3-4.4.9 1.4 2.9 2.5 2.9 4.4a2.6 2.6 0 0 1-2.6 2.7z" />
           </svg>
-          <span className="sa-boost__label">Boost</span>
+          <span className="sa-boost__label">{playMode === 'jet' ? 'Mach 1' : 'Boost'}</span>
           <span className="sa-boost__tank" aria-hidden>
             {Array.from({ length: BOOST.charges }, (_, i) => <span key={i} className="sa-boost__pip" style={{ ['--i' as string]: i }} />)}
           </span>
@@ -1444,7 +1481,7 @@ export default function Landing({
           </span>
         </button>
       )}
-      {inGame && phase !== 'crashed' && playMode !== 'ufo' && (
+      {inGame && phase !== 'crashed' && playMode === 'airliner' && (
         <button
           type="button"
           className={`sa-flaps${flapLevel > 0 ? ' is-deployed' : ''}${flapLevel === 1 ? ' is-full' : ''}`}
