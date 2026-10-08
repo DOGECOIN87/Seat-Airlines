@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import type { FlightTick } from '../lib/flightFeed';
 import type { SkyState } from '../lib/sky';
 import {
-  formatCap,
   formatChange,
   formatFeet,
   phaseFor,
@@ -204,14 +203,13 @@ interface ReadoutProps {
   tagLive?: boolean;
   value: string;
   unit?: string;
-  sub: string;
   viz: ReactNode;
   wide?: boolean;
 }
 
 /* A term and its descriptions, laid out on a grid: a `<dl>` allows a
    wrapper round each group, but nothing between the wrapper and its terms. */
-const Readout = ({ label, tag, tagLive, value, unit, sub, viz, wide }: ReadoutProps) => (
+const Readout = ({ label, tag, tagLive, value, unit, viz, wide }: ReadoutProps) => (
   <div className={`sa-readout ${wide ? 'sa-readout--wide' : ''}`}>
     <dt className="sa-readout__label">{label}</dt>
     <dd className={`sa-readout__tag ${tagLive ? 'sa-readout__tag--live' : ''}`}>{tag}</dd>
@@ -220,14 +218,12 @@ const Readout = ({ label, tag, tagLive, value, unit, sub, viz, wide }: ReadoutPr
       {value}
       {unit && <span className="sa-readout__unit">{unit}</span>}
     </dd>
-    <dd className="sa-readout__sub">{sub}</dd>
     <dd className="sa-readout__viz" aria-hidden>{viz}</dd>
   </div>
 );
 
 export function FlightReadouts({ tick, sky }: { tick: FlightTick; sky: SkyState }) {
   const change = tick.change5m;
-  const level = Math.abs(change) < 0.05;
   const vs = verticalSpeedFor(change, tick.marketCap);
   const rate = Math.abs(vs);
   const vsFigure =
@@ -248,14 +244,12 @@ export function FlightReadouts({ tick, sky }: { tick: FlightTick; sky: SkyState 
         tag={vsText}
         value={formatFeet(tick.marketCap)}
         unit="ft"
-        sub={`${formatCap(tick.marketCap)} market cap`}
         viz={<AltitudeTape feet={tick.marketCap} />}
       />
       <Readout
         label="5m"
         tag={phaseFor(change)}
         value={formatChange(change)}
-        sub={level ? 'Level flight' : change > 0 ? 'Climbing' : 'Descending'}
         viz={<AttitudeBall change={change} />}
       />
       <Readout
@@ -263,7 +257,6 @@ export function FlightReadouts({ tick, sky }: { tick: FlightTick; sky: SkyState 
         tag={sky.live ? 'Live' : 'Modelled'}
         tagLive={sky.live}
         value={sky.label}
-        sub={sky.live ? 'Live weather where you are' : 'Modelled weather'}
         viz={<Porthole sky={sky} />}
         wide
       />

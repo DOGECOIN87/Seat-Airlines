@@ -8,7 +8,7 @@ import Flyover from './Flyover';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
 import SeatOverview from './SeatOverview';
-import AircraftCarousel, { RIDES, type PlayMode } from './AircraftCarousel';
+import { RIDES, type PlayMode } from '../lib/rides';
 import JetWeapons from './JetWeapons';
 import { BLIMP, fireMissile, type AerialEvents } from '../lib/aerialCombat';
 import type { Manifest } from '../lib/manifest';
@@ -49,6 +49,7 @@ interface ShareNote { text: string; href?: string; label?: string; error?: boole
 /* The scene is the chunk with three.js in it. Everything here — the way in
    above all — is up and working before it arrives. */
 const LandingScene = lazy(() => import('./LandingScene'));
+const AircraftCarousel = lazy(() => import('./AircraftCarousel'));
 /* The same high scores window the site opens from its tab bar, fetched as a
    finger or a pointer reaches the button so it is there by the click. */
 const loadScores = () => import('./ScoresDialog');
@@ -1065,6 +1066,7 @@ export default function Landing({
               controls={controls}
               taken={taken}
               playing={inGame}
+              paused={ridePickerOpen || scoresOpen}
               boost={boostStrength(boosts)}
               game={game}
               cameraLook={cameraLook}
@@ -1216,16 +1218,18 @@ export default function Landing({
               <h1>Select your aircraft</h1>
               <span>Configure your ride before entering the climb.</span>
             </div>
-            <AircraftCarousel
-              fullscreen
-              mode={playMode}
-              onModeChange={chooseRide}
-              ufoUnlocked={ufoUnlocked}
-              tokenBalance={tokenBalance}
-              balanceLoading={tokenBalanceLoading}
-              walletConnected={Boolean(wallet.address)}
-              onConnect={verifyWallet}
-            />
+            <Suspense fallback={null}>
+              <AircraftCarousel
+                fullscreen
+                mode={playMode}
+                onModeChange={chooseRide}
+                ufoUnlocked={ufoUnlocked}
+                tokenBalance={tokenBalance}
+                balanceLoading={tokenBalanceLoading}
+                walletConnected={Boolean(wallet.address)}
+                onConnect={verifyWallet}
+              />
+            </Suspense>
             <div className="sa-ride-modal__launch-console">
               <div>
                 <span className="sa-ride-modal__console-label">Selected loadout</span>

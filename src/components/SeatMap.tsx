@@ -254,26 +254,16 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
                       onClick={() => toggleZone(sectionId)}
                       aria-expanded={isOpen}
                       aria-controls={`sa-zone-${sectionId}`}
+                      aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${zone.name}, ${note}, ${manifest.live ? `${held} of ${total} seats occupied` : 'occupancy unavailable'}`}
                       className={`sa-zone-head sa-zone-toggle ${accent}`}
                     >
-                      <span className="sa-zone-head__mark" aria-hidden>{zone.code}</span>
                       <span className="sa-zone-head__title">
                         <span className="sa-zone-head__name">{zone.name}</span>
-                        {/* How full it is, so a closed cabin still says whether it
-                            is worth opening, then the cabin's own note. One line
-                            under the name rather than a column beside it: with the
-                            switch on the right there is no room on a phone for a
-                            third column, and squeezing one in broke the name
-                            letter by letter. The count is non-breaking; a dash
-                            is followed by a word joiner so a range never splits. */}
                         <span className="sa-zone-head__visual">
-                          {manifest.live ? `${held}\u00a0of\u00a0${total}\u00a0taken\u00a0` : 'Not verified'}
-                          <span aria-hidden>· </span>
-                          {note.replace(/–/g, '–\u2060')}
+                          {manifest.live ? `${held}/${total}` : 'Unverified'}
                         </span>
                       </span>
                       <span className="sa-zone-toggle__label" aria-hidden>
-                        {isOpen ? 'Hide' : 'Show'}
                         <svg viewBox="0 0 12 12" className="sa-zone-toggle__chev"><path d="M3 4.5 6 7.5 9 4.5" /></svg>
                       </span>
                     </button>
@@ -314,7 +304,6 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
           {/* ── Cargo hold ── */}
           <section>
             <header className="sa-zone-head sa-zone-head--plain">
-              <span className="sa-zone-head__mark" aria-hidden>CRG</span>
               <div className="sa-zone-head__title">
                 <h3>{CARGO_HOLD.name}</h3>
                 <span className="sa-zone-head__visual">Below the cutoff&nbsp;/ unpressurized</span>

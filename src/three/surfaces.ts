@@ -76,9 +76,9 @@ function earthTextures(d: EarthData): EarthMaps {
 
 const LOCAL = { clouds: cloudSeaData, earth: earthData, moon: lunarData, mars: marsData } as const;
 
-export function createSurfaceBank(): SurfaceBank {
+export function createSurfaceBank(preload = true): SurfaceBank {
   const ready = new Map<SurfaceKind, SurfaceTextures | EarthMaps>();
-  const queue: SurfaceKind[] = ['clouds', 'earth', 'moon', 'mars'];
+  const queue: SurfaceKind[] = preload ? ['clouds', 'earth', 'moon', 'mars'] : [];
   let busy: SurfaceKind | null = null;
   let worker: Worker | null = null;
 
@@ -119,6 +119,7 @@ export function createSurfaceBank(): SurfaceBank {
       accept(kind, LOCAL[kind]());
       return ready.get(kind) ?? null;
     }
+    if (at < 0 && busy !== kind) queue.unshift(kind);
     if (at > 0) {
       queue.splice(at, 1);
       queue.unshift(kind);

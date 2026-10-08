@@ -914,8 +914,7 @@ html {
   grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-areas:
     'label tag viz'
-    'value value viz'
-    'sub sub viz';
+    'value value viz';
   align-items: center;
   column-gap: 0.65rem;
   min-width: 0;
@@ -1003,13 +1002,6 @@ html {
   color: #8EE8FA;
 }
 .sa-readout__unit-short { display: none; }
-.sa-readout__sub {
-  grid-area: sub;
-  margin: 0.32rem 0 0;
-  font-size: var(--t-sm);
-  line-height: 1.3;
-  color: #A9B9CD;
-}
 .sa-readout__viz {
   grid-area: viz;
   display: grid;
@@ -1553,21 +1545,6 @@ html {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
   border-bottom: 1px solid rgba(255, 255, 255, 0.8);
 }
-.sa-zone-head__mark {
-  display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
-  flex: none;
-  place-items: center;
-  border-radius: 0.7rem;
-  background: rgba(255, 255, 255, 0.62);
-  box-shadow: var(--e-press);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: var(--ui-soft);
-}
 .sa-zone-head__title { min-width: 0; }
 .sa-zone-head h3,
 .sa-zone-head__name {
@@ -1602,8 +1579,9 @@ html {
 .sa-zone-toggle:hover { filter: brightness(1.03); }
 .sa-zone-toggle:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: -3px; }
 .sa-zone-toggle[aria-expanded='false'] { border-bottom-color: transparent; }
-.sa-zone-toggle .sa-zone-head__title { flex: 1 1 auto; min-width: 0; }
-.sa-zone-toggle .sa-zone-head__visual { white-space: normal; overflow-wrap: normal; }
+.sa-zone-toggle .sa-zone-head__title { display: flex; align-items: center; gap: 0.65rem; flex: 1 1 auto; min-width: 0; }
+.sa-zone-toggle .sa-zone-head__name { white-space: nowrap; }
+.sa-zone-toggle .sa-zone-head__visual { flex: none; margin: 0; white-space: nowrap; }
 .sa-zone-toggle__label {
   display: inline-flex;
   flex: none;
@@ -1639,14 +1617,9 @@ html {
   color: var(--ui-faint);
 }
 .sa-zone--deck .sa-zone-head { background: linear-gradient(110deg, rgba(255, 214, 231, 0.8), rgba(255, 255, 255, 0.15)); }
-.sa-zone--deck .sa-zone-head__mark,
-.sa-zone--first .sa-zone-head__mark { background: linear-gradient(145deg, #fff5fa, #f4bdd6); color: #9b3b68; }
 .sa-zone--first .sa-zone-head { background: linear-gradient(110deg, rgba(255, 225, 239, 0.75), rgba(255, 255, 255, 0.12)); }
 .sa-zone--business .sa-zone-head { background: linear-gradient(110deg, rgba(226, 220, 255, 0.78), rgba(255, 255, 255, 0.12)); }
-.sa-zone--business .sa-zone-head__mark { background: linear-gradient(145deg, #f8f6ff, #c9c0f4); color: #55408e; }
 .sa-zone--exit .sa-zone-head { background: linear-gradient(110deg, rgba(211, 247, 250, 0.82), rgba(255, 255, 255, 0.12)); }
-.sa-zone--exit .sa-zone-head__mark,
-.sa-zone--economy .sa-zone-head__mark { background: linear-gradient(145deg, #f2ffff, #b9e7eb); color: #13727d; }
 .sa-zone--economy .sa-zone-head { background: linear-gradient(110deg, rgba(219, 247, 249, 0.62), rgba(255, 255, 255, 0.12)); }
 
 /* ── A seat ───────────────────────────────────────────────── */
@@ -4902,7 +4875,7 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 
 /* ── The three displays ───────────────────────────────────────
    Every display gives its instrument the same box, so its label,
-   tag, figure and caption stand at the same heights as its
+   tag and figure stand at the same heights as its
    neighbours' whichever instrument it has; and its words start at
    the top rather than floating to the middle when a neighbour is
    taller. Three across from 58rem of deck, two under that (the sky
@@ -4932,8 +4905,7 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
     grid-template-areas:
       'label viz'
       'tag viz'
-      'value value'
-      'sub sub';
+      'value value';
     column-gap: 0.4rem;
     padding: 0.75rem 0.7rem 0.75rem 0.85rem;
   }
@@ -4946,12 +4918,12 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 }
 /* Two displays across a deck this narrow leave no room for an
    instrument beside the tag, and the instruments only draw what the
-   words already say: they go, and label, tag, figure and caption take
+   words already say: they go, and label, tag and figure take
    the display's whole width. */
 @container deck (max-width: 21.49rem) {
   .sa-readout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'label' 'tag' 'value' 'sub';
+    grid-template-areas: 'label' 'tag' 'value';
   }
   .sa-readout__viz { display: none; }
 }

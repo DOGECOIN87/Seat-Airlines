@@ -1,6 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CAPTURE, captureState, useCaptureVersion } from './capture/flag';
-import FractalWorkspace from './components/FractalWorkspace';
 import ContractBar from './components/ContractBar';
 import ViewFrame from './components/ViewFrame';
 import Annunciators from './components/Annunciators';
@@ -69,6 +68,7 @@ import { boostStrength, useDexBoost } from './lib/dexBoost';
 // interactive immediately, rather than making the whole page wait on WebGL.
 const CabinView3D = lazy(() => import('./components/CabinView3D'));
 const ExteriorView = lazy(() => import('./components/ExteriorView'));
+const FractalWorkspace = lazy(() => import('./components/FractalWorkspace'));
 const loadFlightDeck = () => import('./components/FlightDeck3D');
 const loadSeatMap = () => import('./components/SeatMap');
 const FlightDeck = lazy(loadFlightDeck);
