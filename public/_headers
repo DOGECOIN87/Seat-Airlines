@@ -1,6 +1,6 @@
 /*
-  Content-Security-Policy: frame-ancestors 'none'
-  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors https://x.com https://twitter.com https://mobile.twitter.com https://platform.twitter.com
+  # X-Frame-Options is intentionally omitted: X Player Cards require framing.
   X-Content-Type-Options: nosniff
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Referrer-Policy: strict-origin-when-cross-origin

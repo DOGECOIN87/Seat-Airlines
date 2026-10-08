@@ -20,13 +20,12 @@
       rel="stylesheet"
     />
     <meta name="theme-color" content="#0F1725" />
-    <!-- GitHub Pages cannot emit frame headers; this is only defense in depth.
-         The deployment headers in public/_headers are authoritative on hosts
-         that support them. -->
-    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'none'" />
-    <script>
-      if (window.top !== window.self) window.top.location = window.self.location;
-    </script>
+    <!-- X Player Card: the tweet contains the launch card, and X loads this
+         same app in player mode inside its iframe. Keep this page frameable. -->
+    <meta name="twitter:card" content="player" />
+    <meta name="twitter:player" content="https://seat-airlines.space/?player=1" />
+    <meta name="twitter:player:width" content="480" />
+    <meta name="twitter:player:height" content="360" />
     <meta property="og:site_name" content="Seat Airlines" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="Seat Airlines ($SEAT) — the flight simulator flown by market cap" />
@@ -38,7 +37,7 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Seat Airlines: lightning strikes an airliner's engine. Hold more. Fly higher." />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:card" content="player" />
     <meta name="twitter:site" content="@SeatAirlines" />
     <meta name="twitter:title" content="Seat Airlines ($SEAT) — the flight simulator flown by market cap" />
     <meta name="twitter:description" content="One plane. Everyone's in it. Your bag is your seat. Take the controls and top the daily leaderboard." />

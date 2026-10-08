@@ -226,6 +226,9 @@ const SceneLoading = ({ exterior = false }: { exterior?: boolean }) => (
 
 export default function App() {
 
+  const playerMode = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).has('player');
+
   resetClientStateForToken();
 
   /* One feed, reading the market. There is no simulator behind it and no
@@ -825,6 +828,7 @@ export default function App() {
         <Landing
           key={landingRun}
           replay={landingRun > 0}
+          embed={playerMode}
           onPlayAgain={playAgain}
           feed={feed}
           sky={sky}
@@ -833,7 +837,7 @@ export default function App() {
           controls={controls}
           taken={taken}
           wallet={wallet}
-          onEnter={enter}
+          onEnter={playerMode ? () => {} : enter}
           manifest={manifest}
           banners={banners}
           boosts={boosts}
@@ -843,7 +847,7 @@ export default function App() {
           soundEnabled={aircraftAudio.enabled}
           onSoundToggle={aircraftAudio.toggle}
         />
-        <WalletPicker wallet={wallet} />
+        {!playerMode && <WalletPicker wallet={wallet} />}
       </>
     );
   }

@@ -7220,3 +7220,13 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   }
   .sa-flaps__wing { font-size: 1.1rem; }
 }
+
+/* X Player Card mode: keep the existing plane renderer, but remove the full-site
+   lobby chrome so the aircraft and flight HUD fill the small timeline player. */
+.sa-landing.is-embed .sa-landing__lobby { display: none; }
+.sa-landing.is-embed .sa-landing__top { padding: 0.45rem 0.65rem; }
+.sa-landing.is-embed .sa-landing__brand { max-width: 7rem; }
+.sa-landing.is-embed .sa-landing__live { font-size: 0.65rem; }
+.sa-landing.is-embed .sa-landing__scene { inset: 0; }
+.sa-landing.is-embed .sa-hud { inset: 0.5rem; }
+.sa-landing.is-embed .sa-hud__top { padding-top: 0; }

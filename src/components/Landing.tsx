@@ -99,6 +99,8 @@ interface LandingProps {
   tokenBalanceLoading: boolean;
   soundEnabled: boolean;
   onSoundToggle: () => void;
+  /** X Player Card mode: run the plane as a self-contained demo without a wallet. */
+  embed?: boolean;
 }
 
 type PostState =
@@ -197,7 +199,7 @@ const OVERVIEW_AFTER = 3000;
 const SPLASH_FADE = 800;
 
 export default function Landing({
-  feed, sky, band, marketCap, controls, taken, wallet, onEnter, onPlayAgain, replay = false, manifest, banners, onClaim, boosts, tokenBalance, tokenBalanceLoading, soundEnabled, onSoundToggle,
+  feed, sky, band, marketCap, controls, taken, wallet, onEnter, onPlayAgain, replay = false, manifest, banners, onClaim, boosts, tokenBalance, tokenBalanceLoading, soundEnabled, onSoundToggle, embed = false,
 }: LandingProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   // Play again remounts the landing: start from the ride flown last.
@@ -249,7 +251,9 @@ export default function Landing({
   }, [ridePickerOpen]);
   // The UFO is an entitlement, not a development/demo flag: only a verified
   // balance of at least 1,000,000 $SEAT can arm it.
-  const localTestMode = import.meta.env.DEV;
+  /* X's iframe cannot connect a Solana wallet, so the Player Card is a
+     self-contained practice flight rather than a score-submitting run. */
+  const localTestMode = import.meta.env.DEV || embed;
   const ufoUnlocked = (tokenBalance ?? 0) >= 1_000_000;
   const ufoUnlockedRef = useRef(ufoUnlocked);
   useEffect(() => {
@@ -288,7 +292,7 @@ export default function Landing({
   /** The altitude the engine goes at, in feet, as the brief states it. */
   const [goalFeet] = useState(() => Math.round((blastAltitude() * FEET) / 100) * 100);
   /** `?mayday` puts the engine at 1,500 ft, and `?space` and the rest start the saucer high: practice, not runs for the board. */
-  const practice = goalFeet !== 10_000 || testFlight();
+  const practice = embed || goalFeet !== 10_000 || testFlight();
   /** Which engine went first, what took it and at what height; and whether the other followed, and to what. */
   const [failure, setFailure] = useState<{ side: -1 | 1; cause: Cause; feet: number; both: boolean; second: Cause | null } | null>(null);
   /** The moment lightning hits: the screen goes blue-white. */
@@ -549,6 +553,10 @@ export default function Landing({
   useEffect(() => {
     if (replay && ready && wallet.address && game.current.phase === 'idle' && !gone.current) takeOff();
   }, [replay, ready, wallet.address, takeOff]);
+  useEffect(() => {
+    if (!embed || !ready || game.current.phase !== 'idle' || gone.current) return;
+    takeOff();
+  }, [embed, ready, takeOff]);
   const connectAndFly = useCallback(async () => {
     makeSounds();
     const address = await wallet.connect();
@@ -601,8 +609,8 @@ export default function Landing({
   const onFlying = useCallback(() => {
     setPhase('flying');
     // The server starts timing now; nothing is asked of anybody to start it.
-    void startRun().then((id) => { runId.current = id; });
-  }, []);
+    if (!embed) void startRun().then((id) => { runId.current = id; });
+  }, [embed]);
   const onFailure = useCallback((side: -1 | 1, cause: Cause, second: boolean) => {
     const feet = Math.round((game.current.blastAlt * FEET) / 100) * 100;
     setFailure((f) => (second && f ? { ...f, both: true, second: cause } : { side, cause, feet, both: false, second: null }));
@@ -1012,7 +1020,7 @@ export default function Landing({
 
   return (
     <div
-      className={`sa-landing is-${phase}${leaving ? ' is-leaving' : ''}${ready ? ' is-ready' : ''}${
+      className={`sa-landing${embed ? ' is-embed' : ''} is-${phase}${leaving ? ' is-leaving' : ''}${ready ? ' is-ready' : ''}${
         failure ? ' is-failing' : ''}${blasted ? ' is-blast' : ''}${splash === 'on' ? ' is-splash' : ''}${showOverview ? ' has-ov' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
