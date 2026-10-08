@@ -14,14 +14,14 @@ export interface Sfx {
   close(): void;
 }
 
-export function createSfx(): Sfx | null {
+export function createSfx(sharedContext?: AudioContext): Sfx | null {
   const Ctx = typeof window !== 'undefined'
     ? window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     : undefined;
   if (!Ctx) return null;
   let ctx: AudioContext;
   try {
-    ctx = new Ctx();
+    ctx = sharedContext ?? new Ctx();
   } catch {
     return null;
   }
@@ -151,6 +151,9 @@ export function createSfx(): Sfx | null {
     setEnabled: (on) => {
       master.gain.value = on ? 0.9 : 0;
     },
-    close: () => void ctx.close().catch(() => {}),
+    close: () => {
+      master.disconnect();
+      if (!sharedContext) void ctx.close().catch(() => {});
+    },
   };
 }

@@ -1,0 +1,42 @@
+{
+  "file": "audio/game-effects-cb2bed29b2c9.mp3",
+  "sampleRate": 32000,
+  "clips": {
+    "blast": {
+      "offset": 0.125,
+      "duration": 7.056
+    },
+    "lightning": {
+      "offset": 7.306,
+      "duration": 5.0851875
+    },
+    "ufo": {
+      "offset": 12.5161875,
+      "duration": 7.722875
+    },
+    "wind": {
+      "offset": 20.3640625,
+      "duration": 10.61
+    },
+    "wasted": {
+      "offset": 31.0990625,
+      "duration": 7.1
+    },
+    "fahh": {
+      "offset": 38.3240625,
+      "duration": 1.92725
+    },
+    "trombone": {
+      "offset": 40.3763125,
+      "duration": 3.38403125
+    },
+    "wow": {
+      "offset": 43.88534375,
+      "duration": 3.8
+    },
+    "crowd": {
+      "offset": 47.81034375,
+      "duration": 15.95
+    }
+  }
+}

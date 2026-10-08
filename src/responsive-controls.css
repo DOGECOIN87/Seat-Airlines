@@ -1,0 +1,276 @@
+/* Shared control geometry. Keep the existing materials and colours. */
+:root {
+  --control-size: 2.75rem;
+  --action-size: 3rem;
+  --control-radius: 0.875rem;
+}
+
+:is(.sa-cta, .sa-ghost, .sa-chip, .ui-pill, .sa-seg__btn, .sa-ca__copy, .sa-pump) {
+  box-sizing: border-box;
+  justify-content: center;
+  min-height: var(--control-size);
+  max-width: 100%;
+  line-height: 1.25;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+.sa-cta, .sa-ghost {
+  min-height: var(--action-size);
+  padding: 0.65rem clamp(0.8rem, 1.7vw, 1.5rem);
+  border-radius: var(--control-radius);
+}
+.sa-topbar .sa-cta--bar { min-height: var(--control-size); }
+:is(.sa-cta, .sa-ghost, .sa-chip, .ui-pill, .sa-seg__btn) > svg { flex-shrink: 0; }
+.ui-round, .sd-controls .ui-round {
+  box-sizing: border-box;
+  flex: none;
+  width: var(--control-size);
+  height: var(--control-size);
+  min-width: var(--control-size);
+  min-height: var(--control-size);
+  padding: 0;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+.sd-controls { --round: var(--control-size); }
+.sd-controls__tools { min-width: 0; }
+.sa-dock__btn { min-width: 0; min-height: var(--control-size); }
+html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
+.sd-controls { scroll-margin-block: calc(var(--sa-topbar-h, 3.4rem) + 1rem) calc(5rem + var(--safe-bottom)); }
+:is(.sa-tour__copy, .sa-tour__back, .sa-tour__next, .sa-tour__buy, .sa-seatwin__advertise, .sa-scores__tabs button) {
+  min-height: var(--control-size);
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+.sa-landing__lobby .sa-ov__claim { min-height: var(--control-size); }
+
+/* The 44px tools need more room than the former 38px controls. Move the
+   destination to its own row before its label is squeezed. */
+@container frame (max-width: 42rem) {
+  .sd-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'tools sound' 'look look';
+    border-radius: 1.6rem;
+    padding: 0.5rem 0.6rem;
+  }
+  .sd-controls__look { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  .sd-controls__look > * { width: 100%; min-width: 0; padding-inline: 0.5rem; }
+}
+
+/* Below the threshold where tools + sound cannot fit, give sound its own
+   row. Never squeeze circular controls into ovals or hide a tool. */
+@container frame (max-width: 17rem) {
+  .sd-controls, .sd-controls:has(.sd-controls__look > :nth-child(2)) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'tools' 'look' 'sound';
+  }
+  .sd-controls__tools { justify-content: space-between; }
+  .sd-controls__sound { justify-self: end; }
+  .sd-controls__look, .sd-controls:has(.sd-controls__look > :nth-child(2)) .sd-controls__look {
+    grid-auto-flow: row;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The idle landing is a real layout, so its heading, actions, seat preview
+   and social links cannot occupy the same pixels on short/zoomed screens.
+   Flight mode retains the fixed canvas and joystick touch behaviour. */
+.sa-landing.is-idle {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+.sa-landing.is-idle .sa-landing__top {
+  position: relative;
+  flex: none;
+  padding-bottom: 0.75rem;
+  z-index: 1;
+}
+.sa-landing__lobby {
+  position: relative;
+  z-index: 1;
+  flex: 1 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  grid-template-rows: 1fr auto;
+  align-items: end;
+  gap: clamp(1rem, 3vw, 3rem);
+  width: 100%;
+  padding: clamp(4rem, 15svh, 10rem) max(1rem, 4vw, var(--safe-right)) max(1rem, var(--safe-bottom)) max(1rem, 4vw, var(--safe-left));
+}
+.sa-landing__lobby .sa-landing__hero {
+  position: static;
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: 42rem;
+  padding: 0;
+  gap: 1rem;
+}
+.sa-landing__lobby .sa-landing__hero > :is(.sa-landing__actions, .sa-landing__lead, .sa-landing__hint) {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+.sa-landing__lobby .sa-ov {
+  position: relative;
+  inset: auto;
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  max-width: 40rem;
+  justify-self: end;
+  transform: none;
+  animation-name: sa-landing-rise;
+}
+.sa-landing__lobby .sa-landing__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+}
+.sa-landing__actions > :is(.sa-landing__primary-actions, .sa-landing__utility-actions) {
+  display: grid;
+  gap: 0.625rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+.sa-landing__primary-actions { grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+.sa-landing__utility-actions { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--action-size); }
+.sa-landing__utility-actions:not(:has(.sa-pilots--scores)) { grid-template-columns: minmax(0, 1fr) var(--action-size); }
+.sa-landing__actions :is(.sa-landing__enter, .sa-landing__fly, .sa-pilots) {
+  box-sizing: border-box;
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--action-size);
+  height: auto;
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--control-radius);
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+.sa-landing__actions .sa-landing__enter::after { display: none; }
+.sa-landing__actions .sa-pilots--sound { padding: 0; aspect-ratio: 1; }
+.sa-landing__actions .sa-pilots--sound .sa-pilots__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.sa-pilots__count { min-width: 0; max-width: 8ch; overflow: hidden; text-overflow: ellipsis; }
+.sa-landing__fly-icon { flex: none; }
+.sa-landing__lobby .sa-social.sa-landing__social {
+  position: static;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: min(100%, 38rem);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0;
+}
+.sa-landing__lobby .sa-landing__social .sa-social__chip { min-height: var(--control-size); }
+
+@media (max-width: 1023.98px) {
+  .sa-landing__lobby {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+    padding-top: clamp(1rem, 6svh, 4rem);
+    row-gap: 1.5rem;
+  }
+  .sa-landing__lobby .sa-landing__hero { grid-row: 2; max-width: 42rem; justify-self: center; }
+  .sa-landing__lobby .sa-ov { grid-column: 1; grid-row: 1; max-width: 34rem; justify-self: center; }
+  .sa-landing__lobby .sa-social.sa-landing__social { grid-row: 3; }
+}
+@media (max-width: 359.98px) {
+  .sa-landing.is-idle .sa-landing__top { column-gap: 0.5rem; }
+  .sa-landing.is-idle .sa-landing__brand .sa-wordmark__name { font-size: clamp(0.75rem, 4.3vw, 0.95rem); letter-spacing: 0.04em; }
+  .sa-landing__actions :is(.sa-landing__enter, .sa-landing__fly, .sa-pilots) { font-size: 0.75rem; letter-spacing: 0.02em; padding-inline: 0.5rem; }
+  .sa-landing__lobby .sa-landing__social .sa-social__chip { font-size: 0.6875rem; }
+}
+@media (max-height: 560px) {
+  .sa-landing__lobby { padding-top: 1rem; row-gap: 1rem; }
+  .sa-landing__lobby .sa-landing__hero { gap: 0.75rem; }
+}
+
+/* Hangar controls: equal touch targets, unconstrained text areas, and
+   scrolling that also works inside the landing's pointer handlers. */
+.sa-ride-modal { touch-action: pan-y; overflow-x: hidden; }
+.sa-ride-modal__content { padding-inline: max(0.75rem, 2vw); min-width: 0; }
+.sa-ride-modal__topline { gap: 0.75rem; min-width: 0; }
+.sa-ride-modal__topline > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-ride-modal__close, .sa-aircraft-picker__arrow {
+  box-sizing: border-box;
+  flex: none;
+  width: var(--control-size);
+  height: var(--control-size);
+  min-width: var(--control-size);
+  min-height: var(--control-size);
+  padding: 0;
+  border-radius: 0.75rem;
+  line-height: 1;
+  touch-action: manipulation;
+}
+.sa-ride-modal__close { position: relative; z-index: 2; }
+.sa-ride-modal__close:focus-visible, .sa-ride-modal__launch:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.sa-aircraft-picker__arrow:disabled, .sa-aircraft-picker__slot:disabled { cursor: not-allowed; }
+.sa-aircraft-picker__arrow:disabled { opacity: 0.4; transform: none; }
+.sa-aircraft-picker__track { align-items: stretch; }
+.sa-aircraft-picker__slot--active { transform: none; }
+.sa-aircraft-picker__status-dot { flex: none; }
+.sa-aircraft-picker__mode { flex-wrap: wrap; gap: 0.75rem; }
+.sa-aircraft-picker__mode > div { flex: 1 1 14rem; min-width: 0; }
+.sa-aircraft-picker__mode small { max-width: none; }
+.sa-aircraft-picker__mode button {
+  flex: 0 0 auto;
+  min-height: var(--control-size);
+  margin-left: auto;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  font-size: 0.6875rem;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+.sa-ride-modal__launch { min-height: var(--action-size); min-width: 0; max-width: 100%; touch-action: manipulation; }
+.sa-ride-modal__wallet-links a { display: inline-flex; align-items: center; min-height: var(--control-size); white-space: nowrap; }
+.sa-aircraft-picker__model-canvas { overflow: hidden; }
+.sa-aircraft-picker__model-canvas canvas { position: absolute; inset: 0; }
+.sa-aircraft-picker__model .sa-aircraft-picker__fallback {
+  position: absolute;
+  inset: 15%;
+  width: 70%;
+  height: 70%;
+  max-height: none;
+  object-fit: contain;
+  transform: none;
+  display: grid;
+  place-items: center;
+  color: #7fe3f7;
+  font-size: 3rem;
+}
+.sa-aircraft-picker__model-canvas[data-ready='true'] .sa-aircraft-picker__fallback { display: none; }
+@media (max-width: 640px) {
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__arrow { display: none; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__stage { grid-template-columns: minmax(0, 1fr); margin-inline: 0; }
+  .sa-ride-modal__launch-console { flex-direction: column; align-items: stretch; }
+  .sa-ride-modal__launch { width: 100%; }
+}
+@media (max-height: 560px) {
+  .sa-ride-modal__topline { position: relative; top: auto; right: auto; width: 100%; justify-content: flex-end; }
+  .sa-ride-modal__hero-copy { margin-top: 0; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: clamp(4rem, 24svh, 6rem); min-height: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sa-aircraft-picker__slot, .sa-aircraft-picker__arrow, .sa-ride-modal__launch { transition: none; }
+  .sa-aircraft-picker__arrow:hover, .sa-ride-modal__launch:hover { transform: none; }
+}

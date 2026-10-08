@@ -27,6 +27,7 @@ import { TWISTER } from '../lib/tornado';
 import { LEVELS, type Level } from '../lib/levels';
 import { LOGOS } from '../lib/logos';
 import { createSfx, type Sfx } from '../lib/sfx';
+import { createLandingAudio, type LandingAudio } from '../lib/audioSprite';
 import {
   canShareFile, cardAssets, cardJpeg, composeCard, hostCard, hostsCards, intentUrl, saveFile, shareFile, shareText, SITE_URL,
   type SharedFlight,
@@ -217,10 +218,34 @@ export default function Landing({
   /* Read by the key handler, which is not rebuilt when the picker opens. */
   const ridePickerUp = useRef(false);
   const launchRef = useRef<HTMLButtonElement>(null);
+  const rideDialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ridePickerUp.current = ridePickerOpen;
-    // The launch button takes the keys — without scrolling the hangar's heading off a short screen.
-    if (ridePickerOpen) launchRef.current?.focus({ preventScroll: true });
+    if (!ridePickerOpen) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = rideDialogRef.current;
+    dialog?.querySelector<HTMLButtonElement>('.sa-ride-modal__close')?.focus({ preventScroll: true });
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !dialog) return;
+      const items = [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]')]
+        .filter((item) => item.getClientRects().length > 0);
+      const first = items[0], last = items[items.length - 1];
+      if (!first || !last) return;
+      const outside = !dialog.contains(document.activeElement);
+      if (event.shiftKey && (outside || document.activeElement === first)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (outside || document.activeElement === last)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', trapFocus);
+    return () => {
+      window.removeEventListener('keydown', trapFocus);
+      if (opener?.isConnected && opener !== document.body) opener.focus({ preventScroll: true });
+      else document.querySelector<HTMLButtonElement>('.sa-landing__fly')?.focus({ preventScroll: true });
+    };
   }, [ridePickerOpen]);
   // The UFO is an entitlement, not a development/demo flag: only a verified
   // balance of at least 1,000,000 $SEAT can arm it.
@@ -296,10 +321,17 @@ export default function Landing({
   const logoRun = useRef({ at: 0, run: 0 });
   /** The synthesised sounds: the burn, the chime and the thunder. */
   const sfx = useRef<Sfx | null>(null);
+  const gameAudio = useRef<LandingAudio | null>(null);
   const soundOn = useRef(soundEnabled);
   soundOn.current = soundEnabled;
-  useEffect(() => sfx.current?.setEnabled(soundEnabled), [soundEnabled]);
-  useEffect(() => () => sfx.current?.close(), []);
+  useEffect(() => {
+    sfx.current?.setEnabled(soundEnabled);
+    gameAudio.current?.setEnabled(soundEnabled);
+  }, [soundEnabled]);
+  useEffect(() => () => {
+    sfx.current?.close();
+    gameAudio.current?.close();
+  }, []);
   /** The scene's picture of the moment the engine went, for the card. */
   const shot = useRef<HTMLCanvasElement | null>(null);
   /* Sharing the flight: the card as a picture as soon as the flight is
@@ -449,41 +481,15 @@ export default function Landing({
     return () => window.clearInterval(id);
   }, [counting]);
 
-  /* The game's sounds, made inside the click or key that starts it:
-     each is played once, muted, there and then, which is what a browser
-     wants to see before it lets a page make a noise later on its own. */
+  /* One shared recording and one context for both recorded and generated
+     game effects, unlocked inside the click or key that starts the game. */
   const makeSounds = () => {
     if (sounds.current) return;
-    const load = (file: string, volume: number) => {
-      const a = new Audio(`${import.meta.env.BASE_URL}${file}`);
-      a.preload = 'auto';
-      a.volume = volume;
-      a.muted = true;
-      void a.play().then(() => {
-        a.pause();
-        a.currentTime = 0;
-        a.muted = false;
-      }, () => {
-        a.muted = false;
-      });
-      return a;
-    };
-    sounds.current = {
-      blast: load('engine-blast.mp3', 0.9),
-      lightning: load('lightning-strike.mp3', 1),
-      ufo: load('ufo-appear.mp3', 0.85),
-      wind: (() => {
-        const a = load('updraft-wind.mp3', 0);
-        a.loop = true;
-        return a;
-      })(),
-      wasted: load('wasted.mp3', 1),
-      fahh: load('fail-fahh.mp3', 0.7),
-      trombone: load('fail-trombone.mp3', 0.9),
-      wow: load('wow.mp3', 0.9),
-      crowd: load('crash-crowd.mp3', 0.9),
-    };
-    sfx.current = createSfx();
+    const audio = createLandingAudio(soundOn.current);
+    if (!audio) return;
+    gameAudio.current = audio;
+    sounds.current = audio.sounds;
+    sfx.current = createSfx(audio.ctx);
     sfx.current?.setEnabled(soundOn.current);
   };
 
@@ -1068,6 +1074,7 @@ export default function Landing({
       </header>
 
       {!inGame && !ridePickerOpen && (
+        <div className="sa-landing__lobby">
         <main className="sa-landing__hero">
           <h1 className="sa-landing__title">
             Hold more.
@@ -1080,6 +1087,7 @@ export default function Landing({
               : 'Market cap is altitude. The biggest holders sit up front.'}
           </p>
           <div className="sa-landing__actions">
+            <div className="sa-landing__primary-actions">
             <button type="button" onClick={leave} className="sa-landing__enter">
               See who’s on board <span aria-hidden>→</span>
             </button>
@@ -1091,6 +1099,8 @@ export default function Landing({
                 {playMode === 'ufo' ? (wallet.address ? 'Launch UFO' : 'Connect & launch') : (wallet.address ? 'Fly' : 'Connect & fly')}
               </button>
             )}
+            </div>
+            <div className="sa-landing__utility-actions">
             {/* Boost the token on DexScreener — its page, where the Boost
                 button is. While a boost runs, the plane behind is on
                 afterburner, so this says so. */}
@@ -1136,6 +1146,7 @@ export default function Landing({
               <DeckIcon name={soundEnabled ? 'sound' : 'mute'} className="sa-pilots__icon" />
               <span className="sa-pilots__label">{soundEnabled ? 'Sound' : 'Muted'}</span>
             </button>
+            </div>
           </div>
           {!failed && (
             <p className="sa-landing__hint">
@@ -1145,9 +1156,14 @@ export default function Landing({
             </p>
           )}
         </main>
+        {showOverview && (
+          <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
+        )}
+        <SocialLinks night className="sa-landing__social" />
+        </div>
       )}
       {ridePickerOpen && !inGame && (
-        <div className="sa-ride-modal" role="dialog" aria-modal="true" aria-label="Choose your ride">
+        <div ref={rideDialogRef} className="sa-ride-modal" role="dialog" aria-modal="true" aria-label="Choose your ride">
           <div className="sa-ride-modal__ceiling" aria-hidden>
             <i /><i /><i /><i /><i /><i />
           </div>
@@ -1215,11 +1231,6 @@ export default function Landing({
           </div>
         </div>
       )}
-      {showOverview && (
-        <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
-      )}
-      {/* The airline elsewhere: one even row along the foot of the screen. */}
-      {!inGame && !ridePickerOpen && <SocialLinks night className="sa-landing__social" />}
       {/* Its own Suspense, as in the site: nothing shows while the chunk loads. */}
       {scoresOpen && (
         <Suspense fallback={null}>
