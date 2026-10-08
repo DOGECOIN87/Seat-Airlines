@@ -58,7 +58,7 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
     if (!canvas) return;
     let handles: WorldHandles;
     try {
-      handles = createWorld(canvas, { thrust: true });
+      handles = createWorld(canvas, { thrust: true, interior: false });
     } catch {
       setWebgl(false);
       return;
@@ -127,7 +127,7 @@ const ExteriorView = ({ feed, sky, band, taken, claimed, viewing, controls = HAN
         chgRead.current.style.color = tick.change5m >= 0 ? '#5BE86B' : '#FF5B4E';
       }
     }
-  }, controls);
+  }, controls, canvasRef);
 
   const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
     orbit.current.active = true;

@@ -17,7 +17,8 @@ export function createAerialCraft() {
   const label = new THREE.CanvasTexture(labelCanvas); label.colorSpace = THREE.SRGBColorSpace;
   let disposed = false;
   let loaded = false;
-  void new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/seat-blimp.glb`).then(gltf => {
+  let loading: Promise<void> | null = null;
+  const load = () => loading ??= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/seat-blimp.glb`).then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
     const model = gltf.scene; model.rotation.y = -Math.PI / 2; model.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(model);
@@ -67,6 +68,7 @@ export function createAerialCraft() {
   const aim = new THREE.Vector3();
   const dummy = new THREE.Object3D();
   const update = (state: AerialState | undefined, altitude: number, base: THREE.Vector3) => {
+    if (state) void load();
     group.position.copy(base);
     const b = state?.blimp;
     blimp.visible = !!b?.alive && loaded;
@@ -97,5 +99,5 @@ export function createAerialCraft() {
       slot.debris.instanceMatrix.needsUpdate = true;
     });
   };
-  return { group, update, dispose() { disposed = true; disposeModel(group); label.dispose(); } };
+  return { group, load, update, dispose() { disposed = true; disposeModel(group); label.dispose(); } };
 }

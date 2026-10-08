@@ -105,7 +105,7 @@ const CabinView3D = ({ feed, sky, band, seat, zone, facing, taken, adverts, cont
   useAttitude(feed, (a) => {
     pose.current.yaw = CAPTURE && captureState.yaw !== null ? captureState.yaw : YAW_FOR[facing] + drag.current.yaw;
     world.current?.render(a, latest.current.sky, latest.current.band, pose.current);
-  }, controls);
+  }, controls, canvasRef);
 
   /* Only the flaps are read from this; the roll arrives eased on the
      attitude above. Pushed in on change rather than per frame. */

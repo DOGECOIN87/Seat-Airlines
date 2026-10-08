@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "lint": "tsc --noEmit",
     "build:test": "esbuild src/lib/banners.ts src/lib/sectionAccess.ts src/lib/networkingApi.ts src/lib/holderList.ts src/lib/holdings.ts src/lib/logbookApi.ts src/lib/manualControls.ts src/lib/landingGame.ts src/lib/aerialCombat.ts src/lib/wallets.ts src/lib/seating.ts src/lib/seatMoves.ts src/lib/ufo.ts src/lib/thermals.ts src/lib/logos.ts src/lib/scoring.ts src/lib/ranges.ts src/lib/dexBoost.ts src/lib/rammer.ts src/lib/tornado.ts src/lib/levels.ts --bundle --outdir=dist-test --format=esm --platform=node --define:import.meta.env='{\"VITE_BANNERS_API\":\"https://adverts.test\"}' && esbuild worker/src/networking.ts --bundle --outfile=dist-test/workerNetworking.js --format=esm --platform=node && esbuild worker/src/logbook.ts --bundle --outfile=dist-test/workerLogbook.js --format=esm --platform=node && esbuild worker/src/verify.ts --bundle --outfile=dist-test/workerVerify.js --format=esm --platform=node",
-    "test": "npm run build:test && node test/banners.test.mjs && node test/sectionAccess.test.mjs && node test/networking.test.mjs && node test/holderList.test.mjs && node test/holdings.test.mjs && node test/logbook.test.mjs && node test/manualControls.test.mjs && node test/landingGame.test.mjs && node test/aerialCombat.test.mjs && node test/wallets.test.mjs && node test/seatMoves.test.mjs && node test/ufo.test.mjs && node test/thermals.test.mjs && node test/logos.test.mjs && node test/ranges.test.mjs && node test/dexBoost.test.mjs && node test/rammer.test.mjs && node test/tornado.test.mjs && node test/levels.test.mjs && npm run test:preview && npm run test:audio",
+    "test": "npm run build:test && node test/banners.test.mjs && node test/sectionAccess.test.mjs && node test/networking.test.mjs && node test/holderList.test.mjs && node test/holdings.test.mjs && node test/logbook.test.mjs && node test/manualControls.test.mjs && node test/landingGame.test.mjs && node test/aerialCombat.test.mjs && node test/wallets.test.mjs && node test/seatMoves.test.mjs && node test/ufo.test.mjs && node test/thermals.test.mjs && node test/logos.test.mjs && node test/ranges.test.mjs && node test/dexBoost.test.mjs && node test/rammer.test.mjs && node test/tornado.test.mjs && node test/levels.test.mjs && npm run test:preview && npm run test:audio && npm run test:rendering",
     "preview": "vite preview --host 0.0.0.0 --port 3000",
     "typecheck": "tsc --noEmit",
     "audit:frontend": "node scripts/audit-frontend.mjs",
@@ -17,7 +17,8 @@
     "icons": "node scripts/build-icons.mjs",
     "test:preview": "esbuild src/three/previewBounds.ts --bundle --external:three --outfile=dist-test/previewBounds.js --format=esm --platform=node && node test/aircraftPreview.test.mjs",
     "test:audio": "esbuild src/lib/audioSprite.ts --bundle --outfile=dist-test/audioSprite.js --format=esm --platform=node && node test/audioSprite.test.mjs",
-    "audio:build": "python3 scripts/build-audio.py"
+    "audio:build": "python3 scripts/build-audio.py",
+    "test:rendering": "esbuild src/lib/rendering.ts src/three/precompile.ts --bundle --external:three --outdir=dist-test --format=esm --platform=node && node test/rendering.test.mjs"
   },
   "dependencies": {
     "@danfessler/trellis": "^0.3.0",

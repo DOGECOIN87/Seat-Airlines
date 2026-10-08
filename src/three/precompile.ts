@@ -17,7 +17,7 @@ import type * as THREE from 'three';
  * Returns a check to make before each frame: false while the scene should
  * not be drawn yet.
  */
-export function precompiler(renderer: THREE.WebGLRenderer): (scene: THREE.Object3D, camera: THREE.Camera) => boolean {
+export function precompiler(renderer: THREE.WebGLRenderer): (scene: THREE.Scene, camera: THREE.Camera) => boolean {
   let state: 'idle' | 'compiling' | 'ready' = renderer.extensions.has('KHR_parallel_shader_compile') ? 'idle' : 'ready';
   const ready = () => { state = 'ready'; };
   return (scene, camera) => {
@@ -33,7 +33,11 @@ export function precompiler(renderer: THREE.WebGLRenderer): (scene: THREE.Object
          material without a program counts as done, and anything unexpected
          lets the frame through rather than holding it. */
       try {
-        const pending = renderer.compile(scene, camera);
+        // compile() normally visits hidden meshes too. Compile the visible
+        // view against the real scene's lights, without moving any objects.
+        const visible = scene.clone(false);
+        visible.traverse = scene.traverseVisible.bind(scene);
+        const pending = renderer.compile(visible, camera, scene);
         const poll = () => {
           if (state === 'ready') return;
           try {

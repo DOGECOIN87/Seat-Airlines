@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Attitude } from '../lib/useAttitude';
 import { precompiler } from './precompile';
+import { renderingProfile } from '../lib/rendering';
 
 /**
  * The cargo hold, as geometry.
@@ -370,13 +371,13 @@ function ld3Geometry(): THREE.BufferGeometry {
    ──────────────────────────────────────────────────────────────────────── */
 
 export function createCargoHold(canvasEl: HTMLCanvasElement): CargoHoldHandles {
-  // The full hold on every device: antialiased, sharp to a retina screen, every lamp lit.
+  const profile = renderingProfile();
   const renderer = new THREE.WebGLRenderer({
     canvas: canvasEl,
-    antialias: true,
-    powerPreference: 'high-performance',
+    antialias: profile.antialias,
+    powerPreference: profile.powerPreference,
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(profile.pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
@@ -725,7 +726,7 @@ export function createCargoHold(canvasEl: HTMLCanvasElement): CargoHoldHandles {
      120 Hz phone otherwise draws the hold twice as often for nothing. */
   let lastDrawn = 0;
   const render: CargoHoldHandles['render'] = (a, frost, look, nowMs) => {
-    if (nowMs - lastDrawn < 1000 / 60 - 4) return;
+    if (nowMs - lastDrawn < 1000 / profile.fps - 1) return;
     lastDrawn = nowMs;
     const t = nowMs / 1000;
     /* The aeroplane's lean, felt down here more than in the cabin: half the

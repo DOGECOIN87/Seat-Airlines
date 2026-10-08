@@ -95,6 +95,8 @@ interface LandingSceneProps {
   taken: ReadonlySet<string>;
   /** Somebody has taken the controls. */
   playing: boolean;
+  /** A full-screen dialog covers the flight. */
+  paused?: boolean;
   /** Exterior camera orbit, driven by the right stick or right-mouse drag. */
   cameraLook: MutableRefObject<{ orbit: number }>;
   /** How boosted the token is on DexScreener, 0–1: cruising, it burns and goes faster for it. */
@@ -211,13 +213,15 @@ function impactIn(g: FlightGame, ground: (ahead: number) => number): number {
 
 
 const LandingScene = ({
-  feed, sky, band, controls, taken, playing, cameraLook, boost = 0, game, hud, sounds, shot,
+  feed, sky, band, controls, taken, playing, paused = false, cameraLook, boost = 0, game, hud, sounds, shot,
   onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark, onAerialEvent, onMach, onMissileFire,
 }: LandingSceneProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const world = useRef<WorldHandles | null>(null);
   const latest = useRef({ sky, band });
   const boostNow = useRef(boost);
+  const pausedNow = useRef(paused);
+  pausedNow.current = paused;
   boostNow.current = boost;
   latest.current = { sky, band };
   const calls = useRef({ onReady, onFail, onFlying, onFailure, onUfoWarn, onStrike, onDodge, onCrash, onLogo, onThunder, onRamWarn, onRamHit, onRamDodge, onThreaded, onLevel, onMark, onAerialEvent, onMach, onMissileFire });
@@ -232,7 +236,7 @@ const LandingScene = ({
     if (!canvas) return;
     let handles: WorldHandles;
     try {
-      handles = createWorld(canvas, { damage: true });
+      handles = createWorld(canvas, { damage: true, interior: false });
     } catch {
       calls.current.onFail();
       return;
@@ -274,7 +278,8 @@ const LandingScene = ({
      turntable is the last thing they need. */
   useEffect(() => {
     world.current?.setControls(playing ? HANDS_OFF : controls);
-  }, [controls, playing]);
+    if (playing) world.current?.prepareGame(game.current.mode);
+  }, [controls, playing, game]);
 
   /* The game is flown over its own ground, whatever the market says: in
      the weather, and as high as it climbs, through the site's own bands
@@ -345,7 +350,7 @@ const LandingScene = ({
 
   useAttitude(feed, (a) => {
     const w = world.current;
-    if (!w) return;
+    if (!w || pausedNow.current) { game.current.last = 0; return; }
     const g = game.current;
     const now = performance.now();
     // Game time: the clock's, or less of it in slow motion — and the aeroplane's own, which slows less.
@@ -897,7 +902,7 @@ const LandingScene = ({
       shown.current.burning = burning;
       btn.classList.toggle('is-burning', burning);
     }
-  }, controls);
+  }, controls, canvasRef);
 
   return <canvas ref={canvasRef} className="sa-landing__canvas" aria-hidden />;
 };

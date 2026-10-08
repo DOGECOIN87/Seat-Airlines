@@ -1,9 +1,6 @@
 import AircraftModelPreview from './AircraftModelPreview';
 import { useEffect, useRef } from 'react';
-import type { FlightMode } from '../lib/landingGame';
-
-export type PlayMode = FlightMode;
-export const RIDES: readonly PlayMode[] = ['airliner', 'jet', 'ufo'];
+import { RIDES, type PlayMode } from '../lib/rides';
 
 interface AircraftCarouselProps {
   mode: PlayMode;
@@ -65,7 +62,7 @@ export default function AircraftCarousel({
             <span className="sa-aircraft-picker__slot-badge">Available now</span>
             <div className="sa-aircraft-picker__model" aria-hidden>
               <div className="sa-aircraft-picker__model-glow" />
-              <AircraftModelPreview model="airliner" />
+              <AircraftModelPreview model="airliner" active={mode === 'airliner'} />
             </div>
             <div className="sa-aircraft-picker__aircraft-meta">
               <span>
@@ -81,7 +78,7 @@ export default function AircraftCarousel({
             <span className="sa-aircraft-picker__slot-badge">Mach 1 boost</span>
             <div className="sa-aircraft-picker__model" aria-hidden>
               <div className="sa-aircraft-picker__model-glow" />
-              <AircraftModelPreview model="jet" />
+              <AircraftModelPreview model="jet" active={mode === 'jet'} />
             </div>
             <div className="sa-aircraft-picker__aircraft-meta"><span><strong>F35</strong><small>Two guided missiles</small></span>
               <span className="sa-aircraft-picker__status-dot" /></div>
@@ -99,7 +96,7 @@ export default function AircraftCarousel({
             </span>
             <div className="sa-aircraft-picker__model" aria-hidden>
               <div className="sa-aircraft-picker__model-glow sa-aircraft-picker__model-glow--ufo" />
-              <AircraftModelPreview model="ufo" />
+              <AircraftModelPreview model="ufo" active={mode === 'ufo'} />
             </div>
             <div className="sa-aircraft-picker__aircraft-meta">
               <span>

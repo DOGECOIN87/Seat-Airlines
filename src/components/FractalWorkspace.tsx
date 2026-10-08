@@ -60,7 +60,7 @@ export default function FractalWorkspace({ aircraft, instruments, wall, activeSe
   return (
     <div className="sa-fractal">
       <div className="sa-fractal__bar">
-        <div className="sa-fractal__identity"><span className="sa-fractal__pulse" /><span>SA350</span><span className="sa-fractal__caption">YOUR FLIGHT WORKSPACE</span></div>
+        <div className="sa-fractal__identity"><span className="sa-fractal__pulse" /><span>SA350</span></div>
         <div className="sa-fractal__tools" aria-label="Workspace controls">
           <button type="button" onClick={() => { workspace.current?.navigation.overview(); setFocused(false); }}>Overview</button>
           <button type="button" aria-pressed={focused} onClick={() => { workspace.current?.navigation.toggle(); setFocused(Boolean(workspace.current?.navigation.framed)); }}>Focus</button>
@@ -97,7 +97,6 @@ export default function FractalWorkspace({ aircraft, instruments, wall, activeSe
           </Split>
         )}
       </Workspace>
-      <div className="sa-fractal__status"><span><span className="sa-fractal__pulse" />ONE PLANE. EVERYONE’S IN IT.</span><span>Drag · Nest · Resize · Focus</span></div>
     </div>
   );
 }

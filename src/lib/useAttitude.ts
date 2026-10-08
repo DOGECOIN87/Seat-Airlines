@@ -1,17 +1,18 @@
 /**
  * One animation loop, shared by every view of the flight.
  *
- * The feed ticks a few times a second; a horizon has to move at sixty. This
+ * The feed ticks a few times a second; the horizon moves between ticks. This
  * hook owns the gap: it subscribes to the feed, eases the displayed values
  * toward the reported ones, and calls `apply` once per frame so the caller can
  * write transforms and text straight to element refs. Nothing here causes a
  * React render, which is what lets the cockpit and the cabin window animate
  * without the page re-rendering underneath them.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import type { FlightFeed, FlightTick } from './flightFeed';
 import { airspeedFor, bankFor, pitchFor, verticalSpeedFor } from './flightModel';
 import type { ManualControls } from './manualControls';
+import { observeElementVisibility, renderingProfile } from './rendering';
 
 /** Eased, display-ready flight values. */
 export interface Attitude {
@@ -75,6 +76,7 @@ export function useAttitude(
   feed: FlightFeed,
   apply: ApplyAttitude,
   controls?: ManualControls,
+  element?: RefObject<Element | null>,
 ): void {
   // Held in a ref so callers can pass an inline closure without restarting
   // the loop (and losing the eased state) on every render.
@@ -114,6 +116,8 @@ export function useAttitude(
 
     let raf = 0;
     let last = performance.now();
+    let onScreen = true;
+    const interval = 1000 / renderingProfile().fps - 1;
 
     /* Reduced motion is not a frozen instrument — that mistake has been made
        here twice now, in opposite directions.
@@ -127,7 +131,7 @@ export function useAttitude(
        banking, no eased bobbing of the horizon. It does not ask for a parked
        aeroplane, any more than it asks a video to freeze.
 
-       So under reduced motion the loop still runs at full rate, but
+       So under reduced motion the loop still runs at the device's frame rate, but
        gently: half the bank and pitch, and a slower settle, so the aeroplane
        still turns and the world still goes past without the sway. */
     /* The market's bank and the autopilot's are kept apart: the market's is
@@ -137,8 +141,12 @@ export function useAttitude(
     let autoHeading = 0;
 
     const frame = (now: number) => {
-      if (document.visibilityState === 'hidden') return;
+      raf = 0;
+      if (!onScreen || document.visibilityState === 'hidden') return;
       raf = requestAnimationFrame(frame);
+      if (now - last < interval) return;
+      // An observer notification can lag a panel collapse by a frame.
+      if (element?.current && (!element.current.clientWidth || !element.current.clientHeight)) return;
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const auto = autopilotBank(Date.now());
@@ -148,7 +156,7 @@ export function useAttitude(
            gently: half the bank, and a slower, softer settle, so it reads as
            flying without the sway. Shakes and flashes stay off elsewhere. */
         const soft = reduced ? 0.5 : 1;
-        // Frame-rate independent easing, so 60Hz and 120Hz settle alike and a
+        // Frame-rate independent easing, so 30Hz and 60Hz settle alike and a
         // backgrounded tab does not snap when it returns.
         const k = 1 - Math.exp(-(reduced ? 2.5 : 4.5) * dt);
         shown.pitch += (target.pitch * soft - shown.pitch) * k;
@@ -169,21 +177,28 @@ export function useAttitude(
     };
 
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
+      if (!onScreen || document.visibilityState === 'hidden') {
         cancelAnimationFrame(raf);
+        raf = 0;
         return;
       }
-      last = performance.now();
-      raf = requestAnimationFrame(frame);
+      if (!raf) {
+        last = performance.now();
+        raf = requestAnimationFrame(frame);
+      }
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
-    if (document.visibilityState !== 'hidden') raf = requestAnimationFrame(frame);
+    const stopObserving = element?.current
+      ? observeElementVisibility(element.current, visible => { onScreen = visible; onVisibilityChange(); })
+      : () => {};
+    onVisibilityChange();
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      stopObserving();
       unsubscribe();
     };
-  }, [feed]);
+  }, [feed, element]);
 }
 
 /**

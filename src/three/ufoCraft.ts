@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { disposeModel } from './fighterJet';
 
 /**
  * The UFO, and the wing it takes, as the landing's scene draws them.
@@ -7,7 +8,7 @@ import * as THREE from 'three';
  * the aeroplane; this puts it in the world, spins it, tips it into its
  * dashes, and gives it a glow that carries through the haze a kilometre
  * off. The model is public/ufo.glb, loaded only here, and only once the
- * game's scene is built — no other page ever fetches it.
+ * flight starts — the idle landing never fetches it.
  *
  * The wing: when the UFO hits, everything past WING_CUT on that side is
  * clipped out of the airframe, and a copy of just that part — clipped the
@@ -55,6 +56,7 @@ function glowTexture(): THREE.CanvasTexture {
 
 export interface UfoCraft {
   group: THREE.Group;
+  load(): Promise<void>;
   /**
    * Every frame. `base` is the aeroplane in the world, `heading` its
    * heading in degrees, `target` where the dash at the wing ends, in the
@@ -79,11 +81,13 @@ export function createUfoCraft(url: string): UfoCraft {
   glow.renderOrder = 4;
   group.add(glow);
 
-  const owned: { dispose(): void }[] = [glowTex, glow.material];
   let loaded = false;
-  void import('three/examples/jsm/loaders/GLTFLoader.js')
+  let disposed = false;
+  let loading: Promise<void> | null = null;
+  const load = () => loading ??= import('three/examples/jsm/loaders/GLTFLoader.js')
     .then(({ GLTFLoader }) => new GLTFLoader().loadAsync(url))
     .then((gltf) => {
+      if (disposed) { disposeModel(gltf.scene); return; }
       const model = gltf.scene;
       // Centred on itself and sized to DIAMETER across, whatever the file's units.
       const box = new THREE.Box3().setFromObject(model);
@@ -95,9 +99,7 @@ export function createUfoCraft(url: string): UfoCraft {
       model.traverse((o) => {
         const mesh = o as THREE.Mesh;
         if (!mesh.isMesh) return;
-        owned.push(mesh.geometry);
         for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-          owned.push(m);
           // The ring's neon should read at a distance, through the haze.
           const std = m as THREE.MeshStandardMaterial;
           if (std.emissive && std.emissive.getHex() !== 0) std.emissiveIntensity = Math.max(std.emissiveIntensity, 6);
@@ -119,6 +121,7 @@ export function createUfoCraft(url: string): UfoCraft {
   let clock = 0;
 
   const update: UfoCraft['update'] = (dt, pose, base, heading, target) => {
+    if (pose?.visible) void load();
     if (!pose?.visible || !loaded) {
       group.visible = false;
       seen = false;
@@ -179,8 +182,9 @@ export function createUfoCraft(url: string): UfoCraft {
 
   return {
     group,
+    load,
     update,
-    dispose: () => owned.forEach((d) => d.dispose()),
+    dispose: () => { disposed = true; disposeModel(group); },
   };
 }
 

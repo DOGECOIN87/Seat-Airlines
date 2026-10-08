@@ -32,6 +32,7 @@ import { createAerialCraft } from './aerialCraft';
 import type { AerialState, Point } from '../lib/aerialCombat';
 import { createLogoCraft } from './logoCraft';
 import { createStorm } from './storm';
+import { renderingProfile } from '../lib/rendering';
 
 /**
  * The world outside, rendered.
@@ -217,6 +218,8 @@ export interface RamPose {
 }
 
 export interface WorldOptions {
+  /** Exterior-only views do not construct the hidden cabin or flight-deck interior. */
+  interior?: boolean;
   /** Build the engine fire the landing's game can set off. */
   damage?: boolean;
   /** Build the afterburners, for a view that lights them while the token is boosted. */
@@ -224,6 +227,8 @@ export interface WorldOptions {
 }
 
 export interface WorldHandles {
+  /** Fetch combat models only when a flight starts. */
+  prepareGame: (mode: 'airliner' | 'jet' | 'ufo') => void;
   render: (a: Attitude, sky: SkyState, band: BandState, pose: ViewPose) => void;
   resize: (w: number, h: number) => void;
   setOccupancy: (taken: ReadonlySet<string>) => void;
@@ -273,27 +278,19 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   const cgPivot = new THREE.Vector3();
   /** Where the airframe turns about: the wing box, not the nose. */
   const CG_Z = 10.8;
-  /* Every device draws the full scene: the same antialiasing, shadows,
-     terrain, woods and weather. A lighter one only differs in how it paces
-     itself when it cannot keep up (see the pacing, below). */
-  const lowPower =
-    (typeof navigator !== 'undefined' && (navigator.hardwareConcurrency ?? 8) <= 4) ||
-    (typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches);
+  const profile = renderingProfile();
+  const { lowPower } = profile;
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
-    powerPreference: 'high-performance',
+    antialias: profile.antialias,
+    powerPreference: profile.powerPreference,
     // The scene spans a window a few centimetres from the camera through a
     // sky dome 160 km away. Log depth keeps window glass and the exterior
     // livery from z-fighting at that range.
     logarithmicDepthBuffer: true,
   });
-  /* Sharp everywhere: up to two device pixels to a CSS pixel — a retina
-     screen's own — and never below one. Going under one to save work made
-     the landing and the cabin visibly soft in wallet browsers, which is
-     worse than a few frames a second fewer; frame rate gives way first
-     (see the pacing). */
-  const maxPixelRatio = Math.min(window.devicePixelRatio, 2);
+  /* Bound mobile fill rate from the first frame; never scale below one CSS pixel. */
+  const maxPixelRatio = profile.pixelRatio;
   const minPixelRatio = Math.min(window.devicePixelRatio, 1);
   let pixelRatio = maxPixelRatio;
   renderer.setPixelRatio(pixelRatio);
@@ -321,18 +318,20 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   aircraft.rotation.order = 'YXZ';
   scene.add(aircraft);
 
-  const cabin = createCabin();
-  aircraft.add(cabin.group);
+  const cabin = options.interior === false ? null : createCabin();
+  if (cabin) aircraft.add(cabin.group);
   const eyeWorld = new THREE.Vector3();
   aircraft.add(camera);
   /* The flight deck, ahead of the cabin: built around the captain's eye and
      shown only when the camera is sitting in it. */
-  const deck = createFlightDeck();
-  deck.group.visible = false;
-  deck.group.position.set(-0.52, CABIN.floorY + CABIN.eyeHeight, rowZ(1) - 4.2);
-  aircraft.add(deck.group);
+  const deck = options.interior === false ? null : createFlightDeck();
+  if (deck) {
+    deck.group.visible = false;
+    deck.group.position.set(-0.52, CABIN.floorY + CABIN.eyeHeight, rowZ(1) - 4.2);
+    aircraft.add(deck.group);
+  }
   const cabinLamps: Array<{ light: THREE.PointLight; intensity: number; colour: THREE.Color }> = [];
-  cabin.group.traverse(object => {
+  cabin?.group.traverse(object => {
     if (object instanceof THREE.PointLight) {
       cabinLamps.push({ light: object, intensity: object.intensity, colour: object.color.clone() });
     }
@@ -536,8 +535,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   const sunPos = new THREE.Vector3();
   const sun = new THREE.DirectionalLight(0xffffff, 2.4);
   sun.castShadow = true;
-  // 2048 over the seventy-odd metres round the aeroplane: a texel every few centimetres, so the wing's shadow on the fuselage is crisp.
-  sun.shadow.mapSize.set(2048, 2048);
+  // Keep desktop shadows crisp; mobile uses a quarter of the shadow-map pixels.
+  sun.shadow.mapSize.set(lowPower ? 1024 : 2048, lowPower ? 1024 : 2048);
   sun.shadow.camera.left = -36;
   sun.shadow.camera.right = 36;
   sun.shadow.camera.top = 36;
@@ -701,12 +700,12 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   aircraft.add(deimos);
 
   /* ── Ground ── */
-  const farmland = farmlandTextures();
+  const farmland = farmlandTextures(lowPower ? 1024 : 2048);
   /* The other worlds, the cloud sea and Earth from above are built in a
      worker while the flight carries on (see `createSurfaceBank`), each laid
      at its own scale on the same plate once it arrives. Until a world's
      ground is ready, a plain of its colour stands in for it. */
-  const bank = createSurfaceBank();
+  const bank = createSurfaceBank(!lowPower);
   const placed = new WeakSet<SurfaceTextures>();
   const onPlate = (t: SurfaceTextures | null) => {
     if (t && !placed.has(t)) {
@@ -786,7 +785,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      are lit through the normal map, so even the flat far country keeps the
      light and shade of its slopes. */
   const NEAR = 26000;
-  const NEAR_SEG = 220;
+  const NEAR_SEG = lowPower ? 112 : 220;
   const nearGeometry = new THREE.PlaneGeometry(NEAR, NEAR, NEAR_SEG, NEAR_SEG);
   {
     // UVs matched to the plate's, so the same textures land in the same place.
@@ -885,7 +884,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      after them would be painted straight over them. */
   const OVERLAY_LIFT = 3;
   const OVERLAY_ORDER = -0.5;
-  const ocean = oceanTextures();
+  const ocean = oceanTextures(lowPower ? 512 : 1024);
   ocean.day.repeat.set(40, 40);
   ocean.night.repeat.set(40, 40);
   ocean.glint.repeat.set(52, 52);
@@ -962,7 +961,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      out where it is haze (see `ranges.ts`). They take the same envMap and the
      same fog as the ground, and sink out of sight over water and past the
      cloud. */
-  const ranges = createRanges({ base: import.meta.env.BASE_URL, segments: 128, envMap: envRT.texture, curve: worldCurve });
+  const ranges = createRanges({ base: import.meta.env.BASE_URL, segments: lowPower ? 64 : 128, envMap: envRT.texture, curve: worldCurve });
   scene.add(ranges.group);
 
   /* ── What stands on it ────────────────────────────────────────────────
@@ -1019,7 +1018,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
      `planetSurface`). Fine enough in the sphere that its silhouette is a
      curve and not a polygon from sixty kilometres up. */
   const limbMat = new THREE.MeshStandardMaterial({ map: planetTex, roughness: 0.98, metalness: 0 });
-  const LIMB_SEGMENTS = [256, 128] as const;
+  const LIMB_SEGMENTS = lowPower ? [128, 64] as const : [256, 128] as const;
   const limb = new THREE.Mesh(new THREE.SphereGeometry(1, ...LIMB_SEGMENTS), limbMat);
   /* How far inside the true sphere its flat facets sit at most, as a
      fraction of the radius: the air has to reach down that far. */
@@ -1178,10 +1177,9 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
 
      Never more than 60 a second: a 120 Hz phone drawing this scene 120
      times a second is twice the heat for motion nobody can tell apart. A
-     low-power device that cannot hold 60 settles at a steady 30, which
-     reads smoother than a jittery 40, and then gives up resolution if even
-     that is too much. A desktop that cannot hold 60 gives up resolution. */
-  let minInterval = 1000 / 60 - 4;
+     mobile device starts at 30 to avoid sustained maximum GPU use, and
+     reduces resolution further if needed. Desktops can still draw at 60. */
+  const minInterval = 1000 / profile.fps - 1;
   let lastDrawn = 0;
   let paceTotal = 0;
   let paceFrames = 0;
@@ -1932,12 +1930,13 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
       else bounce.color.copy(LAND_BOUNCE).lerp(SEA_BOUNCE, seaBlend);
       if (!elsewhere && !inSpace) bounce.color.lerp(TOWN_GLOW, night * (1 - seaBlend) * 0.7);
       bounce.visible = true;
-      cabin.group.visible = false;
-      deck.group.visible = false;
+      if (cabin) cabin.group.visible = false;
+      if (deck) deck.group.visible = false;
       cabinLight.visible = false;
       cabinFill.intensity = 0;
       cabinAmbient.intensity = 0;
     } else {
+      if (!cabin || !deck) return;
       if (camera.view?.enabled) camera.clearViewOffset();
       /* A seat is a place in the cabin, so looking around is looking around. */
       const interiorLightLevel = cabinLit;
@@ -2168,10 +2167,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     }
     if (paceFrames >= 30) {
       const averageMs = paceTotal / paceFrames;
-      const target = minInterval + 4;
-      if (lowPower && target < 20 && averageMs > 24) {
-        minInterval = 1000 / 30 - 4;
-      } else if (averageMs > target * 1.4 && pixelRatio > minPixelRatio) {
+      const target = 1000 / profile.fps;
+      if (averageMs > target * 1.4 && pixelRatio > minPixelRatio) {
         pixelRatio = Math.max(minPixelRatio, pixelRatio - 0.1);
         renderer.setPixelRatio(pixelRatio);
       } else if (averageMs < target * 1.08 && pixelRatio < maxPixelRatio) {
@@ -2198,7 +2195,7 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   const setControls = (controls: ManualControls) => { manual = controls; };
 
   const setOccupancy = (taken: ReadonlySet<string>) => {
-    cabin.setOccupancy(taken);
+    cabin?.setOccupancy(taken);
     // A window lit from outside is a row somebody has genuinely booked.
     const rows = new Set<number>();
     for (const id of taken) {
@@ -2257,8 +2254,8 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
   };
 
   const dispose = () => {
-    cabin.dispose();
-    deck.dispose();
+    cabin?.dispose();
+    deck?.dispose();
     fires?.forEach((e) => e.fire.dispose());
     for (const { craft, beacon } of rammers) {
       craft.dispose();
@@ -2350,5 +2347,10 @@ export function createWorld(canvas: HTMLCanvasElement, options: WorldOptions = {
     return { x: (targetProjection.x + 1) / 2, y: (1 - targetProjection.y) / 2,
       visible: targetProjection.z > -1 && targetProjection.z < 1 && Math.abs(targetProjection.x) <= 1 && Math.abs(targetProjection.y) <= 1 };
   };
-  return { render, resize, setOccupancy, setAdverts: cabin.setAdverts, setControls, travelled, groundAt, planeOnScreen, targetOnScreen, setDeckReadout: deck.setReadout, lastFlash: () => storm.lastFlash, flash: storm.flash, dispose };
+  const prepareGame = (mode: 'airliner' | 'jet' | 'ufo') => {
+    void ufo?.load();
+    void aerialCraft?.load();
+    if (mode === 'jet') void fighter?.load();
+  };
+  return { prepareGame, render, resize, setOccupancy, setAdverts: bySeat => cabin?.setAdverts(bySeat), setControls, travelled, groundAt, planeOnScreen, targetOnScreen, setDeckReadout: readout => deck?.setReadout(readout), lastFlash: () => storm.lastFlash, flash: storm.flash, dispose };
 }

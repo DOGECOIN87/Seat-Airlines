@@ -72,7 +72,7 @@ const CargoHold3D = ({ feed, band, belowCutoff, controls = HANDS_OFF }: CargoHol
     if (CAPTURE && captureState.yaw !== null) look.current.yaw = captureState.yaw;
     hold.current?.render(a, frostRef.current, look.current, performance.now());
     if (tick && capRead.current) capRead.current.textContent = formatCap(tick.marketCap);
-  }, controls);
+  }, controls, canvasRef);
 
   if (noGl) return <CargoHold feed={feed} band={band} belowCutoff={belowCutoff} controls={controls} />;
 

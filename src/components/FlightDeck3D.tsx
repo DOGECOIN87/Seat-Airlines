@@ -86,7 +86,7 @@ const FlightDeck3D = ({ feed, lamps, sky, band, controls = HANDS_OFF }: FlightDe
     }
     if (CAPTURE && captureState.yaw !== null) pose.current.yaw = captureState.yaw;
     world.current?.render(a, latest.current.sky, latest.current.band, pose.current);
-  }, controls);
+  }, controls, canvasRef);
 
   if (noGl) return <FlightDeck feed={feed} lamps={lamps} sky={sky} band={band} controls={controls} />;
 
