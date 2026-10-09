@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 import './responsive-controls.css';
+import './seat-fixes.css';
 import { CAPTURE } from './capture/flag';
 import ErrorBoundary, { reloadOnce } from './components/ErrorBoundary';
 

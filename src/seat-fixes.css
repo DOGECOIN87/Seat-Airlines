@@ -1,0 +1,80 @@
+/* ── Seat-map zone headers: restore the pre-PR #26 design ───────────────────
+   These rules override the copies in index.css (this file is imported after
+   it in main.tsx, so equal-specificity rules here win). Kept byte-faithful
+   to the design Matt approved: zone chips, Hide/Show toggles, taken copy. */
+.sa-zone-head__mark {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  place-items: center;
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: var(--e-press);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--ui-soft);
+}
+/* Undo the PR #26 additions on the toggle row (display/align/gap/nowrap/flex
+   resets), restoring the earlier arrangement exactly. */
+.sa-zone-toggle .sa-zone-head__title { display: inline; align-items: normal; gap: normal; flex: 1 1 auto; min-width: 0; }
+.sa-zone-toggle .sa-zone-head__name { white-space: normal; }
+.sa-zone-toggle .sa-zone-head__visual { flex: 0 1 auto; margin-top: 0.16rem; white-space: normal; overflow-wrap: normal; }
+.sa-zone--deck .sa-zone-head__mark,
+.sa-zone--first .sa-zone-head__mark { background: linear-gradient(145deg, #fff5fa, #f4bdd6); color: #9b3b68; }
+.sa-zone--business .sa-zone-head__mark { background: linear-gradient(145deg, #f8f6ff, #c9c0f4); color: #55408e; }
+.sa-zone--exit .sa-zone-head__mark,
+.sa-zone--economy .sa-zone-head__mark { background: linear-gradient(145deg, #f2ffff, #b9e7eb); color: #13727d; }
+
+/* ── Ride selector: same ground as the flight-game page ──────────────────────
+   Replaces the old blue grid + glow with the main page's dark gradients and
+   the subtle Seat Airlines mark pattern (static, matching the frozen
+   main-page treatment). */
+.sa-ride-modal {
+  /* Same ground as the flight-game page: the dark gradients with the subtle
+     Seat Airlines mark pattern over them, instead of the old blue grid. The
+     pattern is static, matching the main page (its drift is frozen there). */
+  background:
+    radial-gradient(1400px 900px at 18% -10%, rgba(45, 58, 82, 0.95), transparent 62%),
+    radial-gradient(1100px 700px at 88% 8%, rgba(0, 201, 241, 0.15), transparent 66%),
+    linear-gradient(165deg, #182131 0%, #0F1725 48%, #080D17 100%);
+}
+.sa-ride-modal::before {
+  inset: 0;
+  background-image: url('/seat-airlines-mark-pattern.svg'), url('/seat-airlines-mark-pattern.svg');
+  background-repeat: repeat;
+  background-size: 18rem 18rem;
+  background-position: 0 0, 9rem 9rem;
+  opacity: 0.16;
+  mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+}
+.sa-ride-modal::after { display: none; }
+
+/* ── Ride selector: fill the viewport ─────────────────────────────────────
+   The selector used to sit in a narrow centered column (42rem) with most of
+   a tall phone's screen empty. The column is now wide, type and cards scale
+   with both viewport axes, and the content spreads down a tall screen instead
+   of packing at the top. Short landscape screens keep their compact rules. */
+.sa-ride-modal__content { width: min(100% - 1.5rem, 64rem); align-content: space-evenly; row-gap: clamp(0.75rem, 2.5vh, 1.75rem); }
+.sa-ride-modal__topline { width: min(100%, 60rem); }
+.sa-aircraft-picker--fullscreen { width: min(100%, 60rem); }
+.sa-ride-modal__launch-console,
+.sa-ride-modal__wallet { width: min(100%, 60rem); }
+.sa-ride-modal__hero-copy { margin: clamp(0.75rem, 3vh, 2.5rem) 0 clamp(0.5rem, 2vh, 1.5rem); }
+.sa-ride-modal__hero-copy h1 { font-size: clamp(1.9rem, 5vw + 2.5vh, 3.4rem); }
+.sa-ride-modal__hero-copy p { font-size: clamp(10px, 1.2vw + 0.6vh, 12px); }
+.sa-ride-modal__hero-copy span { font-size: clamp(0.82rem, 1.6vw + 0.7vh, 1rem); }
+@media (min-height: 481px) {
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__slot--active { min-height: clamp(16rem, 30vh + 8vw, 26rem); }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: clamp(9rem, 14vw + 10vh, 15rem); min-height: clamp(9rem, 14vw + 10vh, 15rem); }
+}
+@media (max-width: 640px) and (min-height: 481px) {
+  /* Phones keep the scroll-snap roster, but the cards are large: one full
+     card plus a peek of the next, and the 3D preview scales with height. */
+  .sa-ride-modal__content { min-height: 100%; padding: 0.8rem 0.5rem calc(1rem + var(--safe-bottom)); }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: clamp(8rem, 22vh, 13rem); min-height: clamp(8rem, 22vh, 13rem); }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__slot--active { min-height: clamp(15rem, 36vh, 22rem); }
+  .sa-aircraft-picker__slot--active { flex-basis: max(170px, 68%); }
+}
