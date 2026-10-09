@@ -9,6 +9,10 @@ export interface FomoProfile {
 
 export const FOMO_PROFILE_API = 'https://fomo-public.pootracker.app';
 export const FOMO_PROFILE_BATCH = 12;
+export const FOMO_PROFILE_CONCURRENCY = 3;
+export const FOMO_PROFILE_LOOKUP_MS = 3500;
+// A complete batch can take four waves of lookups, plus network transit.
+export const FOMO_PROFILE_BATCH_MS = Math.ceil(FOMO_PROFILE_BATCH / FOMO_PROFILE_CONCURRENCY) * FOMO_PROFILE_LOOKUP_MS + 3000;
 
 export function profileImage(value: unknown): string | null {
   if (typeof value !== 'string' || value.length > 2048) return null;

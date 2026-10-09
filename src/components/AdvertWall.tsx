@@ -18,10 +18,7 @@ import { useMatch } from '../lib/useMatch';
  * on the page itself, straight under the aeroplane, with no wallet, no tab
  * and no cabin to unfold first.
  *
- * First the cabin from above — the same chart the landing shows, at full
- * width: every seat in its place with its advert on it, a big preview on
- * hover, the seat window on a click. Then the adverts holders have put up,
- * every one the same size, in rank order, with their captions.
+ * The chart and adverts contain actual holders in balance rank order.
  */
 
 /** Narrow enough that the seat chart can be put away: phones and tablets, upright or sideways. */
@@ -184,17 +181,16 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
     <section id="on-board" className="sa-adwall" aria-labelledby="sa-adwall-title">
       <header className="sa-adwall__head">
         <div className="min-w-0">
-          <p className="sa-adwall__eyebrow">Every seat is a billboard</p>
           <h2 id="sa-adwall-title" className="sa-adwall__title">Who’s on board</h2>
         </div>
         <p className="sa-adwall__count tabular-nums">
-          <strong>{manifest.entries.length}</strong> seated · <strong>{adverts.length}</strong> {adverts.length === 1 ? 'advert' : 'adverts'} · {manifest.open} open
+          <strong>{manifest.entries.length}</strong> holders
         </p>
       </header>
 
       {manifest.entries.length === 0 ? (
         <p className="sa-adwall__empty" role="status">
-          Boarding. The passenger list is on its way.
+          {manifest.live ? 'No holders yet.' : 'Loading holders…'}
         </p>
       ) : (
         <>
@@ -208,7 +204,7 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
             </p>
           )}
 
-          {/* ── The cabin from above: every seat, its advert on it ── */}
+          {/* The same ranked holders as the Seats panel and landing. */}
           {foldable && (
             <button
               type="button"
@@ -244,8 +240,8 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
           )}
 
           {/* ── The adverts ── */}
+          {adverts.length > 0 && <>
           <h3 className="sa-adwall__section">On display</h3>
-          {adverts.length ? (
             <ul className="sa-adwall__ads">
               {adverts.map(({ entry, banner }) => (
                 <Advert
@@ -260,11 +256,7 @@ const AdvertWall = memo(function AdvertWall({ manifest, banners, mine, canAdvert
                 />
               ))}
             </ul>
-          ) : (
-            <p className="sa-adwall__none">
-              No adverts up yet. Every seated holder can put one on their seat, and it shows here for everybody.
-            </p>
-          )}
+          </>}
 
         </>
       )}
