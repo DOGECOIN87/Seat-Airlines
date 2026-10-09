@@ -1695,6 +1695,11 @@ html {
 
 .sa-seat__rank { color: var(--ui-ink); }
 .sa-seat__id { color: var(--ui-faint); }
+/* First and Business keep light tiles inside the dark workspace. */
+.sa-zone--first .sa-seat--sold .sa-seat__rank,
+.sa-zone--business .sa-seat--sold .sa-seat__rank { color: #24282f; }
+.sa-zone--first .sa-seat--sold .sa-seat__id,
+.sa-zone--business .sa-seat--sold .sa-seat__id { color: #585d66; }
 .sa-seat--mine .sa-seat__rank,
 .sa-seat--mine .sa-seat__id { color: #fff; }
 /* The headrest — the line that turns a square into a seat. */
@@ -1735,6 +1740,7 @@ html {
 }
 /* The advert preview is a screen, so it is sunk like one. */
 .sa-map__preview {
+  position: relative;
   display: grid;
   place-items: center;
   margin-top: 0.85rem;
@@ -1966,6 +1972,15 @@ html {
 }
 .sa-adwall__cabin-rows { margin-left: auto; color: var(--ui-faint); letter-spacing: 0.04em; }
 .sa-zone__scroll { overflow-x: auto; overscroll-behavior-x: contain; padding: 0.9rem 0.75rem; }
+.sa-holder-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 6), var(--seat));
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .sa-zone__rows { display: grid; gap: 5px; width: max-content; min-width: 100%; }
 .sa-zone__rows .sa-aircraft-row {
   grid-template-columns: 1.5rem max-content 1.25rem max-content 1.5rem;
@@ -3052,6 +3067,7 @@ p { text-wrap-style: pretty; }
   padding: 1rem;
 }
 .sa-seatwin__media {
+  position: relative;
   display: grid;
   place-items: center;
   width: min(100%, 50dvh);
@@ -5707,6 +5723,24 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   container-type: size;
   --s: calc(100cqh * 0.9 / 6);
 }
+.sa-ov__cabin--ranked {
+  display: grid;
+  grid-template-columns: repeat(30, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  grid-auto-flow: column;
+  direction: rtl;
+  gap: 2px;
+  align-items: center;
+  justify-items: center;
+}
+.sa-ov .sa-ov__cabin--ranked .sa-ov__seat {
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  direction: ltr;
+  width: min(100%, var(--s));
+  animation: sa-ov-pop 0.5s ease calc(1.3s + var(--pop)) forwards;
+}
 .sa-ov__row {
   position: relative;
   flex: 1 1 0;
@@ -7209,10 +7243,13 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-map__availability { margin: 0 0 12px; padding: 12px; color: var(--ui-soft); font-size: 12px; line-height: 1.5; border: 1px solid var(--ui-faint); border-radius: 8px; }
 
 /* Wallet profile pictures decorate the existing seats and score rows. */
-.sa-profile-picture { display: inline-grid; place-items: center; flex: none; overflow: hidden; }
+.sa-profile-picture { position: relative; display: inline-grid; place-items: center; flex: none; overflow: hidden; }
 .sa-profile-picture > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.sa-profile-picture > .sa-profile-picture__image { position: absolute; inset: 0; }
+.sa-ov__profile { position: absolute; inset: 0; border-radius: inherit; }
+.sa-ov__rank { font: 600 clamp(5px, 2cqh, 10px) 'IBM Plex Mono', ui-monospace, monospace; color: #fff; }
 .sa-seat__profile { position: absolute; inset: 0; border-radius: inherit; }
-.sa-map__profile, .sa-seatwin__profile { width: 100%; height: 100%; }
+.sa-map__profile, .sa-seatwin__profile { position: absolute; inset: 0; }
 .sa-seatwin__profile > .sa-seatwin__tile { width: 100%; height: 100%; }
 .sa-scores__profile { width: 2rem; height: 2rem; border-radius: 50%; background: var(--ui-sink); color: var(--ui-ink); font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10px; }
 .sa-scores__profile--podium { width: 2.75rem; height: 2.75rem; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { WORKER_API } from '../lib/networkingApi';
-import { FOMO_PROFILE_BATCH, readFomoProfile, type FomoProfile } from '../lib/fomoProfile';
+import { FOMO_PROFILE_BATCH, FOMO_PROFILE_BATCH_MS, readFomoProfile, type FomoProfile } from '../lib/fomoProfile';
 
 type Profiles = Record<string, FomoProfile | null>;
 const cache = new Map<string, { profile: FomoProfile | null; until: number }>();
@@ -11,7 +11,7 @@ function cached(addresses: string[]): Profiles {
   return Object.fromEntries(addresses.map(address => [address, cache.get(address)?.profile ?? null]));
 }
 
-async function load(addresses: string[]): Promise<Profiles> {
+async function load(addresses: string[], onProgress: (profiles: Profiles) => void): Promise<Profiles> {
   if (!WORKER_API) return {};
   const waiting: Promise<void>[] = [];
   const missing = addresses.filter(address => {
@@ -25,7 +25,7 @@ async function load(addresses: string[]): Promise<Profiles> {
     const work = (async () => {
       try {
         const response = await fetch(`${WORKER_API}/fomo/profiles?wallets=${encodeURIComponent(batch.join(','))}`, {
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(FOMO_PROFILE_BATCH_MS),
         });
         if (!response.ok) { retryAt = Date.now() + 60_000; return; }
         const body = await response.json() as { profiles?: Record<string, unknown>; available?: boolean };
@@ -44,6 +44,7 @@ async function load(addresses: string[]): Promise<Profiles> {
     waiting.push(work);
     // Keep the cabin's first load below the provider's shared rate limit.
     await work;
+    onProgress(cached(addresses));
   }
   await Promise.all(waiting);
   return cached(addresses);
@@ -59,7 +60,7 @@ export function useFomoProfiles(wallets: readonly (string | null | undefined)[])
     const addresses = key.split(',');
     setProfiles(cached(addresses));
     const refresh = () => {
-      void load(addresses).then(next => {
+      void load(addresses, next => { if (active) setProfiles(next); }).then(next => {
         if (!active) return;
         setProfiles(next);
         timer = setTimeout(refresh, 60_000);

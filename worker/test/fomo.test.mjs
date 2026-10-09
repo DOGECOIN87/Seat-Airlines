@@ -69,7 +69,25 @@ try {
   const unavailable = await (await read([wallets[4]])).json();
   assert.equal(unavailable.profiles[wallets[4]], null);
   assert.equal(calls, afterFailure, 'provider failures should back off across wallets');
-  console.log('Fomo profiles: exact wallet matching, safe images, cache, deduplication, stale fallback and outage backoff passed.');
+
+  clock += 61_000;
+  let inFlight = 0;
+  let peak = 0;
+  globalThis.fetch = async url => {
+    inFlight++;
+    peak = Math.max(peak, inFlight);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    inFlight--;
+    return Response.json({ id: 'batch-profile', handle: 'pilot', solanaAddress: String(url).split('/').at(-1),
+      profilePicture: 'https://images.example.org/pilot.webp' });
+  };
+  const batch = '23456789ABCD'.split('').map(last => '1'.repeat(31) + last);
+  const complete = await (await read(batch)).json();
+  assert.equal(complete.available, true);
+  assert.equal(Object.values(complete.profiles).filter(profile => profile?.image).length, 12,
+    'A full profile batch must return all profiles after every lookup wave');
+  assert.equal(peak, 3, 'A full batch must keep provider concurrency bounded');
+  console.log('Fomo profiles: exact wallet matching, safe images, cache, deduplication, stale fallback, outage backoff and complete batches passed.');
 } finally {
   globalThis.fetch = originalFetch;
   Date.now = originalNow;

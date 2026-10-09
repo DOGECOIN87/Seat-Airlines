@@ -1,53 +1,16 @@
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { CABIN_ZONES, type ZoneKey } from '../content/cabin';
 import { safeHref, type Banner } from '../lib/banners';
 import { shortAddress, type Manifest } from '../lib/manifest';
+import { useFomoProfiles } from '../hooks/useFomoProfiles';
+import ProfilePicture from './ProfilePicture';
 
 /**
- * The whole aircraft, shrunk to fit beside the landing's aeroplane.
- *
- * A few seconds after the plane has been on the screen, a top-down plan of
- * it rises in: the airframe draws itself and fills in white, every one of
- * the 178 seats pops in nose to tail with the advert on it, seen through
- * the roof as if it were glass, and a "Claim your Seat" button blinks under
- * it. It is the premise in one picture — one plane, every seat a billboard,
- * and the empty ones yours for the out-holding.
- *
- * The seats are small at this size, so pointing at one lifts its advert out
- * of the cabin as a large tile, with whose seat it is; on a touch screen the
- * first tap on a seat does that, and a tap anywhere else on the plane goes
- * in to the full-size wall.
- *
- * The nose points right, the way the aeroplane flies. Rows are drawn in the
- * order they sit in the fuselage, not the order the ladder fills them: the
- * exit rows are 16 and 17, between two blocks of economy, and that is where
- * they are drawn, with a galley between cabins.
+ * Actual holders on the aircraft, largest balance first from the nose.
+ * The overview uses the same manifest and profile cache as the Seats panel.
  */
 
-interface Column {
-  key: string;
-  zone: ZoneKey;
-  left: string[];
-  right: string[];
-}
-
-const COLUMNS: readonly Column[] = CABIN_ZONES
-  .flatMap((zone) => zone.rows.map((row) => ({
-    n: row.n ?? 0,
-    zone: zone.key,
-    left: row.left.map((c) => (row.n === null ? c : `${row.n}${c}`)),
-    right: row.right.map((c) => (row.n === null ? c : `${row.n}${c}`)),
-  })))
-  .sort((a, b) => a.n - b.n)
-  .map(({ n, zone, left, right }) => ({ key: String(n), zone, left, right }));
-
-/** How wide a row is drawn, against economy's: the front of the cabin has more legroom. */
-const WIDTH: Record<ZoneKey, number> = { deck: 1.5, first: 1.45, business: 1.12, exit: 1.15, economy: 1 };
-
 const CABIN_NAME = Object.fromEntries(CABIN_ZONES.map((z) => [z.key, z.name])) as Record<ZoneKey, string>;
-const ZONE_OF: ReadonlyMap<string, ZoneKey> = new Map(
-  COLUMNS.flatMap((c) => [...c.left, ...c.right].map((id) => [id, c.zone] as const)),
-);
 
 /** A stable scatter for the twinkle, so a re-render does not reshuffle it. */
 const scatter = (id: string) => {
@@ -143,6 +106,7 @@ const SeatOverview = memo(function SeatOverview({
   manifest, banners, onClaim, onBrowse, boosted = false, variant = 'landing', onSeat, highlight = null,
 }: SeatOverviewProps) {
   const card = useRef<HTMLElement>(null);
+  const profiles = useFomoProfiles(manifest.entries.map(entry => entry.address));
   const [peek, setPeek] = useState<Peek | null>(null);
   const touch = useRef(false);
   /* The wall's chart is drawn at a fixed size, wide enough that a desk at
@@ -197,8 +161,6 @@ const SeatOverview = memo(function SeatOverview({
     },
   };
   const seated = useCountUp(manifest.entries.length);
-  const open = useCountUp(manifest.open);
-  const total = useMemo(() => COLUMNS.reduce((n, c) => n + c.left.length + c.right.length, 0), []);
 
   /* Lift a seat's advert out of the cabin: above the seat, or below it if
      there is no room above, never past either side of the card. */
@@ -216,36 +178,42 @@ const SeatOverview = memo(function SeatOverview({
   }, []);
   const hide = useCallback((id: string) => setPeek((p) => (p?.id === id ? null : p)), []);
 
-  const seat = (id: string, col: number, i: number) => {
+  const seat = (id: string, i: number) => {
     const entry = manifest.bySeat.get(id);
-    const image = entry ? banners[id]?.image : undefined;
-    const state = image ? 'is-ad' : entry ? 'is-held' : 'is-open';
+    if (!entry) return null;
+    const banner = banners[id];
+    const image = banner && !banner.house ? banner.image : undefined;
+    const state = image ? 'is-ad' : 'is-held';
     return (
-      <span
-        key={id}
+      <button
+        type="button"
+        key={entry.address}
+        data-seat={id}
+        data-rank={entry.rank}
+        aria-label={`Seat ${id}, rank ${entry.rank}, ${shortAddress(entry.address)}`}
         className={`sa-ov__seat ${state}${peek?.id === id ? ' is-peeked' : ''}${highlight && !highlight.has(id) ? ' is-dim' : ''}`}
         onPointerEnter={(e) => { if (e.pointerType === 'mouse') show(id, e.currentTarget); }}
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') hide(id); }}
+        onFocus={e => show(id, e.currentTarget)}
+        onBlur={() => hide(id)}
         onClick={(e) => {
-          /* On a touch screen the first tap on a seat shows it; the second
-             opens it (or, on the landing, goes in). With a mouse, the hover
-             has already shown it, so a click opens it straight away. */
-          if (onSeat && (!touch.current || peek?.id === id)) {
-            e.stopPropagation();
-            setPeek(null);
-            onSeat(id);
+          e.stopPropagation();
+          if (touch.current && e.detail !== 0 && peek?.id !== id) {
+            show(id, e.currentTarget);
             return;
           }
-          if (!touch.current || peek?.id === id) return;
-          e.stopPropagation();
-          show(id, e.currentTarget);
+          setPeek(null);
+          if (onSeat) onSeat(id);
+          else onBrowse();
         }}
         style={{
-          '--pop': `${col * 38 + i * 14}ms`,
+          '--pop': `${i * 14}ms`,
           '--tw': `${(scatter(id) * 9).toFixed(2)}s`,
           backgroundImage: image ? `url("${image.replace(/"/g, '%22')}")` : undefined,
         } as CSSProperties}
-      />
+      >
+        {!image && <ProfilePicture profile={profiles[entry.address]} className="sa-ov__profile" fallback={<span className="sa-ov__rank">{entry.rank}</span>} />}
+      </button>
     );
   };
 
@@ -255,26 +223,23 @@ const SeatOverview = memo(function SeatOverview({
   const peekLink = safeHref(peekOwn?.href);
 
   return (
-    <aside ref={card} className={`sa-ov${variant === 'wall' ? ' sa-ov--wall' : ''}${boosted ? ' is-boosted' : ''}`} aria-label="Every seat on board">
+    <aside ref={card} className={`sa-ov${variant === 'wall' ? ' sa-ov--wall' : ''}${boosted ? ' is-boosted' : ''}`} aria-label="Holders ranked by balance">
       <div className="sa-ov__head">
         <p className="sa-ov__eyebrow">
           <span className="sa-live" aria-hidden /> Live seating
         </p>
         <p className="sa-ov__count tabular-nums">
-          <strong>{seated}</strong> seated · <strong className="sa-ov__open">{open}</strong> open
-          <span className="sr-only"> of {total}</span>
+          <strong>{seated}</strong> holders
         </p>
       </div>
 
-      {/* The plan is a picture of the wall, not a way through it: one button
-          for the whole thing, which goes in to the full-size one. */}
       <div ref={pan} className="sa-ov__pan" onScroll={onPan} {...dragPan}><div className="sa-ov__track">
-      <button
-        type="button"
+      <div
         className="sa-ov__plane"
         onClick={variant === 'wall' ? undefined : onBrowse}
         onPointerDown={(e) => { touch.current = e.pointerType !== 'mouse'; }}
-        aria-label={variant === 'wall' ? 'The cabin from above: point at a seat to see its advert' : 'See who is on board'}
+        role="group"
+        aria-label="Holders, highest balance first from the nose"
       >
         {/* Cloud drifting by underneath, so it reads as flying. */}
         <span className="sa-ov__sky" aria-hidden />
@@ -384,23 +349,11 @@ const SeatOverview = memo(function SeatOverview({
             <circle className="sa-ov__nav sa-ov__nav--tail" cx="120" cy="210" r="6" />
           </svg>
 
-          <span className="sa-ov__cabin">
-            {COLUMNS.map((c, col) => (
-              <Fragment key={c.key}>
-                {/* A galley between cabins, and a pair of doors at the exit rows. */}
-                {col > 0 && COLUMNS[col - 1].zone !== c.zone && (
-                  <span className={`sa-ov__galley${c.zone === 'exit' || COLUMNS[col - 1].zone === 'exit' ? ' sa-ov__galley--exit' : ''}`} aria-hidden />
-                )}
-                <span className={`sa-ov__row sa-ov__row--${c.zone}`} style={{ flexGrow: WIDTH[c.zone] }}>
-                  <span className="sa-ov__bank">{c.left.map((id, i) => seat(id, col, i))}</span>
-                  <span className="sa-ov__bank">{c.right.map((id, i) => seat(id, col, i + 3))}</span>
-                </span>
-              </Fragment>
-            ))}
-            <span className="sa-ov__sweep" aria-hidden />
+          <span className="sa-ov__cabin sa-ov__cabin--ranked">
+            {manifest.entries.map((entry, i) => seat(entry.seat.id, i))}
           </span>
         </span>
-      </button>
+      </div>
       </div></div>
 
       {/* The seat under the pointer, big enough to read its advert. */}
@@ -412,17 +365,17 @@ const SeatOverview = memo(function SeatOverview({
           role="status"
         >
           <div className="sa-ov__peek-art">
-            {peekBanner ? (
-              <img src={peekBanner.image} alt="" />
+            {peekOwn ? (
+              <img src={peekOwn.image} alt="" />
             ) : (
-              <span className="sa-ov__peek-empty">{peekEntry ? 'No advert yet' : 'Open seat'}</span>
+              <ProfilePicture profile={peekEntry ? profiles[peekEntry.address] : null} className="sa-ov__profile" fallback={<span className="sa-ov__peek-empty">{peekEntry ? `#${peekEntry.rank}` : ''}</span>} />
             )}
             <span className="sa-ov__peek-seat">
               {peek.id}
               {peekEntry && <span className="sa-ov__peek-rank">#{peekEntry.rank}</span>}
             </span>
           </div>
-          <p className="sa-ov__peek-cabin">{CABIN_NAME[ZONE_OF.get(peek.id) ?? 'economy']}</p>
+          <p className="sa-ov__peek-cabin">{CABIN_NAME[peekEntry?.seat.zone ?? 'economy']}</p>
           <p className="sa-ov__peek-line">
             {peekOwn ? (
               peekLink ? <a href={peekLink} target="_blank" rel="noopener noreferrer nofollow">{peekOwn.alt}</a> : peekOwn.alt
@@ -434,12 +387,6 @@ const SeatOverview = memo(function SeatOverview({
           </p>
         </div>
       )}
-
-      <p className="sa-ov__readout">
-        {variant === 'wall'
-          ? 'Point at a seat to see its advert, tap it to open it. Slide sideways for the whole cabin; biggest holders up front.'
-          : 'Point at any seat to see its advert. Biggest holders up front.'}
-      </p>
 
       <button type="button" className="sa-ov__claim" onClick={onClaim}>
         <span className="sa-ov__claim-label">Claim your Seat</span>

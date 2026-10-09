@@ -1,4 +1,4 @@
-import { FOMO_PROFILE_API, readFomoProfile, readFomoUser, type FomoProfile } from '../../src/lib/fomoProfile';
+import { FOMO_PROFILE_API, FOMO_PROFILE_CONCURRENCY, FOMO_PROFILE_LOOKUP_MS, readFomoProfile, readFomoUser, type FomoProfile } from '../../src/lib/fomoProfile';
 
 type Store = Pick<KVNamespace, 'get' | 'put'>;
 interface Cached { profile: FomoProfile | null; until: number }
@@ -37,7 +37,7 @@ async function resolve(address: string, store?: Store): Promise<Result> {
 
   try {
     const response = await fetch(`${FOMO_PROFILE_API}/v2/users/wallet/${encodeURIComponent(address)}`, {
-      headers: { accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(3500),
+      headers: { accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(FOMO_PROFILE_LOOKUP_MS),
     });
     if (!response.ok && response.status !== 404) {
       const seconds = Number(response.headers.get('retry-after'));
@@ -73,7 +73,7 @@ export async function readFomoProfiles(addresses: string[], store?: Store) {
   const profiles: Record<string, FomoProfile | null> = {};
   let available = true;
   let cursor = 0;
-  await Promise.all(Array.from({ length: Math.min(3, addresses.length) }, async () => {
+  await Promise.all(Array.from({ length: Math.min(FOMO_PROFILE_CONCURRENCY, addresses.length) }, async () => {
     while (cursor < addresses.length) {
       const address = addresses[cursor++];
       const result = await profileFor(address, store);
