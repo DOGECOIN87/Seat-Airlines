@@ -22,9 +22,8 @@ import { GOLDEN_TICKER } from '../lib/dexBoost';
 /** Stands in until the deployment is pointed at a token. */
 const PLACEHOLDER = 'Announced at launch';
 
-/** The team's links, said in full. Each starts with its own words, so saying them still finds it. */
-const HOLDS = 'Team holds $SEAT: see our interest in the token';
-const LOCKED = 'Locked: the team’s launch buy on Jupiter Lock';
+/** The team's link, said in full. It starts with its own words, so saying them still finds it. */
+const LOCKED = 'Team tokens locked on Jupiter Lock';
 
 const PumpMark = () => (
   <img src="/pump-logomark.svg" alt="" aria-hidden className="sa-pump__mark" />
@@ -92,9 +91,7 @@ const ContractBar = ({ boosts = 0, onHelp }: { boosts?: number; onHelp?: () => v
             point, and they never give way on a phone the way the wordmarks
             do. */}
         <span className="sa-ca__note">
-          <a href="./terms/#token-interest" aria-label={HOLDS} title={HOLDS}>team holds $SEAT</a>
-          <span aria-hidden> · </span>
-          <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" aria-label={LOCKED} title={LOCKED}>locked</a>
+          <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" aria-label={LOCKED} title={LOCKED}>Team Tokens Locked</a>
         </span>
 
         {/* The chart, and the way to boost it: DexScreener's Boost button is

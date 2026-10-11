@@ -7,7 +7,7 @@
 
 ## How the site is structured today
 
-- The team bought $SEAT at launch; those tokens are locked on Jupiter Lock (`LOCK_URL` in `src/lib/social.ts`). The team may hold more in its own wallets (the operator's `ADMIN_WALLET` is seated when it holds the token). The terms, the FAQ, `llms.txt`, the landing screen, the contract bar, the tour's How to buy page and the token docs all disclose this.
+- The team bought $SEAT at launch; those tokens are locked on Jupiter Lock (`LOCK_URL` in `src/lib/social.ts`). The team may hold more in its own wallets (the operator's `ADMIN_WALLET` is seated when it holds the token). The terms, the FAQ, `llms.txt`, the tour's How to buy page and the token docs disclose this in full; the landing screen and the contract bar carry a short "Team Tokens Locked" link to the lock.
 - The project shares no creator fees, revenue or other money with holders. Seats, adverts and the cabin directory are site features, not financial rights.
 - The leaderboard has no prizes.
 - Governing law in the terms is Texas, USA.

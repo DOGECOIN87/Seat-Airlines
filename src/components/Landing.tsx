@@ -1191,7 +1191,7 @@ export default function Landing({
           {/* The team's interest, right under Boost and on the first screen
               anybody sees: the token is one tap from here, so the line is too. */}
           <p className="sa-landing__disclose">
-            The team holds $SEAT (<a href={LOCK_URL} target="_blank" rel="noopener noreferrer">partly locked</a>) and benefits if the price rises. Not financial advice. <a href="./terms/#token-interest">Terms</a>
+            <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" aria-label="Team tokens locked on Jupiter Lock">Team Tokens Locked</a>
           </p>
           {!failed && (
             <p className="sa-landing__hint">
