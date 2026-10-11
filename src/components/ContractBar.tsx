@@ -10,7 +10,8 @@ import { GOLDEN_TICKER } from '../lib/dexBoost';
  * string they need to copy exactly, so it sits above everything else and is
  * copyable in one press rather than one careful drag across 44 characters.
  * The way to buy sits next to it, because that is what they were going to do
- * with the address anyway.
+ * with the address anyway, and so does the line that says the team holds the
+ * token: somebody about to buy should be told that before they do.
  *
  * The address is shown whole wherever there is room. It is only ever
  * abbreviated on a narrow screen, and even then the full value stays in the
@@ -20,6 +21,9 @@ import { GOLDEN_TICKER } from '../lib/dexBoost';
 
 /** Stands in until the deployment is pointed at a token. */
 const PLACEHOLDER = 'Announced at launch';
+
+/** The team's link, said in full. It starts with the link's own words, so saying them still finds it. */
+const HOLDS = 'Team holds $SEAT, locked on Jupiter Lock: see our interest in the token';
 
 const PumpMark = () => (
   <img src="/pump-logomark.svg" alt="" aria-hidden className="sa-pump__mark" />
@@ -80,6 +84,15 @@ const ContractBar = ({ boosts = 0, onHelp }: { boosts?: number; onHelp?: () => v
           <PumpMark />
           <span className="sa-pump__text">pump.fun</span>
         </a>
+
+        {/* The team's interest, beside the way to buy: the team holds the
+            token, so it says so where somebody is about to buy it, not only
+            in the terms. Words rather than a mark, because the words are the
+            point, and they never give way on a phone the way the wordmarks
+            do. */}
+        <span className="sa-ca__note">
+          <a href="./terms/#token-interest" aria-label={HOLDS} title={HOLDS}>team holds $SEAT</a>
+        </span>
 
         {/* The chart, and the way to boost it: DexScreener's Boost button is
             on the same page. A boost running puts the plane on afterburner. */}

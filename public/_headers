@@ -1,3 +1,17 @@
+# GitHub Pages, which hosts the page, does not read this file. It sends its
+# own fixed headers and ignores every rule here, so none of these reach a
+# browser from GitHub alone. They are applied one of two ways instead:
+#
+#   1. Cloudflare in front of seat-airlines.space (DNS records proxied), with
+#      a Response Header Transform Rule that sets each header below to the
+#      same value. The steps are in docs/for-developers/deploying.md, under
+#      "Security headers".
+#   2. Moving the page to Cloudflare Pages, which reads this file as it is.
+#
+# Until one of those is in place, only the referrer policy is live, as a
+# <meta> in index.html. This file is still the one list of what the headers
+# should be: change a value here and in the Transform Rule together.
+
 /*
   Content-Security-Policy: frame-ancestors https://x.com https://twitter.com https://mobile.twitter.com https://platform.twitter.com
   # X-Frame-Options is intentionally omitted: X Player Cards require framing.

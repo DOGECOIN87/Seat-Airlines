@@ -15,48 +15,63 @@
 <main>
 <header><a href="/">← Seat Airlines</a></header>
 <h1>Privacy Policy</h1>
-<p class="meta">Last updated 1 October 2026 · <a href="/terms/">Terms of Service</a></p>
+<p class="meta">Last updated 11 October 2026 · <a href="/terms/">Terms of Service</a></p>
 
-<p>Seat Airlines collects as little as it can. There are no accounts, no email sign-ups, no advertising trackers and no analytics scripts. This page lists everything the site does store.</p>
+<p>Seat Airlines collects as little as it can. There are no Seat Airlines accounts, no mailing lists, no advertising trackers and no analytics scripts. This page lists everything the site does store.</p>
+
+<h2>Who runs the site</h2>
+<p>Seat Airlines is run from Texas, United States. For anything about your data, email <a href="mailto:mattrickbeats@gmail.com">mattrickbeats@gmail.com</a>.</p>
 
 <h2>What we store on our server</h2>
 <p>Our server is a Cloudflare Worker with Cloudflare storage.</p>
 <table>
   <thead><tr><th>What</th><th>Why</th><th>How long</th></tr></thead>
   <tbody>
-    <tr><td>Your public wallet address and signed messages</td><td>To prove an advert, card, score or sign-in is yours</td><td>As long as the thing it signs for</td></tr>
-    <tr><td>Adverts you publish (image, description, link)</td><td>To show them on your seat</td><td>Until you take them down</td></tr>
+    <tr><td>Your public wallet address</td><td>To show that an advert, card, score or message is yours</td><td>As long as the thing it belongs to</td></tr>
+    <tr><td>Adverts you publish (image, description, link)</td><td>To show them on your seat</td><td>Until you take them down. The picture file itself is kept, because another seat may show the same picture; ask us and we will delete it</td></tr>
     <tr><td>Your directory card and messages you send</td><td>The cabin directory and introductions</td><td>Until you ask us to remove them</td></tr>
     <tr><td>Directory sessions, stored only as a one-way fingerprint</td><td>Keeping you signed in</td><td>24 hours</td></tr>
-    <tr><td>Game runs and posted scores</td><td>The leaderboard</td><td>Until the board is reset</td></tr>
-    <tr><td>Your flight’s share picture</td><td>So a post on X can show it</td><td>90 days</td></tr>
-    <tr><td>Your X access token, if you connect X</td><td>To post your flight when you ask</td><td>Until you disconnect</td></tr>
+    <tr><td>Game runs: when each flight started, and a hash of your IP address</td><td>Checking scores, and limiting how many flights one connection can start in an hour</td><td>24 hours</td></tr>
+    <tr><td>Your best score</td><td>The leaderboard</td><td>Until the board is reset</td></tr>
+    <tr><td>Every score you post, with its time</td><td>Naming the day’s top pilots</td><td>No set limit yet; ask us and we will delete them</td></tr>
+    <tr><td>Your IP address, as a count in Cloudflare’s rate limiter</td><td>Capping balance lookups and email or passkey wallet requests from one connection</td><td>One minute</td></tr>
+    <tr><td>Your flight’s share picture, or your seat’s card</td><td>So a post on X can show it</td><td>90 days</td></tr>
+    <tr><td>Your X access token (encrypted), your X username and the times of your recent posts, if you connect X</td><td>To post your flight when you ask, at most six times an hour</td><td>Until you disconnect, or 180 days after you connect or last post</td></tr>
   </tbody>
 </table>
+<p>Signatures you make are checked and then thrown away, not kept. Expired sessions and game runs are cleared the next time anyone signs in or starts a flight, so they can outlast the times above for a while.</p>
 
 <h2>What is public</h2>
-<p>Solana balances are public. The site shows each seated holder’s seat, rank, address and balance, and everyone can see published adverts and leaderboard scores. Directory card names and roles are visible to signed-in holders; contact details only to your own section.</p>
+<p>Solana balances are public. The site shows each seated holder’s seat, rank, address and balance, and everyone can see published adverts and leaderboard scores. Each day the top five pilots are posted on our X account, by shortened wallet address and score.</p>
+<p>Directory card names, roles and offering tags are visible to signed-in holders; contact details and links only to your own section. Any offering tags you choose also show on your public seat card, and if you turn on <em>Show my links on my public seat card</em>, anyone can see your display name, website, LinkedIn and social accounts there. Messages in your cabin’s room are seen by everyone in that cabin; introductions are shown only to the two of you.</p>
 <p>We look up public wallet addresses in a community Fomo profile index to display profile pictures beside scores and on seats without an advert. These public pictures and handles may be cached for up to 30 days. Your browser loads pictures from their image hosts.</p>
 
 <h2>What stays in your browser</h2>
-<p>The site uses your browser’s local storage, not tracking cookies. It keeps your directory session, your best score, sound settings, and any adverts saved only on your device. You can clear these at any time by clearing the site’s data in your browser.</p>
+<p>The site uses your browser’s local storage, not tracking cookies. It keeps your directory session, your X connection if you make one, which wallet you last chose, your best score, a random passenger name, sound and display settings, and any adverts saved only on your device. If you use the email or passkey wallet, its kit keeps its own sign-in data in your browser too. You can clear these at any time by clearing the site’s data in your browser.</p>
 
 <h2>Connecting X</h2>
 <p>If you connect your X account, X shows you exactly what you are allowing. We use that access <strong>only</strong> to upload your flight’s picture or video and publish one post, each time you press Share. We do not read your timeline, followers, messages or other X data. Disconnecting deletes the token from our server, and you can also revoke it in X under <em>Settings → Security and account access → Apps and sessions</em>. X’s handling of your data is covered by <a href="https://x.com/en/privacy" rel="noopener">X’s Privacy Policy</a>.</p>
 
 <h2>Other services the site talks to</h2>
 <ul>
-  <li><strong>Cloudflare</strong> runs our server, which receives your IP address with each request, as any web server does.</li>
+  <li><strong>Cloudflare</strong> runs our server, which receives your IP address with each request, as any web server does. The only places our server keeps it are the game runs and the rate limiter in the table above.</li>
   <li><strong>GitHub Pages</strong> hosts the site’s files.</li>
   <li><strong>Google Fonts</strong> serves the typefaces.</li>
   <li><strong>Open-Meteo</strong> provides the weather outside the window. We send it a rough location worked out from your browser’s time zone, never your real location.</li>
   <li><strong>Solana RPC and market-data providers</strong> supply balances and prices.</li>
+  <li><strong>Helius</strong>, and <strong>Turnkey</strong>, which its wallet is built on, run the optional email or passkey wallet. If you use it, they handle the email address, phone number or passkey you sign in with, and we never see it. Our server passes Helius only your new wallet’s address, its IDs and which sign-in method you used.</li>
   <li><strong>Your wallet extension or app</strong> handles your keys. We never see them.</li>
 </ul>
 <p>We do not sell your data, and we do not share it with anyone except these providers to run the site.</p>
 
 <h2>Your choices</h2>
-<p>You can take down your adverts, edit your card, sign out, disconnect X and clear your browser data at any time. To ask us to delete anything else tied to your wallet, message <a href="https://x.com/SEATAIRLINES" rel="noopener">@SEATAIRLINES</a> on X.</p>
+<p>You can take down your adverts, edit your card, sign out, disconnect X and clear your browser data at any time. To ask us to delete anything else tied to your wallet, email <a href="mailto:mattrickbeats@gmail.com">mattrickbeats@gmail.com</a>, or message <a href="https://x.com/SEATAIRLINES" rel="noopener">@SEATAIRLINES</a> on X.</p>
+
+<h2>Your rights</h2>
+<p>Wherever you live, you can ask us to show you, correct, delete or give you a copy of the personal data we hold that is tied to you. This covers your rights under laws such as the Texas Data Privacy and Security Act, California’s CCPA, and the EU and UK GDPR. Email <a href="mailto:mattrickbeats@gmail.com">mattrickbeats@gmail.com</a> and say which wallet address or X account it is about; we may ask you to sign a message with that wallet to show it is yours. We answer within 45 days.</p>
+<p>If we decline a request, you can ask us to reconsider by replying to our answer. If you live in Texas, you can also contact the <a href="https://www.texasattorneygeneral.gov/" rel="noopener">Texas Attorney General</a>.</p>
+<p>We do not sell personal data, we do not use it for targeted advertising, and we do not use it to profile you.</p>
+<p>Balances and transactions on the Solana blockchain are public, and we cannot change or delete them. Deleting what we hold removes it from the site, not from the chain.</p>
 
 <h2>Children</h2>
 <p>The site is not meant for anyone under 18.</p>

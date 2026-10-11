@@ -14,3 +14,6 @@
 9. Complete vendor security/privacy/contract reviews for Cloudflare, GitHub, RPC/Helius, wallets, X, GitBook, and analytics if enabled.
 10. Approve retention/deletion periods, RTO/RPO, privacy notice, training cadence, incident contacts, and access-review frequency.
 11. Select and coordinate an independent qualified CPA/service auditor; no audit conclusion is represented here.
+12. Serve the security headers: GitHub Pages ignores `public/_headers`, so proxy `seat-airlines.space` through Cloudflare and copy each header into a Response Header Transform Rule (steps in `docs/for-developers/deploying.md`, "Security headers"), or move the page to Cloudflare Pages. Verify with `curl -sI https://seat-airlines.space/` and record the output as evidence. Until then only the referrer policy (a `<meta>` in `index.html`) is live.
+13. The contact email `mattrickbeats@gmail.com` is now public on the legal pages. Make sure it is monitored, and that privacy requests sent to it are answered within 45 days. Keep `@SEATAIRLINES` on X as the secondary contact. Set up nothing else unless it is needed.
+14. Book a consult with a Texas securities lawyer to confirm the token and site structure, and do so before adding any rewards, airdrops, fee sharing, staking or prizes. See `compliance/token-regulatory-guardrails.md`.

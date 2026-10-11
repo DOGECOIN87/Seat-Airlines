@@ -2405,6 +2405,40 @@ textarea {
   .sa-pump--boost.is-on, .sa-pilots--boost.is-on, .sa-pilots--boost.is-golden, .sa-pump--boost.is-golden { animation: none; }
 }
 
+/* ── The team's interest ──────────────────────────────────────────────
+   Beside the way to buy: the team holds the token, and says so where
+   somebody is about to buy it. Words stamped on the plate rather than
+   another pill, and never hidden. Where the row has no room for them and
+   the whole address too, they take a line of their own under the buttons
+   instead of giving way like the wordmarks do. The line is the wrapper's;
+   the link is only as wide as its words. */
+.sa-ca__note { flex: none; display: flex; justify-content: flex-end; }
+.sa-ca__note a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--ui-ink);
+  text-decoration: underline;
+  text-decoration-color: rgba(36, 40, 47, 0.45);
+  text-underline-offset: 0.2em;
+  transition: color 0.15s ease;
+}
+.sa-ca__note a:hover { color: var(--accent-deep); text-decoration-color: currentColor; }
+.sa-ca__note a:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 2px; border-radius: 4px; }
+/* The address keeps the room it had: it grows into what the buttons leave,
+   as before, and the note's line is added under them rather than taken
+   from it. On a narrow phone the address's own row, further down, still
+   wins. */
+@media (max-width: 1119.98px) {
+  .sa-ca__inner { flex-wrap: wrap; row-gap: 0.15rem; }
+  .sa-ca__value { flex-basis: 0; }
+  .sa-ca__note { order: 1; flex-basis: 100%; }
+}
+
 /* Seat advert editor: tactile controls, drag surface, and compact preview. */
 .sa-editor-crop { cursor: grab; touch-action: none; background: var(--ui-sink); }
 .sa-editor-crop:active { cursor: grabbing; }
@@ -6528,6 +6562,11 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-tour__steps { list-style: decimal; }
 .sa-tour__list { list-style: disc; }
 .sa-tour__safe { font-size: 12px; line-height: 1.55; color: var(--ui-soft); }
+/* The team's interest: the safety note's size, in the body's ink, so it is
+   read rather than skimmed past. */
+.sa-tour__disclose { color: var(--ui-ink); }
+.sa-tour__disclose a { font-weight: 700; color: var(--accent-deep); text-decoration: underline; text-underline-offset: 0.15em; }
+.sa-tour__disclose a:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 2px; border-radius: 3px; }
 .sa-tour__ca { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; min-width: 0; }
 .sa-tour__ca code { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; line-height: 1.4; padding: 0.35rem 0.5rem; border-radius: 8px; background: var(--ui-sink); box-shadow: var(--e-press); }
 .sa-tour__copy, .sa-tour__back {

@@ -21,7 +21,7 @@ The airline's line first and the call to board last, with two of the others betw
 | | RELAX | |
 | | ADVERTISE | |
 | | MOVE UP | |
-| | TO THE | MOON |
+| | FASTEN | SEATBELTS |
 | Last | NOW | BOARDING |
 
 ## Changing the words
