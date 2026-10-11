@@ -230,7 +230,7 @@ export const CHATTER: readonly RadioLine[] = [
   { text: 'Passenger in 14C has deplaned mid-flight.', tone: 'alert' },
   { text: 'Seat 2A claimed. Previous occupant reseated to 27E.', tone: 'pa' },
   { text: 'Captain: "This is your captain speaking. We are not turning around."', tone: 'pa' },
-  { text: 'Beverage cart rolling. Fee rewards distributed to rows 1–7.', tone: 'plain' },
+  { text: 'Beverage cart rolling. Please keep elbows out of the aisle.', tone: 'plain' },
   { text: 'Air marshal reassigned. Nobody knows who.', tone: 'plain' },
   { text: 'Someone in the cargo hold is knocking.', tone: 'plain' },
   { text: 'Exit row signature verified. 16A may open the door.', tone: 'plain' },
@@ -261,7 +261,7 @@ export const CALLOUTS = {
    on it — ten characters keeps them big enough to read on a phone. The drums
    carry A–Z, 0–9 and  + - / : ( ) % . , ! ? & $ '  and anything else comes
    up blank. */
-export const SPLASH_FIRST: readonly string[] = ['HOLD MORE', 'FLY HIGHER'];
+export const SPLASH_FIRST: readonly string[] = ['ONE PLANE', 'ALL OF US'];
 export const SPLASH_BETWEEN: readonly (readonly string[])[] = [
   ['TAKE A', 'SEAT'],
   ['NETWORK'],
@@ -269,7 +269,7 @@ export const SPLASH_BETWEEN: readonly (readonly string[])[] = [
   ['RELAX'],
   ['ADVERTISE'],
   ['MOVE UP'],
-  ['TO THE', 'MOON'],
+  ['FASTEN', 'SEATBELTS'],
 ];
 export const SPLASH_LAST: readonly string[] = ['NOW', 'BOARDING'];
 

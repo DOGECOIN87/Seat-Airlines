@@ -49,7 +49,7 @@ The furthest out the aircraft flies — so far. Layered mesas with their strata 
 ## Where you are right now
 
 * The label at the top of the page — **Live · SA350 · In the weather**, for example — names the current level.
-* The **flight progress** map under the view draws every level on one line, like the moving map on a seatback screen: lit as far as you have come, the aircraft where it is, the next stop ringed, and how far through the climb to it you are. It is measured on a log scale, so going from $1M to $2M moves it as much as going from $5M to $10M. The line does not stop at Mars: it carries on, dashed, to a stop that has no name yet.
+* The **flight progress** map under the view draws every level on one line, like the moving map on a seatback screen: lit as far as you have come, the aircraft where it is, the next band ringed, and how far through the climb to it you are. It is measured on a log scale, so going from $1M to $2M moves it as much as going from $5M to $10M. The line does not stop at Mars: it carries on, dashed, to a stop that has no name yet.
 
 {% hint style="info" %}
 The levels are about altitude only. The sky's colour and weather within the lower two come from your own clock and local weather — see [The sky outside](the-sky.md). In space, at the moon and on Mars, the sun is placed where it shows the place off.

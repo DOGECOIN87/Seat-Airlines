@@ -26,7 +26,7 @@
 .sa-fractal__eyebrow { font: 10px monospace; letter-spacing: .16em; text-transform: uppercase; color: #7fe3f7; }
 .sa-fractal__help { font-size: 12px; line-height: 1.7; color: #b6c9dc; padding: 12px; margin-bottom: 12px; border: 1px solid #283b52; border-radius: 8px; }
 .sa-fractal .trellis-tab { white-space: nowrap; }
-@media (max-width: 1023px) {
+@media (max-width: 639.98px) {
   .sa-fractal { margin-inline: -12px; padding: 5px; border-radius: 12px; }
   .sa-fractal__bar { flex-direction: column; align-items: flex-start; gap: 12px; padding: 10px 5px; }
   .sa-fractal__tools { width: 100%; overflow-x: auto; }
@@ -34,7 +34,7 @@
 }
 /* The adapter supplies an inline 100% height; give its host an explicit viewport height. */
 .sa-fractal__workspace { height: clamp(620px, calc(100dvh - 230px), 1100px) !important; }
-@media (max-width: 1023px) { .sa-fractal__workspace { height: max(520px, calc(100dvh - 290px)) !important; } }
+@media (max-width: 639.98px) { .sa-fractal__workspace { height: max(520px, calc(100dvh - 290px)) !important; } }
 /* Match the existing app's material tokens to the dark flight workspace. */
 .sa-fractal {
   --ui-bg: #0f1725; --ui-sink: #0a111d; --ui-surface: #162234; --ui-hi: #1e3046; --ui-off: #27384b;
@@ -76,8 +76,9 @@
   .sa-fractal .sd-controls__look button { font-size: 11px; white-space: nowrap; }
 }
 @media (max-width: 639px) {
-  .sa-app--fractal .sa-ca__value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: normal; }
-  .sa-app--fractal .sa-topbar dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; overflow: visible; }
+  /* Each figure as wide as its own words, the four spread across: an even
+     quarter each runs a long altitude into the market cap beside it. */
+  .sa-app--fractal .sa-topbar dl { display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; gap: 8px; overflow: visible; }
   .sa-app--fractal .sa-topbar__fig { min-width: 0; }
   .sa-app--fractal .sa-topbar__fig dt { font-size: 9px; letter-spacing: .08em; white-space: nowrap; }
   .sa-app--fractal .sa-topbar__fig dd { font-size: 12px; white-space: nowrap; }
@@ -97,3 +98,10 @@
 .sa-fractal .sa-zone .sa-zone-head__name { color: #7fe3f7; }
 
 .sa-fractal .sa-zone-head .sa-zone-head__visual { white-space: nowrap; color: #b3c4d7; }
+/* On a phone the panel's tabs keep their names and the strip scrolls,
+   rather than every tab shrinking to "03 …". */
+@media (max-width: 639.98px) {
+  .sa-fractal [data-trellis-part="tab"] { flex: none; max-width: none; }
+  .sa-fractal [data-trellis-part="tab-title"] { overflow: visible; text-overflow: clip; }
+  .sa-fractal [data-trellis-part="tabs"] { scrollbar-width: none; }
+}

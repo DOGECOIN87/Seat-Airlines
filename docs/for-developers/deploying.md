@@ -29,6 +29,30 @@ description: The page on GitHub Pages, the Worker on Cloudflare, the token, and 
 
 Then **Settings → Pages → Custom domain → `seat-airlines.space`**, wait for the DNS check, and tick **Enforce HTTPS** once it is offered.
 
+### Security headers
+
+GitHub Pages sends its own headers and ignores `public/_headers`, so none of the headers in that file are served: not the `frame-ancestors` policy that lets X frame the Player Card and keeps everyone else from framing the page, not HSTS, and not the rest. The referrer policy alone also goes out as a `<meta>` in `index.html`, because it is the only one a meta tag can carry; the others work only as real response headers. To serve them, put Cloudflare in front of the domain and copy them in with a Transform Rule. (The other way is to host the page on Cloudflare Pages, which reads `_headers` itself — a different deploy from the one above.)
+
+1. **Put the domain on Cloudflare.** Add `seat-airlines.space` as a site, check the imported records match the table above, and change the nameservers at the registrar to the two Cloudflare gives you.
+2. **Proxy the records.** In **DNS → Records**, set every `A` and `AAAA` record and the `www` `CNAME` to **Proxied** (the orange cloud). A record left on **DNS only** goes straight to GitHub, and no rule applies to it.
+3. **Set encryption to Full (strict).** **SSL/TLS → Overview**. Never **Flexible**: Cloudflare would then ask GitHub over plain HTTP, **Enforce HTTPS** sends it back to HTTPS, and the site loops.
+4. **Create the rule.** **Rules → Transform Rules → Modify Response Header → Create rule** (newer dashboards: **Rules → Overview → Create rule → Response Header Transform Rule**). Call it `Security headers` and choose **All incoming requests**.
+5. **Set each header from `_headers`.** Under **Modify response header**, choose **Set static**, and type the header name and its value exactly as `_headers` has them; **Set new header** adds the next one. There are six: `Content-Security-Policy`, `X-Content-Type-Options`, `Strict-Transport-Security`, `Referrer-Policy`, `Permissions-Policy` and `Cross-Origin-Opener-Policy`. Do not add `X-Frame-Options`: the Player Card needs X to be able to frame the page.
+6. **Deploy** the rule.
+
+`_headers` stays the list of record: when a value changes there, change it in the rule too.
+
+Check it from anywhere:
+
+```bash
+curl -sI https://seat-airlines.space/
+curl -sI https://seat-airlines.space/terms/
+```
+
+Each reply should carry all six headers, with `server: cloudflare` and a `cf-ray` line to show it came through Cloudflare. `server: GitHub.com` means the request went round it — a record is still **DNS only**, or the nameserver change has not reached you yet.
+
+Once the records are proxied, **Settings → Pages** may warn that the domain no longer points at GitHub; the site keeps working. If Cloudflare ever answers with **error 526**, the certificate GitHub holds for the domain has lapsed: set the records to **DNS only** until GitHub issues a new one, then proxy them again.
+
 ## The Worker — Cloudflare
 
 `.github/workflows/worker.yml` runs on pushes to `main` that touch `worker/`. It type-checks and tests the Worker, and deploys it **only if** the repository has a `CLOUDFLARE_API_TOKEN` secret (with Workers Scripts, Workers KV Storage and Workers R2 Storage edit rights). Without one it stops after the tests and says so in the job summary — a green run does not by itself mean the Worker was deployed, so check the **Deploy** step.

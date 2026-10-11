@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import ModalWindow from './ModalWindow';
 import { PUMP_URL, TOKEN_MINT, hasToken } from '../lib/token';
-import { DEXSCREENER_URL } from '../lib/social';
+import { DEXSCREENER_URL, LOCK_URL } from '../lib/social';
 
 /**
  * The first-visit tour: what this is, how a seat is earned, how to connect,
@@ -108,6 +108,11 @@ export default function Welcome({ onClose }: { onClose: () => void }) {
           <p className="sa-tour__links">
             <a href={PUMP_URL} target="_blank" rel="noopener noreferrer" className="sa-tour__buy">Buy on pump.fun</a>
             <a href={DEXSCREENER_URL} target="_blank" rel="noopener noreferrer">Chart</a>
+          </p>
+          {/* Right under the button: the team holds the token, so it says so
+              where somebody is about to buy it, not only in the terms. */}
+          <p className="sa-tour__safe sa-tour__disclose">
+            <strong>Disclosure:</strong> the Seat Airlines team holds $SEAT, including its launch buy, locked on <a href={LOCK_URL} target="_blank" rel="noopener noreferrer">Jupiter Lock</a>, and may hold more in its own wallets, so it benefits if the price rises. Holding $SEAT pays no fees, revenue or profits (see <a href="./terms/#token-interest">our interest in the token</a>).
           </p>
           <p className="sa-tour__safe">Check the address matches the one in the bar at the top of the page. Tokens are volatile: only buy what you can afford to lose.</p>
         </>

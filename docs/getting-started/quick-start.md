@@ -6,7 +6,7 @@ description: From zero to seated in four steps.
 
 ### 1. Open the site
 
-Go to [seat-airlines.space](https://seat-airlines.space). The page opens outside, on the whole aircraft, flying at the altitude its market cap puts it. The split-flap board at the top turns through the airline's lines — _Hold more, fly higher_ first.
+Go to [seat-airlines.space](https://seat-airlines.space). The page opens outside, on the whole aircraft, flying at the altitude its market cap puts it. The split-flap board at the top turns through the airline's lines — _One plane, all of us_ first.
 
 ### 2. Get the token
 

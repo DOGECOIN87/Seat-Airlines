@@ -628,6 +628,12 @@ Then, before going live:
 # endpoint, which will rate-limit anything resembling traffic.
 npx wrangler secret put RPC_URL
 
+# The key the flight cap hashes IP addresses with, so the game_runs table
+# cannot be turned back into addresses. Any long random string, e.g. from
+# `openssl rand -hex 32`. Unset, the X token key stands in under its own
+# label; with neither, the hash is unkeyed.
+npx wrangler secret put IP_HASH_KEY
+
 npx wrangler deploy
 
 # After deployment, verify the Worker is serving requests. Replace the host

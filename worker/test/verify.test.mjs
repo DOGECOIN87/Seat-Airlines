@@ -9,7 +9,7 @@
 import { webcrypto as crypto } from 'node:crypto';
 import assert from 'node:assert/strict';
 import {
-  advertTextProblem, challenge, decodeDataUrl, imageType, readStoredBanner, sha256Hex, takedownChallenge, verifySignature,
+  advertTextProblem, challenge, decodeDataUrl, imageType, ipFingerprint, readStoredBanner, sha256Hex, takedownChallenge, verifySignature,
 } from '../dist-test/verify.js';
 
 const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
@@ -174,6 +174,23 @@ await check('a good record reads back exactly', async () => {
   assert.equal(bare.key, 'banners/W.png');
   assert.equal(bare.alt, '');
   assert.equal('href' in bare, false);
+});
+
+/* The flight cap's IP hash: a copy of the table must not give the addresses back. */
+await check('a keyed IP hash is steady, and nothing like the bare one', async () => {
+  const ip = '203.0.113.7';
+  const keyed = await ipFingerprint(ip, 'a-secret');
+  assert.equal(keyed, await ipFingerprint(ip, 'a-secret'));
+  assert.match(keyed, /^[0-9a-f]{64}$/);
+  assert.notEqual(keyed, await sha256Hex(new TextEncoder().encode(ip)));
+  assert.notEqual(keyed, await ipFingerprint(ip, 'another-secret'));
+  assert.notEqual(keyed, await ipFingerprint('203.0.113.8', 'a-secret'));
+});
+
+await check('with no key, the IP hash is the bare SHA-256 it always was', async () => {
+  const bare = await sha256Hex(new TextEncoder().encode('unknown'));
+  assert.equal(await ipFingerprint('unknown', undefined), bare);
+  assert.equal(await ipFingerprint('unknown', '  '), bare);
 });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

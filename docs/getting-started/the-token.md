@@ -16,11 +16,25 @@ It trades on pump.fun: [pump.fun/coin/Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pu
 
 ## Team tokens are locked
 
-The team's tokens from the launch buy are locked on **Jupiter Lock**. The lock is public: anybody can check how many tokens it holds, when they unlock, and who, if anyone, can cancel it.
+The team behind Seat Airlines bought the token when it launched, and the tokens from that launch buy are locked on **Jupiter Lock**. The lock is public: anybody can check how many tokens it holds, when they unlock, and who, if anyone, can cancel it.
 
 [View the lock on Jupiter Lock](https://lock.jup.ag/escrow/AtiAAu8kAtmwqQ8yiNakpsg3Rxg7UrFWUazCvhHXteFU)
 
 Locked tokens sit in the lock's contract, not in a wallet, so they are never given a seat on the aircraft.
+
+{% hint style="warning" %}
+**The team has an interest in the token.** Besides the locked launch buy, the team may hold $SEAT in its own wallets; the operator's wallet is seated like anyone else's when it holds the token. Because it holds $SEAT, the team benefits if the price rises. Keep that in mind whenever Seat Airlines talks about the token. The tour's **How to buy** page and the [FAQ](https://seat-airlines.space/faq/) say so in full, and the landing screen and the strip marked **CA** across the top of the page link to the lock as **Team Tokens Locked**.
+{% endhint %}
+
+### What holding $SEAT does not give you
+
+* **No share of anything.** Holding $SEAT pays no share of creator fees or any other fees, revenue or profits, and gives no claim on Seat Airlines or anything it owns. The team does not share fees or any other money with holders.
+* **Seats, adverts and the cabin directory are features of the site**, not returns or rewards for holding. They can change or stop at any time.
+* **The flight game has no prizes.** Scores are for fun and have no monetary value.
+
+{% hint style="info" %}
+Nothing on the site or in these docs is financial or investment advice, or an offer to sell you anything. Tokens are volatile and can lose all of their value: only buy what you can afford to lose. The terms set all of this out in [Our interest in the token](https://seat-airlines.space/terms/#token-interest).
+{% endhint %}
 
 ## Where to find us
 

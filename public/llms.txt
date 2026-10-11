@@ -1,8 +1,9 @@
 # Seat Airlines ($SEAT)
 
 > Seat Airlines is a Solana memecoin with a free 3D flight game in the browser.
-> Market cap is altitude: the bigger the holders, the higher the plane flies.
+> The token's public market data flies the plane: market cap is altitude.
 > Holders get seats on the plane, and every seat is a billboard.
+> Nothing here is financial advice, and holding $SEAT pays nothing.
 
 ## What it is
 
@@ -17,10 +18,14 @@
 - Supply: 1,000,000,000 SEAT.
 - Launched on pump.fun: https://pump.fun/coin/Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump
 - Chart: https://dexscreener.com/solana/Bkuddk94i6Y5rRJ94pNzpdDxzvW7CczLPyq4MfN1pump
-- Buy it on pump.fun / PumpSwap with SOL.
-- Like any memecoin, the price is volatile and can go to zero. Do your own research.
+- It trades on pump.fun / PumpSwap for SOL. Seat Airlines does not sell the token or handle trades.
+- Like any memecoin, the price is volatile and can go to zero. Only buy what you can afford to lose.
+- Team interest: the team holds $SEAT from the launch buy, locked on Jupiter Lock (https://lock.jup.ag/escrow/AtiAAu8kAtmwqQ8yiNakpsg3Rxg7UrFWUazCvhHXteFU), and may hold more in its own wallets, so it benefits if the price rises. See https://seat-airlines.space/terms/#token-interest
+- Holding $SEAT gives no share of fees, revenue or profits and no claim on Seat Airlines. It is not an investment product.
 
-## Holder perks
+## What a seat does on the site
+
+These are features of the site, not returns, and they can change.
 
 - **Seats**: holders sit on the plane's seat map, ranked by bag size. The biggest holders sit up front.
 - **Billboards**: every held seat is a billboard — the holder can put a square (1:1) image advert on their seat, shown on the advert wall under the plane.
@@ -35,13 +40,16 @@
 ## The game
 
 - Free to play in any modern browser, desktop or mobile.
-- No wallet needed to fly; connect one to post scores to the leaderboard.
+- Taking the controls needs a connected Solana wallet, but not any $SEAT; the same wallet signs scores onto the leaderboard.
+- Scores have no prizes or monetary value.
 - Controls: drag or arrow keys to steer, Space for boost (3 charges).
 
 ## Links
 
 - Homepage / game: https://seat-airlines.space/
-- FAQ (investing + advertising): https://seat-airlines.space/faq/
+- FAQ (the token + advertising): https://seat-airlines.space/faq/
+- Terms: https://seat-airlines.space/terms/
+- Privacy: https://seat-airlines.space/privacy/
 - Leaderboard: https://seat-airlines.space/pilots/
 - Docs: https://seat-airlines.gitbook.io/seat-airlines-docs/
 - X: https://x.com/SeatAirlines

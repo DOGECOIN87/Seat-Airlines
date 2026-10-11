@@ -297,12 +297,12 @@ export function ClimbRoute({ band }: { band: BandState }) {
         <span className="sa-route__next">
           {band.next ? (
             <>
-              <span className="sa-route__next-word">Next stop</span> <b>{band.next}</b>
+              <span className="sa-route__next-word">Next band</span> <b>{band.next}</b>
               <span className="sa-route__pct">{toGo}%</span>
             </>
           ) : (
             <>
-              <span className="sa-route__next-word">Next stop</span> <b>Beyond Mars</b>
+              <span className="sa-route__next-word">Next band</span> <b>Beyond Mars</b>
               <span className="sa-route__pct" aria-hidden>???</span>
             </>
           )}
