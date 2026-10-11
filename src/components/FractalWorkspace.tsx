@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Workspace, ViewType, Split, Panel, View, type WorkspaceHandle } from '@danfessler/trellis-react';
 import '@danfessler/trellis/style.css';
 import './FractalWorkspace.css';
-import { PANELS, type PanelKey } from './SectionPanels';
+import { PANELS, SHEET_QUERY, type PanelKey } from './SectionPanels';
 import { DeckIcon } from './InstrumentDeck';
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
   seated: boolean;
 }
 
-const isCompact = () => window.matchMedia('(max-width: 1023px)').matches;
+const isCompact = () => window.matchMedia(SHEET_QUERY).matches;
 
 /** The application owns data and permissions; Trellis only owns its layout. */
 export default function FractalWorkspace({ aircraft, instruments, wall, activeSection, renderSection, onSection, onScores, seated }: Props) {
@@ -30,7 +30,7 @@ export default function FractalWorkspace({ aircraft, instruments, wall, activeSe
     setReady(Boolean(handle));
   }, []);
   useEffect(() => {
-    const query = window.matchMedia('(max-width: 1023px)');
+    const query = window.matchMedia(SHEET_QUERY);
     const update = () => setCompact(query.matches);
     query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);

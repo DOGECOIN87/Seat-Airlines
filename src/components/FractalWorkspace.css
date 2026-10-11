@@ -26,7 +26,7 @@
 .sa-fractal__eyebrow { font: 10px monospace; letter-spacing: .16em; text-transform: uppercase; color: #7fe3f7; }
 .sa-fractal__help { font-size: 12px; line-height: 1.7; color: #b6c9dc; padding: 12px; margin-bottom: 12px; border: 1px solid #283b52; border-radius: 8px; }
 .sa-fractal .trellis-tab { white-space: nowrap; }
-@media (max-width: 1023px) {
+@media (max-width: 639.98px) {
   .sa-fractal { margin-inline: -12px; padding: 5px; border-radius: 12px; }
   .sa-fractal__bar { flex-direction: column; align-items: flex-start; gap: 12px; padding: 10px 5px; }
   .sa-fractal__tools { width: 100%; overflow-x: auto; }
@@ -34,7 +34,7 @@
 }
 /* The adapter supplies an inline 100% height; give its host an explicit viewport height. */
 .sa-fractal__workspace { height: clamp(620px, calc(100dvh - 230px), 1100px) !important; }
-@media (max-width: 1023px) { .sa-fractal__workspace { height: max(520px, calc(100dvh - 290px)) !important; } }
+@media (max-width: 639.98px) { .sa-fractal__workspace { height: max(520px, calc(100dvh - 290px)) !important; } }
 /* Match the existing app's material tokens to the dark flight workspace. */
 .sa-fractal {
   --ui-bg: #0f1725; --ui-sink: #0a111d; --ui-surface: #162234; --ui-hi: #1e3046; --ui-off: #27384b;

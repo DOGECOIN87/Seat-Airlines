@@ -45,8 +45,11 @@ export function panelFromHash(hash: string): PanelKey | null {
   return PANELS.some((p) => p.key === key) ? (key as PanelKey) : null;
 }
 
-/** The narrow layout, where a section is a sheet over the page rather than a panel beside the view. */
-export const SHEET_QUERY = '(max-width: 1023.98px)';
+/** The narrow layout: a phone held upright, where the workspace stacks every
+    section as a tab in one panel rather than laying them out beside the view.
+    Anything wider — a tablet, a foldable opened out, a phone on its side, a
+    half-width window — gets the desk's split. */
+export const SHEET_QUERY = '(max-width: 639.98px)';
 
 interface SectionDockProps {
   open: PanelKey | null;

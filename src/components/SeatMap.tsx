@@ -3,6 +3,7 @@ import { CABIN_SECTIONS, CARGO_HOLD, LAVATORY_SEATS, findSeat, type ZoneKey } fr
 import { safeHref, type Banner, type BannerSet } from '../lib/banners';
 import { shortAddress, type Manifest, type ManifestEntry } from '../lib/manifest';
 import { formatShare, formatTokens } from '../lib/seatLadder';
+import { SHEET_QUERY } from './SectionPanels';
 import SeatDialog from './SeatDialog';
 import AircraftRow from './AircraftRow';
 import { reveal } from '../lib/reveal';
@@ -138,10 +139,10 @@ const SeatMap = memo(function SeatMap({ manifest, banners, mine, canAdvertise, o
   const [selected, setSelected] = useState<string | null>(null);
   /** The seat open in its own window, over the page. */
   const [open, setOpen] = useState<{ id: string; zone: ZoneKey } | null>(null);
-  /* Show the complete cabin beside the aircraft on wide screens.
-     Phones start folded; each section can still be opened independently. */
+  /* Show the complete cabin beside the aircraft wherever the workspace splits.
+     Narrow phones start folded; each section can still be opened independently. */
   const [openZones, setOpenZones] = useState<ReadonlySet<string>>(() =>
-    new Set(window.matchMedia('(min-width: 1024px)').matches ? CABIN_SECTIONS.map(section => section.id) : []));
+    new Set(window.matchMedia(SHEET_QUERY).matches ? [] : CABIN_SECTIONS.map(section => section.id)));
   const toggleZone = useCallback((zone: string) => {
     setOpenZones((current) => {
       const next = new Set(current);
