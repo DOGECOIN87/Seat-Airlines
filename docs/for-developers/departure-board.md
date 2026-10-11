@@ -14,7 +14,7 @@ The airline's line first and the call to board last, with two of the others betw
 
 | When | Top row | Bottom row |
 | --- | --- | --- |
-| First | HOLD MORE | FLY HIGHER |
+| First | ONE PLANE | ALL OF US |
 | Two of | TAKE A | SEAT |
 | | NETWORK | |
 | | BUILD | |
@@ -29,7 +29,7 @@ The airline's line first and the call to board last, with two of the others betw
 The phrases are in `src/content/cabin.ts`, with the rest of the site's copy:
 
 ```ts
-export const SPLASH_FIRST: readonly string[] = ['HOLD MORE', 'FLY HIGHER'];
+export const SPLASH_FIRST: readonly string[] = ['ONE PLANE', 'ALL OF US'];
 export const SPLASH_BETWEEN: readonly (readonly string[])[] = [
   ['TAKE A', 'SEAT'],
   ['NETWORK'],

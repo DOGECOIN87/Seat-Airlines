@@ -48,7 +48,7 @@
  */
 
 import {
-  advertTextProblem, challenge, decodeDataUrl, imageType, legacyChallenge, readStoredBanner, sha256Hex, takedownChallenge, verifySignature,
+  advertTextProblem, challenge, decodeDataUrl, imageType, ipFingerprint, legacyChallenge, readStoredBanner, sha256Hex, takedownChallenge, verifySignature,
   MAX_AGE_MS, MAX_IMAGE_BYTES, COOLDOWN_SECONDS, type StoredBanner,
 } from './verify';
 import { storedOfferings } from '../../src/content/offerings';
@@ -157,6 +157,12 @@ export interface Env extends XEnv, HeliusEnv {
   HOLDING_LIMIT?: RateLimit;
   /** Caps Helius relay calls by Cloudflare source IP and route. */
   HELIUS_LIMIT?: RateLimit;
+  /**
+   * The secret the flight cap keys its IP hashes with (see `ipFingerprint`).
+   * A secret: `npx wrangler secret put IP_HASH_KEY`. Unset, the X token key
+   * stands in, under its own label; with neither, the hash is unkeyed.
+   */
+  IP_HASH_KEY?: string;
 }
 
 
@@ -1233,7 +1239,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       if (request.method === 'POST' && url.pathname === '/runs') {
         await ensureLeaderboard(db);
         const now = Date.now();
-        const ip = await sha256Hex(new TextEncoder().encode(request.headers.get('cf-connecting-ip') ?? 'unknown'));
+        const ip = await ipFingerprint(request.headers.get('cf-connecting-ip') ?? 'unknown', env.IP_HASH_KEY?.trim() || env.X_TOKEN_ENCRYPTION_KEY);
         const recent = await db
           .prepare('SELECT COUNT(*) AS n FROM game_runs WHERE ip = ? AND started_at > ?')
           .bind(ip, now - 60 * 60 * 1000)

@@ -1046,7 +1046,7 @@ export default function App() {
               starts with the view: the way to a seat is up in the gate sign,
               stepping inside is on the view's own bar, and the sections are
               down its edge. */}
-          <h1 id="hero-title" className="sr-only">Seat Airlines. Hold more. Fly higher.</h1>
+          <h1 id="hero-title" className="sr-only">Seat Airlines. One plane. Everyone’s in it.</h1>
 
           {/* ── The cockpit ──────────────────────────────────────────────
               The view and its deck, with the page's sections a tab away down
@@ -1090,7 +1090,7 @@ export default function App() {
             <a href="./terms/">Terms</a>
             <a href="./privacy/">Privacy</a>
           </nav>
-          <p className="sa-footer__line">Hold more. Fly higher.</p>
+          <p className="sa-footer__line">One plane. Everyone’s in it.</p>
         </div>
       </footer>
 

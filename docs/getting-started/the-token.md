@@ -23,7 +23,7 @@ The team behind Seat Airlines bought the token when it launched, and the tokens 
 Locked tokens sit in the lock's contract, not in a wallet, so they are never given a seat on the aircraft.
 
 {% hint style="warning" %}
-**The team has an interest in the token.** Because it holds $SEAT, the team benefits if the price rises. Keep that in mind whenever Seat Airlines talks about the token. The site says so beside its buy links too: in the strip marked **CA** across the top of the page, and on the tour's **How to buy** page.
+**The team has an interest in the token.** Besides the locked launch buy, the team may hold $SEAT in its own wallets; the operator's wallet is seated like anyone else's when it holds the token. Because it holds $SEAT, the team benefits if the price rises. Keep that in mind whenever Seat Airlines talks about the token. The site says so wherever it links to buying the token: on the landing screen, in the strip marked **CA** across the top of the page, on the tour's **How to buy** page and in the [FAQ](https://seat-airlines.space/faq/).
 {% endhint %}
 
 ### What holding $SEAT does not give you

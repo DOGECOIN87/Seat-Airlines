@@ -10,7 +10,8 @@
 - Server-side session, signature, ownership, admin, and cabin checks exist in the Worker and have regression coverage.
 - CORS now fails closed: only explicit allowlist matches receive `Access-Control-Allow-Origin`.
 - OAuth token encryption now requires a server-held `X_TOKEN_ENCRYPTION_KEY`; public handles are no longer encryption keys.
-- Existing safe headers were retained and HSTS, Referrer-Policy, Permissions-Policy, and COOP were added to Pages headers.
+- HSTS, Referrer-Policy, Permissions-Policy and COOP are defined in `public/_headers`, but GitHub Pages does not serve that file, so none of them is live yet; only the referrer policy is, as a `<meta>` in `index.html`. Serving them needs the Cloudflare step in `human-actions-required.md` (item 12).
+- The flight cap's stored IP addresses are now a keyed HMAC (`IP_HASH_KEY`, or the X token key under its own label), not a bare SHA-256 that could be reversed.
 - Security workflow, CODEOWNERS draft, evidence index, control matrix, risk register, policies, runbooks, and templates were added.
 
 ## Remaining technical gaps

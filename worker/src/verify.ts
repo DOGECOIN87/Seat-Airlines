@@ -72,9 +72,26 @@ export function advertTextProblem(alt: string, href: string | undefined): string
 
 const enc = new TextEncoder();
 
+const hex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hex(await crypto.subtle.digest('SHA-256', bytes as BufferSource));
+}
+
+/**
+ * A connection's address, as the flight cap keeps it.
+ *
+ * An IPv4 address is one of four billion, so a bare SHA-256 of one is undone
+ * by trying them all. Keyed with a secret only this Worker holds, a copy of
+ * the table is no use without the key as well. The key is labelled, so the
+ * same secret used for something else never gives the same output here; with
+ * no secret at all — a local run — it is plain SHA-256, as it was.
+ */
+export async function ipFingerprint(ip: string, secret: string | undefined): Promise<string> {
+  const key = secret?.trim();
+  if (!key) return sha256Hex(enc.encode(ip));
+  const hmac = await crypto.subtle.importKey('raw', enc.encode(`ip-hash:${key}`), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return hex(await crypto.subtle.sign('HMAC', hmac, enc.encode(ip)));
 }
 
 /**

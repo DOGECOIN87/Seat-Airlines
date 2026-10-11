@@ -112,7 +112,7 @@ export default function Welcome({ onClose }: { onClose: () => void }) {
           {/* Right under the button: the team holds the token, so it says so
               where somebody is about to buy it, not only in the terms. */}
           <p className="sa-tour__safe sa-tour__disclose">
-            <strong>Disclosure:</strong> the Seat Airlines team holds $SEAT from the launch buy, locked on <a href={LOCK_URL} target="_blank" rel="noopener noreferrer">Jupiter Lock</a>, and benefits if the price rises. Holding $SEAT pays no fees, revenue or profits (see <a href="./terms/#token-interest">our interest in the token</a>).
+            <strong>Disclosure:</strong> the Seat Airlines team holds $SEAT, including its launch buy, locked on <a href={LOCK_URL} target="_blank" rel="noopener noreferrer">Jupiter Lock</a>, and may hold more in its own wallets, so it benefits if the price rises. Holding $SEAT pays no fees, revenue or profits (see <a href="./terms/#token-interest">our interest in the token</a>).
           </p>
           <p className="sa-tour__safe">Check the address matches the one in the bar at the top of the page. Tokens are volatile: only buy what you can afford to lose.</p>
         </>

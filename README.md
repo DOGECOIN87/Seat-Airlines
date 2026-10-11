@@ -330,5 +330,5 @@ Step by step, including DNS for the custom domain: [Deploying](docs/for-develope
 
 <div align="center">
 <br>
-<sub><b>SEAT AIRLINES</b> · Flight SA350 · Nonstop · <i>Hold more. Fly higher.</i></sub>
+<sub><b>SEAT AIRLINES</b> · Flight SA350 · Nonstop · <i>One plane. Everyone’s in it.</i></sub>
 </div>

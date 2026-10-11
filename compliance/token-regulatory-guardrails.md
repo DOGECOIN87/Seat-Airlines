@@ -7,7 +7,7 @@
 
 ## How the site is structured today
 
-- The team bought $SEAT at launch; those tokens are locked on Jupiter Lock (`LOCK_URL` in `src/lib/social.ts`), and the terms disclose it.
+- The team bought $SEAT at launch; those tokens are locked on Jupiter Lock (`LOCK_URL` in `src/lib/social.ts`). The team may hold more in its own wallets (the operator's `ADMIN_WALLET` is seated when it holds the token). The terms, the FAQ, `llms.txt`, the landing screen, the contract bar, the tour's How to buy page and the token docs all disclose this.
 - The project shares no creator fees, revenue or other money with holders. Seats, adverts and the cabin directory are site features, not financial rights.
 - The leaderboard has no prizes.
 - Governing law in the terms is Texas, USA.
@@ -36,3 +36,14 @@ Anyone changing the product, the copy, the docs or the social posts should check
 - [ ] **No paid promotion without disclosure.** Paid influencers, KOLs and boosts must say they are paid; the team must say it holds the token whenever it promotes it.
 - [ ] **Legal review first** before adding rewards, airdrops, staking, fee sharing, raffles, giveaways or anything else that gives holders money or a prize.
 - [ ] Keep the terms' statement that holding $SEAT gives no share of fees, revenue or profits, and no claim on Seat Airlines, accurate and unchanged unless a lawyer approves.
+
+## Sources
+
+Checked in October 2026. Re-check them before relying on any line above, and have a lawyer confirm the reading.
+
+- SEC Division of Corporation Finance, [Staff Statement on Meme Coins](https://www.sec.gov/newsroom/speeches-statements/staff-statement-meme-coins) (27 February 2025).
+- Orrick, [SEC Issues Interpretive Guidance on Crypto Asset Classification](https://www.orrick.com/en/Insights/2026/04/SEC-Issues-Interpretive-Guidance-on-Crypto-Asset-Classification), and Sullivan & Cromwell, [SEC and CFTC Issue Interpretation Regarding the Application of Federal Securities Laws to Crypto Assets](https://www.sullcrom.com/insights/memo/2026/March/SEC-Clarifies-Application-Securities-Laws-Crypto-Assets) (17 March 2026 release).
+- Orrick, [The CLARITY Act Stalls in the Senate](https://www.orrick.com/en/Insights/2026/10/The-CLARITY-Act-Stalls-in-the-Senate-Whats-Next-for-Digital-Asset-Regulation) (cloture vote of 15 September 2026).
+- Texas State Securities Board, [Cryptocurrency scams](https://www.ssb.texas.gov/cryptocurrency-scams), and Dallas Morning News, [TEXITcoin cease-and-desist order](https://www.dallasnews.com/business/2026/02/19/d-fw-based-texitcoin-creator-accused-of-fraud-hit-with-cease-and-desist-order-by-texas/) (February 2026).
+- FTC, [Guides Concerning the Use of Endorsements and Testimonials in Advertising](https://www.ecfr.gov/current/title-16/chapter-I/subchapter-B/part-255) (16 CFR Part 255).
+- Texas Attorney General, [Texas Data Privacy and Security Act](https://www.texasattorneygeneral.gov/consumer-protection/file-consumer-complaint/consumer-privacy-rights/texas-data-privacy-and-security-act).

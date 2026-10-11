@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PUMP_URL, TOKEN_MINT, hasToken } from '../lib/token';
-import { DEXSCREENER_URL } from '../lib/social';
+import { DEXSCREENER_URL, LOCK_URL } from '../lib/social';
 import { GOLDEN_TICKER } from '../lib/dexBoost';
 
 /**
@@ -22,8 +22,9 @@ import { GOLDEN_TICKER } from '../lib/dexBoost';
 /** Stands in until the deployment is pointed at a token. */
 const PLACEHOLDER = 'Announced at launch';
 
-/** The team's link, said in full. It starts with the link's own words, so saying them still finds it. */
-const HOLDS = 'Team holds $SEAT, locked on Jupiter Lock: see our interest in the token';
+/** The team's links, said in full. Each starts with its own words, so saying them still finds it. */
+const HOLDS = 'Team holds $SEAT: see our interest in the token';
+const LOCKED = 'Locked: the team’s launch buy on Jupiter Lock';
 
 const PumpMark = () => (
   <img src="/pump-logomark.svg" alt="" aria-hidden className="sa-pump__mark" />
@@ -92,6 +93,8 @@ const ContractBar = ({ boosts = 0, onHelp }: { boosts?: number; onHelp?: () => v
             do. */}
         <span className="sa-ca__note">
           <a href="./terms/#token-interest" aria-label={HOLDS} title={HOLDS}>team holds $SEAT</a>
+          <span aria-hidden> · </span>
+          <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" aria-label={LOCKED} title={LOCKED}>locked</a>
         </span>
 
         {/* The chart, and the way to boost it: DexScreener's Boost button is
@@ -105,7 +108,7 @@ const ContractBar = ({ boosts = 0, onHelp }: { boosts?: number; onHelp?: () => v
           target="_blank"
           rel="noopener noreferrer"
           className={`sa-pump sa-pump--boost${boosts > 0 ? ' is-on' : ''}${boosts >= GOLDEN_TICKER ? ' is-golden' : ''}`}
-          title={boosts > 0 ? `${boosts.toLocaleString('en-US')} Boosts running on DexScreener` : 'Boost on DexScreener (the yellow Boost button) and the plane goes on afterburner'}
+          title={boosts > 0 ? `${boosts.toLocaleString('en-US')} Boosts running on DexScreener, which sells them as paid promotion` : 'A Boost is paid promotion on DexScreener (its yellow Boost button); while one runs, the plane goes on afterburner'}
         >
           <FlameMark />
           <span className="sa-pump__text">{boosts > 0 ? `boosted ×${boosts.toLocaleString('en-US')}` : 'boost'}</span>

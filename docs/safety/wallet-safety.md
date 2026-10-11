@@ -64,7 +64,19 @@ All three are checked by the server, and all three expire: a signature more than
 
 ## What is stored, and where
 
-**On the Seat Airlines server** (a Cloudflare Worker): your published adverts, your card, the messages you send, and your directory sessions. A session is stored only as a one-way fingerprint (SHA-256), so a copy of the session table cannot be used to get into anybody's account.
+**On the Seat Airlines server** (a Cloudflare Worker):
+
+* your published adverts, and their pictures, which stay in storage after you take an advert down until you ask for them to be deleted;
+* your card and the messages you send;
+* your directory sessions, each stored only as a one-way fingerprint (SHA-256), so a copy of the session table cannot be used to get into anybody's account;
+* your game runs for 24 hours, with a keyed hash of your IP address that caps how many flights one connection can start in an hour;
+* your best score and every score you post;
+* the share picture or seat card for a post on X, for 90 days;
+* if you connect X, your encrypted X token, your X username and the times of your recent posts;
+* for one minute, your IP address as a count in the rate limiter on balance lookups and email-wallet requests;
+* the operator's private notebook, which only the operator's wallet can open, and which can mention what was said in a cabin room the operator can see.
+
+The [Privacy Policy](https://seat-airlines.space/privacy/) has the full list, how long each is kept, and how to ask for any of it to be shown to you or deleted.
 
 **In your browser:**
 

@@ -13,7 +13,7 @@ import JetWeapons from './JetWeapons';
 import { BLIMP, fireMissile, type AerialEvents } from '../lib/aerialCombat';
 import type { Manifest } from '../lib/manifest';
 import type { BannerSet } from '../lib/banners';
-import { DEXSCREENER_URL } from '../lib/social';
+import { DEXSCREENER_URL, LOCK_URL } from '../lib/social';
 import { GOLDEN_TICKER, boostStrength } from '../lib/dexBoost';
 import { SPLASH_BETWEEN, SPLASH_FIRST, SPLASH_LAST } from '../content/cabin';
 import type { FlightFeed } from '../lib/flightFeed';
@@ -1117,9 +1117,9 @@ export default function Landing({
         <div className="sa-landing__lobby">
         <main className="sa-landing__hero">
           <h1 className="sa-landing__title">
-            Hold more.
+            One plane.
             <br />
-            Fly higher.
+            <span className="sa-landing__title-sub">Everyone’s in it.</span>
           </h1>
           <p className="sa-landing__lead">
             {playMode === 'ufo'
@@ -1150,8 +1150,8 @@ export default function Landing({
               rel="noopener noreferrer"
               className={`sa-pilots sa-pilots--boost${boosts > 0 ? ' is-on' : ''}${boosts >= GOLDEN_TICKER ? ' is-golden' : ''}`}
               title={boosts > 0
-                ? `${boosts.toLocaleString('en-US')} Boosts running on DexScreener. More burn harder: tap the yellow Boost button there.`
-                : 'Boost the token on DexScreener (the yellow Boost button) and the plane goes on afterburner'}
+                ? `${boosts.toLocaleString('en-US')} Boosts running on DexScreener, which sells them as paid promotion. More burn harder.`
+                : 'A Boost is paid promotion on DexScreener (its yellow Boost button); while one runs, the plane goes on afterburner'}
             >
               <svg viewBox="0 0 24 24" aria-hidden className="sa-pilots__icon sa-pilots__flame">
                 <path d="M13.5 1.5s1 3.2-1.6 6.1C9.6 10.2 7 12 7 15.6A5 5 0 0 0 12 21a5 5 0 0 0 5-5.3c0-2.4-1.3-4-1.3-4s-.4 2.1-2 2.7c0 0 1.4-4.5-.2-9.4z" />
@@ -1188,6 +1188,11 @@ export default function Landing({
             </button>
             </div>
           </div>
+          {/* The team's interest, right under Boost and on the first screen
+              anybody sees: the token is one tap from here, so the line is too. */}
+          <p className="sa-landing__disclose">
+            The team holds $SEAT (<a href={LOCK_URL} target="_blank" rel="noopener noreferrer">partly locked</a>) and benefits if the price rises. Not financial advice. <a href="./terms/#token-interest">Terms</a>
+          </p>
           {!failed && (
             <p className="sa-landing__hint">
               {!ready

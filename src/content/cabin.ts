@@ -261,7 +261,7 @@ export const CALLOUTS = {
    on it — ten characters keeps them big enough to read on a phone. The drums
    carry A–Z, 0–9 and  + - / : ( ) % . , ! ? & $ '  and anything else comes
    up blank. */
-export const SPLASH_FIRST: readonly string[] = ['HOLD MORE', 'FLY HIGHER'];
+export const SPLASH_FIRST: readonly string[] = ['ONE PLANE', 'ALL OF US'];
 export const SPLASH_BETWEEN: readonly (readonly string[])[] = [
   ['TAKE A', 'SEAT'],
   ['NETWORK'],

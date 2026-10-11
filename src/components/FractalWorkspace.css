@@ -76,8 +76,9 @@
   .sa-fractal .sd-controls__look button { font-size: 11px; white-space: nowrap; }
 }
 @media (max-width: 639px) {
-  .sa-app--fractal .sa-ca__value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: normal; }
-  .sa-app--fractal .sa-topbar dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; overflow: visible; }
+  /* Each figure as wide as its own words, the four spread across: an even
+     quarter each runs a long altitude into the market cap beside it. */
+  .sa-app--fractal .sa-topbar dl { display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; gap: 8px; overflow: visible; }
   .sa-app--fractal .sa-topbar__fig { min-width: 0; }
   .sa-app--fractal .sa-topbar__fig dt { font-size: 9px; letter-spacing: .08em; white-space: nowrap; }
   .sa-app--fractal .sa-topbar__fig dd { font-size: 12px; white-space: nowrap; }
@@ -97,3 +98,10 @@
 .sa-fractal .sa-zone .sa-zone-head__name { color: #7fe3f7; }
 
 .sa-fractal .sa-zone-head .sa-zone-head__visual { white-space: nowrap; color: #b3c4d7; }
+/* On a phone the panel's tabs keep their names and the strip scrolls,
+   rather than every tab shrinking to "03 …". */
+@media (max-width: 639.98px) {
+  .sa-fractal [data-trellis-part="tab"] { flex: none; max-width: none; }
+  .sa-fractal [data-trellis-part="tab-title"] { overflow: visible; text-overflow: clip; }
+  .sa-fractal [data-trellis-part="tabs"] { scrollbar-width: none; }
+}

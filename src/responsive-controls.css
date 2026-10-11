@@ -110,7 +110,7 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   padding: 0;
   gap: 1rem;
 }
-.sa-landing__lobby .sa-landing__hero > :is(.sa-landing__actions, .sa-landing__lead, .sa-landing__hint) {
+.sa-landing__lobby .sa-landing__hero > :is(.sa-landing__actions, .sa-landing__lead, .sa-landing__hint, .sa-landing__disclose) {
   width: 100%;
   max-width: none;
   min-width: 0;

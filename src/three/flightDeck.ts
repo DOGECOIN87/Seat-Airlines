@@ -518,7 +518,7 @@ function cduTexture(side: 'L' | 'R'): THREE.CanvasTexture {
   g.fillText(side === 'L' ? '  ACT RTE 1 LEGS' : '    PROGRESS', 36, 32);
   const lines = side === 'L'
     ? [['CLOUDS', '1,000,000'], ['SPACE', '10,000,000'], ['MOON', '50,000,000'], ['MARS', '100,000,000'], ['BEYOND', '---------']]
-    : [['TO MARS', 'ETA  ----'], ['FUEL', 'HOLD MORE'], ['SOULS', 'ON BOARD'], ['SEATS', '178'], ['WIND', '000/00']];
+    : [['TO MARS', 'ETA  ----'], ['FUEL', 'FULL'], ['SOULS', 'ON BOARD'], ['SEATS', '178'], ['WIND', '000/00']];
   lines.forEach(([a, b], i) => {
     g.fillStyle = i === 0 ? '#FF57C8' : '#5BE86B';
     g.fillText(a, 36, 54 + i * 18);

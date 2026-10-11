@@ -2412,7 +2412,7 @@ textarea {
    the whole address too, they take a line of their own under the buttons
    instead of giving way like the wordmarks do. The line is the wrapper's;
    the link is only as wide as its words. */
-.sa-ca__note { flex: none; display: flex; justify-content: flex-end; }
+.sa-ca__note { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 0.3rem; font-size: var(--t-xs); color: var(--ui-faint); }
 .sa-ca__note a {
   display: inline-flex;
   align-items: center;
@@ -2429,6 +2429,8 @@ textarea {
 }
 .sa-ca__note a:hover { color: var(--accent-deep); text-decoration-color: currentColor; }
 .sa-ca__note a:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 2px; border-radius: 4px; }
+/* A finger gets the same target as the buttons beside it. */
+@media (pointer: coarse) { .sa-ca__note a { min-height: 2.75rem; } }
 /* The address keeps the room it had: it grows into what the buttons leave,
    as before, and the note's line is added under them rather than taken
    from it. On a narrow phone the address's own row, further down, still
@@ -3668,6 +3670,18 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   text-transform: uppercase;
   text-shadow: 0 6px 34px rgba(0, 0, 0, 0.45);
 }
+/* The line's second half a size down, as on the link card: the plane is
+   the headline, everyone in it the line under it. One line at any width,
+   so it never leaves "IT." on a line of its own. */
+.sa-landing__title-sub {
+  display: inline-block;
+  margin-top: 0.12em;
+  font-size: 0.56em;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: #D4EEFF;
+}
 .sa-landing__lead {
   max-width: 34rem;
   font-size: clamp(1rem, 1.35vw, 1.15rem);
@@ -3763,6 +3777,16 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   text-wrap-style: balance;
   color: rgba(214, 228, 242, 0.72);
 }
+/* The team's interest, under everything on the landing: small, but never
+   one of the lines a short screen lets go of. */
+.sa-landing__disclose {
+  font-size: 12px;
+  line-height: 1.5;
+  text-wrap-style: balance;
+  color: rgba(214, 228, 242, 0.82);
+}
+.sa-landing__disclose a { color: #fff; text-decoration: underline; text-underline-offset: 0.18em; }
+.sa-landing__disclose a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 3px; }
 
 /* ── The splash ────────────────────────────────────────────────
    The first thing on the screen: the departure board in the middle of
@@ -4654,7 +4678,7 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   .sa-landing__actions .sa-landing__enter,
   .sa-landing__actions > :last-child:nth-child(2) { grid-column: 1 / -1; }
   .sa-pilots { margin-left: 0; justify-content: center; }
-  .sa-landing__hint { text-align: center; }
+  .sa-landing__hint, .sa-landing__disclose { text-align: center; }
   .sa-hud__help { width: calc(100% - 2rem); border-radius: 14px; }
 }
 
@@ -4682,7 +4706,7 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   .sa-landing__actions { display: flex; }
   .sa-landing__enter, .sa-landing__fly { width: auto; }
   .sa-pilots { margin-left: auto; }
-  .sa-landing__hint { text-align: left; }
+  .sa-landing__hint, .sa-landing__disclose { text-align: left; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -6098,14 +6122,16 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   }
   .sa-landing__actions,
   .sa-landing__lead,
-  .sa-landing__hint { max-width: calc(100% - min(36vw, 40rem) - 2rem); }
+  .sa-landing__hint,
+  .sa-landing__disclose { max-width: calc(100% - min(36vw, 40rem) - 2rem); }
   .sa-landing__actions .sa-landing__enter { letter-spacing: 0.2em; padding-inline: 1.6rem 1.8rem; }
 }
 @media (min-width: 1280px) {
   .sa-ov { width: min(40vw, 40rem); }
   .sa-landing__actions,
   .sa-landing__lead,
-  .sa-landing__hint { max-width: calc(100% - min(40vw, 40rem) - 2rem); }
+  .sa-landing__hint,
+  .sa-landing__disclose { max-width: calc(100% - min(40vw, 40rem) - 2rem); }
   .sa-landing__actions .sa-landing__enter { letter-spacing: 0.26em; padding-inline: 1.95rem 1.7rem; }
 }
 
@@ -6154,9 +6180,11 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   .sa-ov__plane { margin-top: 0; }
 }
 
-/* ── The contract bar on a narrow phone: the address has a row to itself,
-   on one or two lines, and the buttons a row under it at the right. ── */
-@media (max-width: 459.98px) {
+/* ── The contract bar short of a wide desk: the address has a row to
+   itself — on one or two lines on a phone, whole on one line wider — and
+   the buttons a row under it at the right. Beside the buttons' words it
+   would be squeezed to a few characters, or none. ── */
+@media (max-width: 1199.98px) {
   .sa-ca__inner { flex-wrap: wrap; row-gap: 0.4rem; }
   .sa-ca__value { flex: 1 1 calc(100% - 2.5rem); text-wrap: wrap; }
   .sa-ca__copy { margin-left: auto; }
