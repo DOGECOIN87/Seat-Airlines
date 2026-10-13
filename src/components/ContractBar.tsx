@@ -11,10 +11,12 @@ import { PUMP_URL, TOKEN_MINT, hasToken } from '../lib/token';
  * with the address anyway. The site's other links — the chart, the team's
  * lock, the socials — are in the footer, once.
  *
- * The address is shown whole wherever there is room. It is only ever
- * abbreviated on a narrow screen, and even then the full value stays in the
- * DOM — a truncated address that cannot be copied in full is worse than no
- * address at all, because it looks like one.
+ * The address is shown whole wherever there is room. On a narrow screen it
+ * is abbreviated the way a wallet shows one — its first and last characters,
+ * the ones people check — so the strip stays one row; the full value stays in
+ * the DOM for a screen reader, in the title, and in what Copy copies. A
+ * truncated address that cannot be copied in full is worse than no address
+ * at all, because it looks like one.
  */
 
 /** Stands in until the deployment is pointed at a token. */
@@ -49,7 +51,15 @@ const ContractBar = ({ onHelp }: { onHelp?: () => void }) => {
     <div className="sa-ca">
       <div className="sa-ca__inner">
         <span className="sa-ca__label">CA</span>
-        <code className="sa-ca__value" title={address}>{address}</code>
+        <code className={`sa-ca__value${hasToken ? ' has-abbr' : ''}`} title={address}>
+          <span className="sa-ca__full">{address}</span>
+          {hasToken && (
+            /* First and last six, or four on the narrowest phones. */
+            <span className="sa-ca__abbr" aria-hidden>
+              {address.slice(0, 4)}<span className="sa-ca__more">{address.slice(4, 6)}</span>…<span className="sa-ca__more">{address.slice(-6, -4)}</span>{address.slice(-4)}
+            </span>
+          )}
+        </code>
 
         {hasToken && (
           <button type="button" onClick={copy} className="sa-ca__copy">

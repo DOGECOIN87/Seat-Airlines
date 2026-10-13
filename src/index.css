@@ -2334,6 +2334,16 @@ textarea {
 }
 .sa-ca__value::-webkit-scrollbar { display: none; }
 @media (min-width: 900px) { .sa-ca__value { font-size: 0.78rem; } }
+/* Short of room for all 44 characters beside the buttons, the strip stays
+   one row and the address is abbreviated (ContractBar): the full value is
+   kept for a screen reader, the shortened one is what is seen. */
+.sa-ca__abbr { display: none; }
+@media (max-width: 760px) {
+  .sa-ca__value.has-abbr { overflow: visible; }
+  .sa-ca__value.has-abbr .sa-ca__full { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .sa-ca__value.has-abbr .sa-ca__abbr { display: inline; }
+}
+@media (max-width: 360px) { .sa-ca__more { display: none; } }
 .sa-ca__copy {
   flex: none;
   border-radius: 999px;
@@ -4848,22 +4858,6 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
    its own column). */
 .sa-shell { max-width: 94rem; }
 
-/* ── The contract address ─────────────────────────────────────
-   On a phone it wraps, whole, over two or three short lines beside
-   the buttons — inside the height the buttons already give the
-   strip — rather than scrolling its last characters out of sight.
-   Never cut, and never shortened in the middle. */
-@media (max-width: 639.98px) {
-  .sa-ca__value {
-    overflow: visible;
-    white-space: normal;
-    word-break: break-all;
-    text-wrap: balance;
-    font-size: 0.7rem;
-    line-height: 1.35;
-    letter-spacing: 0;
-  }
-}
 
 /* ── The gate sign's figures ──────────────────────────────────
    Four across a phone: a size down and tracked a little less under
@@ -6284,15 +6278,6 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   .sa-ov__plane { margin-top: 0; }
 }
 
-/* ── The contract bar short of a wide desk: the address has a row to
-   itself — on one or two lines on a phone, whole on one line wider — and
-   the buttons a row under it at the right. Beside the buttons' words it
-   would be squeezed to a few characters, or none. ── */
-@media (max-width: 1199.98px) {
-  .sa-ca__inner { flex-wrap: wrap; row-gap: 0.4rem; }
-  .sa-ca__value { flex: 1 1 calc(100% - 2.5rem); text-wrap: wrap; }
-  .sa-ca__copy { margin-left: auto; }
-}
 /* The narrowest phones: the title kept to its two lines, and the links
    to their names — the marks go before the words overflow. */
 @media (max-width: 360px) {
