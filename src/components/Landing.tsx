@@ -4,6 +4,9 @@ import DocsLink from './DocsLink';
 import SocialLinks from './SocialLinks';
 import { DeckIcon } from './InstrumentDeck';
 import Wordmark from './Wordmark';
+import AudiusLogo from './AudiusLogo';
+import Starfield from './Starfield';
+import Disclaimer, { DISCLAIMER_EVENT } from './Disclaimer';
 import Flyover from './Flyover';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
@@ -13,7 +16,7 @@ import JetWeapons from './JetWeapons';
 import { BLIMP, fireMissile, type AerialEvents } from '../lib/aerialCombat';
 import type { Manifest } from '../lib/manifest';
 import type { BannerSet } from '../lib/banners';
-import { DEXSCREENER_URL, LOCK_URL } from '../lib/social';
+import { DEXSCREENER_URL, LOCK_URL, partnerLogo } from '../lib/social';
 import { GOLDEN_TICKER, boostStrength } from '../lib/dexBoost';
 import { SPLASH_BETWEEN, SPLASH_FIRST, SPLASH_LAST } from '../content/cabin';
 import type { FlightFeed } from '../lib/flightFeed';
@@ -1117,14 +1120,14 @@ export default function Landing({
         <div className="sa-landing__lobby">
         <main className="sa-landing__hero">
           <h1 className="sa-landing__title">
-            One plane.
+            Market cap
             <br />
-            <span className="sa-landing__title-sub">Everyone’s in it.</span>
+            <span className="sa-landing__title-sub">is altitude.</span>
           </h1>
           <p className="sa-landing__lead">
             {playMode === 'ufo'
               ? 'Experimental saucer mode is armed. Chase the horizon, dodge the ground, and push for Mars.'
-              : 'Market cap is altitude. The biggest holders sit up front.'}
+              : 'The biggest holders sit up front, and every seat is a billboard.'}
           </p>
           <div className="sa-landing__actions">
             <div className="sa-landing__primary-actions">
@@ -1153,9 +1156,7 @@ export default function Landing({
                 ? `${boosts.toLocaleString('en-US')} Boosts running on DexScreener, which sells them as paid promotion. More burn harder.`
                 : 'A Boost is paid promotion on DexScreener (its yellow Boost button); while one runs, the plane goes on afterburner'}
             >
-              <svg viewBox="0 0 24 24" aria-hidden className="sa-pilots__icon sa-pilots__flame">
-                <path d="M13.5 1.5s1 3.2-1.6 6.1C9.6 10.2 7 12 7 15.6A5 5 0 0 0 12 21a5 5 0 0 0 5-5.3c0-2.4-1.3-4-1.3-4s-.4 2.1-2 2.7c0 0 1.4-4.5-.2-9.4z" />
-              </svg>
+              <img src={partnerLogo('dexscreener.png')} alt="" aria-hidden className="sa-pilots__icon sa-partner-mark" />
               {boosts > 0 ? <>Boosted <span className="sa-pilots__count">×{boosts.toLocaleString('en-US')}</span></> : 'Boost'}
             </a>
             {/* The board, on the same row as the way in and the controls but
@@ -1192,12 +1193,14 @@ export default function Landing({
               anybody sees: the token is one tap from here, so the line is too. */}
           <p className="sa-landing__disclose">
             <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" aria-label="Team tokens locked on Jupiter Lock">Team Tokens Locked</a>
+            <span aria-hidden> · </span>
+            <button type="button" className="sa-landing__notice" onClick={() => window.dispatchEvent(new Event(DISCLAIMER_EVENT))}>Disclaimer</button>
           </p>
           {!failed && (
             <p className="sa-landing__hint">
               {!ready
                 ? 'Warming up…'
-                : `${!wallet.address ? 'Solana wallet required' : playMode === 'ufo' ? (touch ? 'Drag to steer · tap Drive' : 'WASD to steer · F drive mode') : touch ? 'Drag to fly · tap flaps' : 'WASD / left stick to fly · F flaps'}\u00a0· ${playMode === 'ufo' ? 'climb to the moon and Mars' : `climb to ${goalFeet.toLocaleString('en-US')} ft`}`}
+                : !wallet.address ? 'Solana wallet required' : playMode === 'ufo' ? (touch ? 'Drag to steer · tap Drive' : 'WASD to steer · F drive mode') : touch ? 'Drag to fly · tap flaps' : 'WASD / left stick to fly · F flaps'}
             </p>
           )}
         </main>
@@ -1644,6 +1647,12 @@ export default function Landing({
             if (!(e.target as HTMLElement).closest('a')) clearSplash();
           }}
         >
+          {/* The night the board hangs in, flying past towards a lit horizon. */}
+          <Starfield className="sa-splash__sky" />
+          <p className="sa-splash__eyebrow" aria-hidden>
+            <span className="sa-splash__lamp" />
+            Departures · Flight SA350
+          </p>
           <div className="sa-splash__board" aria-hidden>
             <SplitFlapBoard
               phrases={phrases}
@@ -1656,11 +1665,27 @@ export default function Landing({
           <p className="sa-splash__brand" aria-hidden>
             <Wordmark />
           </p>
-          <div className="sa-splash__docs">
+          {/* Boarding: fills while the aeroplane behind gets ready, and
+              completes as the splash fades. */}
+          <div className="sa-splash__progress" aria-hidden><i /></div>
+          <div className="sa-splash__foot">
+            <p className="sa-splash__credit">
+              <span>In-flight radio by</span>
+              <AudiusLogo className="sa-splash__audius" />
+              <span className="sr-only">Audius</span>
+            </p>
+            {/* Helius's own white lockup from its brand kit, unaltered. */}
+            <p className="sa-splash__credit">
+              <span>Wallets by</span>
+              <img className="sa-splash__helius" src={`${import.meta.env.BASE_URL}partners/helius-horizontal-white.svg`} alt="Helius" width={562} height={118} />
+            </p>
             <DocsLink night />
           </div>
         </div>
       )}
+      {/* The notice, once the splash has gone: not over the intro, and not in
+          X's player card, which is a preview rather than a visit. */}
+      {splash === 'off' && !embed && !CAPTURE && <Disclaimer />}
     </div>
   );
 }

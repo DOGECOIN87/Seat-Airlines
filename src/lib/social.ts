@@ -7,3 +7,10 @@ export const LOCK_URL = 'https://lock.jup.ag/escrow/AtiAAu8kAtmwqQ8yiNakpsg3Rxg7
 /** The token's pair on DexScreener: its chart, and where anybody can boost it. */
 export const DEX_PAIR = 'cgguntqrpqyrz7qxmcjchi6xxazurqszaawkaggzaoaj';
 export const DEXSCREENER_URL = `https://dexscreener.com/solana/${DEX_PAIR}`;
+
+/**
+ * A partner's own logo, as its owner publishes it, served from
+ * public/partners/: DexScreener's app icon (its web manifest), Jupiter's mark
+ * (jup.ag), Helius's lockup (its brand kit). Files, not redrawings.
+ */
+export const partnerLogo = (file: string) => `${import.meta.env.BASE_URL}partners/${file}`;

@@ -4,7 +4,7 @@ description: Outside, in a seat, on the flight deck, in the hold — and how to 
 
 # Views and controls
 
-The site opens on a departure board in the middle of the screen, turning through a few of the airline's lines — _One plane, all of us_ first, _Now boarding_ last — then fading onto the aircraft **full screen**. A tap or any key skips it. **Docs on GitBook** is under the board, and at the top right of the screen after it. **Enter** goes in. Every other view is a step inward from the one the page then opens on: **outside, on the whole aircraft**, right under the gate sign, whose **Claim a seat** button opens the seat map from anywhere on the page.
+The site opens on a departure board in the middle of the screen, turning through a few of the airline's lines — _Market cap is altitude_ first, _Now boarding_ last — then fading onto the aircraft **full screen**. A tap or any key skips it. **Docs on GitBook** is under the board, and at the top right of the screen after it. **Enter** goes in. Every other view is a step inward from the one the page then opens on: **outside, on the whole aircraft**, right under the gate sign, whose **Claim a seat** button opens the seat map from anywhere on the page.
 
 ## Fly the plane
 
@@ -48,7 +48,7 @@ Left alone it is down in under twenty seconds; holding the nose up buys about ha
 
 **Post** on the **WASTED** screen shares the flight to X, tagging @solana and @pumpdotfun. The card is made from the flight itself: the moment the engine went — the fireball, or the bolt — with your score, what happened and where.
 
-* **On a phone**, Post opens your phone's share sheet with a short video: the card, then the departure board turning up **ONE PLANE / ALL OF US** and **NOW BOARDING**, then the logo. Choose X and it goes into a post, words and all. (Where the browser cannot make the video, the card goes as a picture.)
+* **On a phone**, Post opens your phone's share sheet with a short video: the card, then the departure board turning up **MARKET CAP / IS ALTITUDE** and **NOW BOARDING**, then the logo. Choose X and it goes into a post, words and all. (Where the browser cannot make the video, the card goes as a picture.)
 * **On a computer**, Post opens X with the post written and a link whose preview is the card, and saves the video beside it to drop into the post if you want it.
 
 ### Scoring and the leaderboard

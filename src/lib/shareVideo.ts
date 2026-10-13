@@ -20,7 +20,7 @@ import { CARD, paintCard, type CardLayers } from './shareCard';
 
 const W = CARD.width;
 const H = CARD.height;
-const SANS = 'Montserrat, ui-sans-serif, system-ui, sans-serif';
+const DISPLAY = "'Bruno Ace SC', Montserrat, ui-sans-serif, system-ui, sans-serif";
 const FLAP = "'PT Sans Narrow', 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, sans-serif";
 
 /* ── The timeline, in seconds ──────────────────────────────────────────── */
@@ -245,11 +245,11 @@ function board(ctx: CanvasRenderingContext2D, t: number) {
 /** The logo and the name, as the site sets them, centred. */
 function brand(ctx: CanvasRenderingContext2D, logo: HTMLImageElement | null) {
   const mark = 104;
-  ctx.font = `800 ${Math.round(mark * 0.714)}px ${SANS}`;
-  if ('letterSpacing' in ctx) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${mark * 0.714 * 0.02}px`;
+  ctx.font = `400 ${Math.round(mark * 0.5)}px ${DISPLAY}`;
+  if ('letterSpacing' in ctx) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${mark * 0.5 * 0.05}px`;
   const name = ctx.measureText('SEAT AIRLINES');
   const nameW = name.actualBoundingBoxLeft + name.actualBoundingBoxRight;
-  const gap = logo ? mark * 0.32 : 0;
+  const gap = logo ? mark * 0.3 : 0;
   const total = (logo ? mark : 0) + gap + nameW;
   const x = (W - total) / 2;
   const mid = H * 0.48;

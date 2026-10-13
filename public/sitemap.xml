@@ -23,4 +23,8 @@
     <loc>https://seat-airlines.space/privacy/</loc>
     <changefreq>yearly</changefreq>
   </url>
+  <url>
+    <loc>https://seat-airlines.space/brand/</loc>
+    <changefreq>yearly</changefreq>
+  </url>
 </urlset>

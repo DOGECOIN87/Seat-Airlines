@@ -4,7 +4,7 @@
 
 # SEAT AIRLINES
 
-**One plane. Everyone's in it. Your bag is your seat.**
+**Market cap is altitude. Your bag is your seat.**
 
 A flight simulator flown by one number: the aircraft's altitude and attitude are read live from its token's market,<br>
 so the aeroplane on your screen *is* the chart — and its 178 seats go to the biggest holders, in order.
@@ -330,5 +330,5 @@ Step by step, including DNS for the custom domain: [Deploying](docs/for-develope
 
 <div align="center">
 <br>
-<sub><b>SEAT AIRLINES</b> · Flight SA350 · Nonstop · <i>One plane. Everyone’s in it.</i></sub>
+<sub><b>SEAT AIRLINES</b> · Flight SA350 · Nonstop · <i>Market cap is altitude.</i></sub>
 </div>

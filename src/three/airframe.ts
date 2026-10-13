@@ -628,14 +628,18 @@ function liveryRibbon(side: number): THREE.BufferGeometry {
 
    Both decals are drawn to a canvas rather than modelled, which is the only
    way type stays type at every zoom, and both wait on the web fonts: a
-   texture baked before Archivo arrives would keep a fallback face for the
-   life of the page. */
+   texture baked before the display face arrives would keep a fallback face
+   for the life of the page. */
+
+/** The airline's name on the fuselage, in the face the site sets it in. */
+const LIVERY_FACE = `'Bruno Ace SC', Montserrat, "Helvetica Neue", Arial, sans-serif`;
 
 /** Repaint once the display face has actually arrived. */
 function whenFontsReady(redraw: () => void, tex: THREE.CanvasTexture) {
   const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
   if (!fonts?.ready) return;
-  void fonts.ready.then(() => {
+  /* Asked for by name: nothing else on the page may have started it yet. */
+  void Promise.all([fonts.load(`400 128px ${LIVERY_FACE}`).catch(() => null), fonts.ready]).then(() => {
     redraw();
     tex.needsUpdate = true;
   });
@@ -680,7 +684,7 @@ function titleTexture(fill: string): THREE.CanvasTexture {
        it would run off the end, which leaves a short name untouched. */
     const nominal = 128;
     const measure = (size: number) => {
-      g.font = `800 ${size}px Montserrat, "Helvetica Neue", Arial, sans-serif`;
+      g.font = `400 ${size}px ${LIVERY_FACE}`;
       let total = 0;
       for (const ch of text) total += g.measureText(ch).width + track;
       return total;

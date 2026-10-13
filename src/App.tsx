@@ -11,6 +11,7 @@ import DocsLink from './components/DocsLink';
 import Wordmark from './components/Wordmark';
 import WalletPicker from './components/WalletPicker';
 import Welcome, { keepTourSeen, tourSeen } from './components/Welcome';
+import Disclaimer, { DISCLAIMER_EVENT } from './components/Disclaimer';
 import SocialLinks from './components/SocialLinks';
 import SeatChange from './components/SeatChange';
 import SeatTicker, { type TickerItem } from './components/SeatTicker';
@@ -80,6 +81,7 @@ const BoardingPass = lazy(() => import('./components/BoardingPass'));
 const NetworkingHub = lazy(() => import('./components/NetworkingHub'));
 const RadioLog = lazy(() => import('./components/RadioLog'));
 const ScoresDialog = lazy(() => import('./components/ScoresDialog'));
+const InflightRadio = lazy(() => import('./components/InflightRadio'));
 const prefetchFlightDeck = () => { void loadFlightDeck(); };
 const prefetchSeatMap = () => { void loadSeatMap(); };
 
@@ -1046,7 +1048,7 @@ export default function App() {
               starts with the view: the way to a seat is up in the gate sign,
               stepping inside is on the view's own bar, and the sections are
               down its edge. */}
-          <h1 id="hero-title" className="sr-only">Seat Airlines. One plane. Everyone’s in it.</h1>
+          <h1 id="hero-title" className="sr-only">Seat Airlines. Market cap is altitude.</h1>
 
           {/* ── The cockpit ──────────────────────────────────────────────
               The view and its deck, with the page's sections a tab away down
@@ -1058,6 +1060,7 @@ export default function App() {
               aircraft={viewport}
               instruments={deck}
               wall={wall}
+              radio={<Loaded minHeight="24rem"><InflightRadio /></Loaded>}
               activeSection={panel}
               renderSection={section}
               onSection={openPanel}
@@ -1089,8 +1092,10 @@ export default function App() {
             <a href="./faq/">FAQ</a>
             <a href="./terms/">Terms</a>
             <a href="./privacy/">Privacy</a>
+            <a href="./brand/">Brand</a>
+            <button type="button" onClick={() => window.dispatchEvent(new Event(DISCLAIMER_EVENT))}>Disclaimer</button>
           </nav>
-          <p className="sa-footer__line">One plane. Everyone’s in it.</p>
+          <p className="sa-footer__line">Market cap is altitude.</p>
         </div>
       </footer>
 
@@ -1168,6 +1173,10 @@ export default function App() {
 
       {/* Asked by `wallet.connect()` when this browser has more than one. */}
       <WalletPicker wallet={wallet} />
+
+      {/* The notice, for anybody who came straight in by a link rather than
+          past the landing, where it has already been shown. */}
+      {!CAPTURE && <Disclaimer />}
 
       {seatChange && (
         <SeatChange

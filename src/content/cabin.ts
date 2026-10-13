@@ -258,10 +258,11 @@ export const CALLOUTS = {
 
    Each entry is the board's rows, top to bottom: one line or two. The board
    is as wide as the longest line here, so one long line shrinks every flap
-   on it — ten characters keeps them big enough to read on a phone. The drums
+   on it — eleven characters, the line's own, keeps them big enough to read
+   on a phone. The drums
    carry A–Z, 0–9 and  + - / : ( ) % . , ! ? & $ '  and anything else comes
    up blank. */
-export const SPLASH_FIRST: readonly string[] = ['ONE PLANE', 'ALL OF US'];
+export const SPLASH_FIRST: readonly string[] = ['MARKET CAP', 'IS ALTITUDE'];
 export const SPLASH_BETWEEN: readonly (readonly string[])[] = [
   ['TAKE A', 'SEAT'],
   ['NETWORK'],

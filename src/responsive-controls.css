@@ -132,16 +132,32 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   gap: 0.625rem;
   margin-top: 0.25rem;
 }
+/* The landing's buttons: two rows on one pair of columns, so every edge
+   lines up. The way in and Connect & fly halve the top row; Boost sits
+   under the way in, and Scores and the sound share the half under Connect
+   & fly — the gap between them is the gap above. */
+.sa-landing__actions { --action-gap: 0.625rem; }
 .sa-landing__actions > :is(.sa-landing__primary-actions, .sa-landing__utility-actions) {
   display: grid;
-  gap: 0.625rem;
+  gap: var(--action-gap);
   width: 100%;
   min-width: 0;
   min-height: 0;
 }
-.sa-landing__primary-actions { grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
-.sa-landing__utility-actions { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--action-size); }
-.sa-landing__utility-actions:not(:has(.sa-pilots--scores)) { grid-template-columns: minmax(0, 1fr) var(--action-size); }
+.sa-landing__primary-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* No 3D, so no Connect & fly: the way in takes the row. */
+.sa-landing__primary-actions > :only-child { grid-column: 1 / -1; }
+.sa-landing__utility-actions {
+  grid-template-columns: calc((100% - var(--action-gap)) / 2) minmax(0, 1fr) var(--control-size);
+}
+.sa-landing__utility-actions:not(:has(.sa-pilots--scores)) {
+  grid-template-columns: calc((100% - var(--action-gap)) / 2) minmax(0, 1fr);
+}
+/* Too narrow to halve the way in's words: the top row stacks, and the row
+   under it keeps its own proportions. */
+@media (max-width: 539.98px) {
+  .sa-landing__primary-actions { grid-template-columns: minmax(0, 1fr); }
+}
 .sa-landing__actions :is(.sa-landing__enter, .sa-landing__fly, .sa-pilots) {
   box-sizing: border-box;
   grid-column: auto;
@@ -161,7 +177,41 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   touch-action: manipulation;
 }
 .sa-landing__actions .sa-landing__enter::after { display: none; }
+/* One type for the whole set — the airline's capitals, where the utilities
+   were in the monospace the readouts use — and three weights of material:
+   the way in filled, Connect & fly in glass, the utilities a step quieter
+   and a step shorter, so the eye lands on the top row first. */
+.sa-landing__actions :is(.sa-landing__enter, .sa-landing__fly, .sa-pilots) {
+  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.sa-landing__actions .sa-landing__enter { font-weight: 800; }
+.sa-landing__utility-actions .sa-pilots {
+  min-height: var(--control-size);
+  padding-block: 0.5rem;
+  font-size: 0.75rem;
+}
+/* Quiet glass, at no weight, so a running boost's orange and gold still win. */
+:where(.sa-landing__utility-actions) :where(.sa-pilots) {
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+:where(.sa-landing__utility-actions) :where(.sa-pilots):hover {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
 .sa-landing__actions .sa-pilots--sound { padding: 0; aspect-ratio: 1; }
+/* No board: the sound has the half to itself, and says what it is. */
+.sa-landing__utility-actions:not(:has(.sa-pilots--scores)) .sa-pilots--sound { aspect-ratio: auto; padding-inline: 0.85rem; }
+.sa-landing__utility-actions:not(:has(.sa-pilots--scores)) .sa-pilots--sound .sa-pilots__label {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+}
 .sa-landing__actions .sa-pilots--sound .sa-pilots__label {
   position: absolute;
   width: 1px;
@@ -274,3 +324,39 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   .sa-aircraft-picker__slot, .sa-aircraft-picker__arrow, .sa-ride-modal__launch { transition: none; }
   .sa-aircraft-picker__arrow:hover, .sa-ride-modal__launch:hover { transform: none; }
 }
+
+/* A partner's own logo file where an inline mark used to be: its colours
+   kept, DexScreener's square app icon softened to the radius an app icon
+   wears. */
+.sa-partner-mark { display: block; flex: none; object-fit: contain; border-radius: 22%; }
+
+/* The legal notice: the modal's card, a little wider for reading, with each
+   point a short row the eye can run down, and one way on at the foot. */
+.sa-disclaimer { width: min(100%, 36rem); }
+.sa-disclaimer .sa-modal__body { display: grid; gap: 0.9rem; overflow-y: auto; }
+.sa-disclaimer__lead { margin: 0; font-size: 0.95rem; line-height: 1.55; color: var(--ui-ink); }
+.sa-disclaimer__list { display: grid; gap: 0.55rem; margin: 0; padding: 0; list-style: none; }
+.sa-disclaimer__list li {
+  position: relative;
+  padding: 0.6rem 0.8rem 0.6rem 1.9rem;
+  border-radius: var(--r-sm);
+  background: var(--ui-sink);
+  box-shadow: var(--e-press);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ui-soft);
+}
+.sa-disclaimer__list li::before {
+  content: '';
+  position: absolute;
+  left: 0.8rem;
+  top: 0.95rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--g-accent);
+}
+.sa-disclaimer__list strong { color: var(--ui-ink); }
+.sa-disclaimer a { color: var(--accent-deep); text-underline-offset: 0.18em; }
+.sa-disclaimer__fine { margin: 0; font-size: 0.78rem; line-height: 1.5; color: var(--ui-faint); }
+.sa-disclaimer__accept { justify-self: stretch; }

@@ -76,7 +76,7 @@ export function cardPage({ image, page, site, kind = 'flight' }: { image: string
   const to = escapeHtml(site);
   const title = kind === 'seat' ? 'My seat on Seat Airlines' : 'Seat Airlines — can you beat my score?';
   const description = kind === 'seat'
-    ? 'One plane. Everyone\'s in it. Your bag is your seat, and every seat is a billboard.'
+    ? 'Market cap is altitude. Your bag is your seat, and every seat is a billboard.'
     : 'One engine gone at altitude. How long can you keep her in the air?';
   return `<!doctype html>
 <html lang="en">

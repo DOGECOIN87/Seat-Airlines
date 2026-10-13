@@ -1,5 +1,5 @@
 ---
-description: One plane. Everyone's in it. Your bag is your seat.
+description: Market cap is altitude. Your bag is your seat.
 ---
 
 # Welcome aboard
