@@ -7,9 +7,11 @@ import { useEffect, useRef } from 'react';
  *
  * Each star has a place across the sky and a distance ahead. Every frame it
  * comes nearer, so its place on the screen runs outward from the vanishing
- * point and quickens as it does; a streak from where it was drawn last
- * frame to where it is now gives it its speed. One that passes the edge of
- * the screen, or the aeroplane, starts again far ahead.
+ * point and quickens as it does; a streak back to where it was a moment ago
+ * gives it its speed, short and faint far off and long and bright close by.
+ * One that passes the edge of the screen, or the aeroplane, starts again
+ * far ahead. The field is as dense on a phone as on a wide screen: the
+ * number of stars follows the screen's area.
  *
  * A canvas rather than CSS, because a field of stars that never repeats is
  * a few hundred points of arithmetic and nothing else. It stops in a hidden
@@ -17,11 +19,16 @@ import { useEffect, useRef } from 'react';
  * gets the same sky standing still.
  */
 
-const STARS = 240;
+/** Stars per square pixel of screen, and the fewest and most there are. */
+const DENSITY = 1 / 1800;
+const FEWEST = 260;
+const MOST = 900;
 /** How much nearer every star comes in a second, as a share of the farthest. */
-const SPEED = 0.28;
+const SPEED = 0.42;
 /** The first moments ease up to speed, rather than starting at a rush. */
-const SPOOL = 1.2;
+const SPOOL = 0.5;
+/** How far back a star's streak reaches, as distance ahead. */
+const TRAIL = 0.035;
 /** Where ahead is: the middle of the screen, a little above centre, behind the board. */
 const AHEAD = { x: 0.5, y: 0.45 };
 /** Nearest a star comes before it is behind us. */
@@ -31,9 +38,6 @@ interface Star {
   x: number;
   y: number;
   z: number;
-  /** Where it was drawn last frame, so its streak runs from there. */
-  sx: number;
-  sy: number;
   tint: string;
   bright: number;
 }
@@ -42,10 +46,8 @@ const ahead = (anywhere: boolean): Star => ({
   x: Math.random() * 2 - 1,
   y: Math.random() * 2 - 1,
   z: anywhere ? NEAR + Math.random() * (1 - NEAR) : 1,
-  sx: NaN,
-  sy: NaN,
   tint: Math.random() < 0.3 ? '205, 235, 255' : '255, 255, 255',
-  bright: 0.45 + Math.random() * 0.55,
+  bright: 0.6 + Math.random() * 0.4,
 });
 
 export default function Starfield({ className }: { className?: string }) {
@@ -56,9 +58,11 @@ export default function Starfield({ className }: { className?: string }) {
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const stars = Array.from({ length: STARS }, () => ahead(true));
+    const stars: Star[] = [];
     let width = 0;
     let height = 0;
+    /* How far the streaks reach: none until the field is moving. */
+    let trail = 0;
 
     const size = () => {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -67,15 +71,18 @@ export default function Starfield({ className }: { className?: string }) {
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      for (const star of stars) star.sx = NaN;
+      const count = Math.round(Math.min(MOST, Math.max(FEWEST, width * height * DENSITY)));
+      while (stars.length < count) stars.push(ahead(true));
+      stars.length = count;
     };
 
     const draw = (advance: number) => {
       const cx = width * AHEAD.x;
       const cy = height * AHEAD.y;
-      /* How far out a star at the far plane sits: the field fills the
-         screen by the time stars are halfway here. */
-      const spread = Math.max(width, height) * 0.32;
+      /* How far out a star at the far plane sits: the field already reaches
+         past the board when stars are far off, and fills the screen as they
+         come in. */
+      const spread = Math.max(width, height) * 0.5;
       ctx.clearRect(0, 0, width, height);
       ctx.lineCap = 'round';
       for (let i = 0; i < stars.length; i++) {
@@ -90,17 +97,17 @@ export default function Starfield({ className }: { className?: string }) {
         }
         /* Far stars are faint and fine, and fade in rather than appearing. */
         const near = 1 - star.z;
-        const alpha = Math.min(1, near * 2.4) * star.bright;
-        const fromX = Number.isNaN(star.sx) ? x : star.sx;
-        const fromY = Number.isNaN(star.sy) ? y : star.sy;
+        const alpha = Math.min(1, 0.15 + near * 2.2) * star.bright;
+        /* The streak: back to where the star was a moment ago. */
+        const back = Math.min(1, star.z + trail * (0.4 + near));
+        const fromX = cx + (star.x / back) * spread;
+        const fromY = cy + (star.y / back) * spread;
         ctx.strokeStyle = `rgba(${star.tint}, ${alpha.toFixed(3)})`;
-        ctx.lineWidth = 0.5 + near * 1.6;
+        ctx.lineWidth = 0.7 + near * 2.1;
         ctx.beginPath();
         ctx.moveTo(fromX, fromY);
         ctx.lineTo(x + 0.01, y + 0.01);
         ctx.stroke();
-        star.sx = x;
-        star.sy = y;
       }
     };
 
@@ -122,7 +129,9 @@ export default function Starfield({ className }: { className?: string }) {
       last = now;
       flown += dt;
       const spool = Math.min(1, flown / SPOOL);
-      draw(SPEED * dt * spool * spool * (3 - 2 * spool));
+      const ease = spool * spool * (3 - 2 * spool);
+      trail = TRAIL * ease;
+      draw(SPEED * dt * ease);
       frame = requestAnimationFrame(tick);
     };
     const visibility = () => {

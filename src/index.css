@@ -3783,8 +3783,8 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 }
 .sa-splash.is-fading { opacity: 0; pointer-events: none; }
 
-/* The stars, flying past (see Starfield.tsx), thinning out above the
-   horizon so the ground's glow stays clear. */
+/* The stars, flying past (see Starfield.tsx), across the whole sky and
+   thinning only into the horizon's glow at the foot. */
 .sa-splash__sky {
   position: absolute;
   inset: 0;
@@ -3792,8 +3792,8 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   width: 100%;
   height: 100%;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 50%, transparent 86%);
-  mask-image: linear-gradient(180deg, #000 0%, #000 50%, transparent 86%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 72%, transparent 100%);
 }
 /* The horizon: a cyan dawn along the foot, and the line itself. */
 .sa-splash::before,
