@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { DEFAULT_WORKER_API } from './src/lib/workerBase';
+import { AUDIUS_HOSTS } from './src/lib/audiusHosts';
 
 /**
  * The page's Content-Security-Policy, as a <meta> tag, because GitHub Pages
@@ -48,6 +49,8 @@ function contentSecurityPolicy(env: Record<string, string>): Plugin {
     'https://authproxy.turnkey.com',
     'https://*.helius-rpc.com',
     'https://lottie.host',
+    // The in-flight radio's track lists and search (src/lib/audius.ts).
+    ...AUDIUS_HOSTS,
   ].filter((o): o is string => Boolean(o)));
   const policy = [
     "default-src 'self'",
@@ -56,7 +59,12 @@ function contentSecurityPolicy(env: Record<string, string>): Plugin {
     "font-src 'self' data: https://fonts.gstatic.com",
     // Adverts come from wherever the Worker stores them; wallet icons are data: URLs; the editor draws to blobs.
     "img-src 'self' data: blob: https:",
-    "media-src 'self' data: blob:",
+    /* The radio's <audio>: a track's stream URL on an Audius host answers
+       with a redirect to whichever content node holds the track, and those
+       are run by many operators on their own domains. Media cannot run
+       script, so any HTTPS source is admitted here rather than a list that
+       would go stale. */
+    "media-src 'self' data: blob: https:",
     `connect-src ${[...connect].join(' ')}`,
     "worker-src 'self' blob:",
     "object-src 'none'",

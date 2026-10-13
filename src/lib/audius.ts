@@ -26,6 +26,8 @@
  * anywhere near this file or any VITE_ variable.
  */
 
+import { AUDIUS_HOSTS } from './audiusHosts';
+
 const env = import.meta.env as Record<string, string | undefined>;
 
 /** How this site introduces itself to Audius. */
@@ -34,12 +36,7 @@ export const APP_NAME = env.VITE_AUDIUS_APP_NAME?.trim() || 'SeatAirlines';
 const DEFAULT_API_KEY = 'd067e3b3d3933a2132191d0053d069c069219d62';
 const API_KEY = env.VITE_AUDIUS_API_KEY?.trim() || DEFAULT_API_KEY;
 
-export const AUDIUS_HOSTS: readonly string[] = [
-  'https://api.audius.co',
-  'https://discoveryprovider.audius.co',
-  'https://discoveryprovider2.audius.co',
-  'https://discoveryprovider3.audius.co',
-];
+export { AUDIUS_HOSTS };
 
 /** How long one host gets to answer before the next is asked. */
 const HOST_TIMEOUT_MS = 6000;
