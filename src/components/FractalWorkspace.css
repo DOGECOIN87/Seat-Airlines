@@ -3,9 +3,9 @@
 /* The bar and the nav sit in 8px from the frame, the workspace's own gap
    (--trellis-gap), so their first item lines up with the panels' edge. */
 .sa-fractal__bar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 8px 16px; overflow-x: auto; }
-.sa-fractal__identity { display: flex; align-items: center; gap: 10px; font: 700 12px monospace; letter-spacing: .12em; white-space: nowrap; }
-.sa-fractal__pulse { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #7fe3f7; box-shadow: 0 0 12px #7fe3f766; flex-shrink: 0; }
 .sa-fractal__tools, .sa-fractal__nav { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+/* The tools keep the right whether or not the radio's chip is there to hold the left. */
+.sa-fractal__tools { margin-left: auto; }
 .sa-fractal__tools button, .sa-fractal__nav button { white-space: nowrap; color: #afc1d3; background: #141f30; border: 1px solid #283b52; border-radius: 7px; padding: 7px 10px; font-size: 11px; cursor: pointer; }
 .sa-fractal__tools button:hover, .sa-fractal__nav button:hover { color: #7fe3f7; border-color: #7fe3f7; }
 .sa-fractal button:focus-visible { outline: 2px solid #7fe3f7; outline-offset: 3px; }
@@ -68,7 +68,6 @@
   .sa-fractal__nav button { min-height: 44px; padding: 8px 4px; justify-content: center; font-size: 11px; }
   .sa-fractal__nav svg { width: 15px; height: 15px; }
   .sa-fractal__caption { margin-left: 0; font-size: 8px; letter-spacing: .08em; }
-  .sa-fractal__identity { gap: 7px; font-size: 11px; }
   .sa-fractal__workspace { height: clamp(420px, 65dvh, 680px) !important; }
   .sa-fractal__status { display: block; padding: 12px 8px; font-size: 8px; line-height: 1.8; }
   .sa-fractal__status > span { display: block; }
@@ -108,7 +107,7 @@
   .sa-fractal [data-trellis-part="tabs"] { scrollbar-width: none; }
 }
 
-/* The radio's chip: what is playing, beside the identity, in the bar's own
+/* The radio's chip: what is playing, at the bar's left, in the bar's own
    button material. It shows only once a track has been picked. */
 .sa-radio-chip { display: flex; align-items: center; gap: 2px; min-width: 0; max-width: 22rem; margin-right: auto; padding: 3px; border: 1px solid #283b52; border-radius: 999px; background: #0f1725; }
 .sa-radio-chip button { display: flex; align-items: center; min-width: 0; border: 0; background: transparent; color: #afc1d3; cursor: pointer; }

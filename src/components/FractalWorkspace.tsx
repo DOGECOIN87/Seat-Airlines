@@ -63,7 +63,6 @@ export default function FractalWorkspace({ aircraft, instruments, wall, radio, a
   return (
     <div className="sa-fractal">
       <div className="sa-fractal__bar">
-        <div className="sa-fractal__identity"><span className="sa-fractal__pulse" /><span>SA350</span></div>
         <RadioChip onOpen={() => open('radio')} />
         <div className="sa-fractal__tools" aria-label="Workspace controls">
           <button type="button" onClick={() => { workspace.current?.navigation.overview(); setFocused(false); }}>Overview</button>
