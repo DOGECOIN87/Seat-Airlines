@@ -1,16 +1,20 @@
 .sa-fractal-root { width: 100%; min-width: 0; }
 .sa-fractal { border: 1px solid #2c4058; border-radius: 16px; padding: 8px; background: #070d16; box-shadow: 0 24px 90px #0005; color: #e8f2fa; }
-/* The bar and the nav sit in 8px from the frame, the workspace's own gap
-   (--trellis-gap), so their first item lines up with the panels' edge. */
-.sa-fractal__bar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 8px 16px; overflow-x: auto; }
-.sa-fractal__tools, .sa-fractal__nav { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-/* The tools keep the right whether or not the radio's chip is there to hold the left. */
-.sa-fractal__tools { margin-left: auto; }
-.sa-fractal__tools button, .sa-fractal__nav button { white-space: nowrap; color: #afc1d3; background: #141f30; border: 1px solid #283b52; border-radius: 7px; padding: 7px 10px; font-size: 11px; cursor: pointer; }
+/* The bar and the strip sit in 8px from the frame, the workspace's own gap
+   (--trellis-gap), so their first item lines up with the panels' edge. The
+   bar holds the radio's chip and is gone while nothing is playing. */
+.sa-fractal__bar { display: flex; align-items: center; padding: 12px 8px 0; }
+.sa-fractal__bar:empty { display: none; }
+/* One row: the panel buttons from the left, the tools at the right, every
+   button the same height on the same line. The rows' 4px top and bottom
+   leave room for a focus ring inside their scrolling. */
+.sa-fractal__strip { display: flex; align-items: center; gap: 16px; padding: 8px 8px 4px; }
+.sa-fractal__tools, .sa-fractal__nav { display: flex; align-items: center; gap: 6px; padding-block: 4px; }
+.sa-fractal__nav { flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.sa-fractal__tools { flex: none; margin-left: auto; }
+.sa-fractal__tools button, .sa-fractal__nav button { display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 32px; white-space: nowrap; color: #afc1d3; background: #141f30; border: 1px solid #283b52; border-radius: 7px; padding: 0 10px; font-size: 11px; line-height: 1; cursor: pointer; }
 .sa-fractal__tools button:hover, .sa-fractal__nav button:hover { color: #7fe3f7; border-color: #7fe3f7; }
 .sa-fractal button:focus-visible { outline: 2px solid #7fe3f7; outline-offset: 3px; }
-.sa-fractal__nav { padding: 0 8px 8px; overflow-x: auto; scrollbar-width: thin; }
-.sa-fractal__nav button { display: flex; align-items: center; gap: 6px; }
 .sa-fractal__nav svg { width: 14px; height: 14px; }
 .sa-fractal__workspace { height: clamp(620px, calc(100dvh - 230px), 1100px); width: 100%; }
 .sa-fractal__scroll { height: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 16px; }
@@ -25,12 +29,10 @@
 .sa-fractal__wall .sa-wall { margin: 0; padding: 0; border: 0; box-shadow: none; background: transparent; }
 .sa-fractal__section h2 { margin: 2px 0 16px; font-size: 24px; line-height: 1.2; white-space: nowrap; }
 .sa-fractal__eyebrow { font: 10px monospace; letter-spacing: .16em; text-transform: uppercase; color: #7fe3f7; }
-.sa-fractal__help { font-size: 12px; line-height: 1.7; color: #b6c9dc; padding: 12px; margin-bottom: 12px; border: 1px solid #283b52; border-radius: 8px; }
+.sa-fractal__help { font-size: 12px; line-height: 1.7; color: #b6c9dc; padding: 12px; margin: 4px 8px 8px; border: 1px solid #283b52; border-radius: 8px; }
 .sa-fractal .trellis-tab { white-space: nowrap; }
 @media (max-width: 639.98px) {
   .sa-fractal { margin-inline: -12px; padding: 5px; border-radius: 12px; }
-  .sa-fractal__bar { flex-direction: column; align-items: flex-start; gap: 12px; padding: 10px 5px; }
-  .sa-fractal__tools { width: 100%; overflow-x: auto; }
   .sa-fractal__workspace { height: max(520px, calc(100dvh - 290px)); }
 }
 /* The adapter supplies an inline 100% height; give its host an explicit viewport height. */
@@ -65,11 +67,12 @@
      than grids of 44px tiles that put a quarter of the screen between the
      bar and the panels. 34px is still well over the 24px a touch target
      needs. The rows' 4px top and bottom leave room for a focus ring. */
-  .sa-fractal__bar { gap: 8px; padding: 8px 8px 0; overflow: visible; }
-  .sa-fractal__tools, .sa-fractal__nav { display: flex; flex-wrap: nowrap; width: 100%; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .sa-fractal__bar { padding: 8px 8px 0; }
+  /* The tools' row first, then the panel buttons'. */
+  .sa-fractal__strip { flex-direction: column; align-items: stretch; gap: 0; padding: 4px 8px 4px; }
+  .sa-fractal__tools { order: -1; margin-left: 0; }
+  .sa-fractal__tools, .sa-fractal__nav { flex-wrap: nowrap; width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
   .sa-fractal__tools::-webkit-scrollbar, .sa-fractal__nav::-webkit-scrollbar { display: none; }
-  .sa-fractal__tools { padding-block: 4px; }
-  .sa-fractal__nav { padding: 4px 8px 8px; }
   .sa-fractal__tools button, .sa-fractal__nav button { flex: 1 0 auto; justify-content: center; min-height: 34px; padding: 0 12px; font-size: 11px; }
   .sa-fractal__nav svg { width: 13px; height: 13px; }
   .sa-fractal .sa-fractal__tools button:focus-visible, .sa-fractal .sa-fractal__nav button:focus-visible { outline-offset: 1px; }

@@ -61,22 +61,24 @@ export default function FractalWorkspace({ aircraft, instruments, wall, radio, a
   const sectionTypes = PANELS.filter(p => seated || p.key === 'wall' || p.key === 'check-in');
   return (
     <div className="sa-fractal">
-      <div className="sa-fractal__bar">
-        <RadioChip onOpen={() => open('radio')} />
+      {/* The radio's chip, on a row of its own while something is playing. */}
+      <div className="sa-fractal__bar"><RadioChip onOpen={() => open('radio')} /></div>
+      {/* The panel buttons, and the workspace's own tools at the same row's end. */}
+      <div className="sa-fractal__strip">
+        <nav className="sa-fractal__nav" aria-label="Flight workspace panels">
+          <button type="button" onClick={() => open('aircraft')}><DeckIcon name="plane" />Aircraft</button>
+          <button type="button" onClick={() => open('instruments')}><DeckIcon name="deck" />Instruments</button>
+          <button type="button" onClick={() => open('adverts')}><DeckIcon name="wall" />On board</button>
+          {sectionTypes.map(p => <button key={p.key} type="button" onClick={() => { open(p.key); onSection(p.key); }}><DeckIcon name={p.icon} />{p.label}</button>)}
+          <button type="button" onClick={() => open('radio')}><DeckIcon name="radio" />Radio</button>
+          <button type="button" onClick={onScores}><DeckIcon name="trophy" />Scores</button>
+        </nav>
         <div className="sa-fractal__tools" aria-label="Workspace controls">
           <button type="button" onClick={() => { workspace.current?.reset(); workspace.current?.navigation.overview(); }}>Reset layout</button>
           <button type="button" aria-expanded={help} aria-controls="sa-fractal-help" onClick={() => setHelp(v => !v)}>How to arrange</button>
         </div>
       </div>
       {help && <div id="sa-fractal-help" className="sa-fractal__help">Drag a tab onto another panel to nest it, or to an edge to split it. Drag dividers to resize. Double-click a tab bar to focus; press Esc to step back out. Your arrangement saves on this device.</div>}
-      <nav className="sa-fractal__nav" aria-label="Flight workspace panels">
-        <button type="button" onClick={() => open('aircraft')}><DeckIcon name="plane" />Aircraft</button>
-        <button type="button" onClick={() => open('instruments')}><DeckIcon name="deck" />Instruments</button>
-        <button type="button" onClick={() => open('adverts')}><DeckIcon name="wall" />On board</button>
-        {sectionTypes.map(p => <button key={p.key} type="button" onClick={() => { open(p.key); onSection(p.key); }}><DeckIcon name={p.icon} />{p.label}</button>)}
-        <button type="button" onClick={() => open('radio')}><DeckIcon name="radio" />Radio</button>
-        <button type="button" onClick={onScores}><DeckIcon name="trophy" />Scores</button>
-      </nav>
       <Workspace
         key={compact ? 'compact' : 'wide'} ref={bind}
         label="Seat Airlines flight workspace" theme="dark" navigation="free"
