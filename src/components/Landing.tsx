@@ -11,7 +11,7 @@ import Flyover from './Flyover';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
 import './Hangar.css';
-import SeatOverview from './SeatOverview';
+import SeatDrawer from './SeatDrawer';
 import { RIDES, RIDE_PASS, flyableRides, passShort, type PlayMode } from '../lib/rides';
 import JetWeapons from './JetWeapons';
 import { BLIMP, fireMissile, type AerialEvents } from '../lib/aerialCombat';
@@ -200,8 +200,6 @@ const SPLASH_HOLD = 900;
 const SPLASH_WAIT = 6000;
 /** Past this it goes whatever the board is doing: a background tab, a board that never started. */
 const SPLASH_GIVE_UP = 15000;
-/** How long the plane flies alone, after the splash, before the seat overview comes in. */
-const OVERVIEW_AFTER = 3000;
 /** The fade onto the landing; `.sa-splash` times its transition to it. */
 const SPLASH_FADE = 800;
 
@@ -459,14 +457,6 @@ export default function Landing({
     sounds.current?.wow.pause();
     onPlayAgain();
   }, [onPlayAgain]);
-  /* The seat overview: once the splash has gone and the plane has had a
-     few seconds of the screen to itself. */
-  const [overview, setOverview] = useState(false);
-  useEffect(() => {
-    if (splash !== 'off' || overview) return;
-    const id = window.setTimeout(() => setOverview(true), OVERVIEW_AFTER);
-    return () => window.clearTimeout(id);
-  }, [splash, overview]);
   const claim = useCallback(() => {
     onClaim();
     leave();
@@ -1051,13 +1041,11 @@ export default function Landing({
     return { state: failure.both ? failure.second ?? 'blast' : 'run' };
   };
   const engines: [EngineState, EngineState] = [engineState(-1), engineState(1)];
-  /** The seat overview is up: the words beside or under it make room. */
-  const showOverview = overview && !inGame && !ridePickerOpen && !scoresOpen;
 
   return (
     <div
       className={`sa-landing${embed ? ' is-embed' : ''} is-${phase}${playMode === 'jet' ? ' is-jet' : ''}${leaving ? ' is-leaving' : ''}${ready ? ' is-ready' : ''}${
-        failure ? ' is-failing' : ''}${blasted ? ' is-blast' : ''}${splash === 'on' ? ' is-splash' : ''}${showOverview ? ' has-ov' : ''}`}
+        failure ? ' is-failing' : ''}${blasted ? ' is-blast' : ''}${splash === 'on' ? ' is-splash' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={letGo}
@@ -1142,9 +1130,6 @@ export default function Landing({
             </p>
           )}
         </main>
-        {showOverview && (
-          <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
-        )}
         {/* Every button, in one bar along the foot of the screen: the way in,
             Connect & fly, Scores and the sound across its width, and
             under them the team's interest on the left and the links out on
@@ -1207,6 +1192,10 @@ export default function Landing({
           </div>
         </div>
         </div>
+      )}
+      {/* The seat chart, in a drawer the tab on the right edge opens. */}
+      {splash === 'off' && !inGame && !ridePickerOpen && !embed && (
+        <SeatDrawer manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
       )}
       {ridePickerOpen && !inGame && (
         <div ref={rideDialogRef} className="sa-ride-modal" role="dialog" aria-modal="true" aria-label="Choose your ride" tabIndex={-1}>

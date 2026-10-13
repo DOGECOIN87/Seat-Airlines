@@ -6231,10 +6231,6 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 /* A short phone: while the seat overview is up, the line under the title
    and the hint under the buttons give it the room, so it never sits over
    the words; shorter still, the overview's own counts go too. */
-@media (max-width: 1023.98px) and (max-height: 820px) {
-  .sa-landing.has-ov .sa-landing__lead,
-  .sa-landing.has-ov .sa-landing__hint { display: none; }
-}
 @media (max-width: 1023.98px) and (max-height: 700px) {
   .sa-ov__head { display: none; }
   .sa-ov__plane { margin-top: 0; }
