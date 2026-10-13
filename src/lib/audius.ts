@@ -17,17 +17,22 @@
  * costs a single timeout per session rather than one per channel change.
  *
  * ── Identifying the app ──────────────────────────────────────────────────
- * Every request carries `app_name`, which is how Audius tells apps apart.
- * An API key from Audius can be added as well (`VITE_AUDIUS_API_KEY`); that
- * key is meant for browser code and is not a secret. The bearer token Audius
- * issues alongside it is, and has no business anywhere near this file.
+ * Every request carries `app_name` and Seat Airlines' API key, which is how
+ * Audius tells apps apart and meters them. The key is Audius's public app
+ * identifier, issued for browser code — like the Worker's address in
+ * workerBase.ts, it is in the bundle either way, so it has a default here and
+ * a fork overrides it with `VITE_AUDIUS_API_KEY`. The secret and the bearer
+ * token Audius issues alongside it are private, and have no business
+ * anywhere near this file or any VITE_ variable.
  */
 
 const env = import.meta.env as Record<string, string | undefined>;
 
 /** How this site introduces itself to Audius. */
 export const APP_NAME = env.VITE_AUDIUS_APP_NAME?.trim() || 'SeatAirlines';
-const API_KEY = env.VITE_AUDIUS_API_KEY?.trim() || '';
+/** Seat Airlines' app on Audius ("Seat Airlines", registered by @mattrickbeats). */
+const DEFAULT_API_KEY = 'd067e3b3d3933a2132191d0053d069c069219d62';
+const API_KEY = env.VITE_AUDIUS_API_KEY?.trim() || DEFAULT_API_KEY;
 
 export const AUDIUS_HOSTS: readonly string[] = [
   'https://api.audius.co',

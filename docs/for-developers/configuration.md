@@ -24,7 +24,7 @@ Everything is optional — a build with none of them set flies the committed tok
 | `VITE_DOCS_URL` | these docs, published on GitBook | Where the footer's **Docs on GitBook** link goes. Set it only if the site's address changes — the committed default in `src/lib/docs.ts` is the published site. |
 | `VITE_RPC_URL_PUBLIC` | none | An intentionally public, unkeyed Solana RPC the **browser** may call as a fallback. Never put an API key, token, secret, or credential query parameter in it; CI rejects those values. |
 | `VITE_AUDIUS_APP_NAME` | `SeatAirlines` | How the in-flight radio introduces itself to Audius, as `app_name` on every request. |
-| `VITE_AUDIUS_API_KEY` | none | An Audius API key, if you register one. Audius issues it for browser code and it is not a secret — the one exception to the rule above. The **bearer token** Audius issues with it is a secret and must never go in a `VITE_` variable. |
+| `VITE_AUDIUS_API_KEY` | Seat Airlines' registered key, in `src/lib/audius.ts` | Your own Audius app's API key, for a fork. Audius issues it for browser code and it is not a secret — the one exception to the rule above. The **API secret** and **bearer token** Audius issues with it are secrets and must never go in a `VITE_` variable or the repository. |
 
 A blank variable counts as unset, so passing an empty repository variable through the deploy workflow is harmless.
 

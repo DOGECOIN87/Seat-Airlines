@@ -81,6 +81,7 @@ await checkAsync('every request names the app; a channel asks for its genre, a s
   assert(chart.pathname === '/v1/tracks/trending', chart.pathname);
   assert(chart.searchParams.get('genre') === 'Hip-Hop/Rap', chart.search);
   assert(chart.searchParams.get('app_name'), 'no app_name');
+  assert(chart.searchParams.get('api_key'), 'no api_key');
   assert(chart.searchParams.get('limit') === String(LIST_SIZE * 2), chart.search);
   assert(search.pathname === '/v1/tracks/search' && search.searchParams.get('query') === 'lofi beats', search.href);
   assert(!new URL(audiusUrl(AUDIUS_HOSTS[0], '/tracks/trending')).searchParams.has('genre'), 'the whole chart sent a genre');
