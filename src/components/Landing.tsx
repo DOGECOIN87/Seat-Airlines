@@ -17,8 +17,8 @@ import JetWeapons from './JetWeapons';
 import { BLIMP, fireMissile, type AerialEvents } from '../lib/aerialCombat';
 import type { Manifest } from '../lib/manifest';
 import type { BannerSet } from '../lib/banners';
-import { DEXSCREENER_URL, LOCK_URL, partnerLogo } from '../lib/social';
-import { GOLDEN_TICKER, boostStrength } from '../lib/dexBoost';
+import { LOCK_URL } from '../lib/social';
+import { boostStrength } from '../lib/dexBoost';
 import { SPLASH_BETWEEN, SPLASH_FIRST, SPLASH_LAST } from '../content/cabin';
 import type { FlightFeed } from '../lib/flightFeed';
 import { formatCap, type BandState } from '../lib/flightModel';
@@ -1146,7 +1146,7 @@ export default function Landing({
           <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
         )}
         {/* Every button, in one bar along the foot of the screen: the way in,
-            Connect & fly, Boost, Scores and the sound across its width, and
+            Connect & fly, Scores and the sound across its width, and
             under them the team's interest on the left and the links out on
             the right. */}
         <div className="sa-landing__dock">
@@ -1165,21 +1165,6 @@ export default function Landing({
             )}
             </div>
             <div className="sa-landing__utility-actions">
-            {/* Boost the token on DexScreener — its page, where the Boost
-                button is. While a boost runs, the plane behind is on
-                afterburner, so this says so. */}
-            <a
-              href={DEXSCREENER_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`sa-pilots sa-pilots--boost${boosts > 0 ? ' is-on' : ''}${boosts >= GOLDEN_TICKER ? ' is-golden' : ''}`}
-              title={boosts > 0
-                ? `${boosts.toLocaleString('en-US')} Boosts running on DexScreener, which sells them as paid promotion. More burn harder.`
-                : 'A Boost is paid promotion on DexScreener (its yellow Boost button); while one runs, the plane goes on afterburner'}
-            >
-              <img src={partnerLogo('dexscreener.png')} alt="" aria-hidden className="sa-pilots__icon sa-partner-mark" />
-              {boosts > 0 ? <>Boosted <span className="sa-pilots__count">×{boosts.toLocaleString('en-US')}</span></> : 'Boost'}
-            </a>
             {/* The board, on the same row as the way in and the controls but
                 apart from them at its far end: the one thing here that is not
                 a way forward. */}
@@ -1211,7 +1196,7 @@ export default function Landing({
             </div>
           </div>
           <div className="sa-landing__dock-foot">
-            {/* The team's interest, right under Boost and on the first screen
+            {/* The team's interest, right under the buttons and on the first screen
                 anybody sees: the token is one tap from here, so the line is too. */}
             <p className="sa-landing__disclose">
               <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" aria-label="Team tokens locked on Jupiter Lock">Team Tokens Locked</a>

@@ -133,9 +133,9 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   margin-top: 0.25rem;
 }
 /* The landing's buttons: two rows on one pair of columns, so every edge
-   lines up. The way in and Connect & fly halve the top row; Boost sits
-   under the way in, and Scores and the sound share the half under Connect
-   & fly — the gap between them is the gap above. */
+   lines up. The way in and Connect & fly halve the top row, and Scores
+   and the sound share the row under it — the gap between them is the gap
+   above. */
 .sa-landing__actions { --action-gap: 0.625rem; }
 .sa-landing__actions > :is(.sa-landing__primary-actions, .sa-landing__utility-actions) {
   display: grid;
@@ -148,10 +148,10 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
 /* No 3D, so no Connect & fly: the way in takes the row. */
 .sa-landing__primary-actions > :only-child { grid-column: 1 / -1; }
 .sa-landing__utility-actions {
-  grid-template-columns: calc((100% - var(--action-gap)) / 2) minmax(0, 1fr) var(--control-size);
+  grid-template-columns: minmax(0, 1fr) var(--control-size);
 }
 .sa-landing__utility-actions:not(:has(.sa-pilots--scores)) {
-  grid-template-columns: calc((100% - var(--action-gap)) / 2) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 /* Too narrow to halve the way in's words: the top row stacks, and the row
    under it keeps its own proportions. */
@@ -219,12 +219,11 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   overflow: hidden;
   clip-path: inset(50%);
 }
-.sa-pilots__count { min-width: 0; max-width: 8ch; overflow: hidden; text-overflow: ellipsis; }
 .sa-landing__fly-icon { flex: none; }
 /* ── The bar along the foot ─────────────────────────────────────────
    Every button in one place, across the whole width under the headline
-   and the overview: the five actions in a row — the way in and Connect &
-   fly halving its left half, Boost, Scores and the sound its right — and
+   and the overview: the four actions in a row — the way in and Connect &
+   fly two thirds of it, Scores and the sound the last third — and
    under them the team's interest on the left and the links out on the
    right. Glass over the scene, so the set reads as one bar. */
 .sa-landing__lobby .sa-landing__dock {
@@ -251,7 +250,7 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
 }
 .sa-landing.is-splash .sa-landing__dock { animation-play-state: paused; }
 .sa-landing__lobby .sa-landing__dock .sa-landing__actions {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: var(--action-gap);
   width: 100%;
   max-width: none;
@@ -273,8 +272,8 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
 .sa-landing__dock .sa-landing__social .sa-docs__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .sa-landing__dock .sa-landing__social .sa-docs__mark { display: block; width: 1.15rem; height: 1.15rem; inline-size: 1.15rem; block-size: 1.15rem; }
 .sa-landing__lobby .sa-landing__social .sa-social__chip { min-height: var(--control-size); }
-/* Short of room for five across: the way in and Connect & fly take a row,
-   Boost, Scores and the sound the row under it. */
+/* Short of room for four across: the way in and Connect & fly take a row,
+   Scores and the sound the row under it. */
 @media (max-width: 1199.98px) {
   .sa-landing__lobby .sa-landing__dock .sa-landing__actions { grid-template-columns: minmax(0, 1fr); }
 }
@@ -293,8 +292,8 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   .sa-landing__lobby .sa-landing__dock { grid-row: 3; background: rgba(8, 12, 22, 0.66); }
 }
 /* A phone: the bar held to the foot takes as little of the screen as it
-   can. The way in and Connect & fly keep their words, a row each; Boost,
-   Scores and the sound go to their icons and share the next row with the
+   can. The way in and Connect & fly keep their words, a row each; Scores
+   and the sound go to their icons and share the next row with the
    links out, and the team's interest is centred under them. */
 @media (max-width: 639.98px) {
   .sa-landing__lobby .sa-landing__dock {
@@ -309,7 +308,7 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   .sa-landing__dock .sa-landing__dock-foot { display: contents; }
   .sa-landing__dock .sa-landing__primary-actions { grid-area: primary; gap: 0.5rem; }
   .sa-landing__dock .sa-landing__actions :is(.sa-landing__enter, .sa-landing__fly) { min-height: var(--control-size); padding-block: 0.4rem; }
-  .sa-landing__lobby .sa-landing__dock .sa-landing__utility-actions { grid-area: utility; grid-template-columns: repeat(3, var(--icon)); gap: 0.4rem; }
+  .sa-landing__lobby .sa-landing__dock .sa-landing__utility-actions { grid-area: utility; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: var(--icon); gap: 0.4rem; }
   .sa-landing__lobby .sa-landing__dock .sa-social.sa-landing__social { grid-area: social; justify-self: end; grid-template-columns: repeat(4, var(--icon)); gap: 0.4rem; margin: 0; }
   .sa-landing__dock .sa-landing__utility-actions .sa-pilots,
   .sa-landing__dock .sa-landing__social .sa-social__chip { width: var(--icon); min-width: var(--icon); height: var(--icon); min-height: var(--icon); padding: 0; gap: 0; border-radius: 50%; }
