@@ -94,7 +94,7 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   flex: 1 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
-  grid-template-rows: 1fr;
+  grid-template-rows: 1fr auto;
   align-items: end;
   gap: clamp(1rem, 3vw, 3rem);
   width: 100%;
@@ -221,27 +221,105 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
 }
 .sa-pilots__count { min-width: 0; max-width: 8ch; overflow: hidden; text-overflow: ellipsis; }
 .sa-landing__fly-icon { flex: none; }
-/* The socials: the button block's third row, four equal parts across the
-   same two columns' edges, the rows' own gap above and between them. */
-.sa-landing__lobby .sa-social.sa-landing__social {
-  width: 100%;
-  margin-top: calc(var(--action-gap, 0.625rem) - 1rem);
-  padding: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+/* ── The bar along the foot ─────────────────────────────────────────
+   Every button in one place, across the whole width under the headline
+   and the overview: the five actions in a row — the way in and Connect &
+   fly halving its left half, Boost, Scores and the sound its right — and
+   under them the team's interest on the left and the links out on the
+   right. Glass over the scene, so the set reads as one bar. */
+.sa-landing__lobby .sa-landing__dock {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
   gap: 0.625rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.75rem;
+  border-radius: var(--r-xl);
+  background: rgba(8, 12, 22, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 18px 44px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  animation: sa-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Held to the foot of the screen: where the overview and the words above
+     need more than the screen's height (a phone, once the seat map is in),
+     they scroll behind the bar rather than pushing it off the bottom. */
+  position: sticky;
+  bottom: max(1rem, var(--safe-bottom));
+  z-index: 3;
 }
+.sa-landing.is-splash .sa-landing__dock { animation-play-state: paused; }
+.sa-landing__lobby .sa-landing__dock .sa-landing__actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--action-gap);
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+.sa-landing__dock .sa-landing__utility-actions .sa-pilots { min-height: var(--action-size); }
+.sa-landing__dock-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1.25rem; min-width: 0; }
+.sa-landing__lobby .sa-landing__dock .sa-landing__disclose { width: auto; max-width: none; margin: 0; text-align: left; }
+/* The links out as their marks, in round buttons: each still names where
+   it goes, to a screen reader and in its tooltip. */
+.sa-landing__lobby .sa-landing__dock .sa-social.sa-landing__social {
+  width: auto;
+  margin: 0 0 0 auto;
+  padding: 0;
+  grid-template-columns: repeat(4, var(--control-size));
+  gap: 0.5rem;
+}
+.sa-landing__dock .sa-landing__social .sa-social__chip { width: var(--control-size); min-width: var(--control-size); padding: 0; gap: 0; border-radius: 50%; }
+.sa-landing__dock .sa-landing__social .sa-docs__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.sa-landing__dock .sa-landing__social .sa-docs__mark { display: block; width: 1.15rem; height: 1.15rem; inline-size: 1.15rem; block-size: 1.15rem; }
 .sa-landing__lobby .sa-landing__social .sa-social__chip { min-height: var(--control-size); }
+/* Short of room for five across: the way in and Connect & fly take a row,
+   Boost, Scores and the sound the row under it. */
+@media (max-width: 1199.98px) {
+  .sa-landing__lobby .sa-landing__dock .sa-landing__actions { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .sa-landing__dock { animation: none; } }
 
 @media (max-width: 1023.98px) {
   .sa-landing__lobby {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto 1fr auto;
     padding-top: clamp(1rem, 6svh, 4rem);
     row-gap: 1.5rem;
   }
   .sa-landing__lobby .sa-landing__hero { grid-row: 2; max-width: 42rem; justify-self: center; }
   .sa-landing__lobby .sa-ov { grid-column: 1; grid-row: 1; max-width: 34rem; justify-self: center; }
+  /* Thicker glass, for when the words scroll behind it. */
+  .sa-landing__lobby .sa-landing__dock { grid-row: 3; background: rgba(8, 12, 22, 0.66); }
 }
+/* A phone: the bar held to the foot takes as little of the screen as it
+   can. The way in and Connect & fly keep their words, a row each; Boost,
+   Scores and the sound go to their icons and share the next row with the
+   links out, and the team's interest is centred under them. */
+@media (max-width: 639.98px) {
+  .sa-landing__lobby .sa-landing__dock {
+    --icon: 2.5rem;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: 'primary primary' 'utility social' 'disclose disclose';
+    gap: 0.5rem;
+    padding: 0.55rem;
+    border-radius: var(--r-lg);
+  }
+  .sa-landing__lobby .sa-landing__dock .sa-landing__actions,
+  .sa-landing__dock .sa-landing__dock-foot { display: contents; }
+  .sa-landing__dock .sa-landing__primary-actions { grid-area: primary; gap: 0.5rem; }
+  .sa-landing__dock .sa-landing__actions :is(.sa-landing__enter, .sa-landing__fly) { min-height: var(--control-size); padding-block: 0.4rem; }
+  .sa-landing__lobby .sa-landing__dock .sa-landing__utility-actions { grid-area: utility; grid-template-columns: repeat(3, var(--icon)); gap: 0.4rem; }
+  .sa-landing__lobby .sa-landing__dock .sa-social.sa-landing__social { grid-area: social; justify-self: end; grid-template-columns: repeat(4, var(--icon)); gap: 0.4rem; margin: 0; }
+  .sa-landing__dock .sa-landing__utility-actions .sa-pilots,
+  .sa-landing__dock .sa-landing__social .sa-social__chip { width: var(--icon); min-width: var(--icon); height: var(--icon); min-height: var(--icon); padding: 0; gap: 0; border-radius: 50%; }
+  /* The words go, the icon stays: the button still carries its name. */
+  .sa-landing__dock .sa-landing__utility-actions .sa-pilots { font-size: 0; letter-spacing: 0; aspect-ratio: 1; }
+  .sa-landing__dock .sa-landing__utility-actions .sa-pilots__icon { width: 1.15rem; height: 1.15rem; }
+  .sa-landing__lobby .sa-landing__dock .sa-landing__disclose { grid-area: disclose; text-align: center; }
+}
+@media (max-width: 374.98px) { .sa-landing__lobby .sa-landing__dock { --icon: 2.3rem; } }
+@media (max-width: 339.98px) { .sa-landing__lobby .sa-landing__dock { --icon: 2.05rem; } }
 @media (max-width: 359.98px) {
   .sa-landing.is-idle .sa-landing__top { column-gap: 0.5rem; }
   .sa-landing.is-idle .sa-landing__brand .sa-wordmark__name { font-size: clamp(0.75rem, 4.3vw, 0.95rem); letter-spacing: 0.04em; }

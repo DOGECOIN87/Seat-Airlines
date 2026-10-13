@@ -1134,6 +1134,22 @@ export default function Landing({
               ? 'Experimental saucer mode is armed. Chase the horizon, dodge the ground, and push for Mars.'
               : 'The biggest holders sit up front, and every seat is a billboard.'}
           </p>
+          {!failed && (
+            <p className="sa-landing__hint">
+              {!ready
+                ? 'Warming up…'
+                : !wallet.address ? 'Solana wallet required' : playMode === 'ufo' ? (touch ? 'Drag to steer · tap Drive' : 'WASD to steer · F drive mode') : touch ? 'Drag to fly · tap flaps' : 'WASD / left stick to fly · F flaps'}
+            </p>
+          )}
+        </main>
+        {showOverview && (
+          <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
+        )}
+        {/* Every button, in one bar along the foot of the screen: the way in,
+            Connect & fly, Boost, Scores and the sound across its width, and
+            under them the team's interest on the left and the links out on
+            the right. */}
+        <div className="sa-landing__dock">
           <div className="sa-landing__actions">
             <div className="sa-landing__primary-actions">
             <button type="button" onClick={leave} className="sa-landing__enter">
@@ -1194,27 +1210,17 @@ export default function Landing({
             </button>
             </div>
           </div>
-          {/* The way out — X, Telegram, the chart and the lock — as the block's
-              third row, on the same columns' edges as the buttons above. */}
-          <SocialLinks night className="sa-landing__social" />
-          {/* The team's interest, right under Boost and on the first screen
-              anybody sees: the token is one tap from here, so the line is too. */}
-          <p className="sa-landing__disclose">
-            <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" aria-label="Team tokens locked on Jupiter Lock">Team Tokens Locked</a>
-            <span aria-hidden> · </span>
-            <button type="button" className="sa-landing__notice" onClick={() => window.dispatchEvent(new Event(DISCLAIMER_EVENT))}>Disclaimer</button>
-          </p>
-          {!failed && (
-            <p className="sa-landing__hint">
-              {!ready
-                ? 'Warming up…'
-                : !wallet.address ? 'Solana wallet required' : playMode === 'ufo' ? (touch ? 'Drag to steer · tap Drive' : 'WASD to steer · F drive mode') : touch ? 'Drag to fly · tap flaps' : 'WASD / left stick to fly · F flaps'}
+          <div className="sa-landing__dock-foot">
+            {/* The team's interest, right under Boost and on the first screen
+                anybody sees: the token is one tap from here, so the line is too. */}
+            <p className="sa-landing__disclose">
+              <a href={LOCK_URL} target="_blank" rel="noopener noreferrer" aria-label="Team tokens locked on Jupiter Lock">Team Tokens Locked</a>
+              <span aria-hidden> · </span>
+              <button type="button" className="sa-landing__notice" onClick={() => window.dispatchEvent(new Event(DISCLAIMER_EVENT))}>Disclaimer</button>
             </p>
-          )}
-        </main>
-        {showOverview && (
-          <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
-        )}
+            <SocialLinks night className="sa-landing__social" />
+          </div>
+        </div>
         </div>
       )}
       {ridePickerOpen && !inGame && (
