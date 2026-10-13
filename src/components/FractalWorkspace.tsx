@@ -4,7 +4,6 @@ import '@danfessler/trellis/style.css';
 import './FractalWorkspace.css';
 import { PANELS, SHEET_QUERY, type PanelKey } from './SectionPanels';
 import { DeckIcon } from './InstrumentDeck';
-import RadioChip from './RadioChip';
 
 interface Props {
   aircraft: ReactNode;
@@ -61,8 +60,6 @@ export default function FractalWorkspace({ aircraft, instruments, wall, radio, a
   const sectionTypes = PANELS.filter(p => seated || p.key === 'wall' || p.key === 'check-in');
   return (
     <div className="sa-fractal">
-      {/* The radio's chip, on a row of its own while something is playing. */}
-      <div className="sa-fractal__bar"><RadioChip onOpen={() => open('radio')} /></div>
       {/* The panel buttons, and the workspace's own tools at the same row's end. */}
       <div className="sa-fractal__strip">
         <nav className="sa-fractal__nav" aria-label="Flight workspace panels">

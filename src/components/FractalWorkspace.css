@@ -1,10 +1,7 @@
 .sa-fractal-root { width: 100%; min-width: 0; }
 .sa-fractal { border: 1px solid #2c4058; border-radius: 16px; padding: 8px; background: #070d16; box-shadow: 0 24px 90px #0005; color: #e8f2fa; }
-/* The bar and the strip sit in 8px from the frame, the workspace's own gap
-   (--trellis-gap), so their first item lines up with the panels' edge. The
-   bar holds the radio's chip and is gone while nothing is playing. */
-.sa-fractal__bar { display: flex; align-items: center; padding: 12px 8px 0; }
-.sa-fractal__bar:empty { display: none; }
+/* The strip sits in 8px from the frame, the workspace's own gap
+   (--trellis-gap), so its first button lines up with the panels' edge. */
 /* One row: the panel buttons from the left, the tools at the right, every
    button the same height on the same line. The rows' 4px top and bottom
    leave room for a focus ring inside their scrolling. */
@@ -67,7 +64,6 @@
      than grids of 44px tiles that put a quarter of the screen between the
      bar and the panels. 34px is still well over the 24px a touch target
      needs. The rows' 4px top and bottom leave room for a focus ring. */
-  .sa-fractal__bar { padding: 8px 8px 0; }
   /* The tools' row first, then the panel buttons'. */
   .sa-fractal__strip { flex-direction: column; align-items: stretch; gap: 0; padding: 4px 8px 4px; }
   .sa-fractal__tools { order: -1; margin-left: 0; }
@@ -114,19 +110,4 @@
   .sa-fractal [data-trellis-part="tab"] { flex: none; max-width: none; }
   .sa-fractal [data-trellis-part="tab-title"] { overflow: visible; text-overflow: clip; }
   .sa-fractal [data-trellis-part="tabs"] { scrollbar-width: none; }
-}
-
-/* The radio's chip: what is playing, at the bar's left, in the bar's own
-   button material. It shows only once a track has been picked. */
-.sa-radio-chip { display: flex; align-items: center; gap: 2px; min-width: 0; max-width: 22rem; margin-right: auto; padding: 3px; border: 1px solid #283b52; border-radius: 999px; background: #0f1725; }
-.sa-radio-chip button { display: flex; align-items: center; min-width: 0; border: 0; background: transparent; color: #afc1d3; cursor: pointer; }
-.sa-radio-chip > button:first-child { flex: none; justify-content: center; width: 28px; height: 28px; border-radius: 999px; background: linear-gradient(160deg, #007ACC, #005FB8); color: #fff; box-shadow: 0 3px 10px rgba(0, 105, 194, 0.4); }
-.sa-radio-chip > button:first-child svg { width: 13px; height: 13px; fill: currentColor; }
-.sa-radio-chip__now { gap: 8px; padding: 0 12px 0 8px; font-size: 11px; white-space: nowrap; }
-.sa-radio-chip__title { overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: #e8f2fa; }
-.sa-radio-chip__artist { overflow: hidden; text-overflow: ellipsis; color: #95a9be; }
-.sa-radio-chip__now:hover .sa-radio-chip__title { color: #7fe3f7; }
-@media (max-width: 639.98px) {
-  .sa-radio-chip { width: 100%; max-width: none; margin-right: 0; }
-  .sa-radio-chip > button:first-child { width: 36px; height: 36px; }
 }
