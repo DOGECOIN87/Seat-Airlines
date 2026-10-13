@@ -29,7 +29,8 @@ export type DeckIconName =
   | 'plane' | 'deck' | 'first' | 'business' | 'exit' | 'economy' | 'hold'
   | 'belt' | 'cup' | 'mask' | 'brace'
   | 'wall' | 'network' | 'chat' | 'pass' | 'trophy'
-  | 'reset' | 'expand' | 'shrink' | 'sound' | 'mute';
+  | 'reset' | 'expand' | 'shrink' | 'sound' | 'mute'
+  | 'radio' | 'play' | 'pause' | 'next' | 'previous';
 
 const ICON_PATHS: Record<DeckIconName, string[]> = {
   plane: ['M12 2.6c.9 0 1.5.9 1.5 2.2V10l7.3 4.1v2.1l-7.3-2.2v4.5l2.1 1.6v1.6L12 21l-3.6.7v-1.6l2.1-1.6V14l-7.3 2.2v-2.1L10.5 10V4.8c0-1.3.6-2.2 1.5-2.2z'],
@@ -55,6 +56,12 @@ const ICON_PATHS: Record<DeckIconName, string[]> = {
   shrink: ['M8.5 4v3A1.5 1.5 0 0 1 7 8.5H4', 'M20 8.5h-3a1.5 1.5 0 0 1-1.5-1.5V4', 'M4 15.5h3a1.5 1.5 0 0 1 1.5 1.5v3', 'M15.5 20v-3a1.5 1.5 0 0 1 1.5-1.5h3'],
   sound: ['M11 5.5 6.8 9H4v6h2.8l4.2 3.5z', 'M15.2 9.4a4 4 0 0 1 0 5.2', 'M17.9 6.8a7.7 7.7 0 0 1 0 10.4'],
   mute: ['M11 5.5 6.8 9H4v6h2.8l4.2 3.5z', 'M15.5 9.5l5 5', 'M20.5 9.5l-5 5'],
+  // The in-flight radio: its tab, and its transport.
+  radio: ['M9 17.5V6l10.5-2v11.5', 'M9 17.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z', 'M19.5 15.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z', 'M9 9.5l10.5-2'],
+  play: ['M8 5.5v13l10.5-6.5z'],
+  pause: ['M8.5 5.5v13', 'M15.5 5.5v13'],
+  next: ['M5.5 6l8.5 6-8.5 6z', 'M18.5 6v12'],
+  previous: ['M18.5 6 10 12l8.5 6z', 'M5.5 6v12'],
 };
 
 export const DeckIcon = ({ name, className }: { name: DeckIconName; className?: string }) => (

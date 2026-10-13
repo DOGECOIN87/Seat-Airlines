@@ -20,6 +20,7 @@ import { postToX, xLink } from './xPost';
 const W = 1200;
 const H = 630;
 const SANS = 'Montserrat, ui-sans-serif, system-ui, sans-serif';
+const DISPLAY = "'Bruno Ace SC', Montserrat, ui-sans-serif, system-ui, sans-serif";
 const MONO = "'IBM Plex Mono', ui-monospace, monospace";
 
 export interface SeatShare {
@@ -107,7 +108,7 @@ export async function composeSeatCard(o: Omit<SeatShare, 'sign'>): Promise<Blob 
   g.textBaseline = 'alphabetic';
   if (logo) g.drawImage(logo, tx, 70, 56, 56);
   g.fillStyle = '#fff';
-  g.font = `800 30px ${SANS}`;
+  g.font = `400 28px ${DISPLAY}`;
   g.fillText('SEAT AIRLINES', tx + (logo ? 72 : 0), 108);
 
   g.fillStyle = '#7FE3F7';

@@ -31,6 +31,12 @@
      quite related to anything else. */
   --phi: 1.618;
 
+  /* The display face: Bruno Ace SC, for the airline's name and nothing
+     else. Wide, flat-sided capitals, the way a cockpit panel and a livery
+     are lettered. The headlines stay in Montserrat's heaviest weight, the
+     body and buttons in Montserrat, and the figures in Plex Mono. */
+  --font-display: 'Bruno Ace SC', Montserrat, ui-sans-serif, system-ui, sans-serif;
+
   /* Type: 15px body, stepped by φ and by √φ. */
   --t-xs: 0.6875rem;   /* 11px   — floor: units, micro labels (was 9.3px, below legible) */
   --t-sm: 0.737rem;     /* 11.8px — captions, legends */
@@ -246,36 +252,38 @@ html {
 .sa-topbar dl { scrollbar-gutter: stable both-edges; }
 
 /* ── The wordmark ──────────────────────────────────────────────
-   The mark and the name on one line: Montserrat's heaviest
-   capitals at half the mark's height (its capitals are 0.7 of its
-   size), trimmed to the capitals so they centre on the mark. Every
-   place that shows it sets only `--mark`, and the rest follows. */
+   The mark and the name on one line: the display face's capitals at
+   about a third of the mark's height, tracked out the way an airline
+   sets its name, and trimmed to the capitals so they centre on the
+   mark. The badge leads and the name follows; set larger, the name had
+   been the louder of the two, and the badge read as a bullet beside it.
+   Every place that shows it sets only `--mark`, and the rest follows. */
 .sa-wordmark {
-  --mark: 34px;
+  --mark: 40px;
   display: inline-flex;
   align-items: center;
-  gap: calc(var(--mark) * 0.32);
+  gap: calc(var(--mark) * 0.3);
   white-space: nowrap;
 }
 .sa-wordmark__mark { width: var(--mark); height: var(--mark); flex: none; }
 .sa-wordmark__name {
-  font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
-  font-size: calc(var(--mark) * 0.714);
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: calc(var(--mark) * 0.5);
+  font-weight: 400;
   line-height: 1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   text-box: trim-both cap alphabetic;
 }
 @supports not (text-box: trim-both cap alphabetic) {
   .sa-wordmark__name { line-height: 0.74; }
 }
-/* The gate sign's: at 36px on a tablet and a desk; on a phone it shares
+/* The gate sign's: at 42px on a tablet and a desk; on a phone it shares
    its row with Claim a seat, so a size down, and on the narrowest (under
    360px) the mark alone — the name out of sight but still the link's
    name for a screen reader. */
-.sa-topbar .sa-wordmark { --mark: 36px; }
-@media (max-width: 639.98px) { .sa-topbar .sa-wordmark { --mark: 22px; } }
+.sa-topbar .sa-wordmark { --mark: 42px; }
+@media (max-width: 639.98px) { .sa-topbar .sa-wordmark { --mark: 26px; } }
 @media (max-width: 359.98px) {
   .sa-topbar .sa-wordmark__name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
@@ -2382,15 +2390,13 @@ textarea {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.6); }
   50% { box-shadow: 0 0 0 5px rgba(255, 140, 0, 0), 0 0 16px rgba(255, 140, 0, 0.8); }
 }
-/* The landing's Boost: the flame lit orange, and burning while a boost runs. */
-.sa-pilots__flame { fill: currentColor; color: #FF8A1F; }
+/* The landing's Boost: burning while a boost runs. */
 .sa-pilots--boost.is-on {
   background: linear-gradient(100deg, rgba(255, 184, 0, 0.9), rgba(255, 106, 0, 0.9));
   color: #1A0E00;
   box-shadow: none;
   animation: sa-boost-glow 1.4s ease-in-out infinite;
 }
-.sa-pilots--boost.is-on .sa-pilots__flame { color: #fff; }
 .sa-pilots__count { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; opacity: 0.85; }
 /* 500 Boosts and up: DexScreener's Golden Ticker, so the button goes gold, with a shine. */
 .sa-pilots--boost.is-golden,
@@ -2983,7 +2989,7 @@ p { text-wrap-style: pretty; }
   border-radius: var(--r-sm);
 }
 .sa-footer__brand:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
-.sa-footer__brand .sa-wordmark { --mark: 28px; color: var(--ui-ink); }
+.sa-footer__brand .sa-wordmark { --mark: 32px; color: var(--ui-ink); }
 .sa-footer__line {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 11px;
@@ -2993,8 +2999,8 @@ p { text-wrap-style: pretty; }
   color: var(--ui-faint);
 }
 .sa-footer__legal { display: flex; gap: 1rem; font-size: var(--t-sm); }
-.sa-footer__legal a { color: var(--ui-faint); text-decoration: none; min-height: 2.75rem; display: inline-flex; align-items: center; }
-.sa-footer__legal a:hover { color: var(--ui-ink); text-decoration: underline; }
+.sa-footer__legal :is(a, button) { color: var(--ui-faint); text-decoration: none; min-height: 2.75rem; display: inline-flex; align-items: center; font: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.sa-footer__legal :is(a, button):hover { color: var(--ui-ink); text-decoration: underline; }
 .sa-footer .sa-docs { min-height: 2.5rem; padding-block: 0.45rem; font-size: var(--t-sm); }
 @media (max-width: 1023.98px) {
   .sa-footer__line { flex-basis: 100%; }
@@ -3611,7 +3617,7 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   min-width: 0;
 }
 .sa-landing__brand {
-  --mark: 40px;
+  --mark: 46px;
   grid-area: brand;
   color: #fff;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
@@ -3670,13 +3676,15 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   text-transform: uppercase;
   text-shadow: 0 6px 34px rgba(0, 0, 0, 0.45);
 }
-/* The line's second half a size down, as on the link card: the plane is
-   the headline, everyone in it the line under it. One line at any width,
-   so it never leaves "IT." on a line of its own. */
+/* The line's second half set to the first's measure, as on the link card:
+   "is altitude." at the size that makes it exactly as wide as "Market cap"
+   (measured in Montserrat ExtraBold, they are within 3% at one size), so
+   the headline is one justified block and its colour, not its size, says
+   which half comes second. One line at any width, so it never wraps. */
 .sa-landing__title-sub {
   display: inline-block;
-  margin-top: 0.12em;
-  font-size: 0.56em;
+  margin-top: 0.04em;
+  font-size: 1.028em;
   line-height: 1;
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -3785,7 +3793,10 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   text-wrap-style: balance;
   color: rgba(214, 228, 242, 0.82);
 }
-.sa-landing__disclose a { color: #fff; text-decoration: underline; text-underline-offset: 0.18em; }
+.sa-landing__disclose a,
+.sa-landing__notice { color: #fff; text-decoration: underline; text-underline-offset: 0.18em; }
+.sa-landing__notice { font: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.sa-landing__notice:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 3px; }
 .sa-landing__disclose a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 3px; }
 
 /* ── The splash ────────────────────────────────────────────────
@@ -3793,37 +3804,191 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
    the night, boarding the airline's line. It holds a moment once the
    last flap lands, then fades onto the landing, and the landing's words
    rise in underneath it as it goes — held back until then, so they are
-   not over before anybody can see them. */
+   not over before anybody can see them.
+
+   It is laid out as a gate is: the departures header over the board,
+   the airline's name under it, a boarding line that fills while the
+   aeroplane behind gets its engines going, and the credits along the
+   foot. The night is layered — a navy glow behind the board, stars
+   streaming past from a point ahead as the aeroplane flies on, a horizon
+   lit in the page's one blue, and a vignette. */
 .sa-splash {
   /* The board's drop, on a night ground rather than a lit panel. */
   --e-lg: 0 1px 0 rgba(255, 255, 255, 0.1) inset, 0 26px 64px rgba(0, 0, 0, 0.62);
   position: absolute;
   inset: 0;
   z-index: 20;
+  isolation: isolate;
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: clamp(1.1rem, 3.2vh, 1.9rem);
-  padding: 1rem;
+  gap: clamp(1rem, 2.8vh, 1.7rem);
+  padding: 1rem 1rem calc(var(--safe-bottom) + 5.5rem);
   background:
-    radial-gradient(56rem 36rem at 50% 46%, rgba(26, 42, 70, 0.85), rgba(26, 42, 70, 0) 72%),
+    radial-gradient(56rem 36rem at 50% 44%, rgba(26, 42, 70, 0.9), rgba(26, 42, 70, 0) 72%),
+    radial-gradient(130% 95% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.55) 100%),
     #05070F;
   cursor: pointer;
   transition: opacity 0.8s ease;
 }
 .sa-splash.is-fading { opacity: 0; pointer-events: none; }
+
+/* The stars, flying past (see Starfield.tsx), thinning out above the
+   horizon so the ground's glow stays clear. */
+.sa-splash__sky {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 50%, transparent 86%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 50%, transparent 86%);
+}
+/* The horizon: a cyan dawn along the foot, and the line itself. */
+.sa-splash::before,
+.sa-splash::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+.sa-splash::before {
+  inset: auto 0 0 0;
+  height: 42%;
+  background:
+    radial-gradient(60% 55% at 50% 100%, rgba(0, 201, 241, 0.16), transparent 70%),
+    radial-gradient(90% 40% at 50% 100%, rgba(0, 92, 173, 0.22), transparent 80%);
+}
+.sa-splash::after {
+  left: 8%;
+  right: 8%;
+  bottom: calc(var(--safe-bottom) + 4.6rem);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(127, 227, 247, 0.4) 30%, rgba(127, 227, 247, 0.4) 70%, transparent);
+}
+
+/* The departures header: the page's mono label, ruled either side. */
+.sa-splash__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(142, 232, 250, 0.9);
+  animation: sa-landing-fade 0.6s ease 0.1s both;
+}
+.sa-splash__eyebrow::before,
+.sa-splash__eyebrow::after {
+  content: '';
+  width: clamp(1.5rem, 6vw, 3.5rem);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(127, 227, 247, 0.5));
+}
+.sa-splash__eyebrow::after { background: linear-gradient(270deg, transparent, rgba(127, 227, 247, 0.5)); }
+/* Steady, not blinking: the top bar's live lamp is the one that blinks. */
+.sa-splash__lamp {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent-bright);
+  box-shadow: 0 0 10px rgba(0, 201, 241, 0.95);
+}
+
 .sa-splash__board {
+  position: relative;
   width: min(88vw, 40rem);
   transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* The board lights the night under it. */
+.sa-splash__board::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -18%;
+  height: 30%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 201, 241, 0.2), transparent);
+  filter: blur(14px);
+  pointer-events: none;
+}
 .sa-splash.is-fading .sa-splash__board { transform: scale(1.06); }
 .sa-splash__brand {
-  margin: 0;
-  color: rgba(214, 228, 242, 0.85);
+  margin: 0.2rem 0 0;
+  color: #EAF2FB;
   animation: sa-landing-fade 0.6s ease 0.3s both;
 }
-.sa-splash__brand .sa-wordmark { --mark: 24px; }
-.sa-splash__docs { animation: sa-landing-fade 0.6s ease 0.5s both; }
+.sa-splash__brand .sa-wordmark { --mark: clamp(30px, 3.1vw, 40px); }
+
+/* Boarding. Eases most of the way while the splash waits on the
+   aeroplane (SPLASH_WAIT, 6 s), then completes as the splash fades. */
+.sa-splash__progress {
+  width: min(60vw, 15rem);
+  height: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(147, 166, 191, 0.18);
+  animation: sa-landing-fade 0.6s ease 0.4s both;
+}
+.sa-splash__progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--g-accent);
+  box-shadow: 0 0 10px rgba(0, 201, 241, 0.75);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: sa-splash-board 6s cubic-bezier(0.22, 0.8, 0.3, 1) 0.2s forwards;
+}
+.sa-splash.is-fading .sa-splash__progress i { animation: none; transform: scaleX(1); }
+@keyframes sa-splash-board { to { transform: scaleX(0.94); } }
+
+/* The credits, along the foot under the horizon: who plays the music,
+   who runs the wallets, and where the docs are. */
+.sa-splash__foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--safe-bottom) + clamp(0.9rem, 2.6vh, 1.4rem));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem 1.4rem;
+  padding: 0 1rem;
+  animation: sa-landing-fade 0.6s ease 0.5s both;
+}
+.sa-splash__credit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(214, 228, 242, 0.62);
+}
+.sa-splash__audius { display: block; width: 5.6rem; height: auto; color: rgba(234, 242, 251, 0.92); }
+/* Set to the Audius mark's cap height, so the two credits read as a pair. */
+.sa-splash__helius { display: block; width: auto; height: 1.15rem; }
+/* A short screen — a phone on its side — has no room for a foot under
+   the stack, so the credits join it and the header steps aside. */
+@media (max-height: 540px) {
+  .sa-splash { padding-bottom: 1rem; gap: 0.8rem; }
+  .sa-splash__eyebrow, .sa-splash::after { display: none; }
+  .sa-splash__foot { position: static; }
+}
 .sa-landing.is-splash .sa-landing__hero { animation-play-state: paused; }
 
 /* ── Before take-off: a word about the board ─────────────────── */
@@ -4666,7 +4831,7 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: 'brand docs' 'live live';
   }
-  .sa-landing__brand { --mark: 28px; }
+  .sa-landing__brand { --mark: 32px; }
   .sa-landing__live { justify-self: start; font-size: 10px; }
   /* In the game the instruments need the room under the brand. */
   .sa-landing:not(.is-idle) .sa-landing__live { display: none; }
@@ -5544,7 +5709,7 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-hud__chips .sa-hud__chip-logo { width: 1.15rem; height: 1.15rem; }
 /* In the game the market line gives way, and the brand steps back. */
 .sa-landing:not(.is-idle) .sa-landing__live { display: none; }
-.sa-landing:not(.is-idle) .sa-landing__brand { --mark: 32px; opacity: 0.85; }
+.sa-landing:not(.is-idle) .sa-landing__brand { --mark: 36px; opacity: 0.85; }
 @media (min-width: 1180px) {
   .sa-hud__top { top: max(1rem, var(--safe-top)); }
 }

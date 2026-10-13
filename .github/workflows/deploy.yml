@@ -87,6 +87,8 @@ jobs:
           VITE_BANNERS_URL: ${{ vars.VITE_BANNERS_URL }}
           VITE_DIRECTORY_API: ${{ vars.VITE_DIRECTORY_API }}
           VITE_DOCS_URL: ${{ vars.VITE_DOCS_URL }}
+          VITE_AUDIUS_APP_NAME: ${{ vars.VITE_AUDIUS_APP_NAME }}
+          VITE_AUDIUS_API_KEY: ${{ vars.VITE_AUDIUS_API_KEY }}
 
       - uses: actions/upload-pages-artifact@v3
         with:

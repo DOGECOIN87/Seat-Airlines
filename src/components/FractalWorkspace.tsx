@@ -4,11 +4,14 @@ import '@danfessler/trellis/style.css';
 import './FractalWorkspace.css';
 import { PANELS, SHEET_QUERY, type PanelKey } from './SectionPanels';
 import { DeckIcon } from './InstrumentDeck';
+import RadioChip from './RadioChip';
 
 interface Props {
   aircraft: ReactNode;
   instruments: ReactNode;
   wall: ReactNode;
+  /** The in-flight radio. Open to everybody, seated or not. */
+  radio: ReactNode;
   activeSection: PanelKey | null;
   renderSection: (key: PanelKey) => ReactNode;
   onSection: (key: PanelKey) => void;
@@ -19,7 +22,7 @@ interface Props {
 const isCompact = () => window.matchMedia(SHEET_QUERY).matches;
 
 /** The application owns data and permissions; Trellis only owns its layout. */
-export default function FractalWorkspace({ aircraft, instruments, wall, activeSection, renderSection, onSection, onScores, seated }: Props) {
+export default function FractalWorkspace({ aircraft, instruments, wall, radio, activeSection, renderSection, onSection, onScores, seated }: Props) {
   const workspace = useRef<WorkspaceHandle | null>(null);
   const [ready, setReady] = useState(false);
   const [compact, setCompact] = useState(isCompact);
@@ -61,6 +64,7 @@ export default function FractalWorkspace({ aircraft, instruments, wall, activeSe
     <div className="sa-fractal">
       <div className="sa-fractal__bar">
         <div className="sa-fractal__identity"><span className="sa-fractal__pulse" /><span>SA350</span></div>
+        <RadioChip onOpen={() => open('radio')} />
         <div className="sa-fractal__tools" aria-label="Workspace controls">
           <button type="button" onClick={() => { workspace.current?.navigation.overview(); setFocused(false); }}>Overview</button>
           <button type="button" aria-pressed={focused} onClick={() => { workspace.current?.navigation.toggle(); setFocused(Boolean(workspace.current?.navigation.framed)); }}>Focus</button>
@@ -74,6 +78,7 @@ export default function FractalWorkspace({ aircraft, instruments, wall, activeSe
         <button type="button" onClick={() => open('instruments')}><DeckIcon name="deck" />Instruments</button>
         <button type="button" onClick={() => open('adverts')}><DeckIcon name="wall" />On board</button>
         {sectionTypes.map(p => <button key={p.key} type="button" onClick={() => { open(p.key); onSection(p.key); }}><DeckIcon name={p.icon} />{p.label}</button>)}
+        <button type="button" onClick={() => open('radio')}><DeckIcon name="radio" />Radio</button>
         <button type="button" onClick={onScores}><DeckIcon name="trophy" />Scores</button>
       </nav>
       <Workspace
@@ -88,6 +93,7 @@ export default function FractalWorkspace({ aircraft, instruments, wall, activeSe
         <ViewType id="instruments" title="02 / Flight instruments" singleton minSize={{ width: 480, height: 240 }}><div className="sa-fractal__scroll sa-fractal__instruments">{instruments}</div></ViewType>
         <ViewType id="adverts" title="03 / Who’s on board" singleton minSize={{ width: 350, height: 300 }}><div className="sa-fractal__scroll sa-fractal__wall">{wall}</div></ViewType>
         {sectionTypes.map(p => <ViewType key={p.key} id={p.key} title={p.key === 'wall' ? '04 / Seat map' : p.title} singleton minSize={{ width: 360, height: 300 }}><div className="sa-fractal__scroll sa-fractal__section">{p.key !== 'wall' && <><p className="sa-fractal__eyebrow">{p.eyebrow}</p><h2>{p.title}</h2></>}{renderSection(p.key)}</div></ViewType>)}
+        <ViewType id="radio" title="In-flight radio" singleton minSize={{ width: 340, height: 300 }}><div className="sa-fractal__scroll sa-fractal__section"><p className="sa-fractal__eyebrow">Radio</p><h2>In-flight radio</h2>{radio}</div></ViewType>
         {compact ? (
           <Panel id="flight-mobile"><View type="aircraft" /><View type="adverts" /><View type="instruments" /><View type="wall" /><View type="check-in" /></Panel>
         ) : (

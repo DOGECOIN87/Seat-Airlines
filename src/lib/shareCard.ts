@@ -53,6 +53,8 @@ export interface SharedFlight {
 
 const MONO = "'IBM Plex Mono', ui-monospace, monospace";
 const SANS = 'Montserrat, ui-sans-serif, system-ui, sans-serif';
+/** The airline's name, in the display face the site sets it in. */
+const DISPLAY = "'Bruno Ace SC', Montserrat, ui-sans-serif, system-ui, sans-serif";
 /** The departure board's type. */
 const FLAP = "'PT Sans Narrow', 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, sans-serif";
 const INK = 'rgba(3, 6, 16, 1)';
@@ -211,6 +213,7 @@ export async function cardAssets(): Promise<{ logo: HTMLImageElement | null }> {
   const [logo] = await Promise.all([
     loadImage(logoUrl()),
     document.fonts?.load(`800 160px ${SANS}`).catch(() => null),
+    document.fonts?.load(`400 48px ${DISPLAY}`).catch(() => null),
     document.fonts?.load(`700 36px ${SANS}`).catch(() => null),
     document.fonts?.load(`600 24px ${MONO}`).catch(() => null),
     document.fonts?.load(`700 64px ${FLAP}`).catch(() => null),
@@ -357,14 +360,14 @@ export async function composeCard(shot: HTMLCanvasElement | null, f: SharedFligh
   /** The height of the current font's capitals, as drawn. */
   const capOf = () => ctx.measureText('H').actualBoundingBoxAscent;
 
-  // ── The header: the wordmark as the site sets it, the name's capitals half the mark's height.
+  // ── The header: the wordmark as the site sets it, the name at half the mark, tracked.
   const mark = 52;
   const headMid = T + mark / 2;
   if (logo) {
     const [sx, sy, sw, sh] = LOGO_FRAME.split(' ').map(Number);
     ctx.drawImage(logo, sx, sy, sw, sh, M, T, mark, mark);
   }
-  set(`800 ${Math.round(mark * 0.714)}px ${SANS}`, mark * 0.714 * 0.02);
+  set(`400 ${Math.round(mark * 0.5)}px ${DISPLAY}`, mark * 0.5 * 0.05);
   ctx.fillStyle = '#fff';
   write('SEAT AIRLINES', M + (logo ? mark * 1.32 : 0), headMid - capOf() / 2);
 

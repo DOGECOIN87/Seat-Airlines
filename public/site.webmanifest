@@ -1,7 +1,7 @@
 {
   "name": "Seat Airlines",
   "short_name": "Seat Airlines",
-  "description": "One plane. Everyone's in it. Your bag is your seat.",
+  "description": "Market cap is altitude. Your bag is your seat.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#DFE0E4",

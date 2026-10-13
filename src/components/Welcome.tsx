@@ -52,12 +52,12 @@ export default function Welcome({ onClose }: { onClose: () => void }) {
   const pages = [
     {
       eyebrow: 'Welcome aboard',
-      heading: 'One plane. Everyone’s in it.',
+      heading: 'Market cap is altitude.',
       body: (
         <>
           <p>Seat Airlines is a flight simulator flown by one number. The aircraft’s altitude and tilt are read live from the token’s market, so the aeroplane on your screen <em>is</em> the chart.</p>
           <ul className="sa-tour__list">
-            <li><strong>Market cap is altitude.</strong> $163K flies at 163,000 ft; $1M breaks out above the clouds.</li>
+            <li><strong>Every dollar is a foot.</strong> $163K flies at 163,000 ft; $1M breaks out above the clouds.</li>
             <li><strong>A rising market pitches the nose up</strong>, a falling one pitches it down.</li>
           </ul>
         </>

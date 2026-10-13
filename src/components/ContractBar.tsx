@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PUMP_URL, TOKEN_MINT, hasToken } from '../lib/token';
-import { DEXSCREENER_URL, LOCK_URL } from '../lib/social';
+import { DEXSCREENER_URL, LOCK_URL, partnerLogo } from '../lib/social';
 import { GOLDEN_TICKER } from '../lib/dexBoost';
 
 /**
@@ -29,11 +29,9 @@ const PumpMark = () => (
   <img src="/pump-logomark.svg" alt="" aria-hidden className="sa-pump__mark" />
 );
 
-/** A rising chart, for DexScreener. */
-const ChartMark = () => (
-  <svg viewBox="0 0 24 24" aria-hidden className="sa-pump__mark sa-pump__glyph">
-    <path d="M3 3h2v16h16v2H3V3zm4 11.6 4-4.6 3 3 5.3-6.3 1.5 1.3-6.7 8-3-3-2.6 3L7 14.6z" />
-  </svg>
+/** DexScreener's own app icon, like pump.fun's mark beside it. */
+const DexMark = () => (
+  <img src={partnerLogo('dexscreener.png')} alt="" aria-hidden className="sa-pump__mark sa-partner-mark" />
 );
 const FlameMark = () => (
   <svg viewBox="0 0 24 24" aria-hidden className="sa-pump__mark sa-pump__glyph">
@@ -97,7 +95,7 @@ const ContractBar = ({ boosts = 0, onHelp }: { boosts?: number; onHelp?: () => v
         {/* The chart, and the way to boost it: DexScreener's Boost button is
             on the same page. A boost running puts the plane on afterburner. */}
         <a href={DEXSCREENER_URL} target="_blank" rel="noopener noreferrer" className="sa-pump" aria-label="DexScreener chart">
-          <ChartMark />
+          <DexMark />
           <span className="sa-pump__text">dexscreener</span>
         </a>
         <a
