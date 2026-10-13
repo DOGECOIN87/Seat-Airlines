@@ -982,7 +982,7 @@ export default function App() {
 
       <a href="#wall" onClick={(e) => { e.preventDefault(); openPanel('wall'); }} className="sa-skip">Skip to the seat map</a>
 
-      <ContractBar boosts={boosts} onHelp={() => setTourOpen(true)} />
+      <ContractBar onHelp={() => setTourOpen(true)} />
       {tourOpen && <Welcome onClose={closeTour} />}
 
       {/* ── Gate sign ──────────────────────────────────────────────────
@@ -1095,7 +1095,6 @@ export default function App() {
             <a href="./brand/">Brand</a>
             <button type="button" onClick={() => window.dispatchEvent(new Event(DISCLAIMER_EVENT))}>Disclaimer</button>
           </nav>
-          <p className="sa-footer__line">Market cap is altitude.</p>
         </div>
       </footer>
 
