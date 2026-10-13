@@ -232,14 +232,16 @@ export default function Landing({
     if (!ridePickerOpen) return;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = rideDialogRef.current;
-    dialog?.querySelector<HTMLButtonElement>('.sa-ride-modal__close')?.focus({ preventScroll: true });
+    /* The dialog itself takes focus, not its first button: a ring on the
+       close button the moment the hangar opens reads as a fault. */
+    dialog?.focus({ preventScroll: true });
     const trapFocus = (event: KeyboardEvent) => {
       if (event.key !== 'Tab' || !dialog) return;
       const items = [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]')]
         .filter((item) => item.getClientRects().length > 0);
       const first = items[0], last = items[items.length - 1];
       if (!first || !last) return;
-      const outside = !dialog.contains(document.activeElement);
+      const outside = !dialog.contains(document.activeElement) || document.activeElement === dialog;
       if (event.shiftKey && (outside || document.activeElement === first)) {
         event.preventDefault();
         last.focus();
@@ -1211,18 +1213,14 @@ export default function Landing({
         </div>
       )}
       {ridePickerOpen && !inGame && (
-        <div ref={rideDialogRef} className="sa-ride-modal" role="dialog" aria-modal="true" aria-label="Choose your ride">
-          <div className="sa-ride-modal__ceiling" aria-hidden>
-            <i /><i /><i /><i /><i /><i />
-          </div>
-          <div className="sa-ride-modal__hangar-lines" aria-hidden />
+        <div ref={rideDialogRef} className="sa-ride-modal" role="dialog" aria-modal="true" aria-label="Choose your ride" tabIndex={-1}>
           <div className="sa-ride-modal__content">
             <div className="sa-ride-modal__topline">
-              <span><i aria-hidden /> HANGAR 01 · FLIGHT DECK</span>
-              <button type="button" className="sa-ride-modal__close" onClick={() => setRidePickerOpen(false)} aria-label="Close ride selector">×</button>
+              <button type="button" className="sa-ride-modal__close" onClick={() => setRidePickerOpen(false)} aria-label="Close ride selector">
+                <svg viewBox="0 0 24 24" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+              </button>
             </div>
             <div className="sa-ride-modal__hero-copy">
-              <p>Pre-flight systems online</p>
               <h1>Select your aircraft</h1>
               <span>Configure your ride before entering the climb.</span>
             </div>
@@ -1241,13 +1239,8 @@ export default function Landing({
               />
             </Suspense>
             <div className="sa-ride-modal__launch-console">
-              <div>
-                <span className="sa-ride-modal__console-label">Selected loadout</span>
-                <strong>{playMode === 'ufo' ? 'UFO INTERCEPTOR' : playMode === 'jet' ? 'F35 · FIGHTER' : 'SA350 · FLAGSHIP'}</strong>
-                <small>{playMode === 'ufo' ? 'Dash any way · dodge airliners · climb to the moon and Mars' : playMode === 'jet' ? 'Mach 1 boost · target lock · two guided missiles' : 'Flaps, boost and engine-out recovery'}</small>
-              </div>
+              <strong>{playMode === 'ufo' ? 'UFO INTERCEPTOR' : playMode === 'jet' ? 'F35 · FIGHTER' : 'SA350 · FLAGSHIP'}</strong>
               <button type="button" className="sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked} ref={launchRef}>
-                <span>Confirm loadout</span>
                 <strong>{playMode === 'ufo' && !ufoUnlocked ? 'Hold 1M $SEAT to unlock' : wallet.address ? 'Launch flight →' : 'Connect & launch →'}</strong>
               </button>
             </div>
@@ -1279,7 +1272,6 @@ export default function Landing({
                 )}
               </div>
             )}
-            <p className="sa-ride-modal__hint"><kbd>←</kbd><kbd>→</kbd> rotate fleet · choose a bay · confirm to taxi</p>
           </div>
         </div>
       )}

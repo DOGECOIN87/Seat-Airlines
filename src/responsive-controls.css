@@ -255,11 +255,10 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
 
 /* Hangar controls: equal touch targets, unconstrained text areas, and
    scrolling that also works inside the landing's pointer handlers. */
-.sa-ride-modal { touch-action: pan-y; overflow-x: hidden; }
+.sa-ride-modal { touch-action: pan-y; overflow-x: hidden; outline: none; }
 .sa-ride-modal__content { padding-inline: max(0.75rem, 2vw); min-width: 0; }
 .sa-ride-modal__topline { gap: 0.75rem; min-width: 0; }
-.sa-ride-modal__topline > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sa-ride-modal__close, .sa-aircraft-picker__arrow {
+.sa-ride-modal__close {
   box-sizing: border-box;
   flex: none;
   width: var(--control-size);
@@ -267,19 +266,16 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   min-width: var(--control-size);
   min-height: var(--control-size);
   padding: 0;
-  border-radius: 0.75rem;
-  line-height: 1;
   touch-action: manipulation;
 }
 .sa-ride-modal__close { position: relative; z-index: 2; }
-.sa-ride-modal__close:focus-visible, .sa-ride-modal__launch:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-.sa-aircraft-picker__arrow:disabled, .sa-aircraft-picker__slot:disabled { cursor: not-allowed; }
-.sa-aircraft-picker__arrow:disabled { opacity: 0.4; transform: none; }
+.sa-ride-modal__close:focus-visible, .sa-ride-modal__launch:focus-visible { outline: 2px solid #7fe3f7; outline-offset: 3px; }
+.sa-aircraft-picker__slot:disabled { cursor: not-allowed; }
 .sa-aircraft-picker__track { align-items: stretch; }
-/* The hangar's stands: the model fills its card between the badge and the
-   name, instead of the fixed 7–10rem strip the older rules above pin it to,
-   which left each craft small in the middle of a tall card. */
-.sa-aircraft-picker--fullscreen .sa-aircraft-picker__slot--active { grid-template-rows: auto minmax(0, 1fr) auto; align-content: stretch; }
+/* The hangar's stands: the model fills its card above the name, instead
+   of the fixed 7–10rem strip the older rules above pin it to, which left
+   each craft small in the middle of a tall card. */
+.sa-aircraft-picker--fullscreen .sa-aircraft-picker__slot--active { grid-template-rows: minmax(0, 1fr) auto; align-content: stretch; }
 .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model { align-self: stretch; height: 100%; min-height: clamp(8rem, 20vh, 12.5rem); }
 .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: 100%; min-height: clamp(8rem, 20vh, 12.5rem); transform: none; }
 .sa-aircraft-picker__slot--active { transform: none; }
@@ -316,8 +312,6 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
 }
 .sa-aircraft-picker__model-canvas[data-ready='true'] .sa-aircraft-picker__fallback { display: none; }
 @media (max-width: 640px) {
-  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__arrow { display: none; }
-  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__stage { grid-template-columns: minmax(0, 1fr); margin-inline: 0; }
   .sa-ride-modal__launch-console { flex-direction: column; align-items: stretch; }
   .sa-ride-modal__launch { width: 100%; }
 }
@@ -327,8 +321,8 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: clamp(4rem, 24svh, 6rem); min-height: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sa-aircraft-picker__slot, .sa-aircraft-picker__arrow, .sa-ride-modal__launch { transition: none; }
-  .sa-aircraft-picker__arrow:hover, .sa-ride-modal__launch:hover { transform: none; }
+  .sa-aircraft-picker__slot, .sa-ride-modal__launch { transition: none; }
+  .sa-ride-modal__launch:hover { transform: none; }
 }
 
 /* A partner's own logo file where an inline mark used to be: its colours

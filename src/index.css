@@ -7017,14 +7017,9 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-aircraft-picker__head,
 .sa-aircraft-picker__aircraft-meta,
 .sa-aircraft-picker__mode { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
-.sa-aircraft-picker__eyebrow,
-.sa-aircraft-picker__mode-kicker { margin: 0 0 0.15rem; color: #7fe3f7; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
 .sa-aircraft-picker__title { margin: 0; color: #f3f8ff; font-family: Montserrat, ui-sans-serif, system-ui, sans-serif; font-size: clamp(0.9rem, 1.55vw, 1.15rem); font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; }
-.sa-aircraft-picker__counter { align-self: flex-start; padding: 0.28rem 0.42rem; border-radius: 0.4rem; background: rgba(127, 227, 247, 0.1); color: rgba(218, 243, 255, 0.8); font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; }
-.sa-aircraft-picker__stage { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.35rem; margin: 0.65rem -0.35rem 0.75rem; }
-.sa-aircraft-picker__arrow { display: grid; place-items: center; width: 1.8rem; height: 2.8rem; border: 0; border-radius: 0.65rem; background: rgba(255, 255, 255, 0.06); color: rgba(222, 243, 255, 0.85); font-size: 1.8rem; line-height: 1; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease; }
-.sa-aircraft-picker__arrow:hover { background: rgba(127, 227, 247, 0.16); color: #fff; transform: scale(1.05); }
-.sa-aircraft-picker__arrow:focus-visible, .sa-aircraft-picker__mode button:focus-visible, .sa-aircraft-picker__slot:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.sa-aircraft-picker__stage { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; margin: 0.65rem 0 0.75rem; }
+.sa-aircraft-picker__mode button:focus-visible, .sa-aircraft-picker__slot:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .sa-aircraft-picker__track { --picker-angle: 0deg; display: grid; grid-template-columns: minmax(3.6rem, 0.72fr) minmax(9.2rem, 1.55fr) minmax(3.6rem, 0.72fr); align-items: center; gap: 0.45rem; min-width: 0; perspective: 900px; transform: rotateX(2deg) rotateY(var(--picker-angle)); transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
 .sa-aircraft-picker__slot { position: relative; display: grid; justify-items: center; min-width: 0; min-height: 8.2rem; padding: 0.55rem 0.4rem; overflow: hidden; border: 0; border-radius: 0.85rem; color: #fff; }
 .sa-aircraft-picker__slot--ghost { align-content: center; gap: 0.3rem; border: 1px dashed rgba(152, 197, 225, 0.26); background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)); color: rgba(211, 231, 246, 0.58); transform: translateZ(-32px) scale(0.92); }
@@ -7034,22 +7029,18 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-aircraft-picker__slot-dots { color: #7fe3f7; font-size: 1.4rem; line-height: 1; letter-spacing: 0.12em; }
 .sa-aircraft-picker__slot--active { align-content: space-between; cursor: pointer; background: radial-gradient(circle at 50% 45%, rgba(23, 124, 181, 0.55), rgba(7, 18, 37, 0.85) 65%); box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.42), 0 13px 28px rgba(0, 0, 0, 0.28), 0 0 26px rgba(0, 192, 255, 0.14); transform: translateZ(26px) rotateX(1deg); transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; }
 .sa-aircraft-picker__slot--active:hover, .sa-aircraft-picker__slot--active.is-selected { filter: brightness(1.08); box-shadow: inset 0 0 0 1px rgba(173, 244, 255, 0.78), 0 16px 32px rgba(0, 0, 0, 0.35), 0 0 38px rgba(0, 192, 255, 0.28); }
-.sa-aircraft-picker__slot-badge { align-self: start; padding: 0.22rem 0.45rem; border-radius: 999px; background: rgba(126, 248, 212, 0.15); color: #9dffe0; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 8px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .sa-aircraft-picker__model { position: relative; display: grid; place-items: center; width: 100%; min-height: 4.7rem; perspective: 420px; transform-style: preserve-3d; }
 .sa-aircraft-picker__model-glow { position: absolute; width: 76%; height: 36%; border-radius: 50%; background: #43dcff; opacity: 0.28; filter: blur(12px); transform: translateY(0.8rem) rotateX(70deg); }
 .sa-aircraft-picker__model img { position: relative; z-index: 1; width: 82%; max-height: 4.9rem; object-fit: contain; transform: rotateX(62deg) rotateZ(-11deg) translateZ(16px) scale(1.22); filter: drop-shadow(8px 14px 3px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 12px rgba(112, 229, 255, 0.35)); transform-style: preserve-3d; }
 .sa-aircraft-picker__aircraft-meta { width: 100%; padding: 0 0.3rem; text-align: left; }
-.sa-aircraft-picker__aircraft-meta span:first-child { display: grid; gap: 0.1rem; }
 .sa-aircraft-picker__aircraft-meta strong { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0.78rem; letter-spacing: 0.15em; }
-.sa-aircraft-picker__aircraft-meta small { color: rgba(226, 241, 250, 0.62); font-size: 8px; letter-spacing: 0.03em; white-space: nowrap; }
 .sa-aircraft-picker__status-dot { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: #72f0c1; box-shadow: 0 0 10px #72f0c1; }
 .sa-aircraft-picker__mode { align-items: center; min-height: 2.6rem; padding: 0.55rem 0.65rem; border-top: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.7rem; background: rgba(3, 9, 20, 0.4); }
-.sa-aircraft-picker__mode strong { display: block; color: #eaf7ff; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.sa-aircraft-picker__mode small { display: block; margin-top: 0.15rem; color: rgba(218, 235, 246, 0.6); font-size: 9px; }
+.sa-aircraft-picker__mode strong { display: block; color: #eaf7ff; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.sa-aircraft-picker__mode small { display: block; margin-top: 0.2rem; color: rgba(218, 235, 246, 0.72); font-size: 0.8rem; line-height: 1.4; }
 .sa-aircraft-picker__mode button { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 2rem; padding: 0 0.7rem; border: 1px solid rgba(127, 227, 247, 0.35); border-radius: 999px; background: rgba(127, 227, 247, 0.08); color: #c7f7ff; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: background-color 0.15s ease, box-shadow 0.15s ease; }
 .sa-aircraft-picker__mode button:hover { background: rgba(127, 227, 247, 0.2); box-shadow: 0 0 20px rgba(127, 227, 247, 0.18); }
 .sa-aircraft-picker__mode.is-armed { border-color: rgba(169, 116, 255, 0.38); background: linear-gradient(90deg, rgba(78, 38, 116, 0.22), rgba(5, 9, 20, 0.38)); }
-.sa-aircraft-picker__mode.is-armed .sa-aircraft-picker__mode-kicker { color: #d0aaff; }
 .sa-aircraft-picker__mode.is-armed button { border-color: rgba(214, 163, 255, 0.65); background: rgba(149, 89, 230, 0.25); color: #f0d9ff; }
 @keyframes sa-picker-in { from { opacity: 0; transform: translateY(-10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
@@ -7138,38 +7129,27 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 }
 .sa-ride-modal::before,
 .sa-ride-modal::after { content: ''; position: absolute; pointer-events: none; }
-.sa-ride-modal::before { inset: 0; background: linear-gradient(90deg, rgba(72, 190, 232, 0.06) 1px, transparent 1px), linear-gradient(rgba(72, 190, 232, 0.05) 1px, transparent 1px); background-size: 5rem 5rem; mask-image: linear-gradient(180deg, transparent, #000 26%, #000 75%, transparent); }
 .sa-ride-modal::after { width: min(74vw, 62rem); height: min(74vw, 62rem); top: 18%; left: 50%; transform: translateX(-50%); border-radius: 50%; background: rgba(70, 196, 236, 0.1); filter: blur(50px); }
-.sa-ride-modal__ceiling { position: absolute; top: 0; left: 0; right: 0; height: 4.5rem; display: flex; justify-content: center; gap: clamp(2rem, 10vw, 9rem); padding-top: 1rem; background: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent); transform: perspective(500px) rotateX(-16deg); }
-.sa-ride-modal__ceiling i { display: block; width: clamp(3.2rem, 6vw, 6rem); height: 0.28rem; border-radius: 99px; background: #d8faff; box-shadow: 0 0 0.5rem #d8faff, 0 0 2rem rgba(72, 211, 255, 0.95); opacity: 0.75; }
-.sa-ride-modal__hangar-lines { position: absolute; inset: 47% 0 0; opacity: 0.3; background: linear-gradient(165deg, transparent 49.7%, rgba(123, 217, 239, 0.6) 50%, transparent 50.3%), linear-gradient(15deg, transparent 49.7%, rgba(123, 217, 239, 0.6) 50%, transparent 50.3%); background-size: 11rem 100%; transform: perspective(500px) rotateX(52deg); transform-origin: top center; }
 .sa-ride-modal__content { position: relative; z-index: 1; display: grid; justify-items: center; width: min(100% - 2rem, 58rem); max-height: 100%; padding: clamp(1rem, 4vh, 3rem) 0 1.2rem; overflow: auto; }
-.sa-ride-modal__topline { display: flex; align-items: center; justify-content: space-between; width: min(100%, 52rem); color: rgba(157, 225, 244, 0.65); font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.2em; }
-.sa-ride-modal__topline > span { display: inline-flex; align-items: center; gap: 0.45rem; }
-.sa-ride-modal__topline > span i { width: 0.42rem; height: 0.42rem; border-radius: 50%; background: #63f0bb; box-shadow: 0 0 10px #63f0bb; }
-.sa-ride-modal__close { display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border: 1px solid rgba(174, 224, 244, 0.24); border-radius: 50%; background: rgba(2, 10, 20, 0.5); color: #dff8ff; font-size: 1.4rem; line-height: 1; cursor: pointer; }
-.sa-ride-modal__close:hover { background: rgba(126, 222, 247, 0.16); }
+.sa-ride-modal__topline { display: flex; align-items: center; justify-content: flex-end; width: min(100%, 52rem); }
+.sa-ride-modal__close { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.07); color: #dff8ff; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease; }
+/* Drawn, not typed: a × glyph sits where its font puts it, never quite centred. */
+.sa-ride-modal__close svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.sa-ride-modal__close:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
 .sa-ride-modal__hero-copy { display: grid; justify-items: center; gap: 0.32rem; margin: clamp(1.5rem, 5vh, 3.4rem) 0 1rem; text-align: center; }
-.sa-ride-modal__hero-copy p { margin: 0; color: #7fe3f7; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; }
 .sa-ride-modal__hero-copy h1 { margin: 0; color: #f5fcff; font-family: Montserrat, ui-sans-serif, system-ui, sans-serif; font-size: clamp(1.55rem, 4vw, 3rem); font-weight: 800; letter-spacing: -0.045em; text-transform: uppercase; text-shadow: 0 0 26px rgba(110, 218, 247, 0.3); }
 .sa-ride-modal__hero-copy span { color: rgba(213, 235, 246, 0.64); font-size: 0.82rem; }
 .sa-aircraft-picker--fullscreen { position: relative; top: auto; right: auto; width: min(100%, 42rem); margin: 0 auto; padding: 1.05rem 1.15rem 0.9rem; background: linear-gradient(145deg, rgba(11, 31, 51, 0.78), rgba(4, 11, 22, 0.73)); box-shadow: 0 0 0 1px rgba(145, 224, 247, 0.16), 0 25px 70px rgba(0, 0, 0, 0.46), 0 0 65px rgba(15, 176, 232, 0.13); }
 .sa-ride-modal__launch-console { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; width: min(100%, 42rem); margin-top: 0.9rem; padding: 0.8rem 0.9rem 0.8rem 1rem; border: 1px solid rgba(123, 214, 241, 0.2); border-radius: 0.9rem; background: rgba(4, 12, 23, 0.7); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
-.sa-ride-modal__launch-console > div { display: grid; gap: 0.16rem; min-width: 0; }
-.sa-ride-modal__console-label { color: #7fe3f7; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; }
-.sa-ride-modal__launch-console strong { overflow: hidden; color: #f0fbff; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0.85rem; letter-spacing: 0.08em; text-overflow: ellipsis; white-space: nowrap; }
-.sa-ride-modal__launch-console small { color: rgba(214, 238, 247, 0.6); font-size: 10px; }
+.sa-ride-modal__launch-console > strong { min-width: 0; overflow: hidden; color: #f0fbff; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0.85rem; letter-spacing: 0.08em; text-overflow: ellipsis; white-space: nowrap; }
 .sa-ride-modal__launch { display: grid; flex: none; gap: 0.18rem; min-width: 10.5rem; padding: 0.7rem 0.95rem; border: 1px solid rgba(112, 241, 195, 0.65); border-radius: 0.65rem; background: linear-gradient(135deg, rgba(52, 184, 152, 0.28), rgba(17, 96, 113, 0.34)); color: #dffff2; font-family: 'IBM Plex Mono', ui-monospace, monospace; cursor: pointer; box-shadow: 0 0 22px rgba(71, 223, 178, 0.12); transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease; }
 .sa-ride-modal__launch:hover { filter: brightness(1.16); transform: translateY(-2px); box-shadow: 0 0 32px rgba(71, 223, 178, 0.25); }
-.sa-ride-modal__launch span { font-size: 8px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.72; }
 .sa-ride-modal__launch strong { font-size: 0.78rem; letter-spacing: 0.05em; }
 .sa-ride-modal__wallet { width: min(100%, 42rem); margin-top: 0.7rem; padding: 0.65rem 0.9rem; border: 1px solid rgba(255, 190, 120, 0.35); border-radius: 0.75rem; background: rgba(40, 20, 6, 0.55); color: #ffe2c2; font-size: 12px; }
 .sa-ride-modal__wallet p { margin: 0; }
 .sa-ride-modal__wallet-links { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
 .sa-ride-modal__wallet-links a { padding: 0.35rem 0.65rem; border: 1px solid rgba(255, 214, 170, 0.4); border-radius: 0.45rem; color: #fff1e0; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; text-decoration: none; }
 .sa-ride-modal__wallet-links a:hover, .sa-ride-modal__wallet-links a:focus-visible { background: rgba(255, 200, 140, 0.16); }
-.sa-ride-modal__hint { margin: 0.75rem 0 0; color: rgba(175, 217, 229, 0.5); font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
-.sa-ride-modal__hint kbd { display: inline-block; margin: 0 0.16rem; padding: 0.15rem 0.3rem; border: 1px solid rgba(180, 223, 236, 0.25); border-radius: 0.25rem; color: #d7f5ff; }
 @media (max-width: 640px) {
   .sa-ride-modal__content { width: min(100% - 1rem, 42rem); padding-top: 0.8rem; }
   .sa-ride-modal__hero-copy { margin: 1.3rem 0 0.75rem; }
@@ -7177,11 +7157,9 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
   .sa-aircraft-picker--fullscreen { width: 100%; }
   .sa-ride-modal__launch-console { align-items: stretch; flex-direction: column; gap: 0.7rem; }
   .sa-ride-modal__launch { width: 100%; }
-  .sa-ride-modal__hint { font-size: 8px; }
 }
 
 .sa-aircraft-picker__mode.is-locked { border-color: rgba(255, 195, 112, 0.28); }
-.sa-aircraft-picker__mode.is-locked .sa-aircraft-picker__mode-kicker { color: #ffc477; }
 .sa-aircraft-picker__mode button:disabled { cursor: not-allowed; opacity: 0.72; border-color: rgba(255, 195, 112, 0.38); color: #ffd59e; }
 .sa-ride-modal__launch:disabled { cursor: not-allowed; border-color: rgba(255, 195, 112, 0.45); background: rgba(118, 69, 24, 0.32); color: #ffd59e; box-shadow: none; }
 .sa-ride-modal__launch:disabled:hover { filter: none; transform: none; }
@@ -7194,8 +7172,6 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: 7rem; min-height: 7rem; }
 @media (max-width: 640px) { .sa-aircraft-picker__model-canvas { height: 4rem; min-height: 4rem; } .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: 5.5rem; min-height: 5.5rem; } }
 
-.sa-ride-modal__close { box-sizing: border-box; display: inline-grid; place-items: center; align-content: center; padding: 0; line-height: 1; text-align: center; font-family: inherit; }
-.sa-ride-modal__close span { display: block; line-height: 1; transform: translateY(-0.02em); }
 .sa-aircraft-picker__model { overflow: hidden; }
 .sa-aircraft-picker__model-canvas { transform: scale(1.06); transform-origin: center center; }
 
@@ -7273,10 +7249,6 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
 .sa-aircraft-picker__slot--ufo.is-selected {
   box-shadow: inset 0 0 0 1px rgba(225, 196, 255, 0.86), 0 16px 32px rgba(0, 0, 0, 0.35), 0 0 38px rgba(158, 91, 255, 0.32);
 }
-.sa-aircraft-picker__slot-badge--ufo {
-  background: rgba(199, 151, 255, 0.18);
-  color: #e3caff;
-}
 .sa-aircraft-picker__model-glow--ufo {
   background: #b47cff;
 }
@@ -7294,8 +7266,6 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
     min-height: 12.5rem;
     padding-inline: 0.35rem;
   }
-  .sa-aircraft-picker__slot-badge { font-size: 7px; letter-spacing: 0.08em; }
-  .sa-aircraft-picker__aircraft-meta small { font-size: 7px; }
 }
 
 /* ── The saucer's instruments (UfoInstruments) ─────────────────────────
@@ -7394,19 +7364,14 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
    hangar drops its scenery and second headings so the roster and the
    launch button fit without scrolling. */
 @media (max-height: 560px) {
-  .sa-ride-modal__ceiling,
-  .sa-ride-modal__hangar-lines,
-  .sa-ride-modal__hero-copy p,
   .sa-ride-modal__hero-copy span,
-  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__head,
-  .sa-ride-modal__hint { display: none; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__head { display: none; }
   .sa-ride-modal__content { padding-top: max(0.5rem, var(--safe-top)); padding-bottom: 0.5rem; }
   .sa-ride-modal__topline { position: absolute; top: max(0.4rem, var(--safe-top)); right: 0.5rem; width: auto; }
-  .sa-ride-modal__topline > span { display: none; }
   .sa-ride-modal__hero-copy { margin: 0.2rem 0 0.45rem; }
   .sa-ride-modal__hero-copy h1 { font-size: 1.15rem; }
   .sa-aircraft-picker--fullscreen { padding: 0.5rem 0.7rem 0.55rem; }
-  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__stage { margin: 0 -0.35rem 0.4rem; }
+  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__stage { margin: 0 0 0.4rem; }
   .sa-aircraft-picker--fullscreen .sa-aircraft-picker__slot--active { min-height: 0; padding-block: 0.4rem; }
   .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: min(6rem, 24vh); min-height: 0; }
   .sa-aircraft-picker--fullscreen .sa-aircraft-picker__mode { min-height: 0; padding: 0.35rem 0.55rem; }
@@ -7418,24 +7383,15 @@ a.sa-seatwin__contact:focus-visible { outline: 2px solid var(--accent-deep); out
    old corner card: the phone rule that pinned that card left and right
    must not push this one sideways off the screen. */
 .sa-aircraft-picker--fullscreen { left: auto; }
-/* A narrow phone: two bays fit at once, with the rest scrolling; less scenery, and
-   badges that shorten rather than run out of their bays. */
+/* A narrow phone: two bays fit at once, with the rest scrolling, and less scenery. */
 @media (max-width: 420px) {
-  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__arrow,
-  .sa-ride-modal__hero-copy p,
   .sa-ride-modal__hero-copy span { display: none; }
-  .sa-aircraft-picker--fullscreen .sa-aircraft-picker__stage { grid-template-columns: minmax(0, 1fr); margin-inline: 0; }
   .sa-aircraft-picker--fullscreen .sa-aircraft-picker__slot--active { min-height: 0; }
   .sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: 6.5rem; min-height: 6.5rem; }
   .sa-ride-modal__hero-copy { margin: 0.6rem 0 0.55rem; }
   .sa-ride-modal__hero-copy h1 { font-size: 1.35rem; }
   .sa-aircraft-picker--fullscreen { padding: 0.75rem 0.65rem 0.7rem; }
 }
-.sa-aircraft-picker__slot-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sa-aircraft-picker__aircraft-meta > span:first-child { min-width: 0; }
-.sa-aircraft-picker__aircraft-meta small { overflow: hidden; text-overflow: ellipsis; }
-/* Keys are no help on a touch screen. */
-@media (hover: none) and (pointer: coarse) { .sa-ride-modal__hint { display: none; } }
 
 /* A phone held upright: the gauges take the foot of the screen, Boost and
    the flaps (or the saucer's drive) sit clear above them, and the help line

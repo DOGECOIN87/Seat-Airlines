@@ -25,12 +25,12 @@ interface CraftSheetProps {
 export default function CraftSheet({ model, locked, launchLabel, onLaunch, onClose }: CraftSheetProps) {
   const title = useId();
   const spec = CRAFT_SPECS[model];
-  const launch = useRef<HTMLButtonElement>(null);
-  const back = useRef<HTMLButtonElement>(null);
+  const card = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    (locked ? back : launch).current?.focus({ preventScroll: true });
+    // The sheet takes focus, not a button in it: no ring on open.
+    card.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.stopPropagation();
@@ -41,19 +41,19 @@ export default function CraftSheet({ model, locked, launchLabel, onLaunch, onClo
       window.removeEventListener('keydown', onKey, true);
       opener?.focus({ preventScroll: true });
     };
-  }, [locked, onClose]);
+  }, [onClose]);
 
   return (
     <div className="sa-craft-sheet" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <section className={`sa-craft-sheet__card sa-craft-sheet__card--${model}`} role="dialog" aria-modal="true" aria-labelledby={title}>
-        <button type="button" className="sa-craft-sheet__close" onClick={onClose} aria-label="Back to the hangar">×</button>
+      <section ref={card} className={`sa-craft-sheet__card sa-craft-sheet__card--${model}`} role="dialog" aria-modal="true" aria-labelledby={title} tabIndex={-1}>
+        <button type="button" className="sa-craft-sheet__close" onClick={onClose} aria-label="Back to the hangar">
+          <svg viewBox="0 0 24 24" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
         <div className="sa-craft-sheet__stage">
           <div className="sa-craft-sheet__pad" aria-hidden />
           <AircraftModelPreview model={model} active />
-          <span className="sa-craft-sheet__stand">{spec.tag}</span>
         </div>
         <div className="sa-craft-sheet__info">
-          <p className="sa-craft-sheet__eyebrow"><i aria-hidden /> Spec sheet</p>
           <h2 id={title} className="sa-craft-sheet__name">{spec.name}</h2>
           <p className="sa-craft-sheet__role">{spec.role}</p>
           <p className="sa-craft-sheet__blurb">{spec.blurb}</p>
@@ -69,8 +69,8 @@ export default function CraftSheet({ model, locked, launchLabel, onLaunch, onClo
             {spec.abilities.map((ability) => <li key={ability}>{ability}</li>)}
           </ul>
           <div className="sa-craft-sheet__actions">
-            <button ref={back} type="button" className="sa-craft-sheet__back" onClick={onClose}>Back to hangar</button>
-            <button ref={launch} type="button" className="sa-craft-sheet__launch" onClick={onLaunch} disabled={locked}>
+            <button type="button" className="sa-craft-sheet__back" onClick={onClose}>Back to hangar</button>
+            <button type="button" className="sa-craft-sheet__launch" onClick={onLaunch} disabled={locked}>
               {locked ? 'Hold 1M $SEAT to unlock' : launchLabel}
             </button>
           </div>

@@ -64,7 +64,6 @@
 .sa-ride-modal__wallet { width: min(100%, 60rem); }
 .sa-ride-modal__hero-copy { margin: clamp(0.75rem, 3vh, 2.5rem) 0 clamp(0.5rem, 2vh, 1.5rem); }
 .sa-ride-modal__hero-copy h1 { font-size: clamp(1.9rem, 5vw + 2.5vh, 3.4rem); }
-.sa-ride-modal__hero-copy p { font-size: clamp(10px, 1.2vw + 0.6vh, 12px); }
 .sa-ride-modal__hero-copy span { font-size: clamp(0.82rem, 1.6vw + 0.7vh, 1rem); }
 @media (min-height: 481px) {
   .sa-aircraft-picker--fullscreen .sa-aircraft-picker__slot--active { min-height: clamp(16rem, 30vh + 8vw, 26rem); }

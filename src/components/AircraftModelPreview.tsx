@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { addUfoDetail, type CraftDetail } from '../three/craftDetail';
 import { createAirframe, type AirframeHandles } from '../three/airframe';
-import { previewBounds, previewDistance } from '../three/previewBounds';
+import { previewBounds, turntableDistance, turntableExtent, type TurntableExtent } from '../three/previewBounds';
 import { createFighterJet } from '../three/fighterJet';
 import { observeElementVisibility, renderingProfile } from '../lib/rendering';
 
@@ -182,12 +182,15 @@ export default function AircraftModelPreview({ model, active = true }: AircraftM
       }
     };
     redraw.current = requestDraw;
-    let radius = 1;
+    /* The model's reach from the axis it turns on, from its vertices:
+       measured once per model (cleared when one loads), so a resize only
+       moves the camera. */
+    let extent: TurntableExtent | null = null;
     const frameModel = () => {
-      const bounds = previewBounds(root);
-      radius = bounds.isEmpty() ? 1 : bounds.getBoundingSphere(new THREE.Sphere()).radius;
-      camera.position.copy(viewDirection).multiplyScalar(previewDistance(radius, camera.fov, camera.aspect));
-      camera.far = camera.position.length() + radius * 4;
+      extent ??= turntableExtent(root, pivot);
+      const distance = turntableDistance(extent, camera.fov, camera.aspect, viewDirection);
+      camera.position.copy(viewDirection).multiplyScalar(distance);
+      camera.far = distance + extent.radius * 4 + (extent.high - extent.low);
       camera.updateProjectionMatrix();
     };
 
@@ -210,6 +213,7 @@ export default function AircraftModelPreview({ model, active = true }: AircraftM
         if (disposed) return;
         fighter?.update(0, 0, [true, true], 0, false);
         fitModel(root, 16);
+        extent = null;
         frameModel();
         requestDraw();
       });
@@ -246,6 +250,7 @@ export default function AircraftModelPreview({ model, active = true }: AircraftM
           fallback = null;
         }
         ufoRoot.add(actual);
+        extent = null;
         frameModel();
         requestDraw();
       }).catch(() => { /* The local fallback remains usable if the optional GLB cannot load. */ });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { previewBounds, previewDistance } from '../dist-test/previewBounds.js';
+import { previewBounds, previewDistance, turntableDistance, turntableExtent } from '../dist-test/previewBounds.js';
 
 const root = new THREE.Group();
 const plane = new THREE.Mesh(new THREE.BoxGeometry(32, 8, 38), new THREE.MeshBasicMaterial());
@@ -48,4 +48,33 @@ for (const aspect of [0.25, 0.5, 0.75, 1, 1.5, 2, 4]) {
     }
   }
 }
-console.log(`Aircraft preview: hidden-effect bounds, instancing, empty state and ${projections} projected corners passed.`);
+// The turntable framing, from the vertices themselves: every corner of the
+// same aeroplane stays inside at every angle and every card ratio.
+const pivot = new THREE.Group();
+pivot.add(plane);
+const extent = turntableExtent(plane, pivot);
+assert.ok(extent.radius > 24 && extent.radius < 25.2, `Turntable radius is the corners' reach from the axis (${extent.radius})`);
+const view = new THREE.Vector3(9.5, 5.2, 13.5);
+for (const aspect of [0.25, 0.5, 0.75, 1, 1.5, 2, 4]) {
+  const distance = turntableDistance(extent, 32, aspect, view);
+  const camera = new THREE.PerspectiveCamera(32, aspect, 0.1, 2000);
+  camera.position.copy(view).normalize().multiplyScalar(distance);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld(true);
+  let widest = 0;
+  for (let degrees = 0; degrees < 360; degrees += 1) {
+    const rotation = new THREE.Matrix4().makeRotationY(THREE.MathUtils.degToRad(degrees));
+    for (const x of [-16, 16]) for (const y of [-4, 4]) for (const z of [-19, 19]) {
+      const point = new THREE.Vector3(x, y, z).applyMatrix4(rotation).project(camera);
+      assert.ok(Math.abs(point.x) < 1 && Math.abs(point.y) < 1 && Math.abs(point.z) < 1,
+        `Turntable framing keeps the aircraft inside at aspect ${aspect}, rotation ${degrees}`);
+      widest = Math.max(widest, Math.abs(point.x), Math.abs(point.y));
+      projections++;
+    }
+  }
+  // Air round it at its widest, but no more than that: the craft fills its bay.
+  // (The framing samples the rim every 5°, so a corner between two samples may
+  // reach a hair past 90%.)
+  assert.ok(widest > 0.85 && widest < 0.905, `Turntable framing fills 85–90% of the frame at aspect ${aspect} (${widest.toFixed(3)})`);
+}
+console.log(`Aircraft preview: hidden-effect bounds, instancing, empty state, turntable framing and ${projections} projected corners passed.`);

@@ -1,7 +1,7 @@
 /* ── A craft, up close ────────────────────────────────────────────
-   The hangar's own material: navy glass on the dark, cyan hairlines,
-   Plex Mono for the labels and figures, and the launch console's mint
-   for the way on. The model stands on a lit pad and turns. */
+   The hangar's own material: navy glass on the dark, Plex Mono for the
+   figures, and the launch console's mint for the way on. The model stands
+   on a lit pad and turns. */
 
 .sa-craft-sheet {
   position: fixed;
@@ -26,12 +26,10 @@
   overflow: auto;
   border: 1px solid rgba(112, 211, 241, 0.22);
   border-radius: 1.25rem;
-  background:
-    linear-gradient(90deg, rgba(72, 190, 232, 0.05) 1px, transparent 1px) 0 0 / 3rem 3rem,
-    linear-gradient(rgba(72, 190, 232, 0.04) 1px, transparent 1px) 0 0 / 3rem 3rem,
-    linear-gradient(160deg, #0b1a2b 0%, #07111e 60%, #050b14 100%);
+  background: linear-gradient(160deg, #0b1a2b 0%, #07111e 60%, #050b14 100%);
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   color: #effaff;
+  outline: none;
   animation: sa-craft-sheet-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes sa-craft-sheet-rise { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
@@ -51,17 +49,18 @@
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 1px solid rgba(157, 225, 244, 0.25);
-  border-radius: 999px;
-  background: rgba(7, 17, 30, 0.7);
-  color: #cfeefa;
-  font-size: 1.4rem;
-  line-height: 1;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  color: #dff8ff;
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
-.sa-craft-sheet__close:hover { border-color: rgba(157, 225, 244, 0.6); color: #fff; }
+.sa-craft-sheet__close svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.sa-craft-sheet__close:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
 
 /* The stand: a lit pad under the model, which turns on it. */
 .sa-craft-sheet__stage {
@@ -93,29 +92,9 @@
   background: radial-gradient(closest-side, rgba(112, 241, 195, 0.28), rgba(70, 196, 236, 0.08) 60%, transparent);
   box-shadow: 0 0 0 1px rgba(112, 241, 195, 0.2) inset;
 }
-.sa-craft-sheet__stand {
-  position: absolute;
-  left: 1rem;
-  bottom: 0.9rem;
-  color: rgba(157, 225, 244, 0.7);
-  font: 700 9px 'IBM Plex Mono', ui-monospace, monospace;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
 
 /* The sheet. */
 .sa-craft-sheet__info { display: grid; align-content: start; gap: 0.75rem; padding: 1.6rem 1.6rem 1.4rem; }
-.sa-craft-sheet__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0;
-  color: rgba(157, 225, 244, 0.75);
-  font: 700 9px 'IBM Plex Mono', ui-monospace, monospace;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-}
-.sa-craft-sheet__eyebrow i { width: 0.42rem; height: 0.42rem; border-radius: 50%; background: #63f0bb; box-shadow: 0 0 10px #63f0bb; }
 .sa-craft-sheet__name {
   margin: 0;
   font: 800 clamp(2rem, 4vw, 2.8rem)/1 Montserrat, ui-sans-serif, system-ui, sans-serif;
@@ -133,7 +112,7 @@
   padding: 0.55rem 0;
   border-bottom: 1px solid rgba(112, 211, 241, 0.1);
 }
-.sa-craft-sheet__specs dt { color: rgba(157, 225, 244, 0.65); font: 700 9.5px/1.6 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; }
+.sa-craft-sheet__specs dt { color: rgba(190, 228, 242, 0.7); font: 600 0.82rem/1.45 Montserrat, ui-sans-serif, system-ui, sans-serif; }
 .sa-craft-sheet__specs dd { margin: 0; color: #f3f8ff; font: 600 0.82rem/1.45 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 
 .sa-craft-sheet__abilities { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.15rem 0 0; padding: 0; list-style: none; }
@@ -143,9 +122,7 @@
   border-radius: 999px;
   background: rgba(52, 184, 152, 0.12);
   color: #c9fbe9;
-  font: 700 9.5px 'IBM Plex Mono', ui-monospace, monospace;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font: 600 0.78rem Montserrat, ui-sans-serif, system-ui, sans-serif;
 }
 
 .sa-craft-sheet__actions { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.6rem; margin-top: 0.4rem; }
