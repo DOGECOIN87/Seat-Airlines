@@ -1,13 +1,14 @@
 import AircraftModelPreview from './AircraftModelPreview';
 import CraftSheet from './CraftSheet';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlayMode } from '../lib/rides';
+import { RIDES, RIDE_PASS, passShort, type PlayMode } from '../lib/rides';
 
 interface AircraftCarouselProps {
   mode: PlayMode;
   onModeChange: (mode: PlayMode) => void;
   fullscreen?: boolean;
-  ufoUnlocked: boolean;
+  /** Which rides this wallet's verified balance flies (see RIDE_PASS). */
+  flyable: Record<PlayMode, boolean>;
   tokenBalance: number | null;
   balanceLoading: boolean;
   walletConnected: boolean;
@@ -17,17 +18,37 @@ interface AircraftCarouselProps {
   launchLabel?: string;
 }
 
-/** Every playable ride shares the same selector and launch flow. */
+/** The three bays, in the order they stand. */
+const BAYS: readonly { ride: PlayMode; name: string }[] = [
+  { ride: 'airliner', name: 'SA350' },
+  { ride: 'jet', name: 'F35' },
+  { ride: 'ufo', name: 'UFO' },
+];
+const count = (n: number) => Math.floor(n).toLocaleString('en-US');
+
+const LockMark = () => (
+  <svg className="sa-aircraft-picker__lock" viewBox="0 0 24 24" aria-hidden>
+    <rect x="5" y="10.5" width="14" height="10" rx="2.2" />
+    <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+  </svg>
+);
+
+/**
+ * Every playable ride shares the same selector and launch flow. The F35 and
+ * the UFO are the holders' fleet: a bay this wallet cannot fly is dimmed and
+ * padlocked, and picking it still opens its spec sheet — with the way to
+ * verify, or the pass it takes, where the launch would be.
+ */
 export default function AircraftCarousel({
-  mode, onModeChange, fullscreen = false, ufoUnlocked, tokenBalance, balanceLoading, walletConnected, onConnect,
+  mode, onModeChange, fullscreen = false, flyable, tokenBalance, balanceLoading, walletConnected, onConnect,
   onLaunch, launchLabel = 'Launch flight →',
 }: AircraftCarouselProps) {
   const track = useRef<HTMLDivElement>(null);
-  /* Picking a craft opens its spec sheet. */
+  /* Picking a craft opens its spec sheet; only one this wallet flies becomes the ride. */
   const [sheet, setSheet] = useState<PlayMode | null>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
   const pick = (ride: PlayMode) => {
-    onModeChange(ride);
+    if (flyable[ride]) onModeChange(ride);
     setSheet(ride);
   };
   useEffect(() => {
@@ -37,81 +58,58 @@ export default function AircraftCarousel({
     element.scrollTo({ left: selected.offsetLeft - element.offsetLeft - (element.clientWidth - selected.offsetWidth) / 2,
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   }, [mode]);
-  const selectUfo = () => {
-    if (!ufoUnlocked) {
-      onConnect?.();
-      return;
-    }
-    pick('ufo');
-  };
+
+  /* The holders' fleet, and what this wallet still needs for it. */
+  const locked = RIDES.filter((ride) => !flyable[ride]);
+  const needs = locked.map((ride, i) => `${count(RIDE_PASS[ride])}${i === 0 ? ' $SEAT' : ''} to fly the ${BAYS.find((b) => b.ride === ride)?.name}`).join(', ');
+  const fleetLine = balanceLoading
+    ? 'Verifying your $SEAT balance…'
+    : !locked.length
+      ? 'The F35 and the UFO are yours to fly.'
+      : !walletConnected
+        ? `Hold ${needs}. Connect a wallet to verify.`
+        : `Hold ${needs}. You hold ${count(tokenBalance ?? 0)}.`;
 
   return (
     <section className={`sa-aircraft-picker${fullscreen ? ' sa-aircraft-picker--fullscreen' : ''}`} aria-label="Aircraft selector">
       <div className="sa-aircraft-picker__stage">
         <div ref={track} className="sa-aircraft-picker__track" aria-label="Available rides">
-          <button
-            type="button"
-            className={`sa-aircraft-picker__slot sa-aircraft-picker__slot--active${mode === 'airliner' ? ' is-selected' : ''}`}
-            onClick={() => pick('airliner')}
-            aria-pressed={mode === 'airliner'}
-          >
-            <div className="sa-aircraft-picker__model" aria-hidden>
-              <div className="sa-aircraft-picker__model-glow" />
-              <AircraftModelPreview model="airliner" active={mode === 'airliner'} />
-            </div>
-            <div className="sa-aircraft-picker__aircraft-meta"><strong>SA350</strong></div>
-          </button>
-
-          <button type="button" className={`sa-aircraft-picker__slot sa-aircraft-picker__slot--active sa-aircraft-picker__slot--jet${mode === 'jet' ? ' is-selected' : ''}`}
-            onClick={() => pick('jet')} aria-pressed={mode === 'jet'}>
-            <div className="sa-aircraft-picker__model" aria-hidden>
-              <div className="sa-aircraft-picker__model-glow" />
-              <AircraftModelPreview model="jet" active={mode === 'jet'} />
-            </div>
-            <div className="sa-aircraft-picker__aircraft-meta"><strong>F35</strong></div>
-          </button>
-
-          <button
-            type="button"
-            className={`sa-aircraft-picker__slot sa-aircraft-picker__slot--active sa-aircraft-picker__slot--ufo${mode === 'ufo' ? ' is-selected' : ''}${!ufoUnlocked ? ' is-locked' : ''}`}
-            onClick={selectUfo}
-            aria-pressed={mode === 'ufo'}
-            disabled={!ufoUnlocked && walletConnected}
-          >
-            <div className="sa-aircraft-picker__model" aria-hidden>
-              <div className="sa-aircraft-picker__model-glow sa-aircraft-picker__model-glow--ufo" />
-              <AircraftModelPreview model="ufo" active={mode === 'ufo'} />
-            </div>
-            <div className="sa-aircraft-picker__aircraft-meta"><strong>UFO</strong></div>
-          </button>
+          {BAYS.map(({ ride, name }) => {
+            const open = flyable[ride];
+            return (
+              <button
+                key={ride}
+                type="button"
+                className={`sa-aircraft-picker__slot sa-aircraft-picker__slot--active sa-aircraft-picker__slot--${ride}${mode === ride ? ' is-selected' : ''}${open ? '' : ' is-locked'}`}
+                onClick={() => pick(ride)}
+                aria-pressed={mode === ride}
+                aria-label={open ? name : `${name}, locked: hold ${count(RIDE_PASS[ride])} $SEAT to fly it`}
+              >
+                <div className="sa-aircraft-picker__model" aria-hidden>
+                  <div className={`sa-aircraft-picker__model-glow${ride === 'ufo' ? ' sa-aircraft-picker__model-glow--ufo' : ''}`} />
+                  <AircraftModelPreview model={ride} active={mode === ride} />
+                </div>
+                <div className="sa-aircraft-picker__aircraft-meta"><strong>{name}</strong>{!open && <LockMark />}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className={`sa-aircraft-picker__mode${mode === 'ufo' ? ' is-armed' : ''}${!ufoUnlocked ? ' is-locked' : ''}`}>
+      <div className={`sa-aircraft-picker__mode${locked.length ? ' is-locked' : ''}`}>
         <p className="sa-aircraft-picker__mode-text">
-          <strong>UFO interceptor.</strong>{' '}
-          {balanceLoading
-            ? 'Verifying your $SEAT balance…'
-            : ufoUnlocked
-              ? 'Saucer controls armed: launch from the pad.'
-              : !walletConnected
-                ? 'Connect a wallet to verify. Hold 1,000,000 $SEAT to unlock.'
-                : `Hold 1,000,000 $SEAT to unlock. You hold ${Math.floor(tokenBalance ?? 0).toLocaleString('en-US')}.`}
+          <strong>Holders’ fleet.</strong>{' '}{fleetLine}
         </p>
-        <button
-          type="button"
-          className="sa-ghost"
-          disabled={!ufoUnlocked && walletConnected}
-          onClick={selectUfo}
-          aria-pressed={mode === 'ufo'}
-        >
-          {mode === 'ufo' ? 'Armed' : !walletConnected && !ufoUnlocked ? 'Connect to verify' : balanceLoading ? 'Checking…' : ufoUnlocked ? 'Try UFO' : 'Locked'}
-        </button>
+        {!walletConnected && locked.length > 0 && (
+          <button type="button" className="sa-ghost" onClick={onConnect}>Connect to verify</button>
+        )}
       </div>
       {sheet && (
         <CraftSheet
           model={sheet}
-          locked={sheet === 'ufo' && !ufoUnlocked}
+          locked={!flyable[sheet]}
+          lockedLabel={walletConnected ? `Hold ${passShort(RIDE_PASS[sheet])} $SEAT to unlock` : 'Connect to verify'}
+          onUnlock={walletConnected ? undefined : () => { setSheet(null); onConnect?.(); }}
           launchLabel={launchLabel}
           onLaunch={() => { setSheet(null); onLaunch?.(); }}
           onClose={closeSheet}

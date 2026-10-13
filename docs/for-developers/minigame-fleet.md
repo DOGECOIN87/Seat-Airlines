@@ -4,8 +4,12 @@ description: The blimp encounter, F35 controls, missile targeting, and the UFO a
 
 # Minigame fleet
 
-The selector offers the SA350, F35 and UFO. The F35 uses the same launch flow as
-the airliner. The UFO retains its existing 1,000,000 $SEAT holding requirement.
+The selector offers the SA350, F35 and UFO. The airliner is open to everybody;
+the F35 and the UFO are the holders' fleet, flown only with a verified balance of
+500,000 and 1,000,000 $SEAT respectively (`RIDE_PASS` in `src/lib/rides.ts`, the
+one table the selector, the spec sheet and take-off all read). A locked craft's
+bay is padlocked; picking it opens its spec sheet with the way to verify, or the
+pass it takes, in place of the launch.
 
 | Control | F35 action |
 | --- | --- |

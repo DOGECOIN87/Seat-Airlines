@@ -6,8 +6,12 @@ import './CraftSheet.css';
 
 interface CraftSheetProps {
   model: PlayMode;
-  /** The UFO, before the wallet holds enough to fly it. */
+  /** A holders' craft this wallet does not yet fly (see RIDE_PASS). */
   locked: boolean;
+  /** What stands where the launch would, while it is locked. */
+  lockedLabel: string;
+  /** The way to unlock it from here — connecting a wallet — when there is one. */
+  onUnlock?: () => void;
   /** What the launch button says: the hangar's own words for it. */
   launchLabel: string;
   onLaunch: () => void;
@@ -22,7 +26,7 @@ interface CraftSheetProps {
  * Escape would take the whole picker away — so it is caught on the way down,
  * before the hangar hears it.
  */
-export default function CraftSheet({ model, locked, launchLabel, onLaunch, onClose }: CraftSheetProps) {
+export default function CraftSheet({ model, locked, lockedLabel, onUnlock, launchLabel, onLaunch, onClose }: CraftSheetProps) {
   const title = useId();
   const spec = CRAFT_SPECS[model];
   const card = useRef<HTMLElement>(null);
@@ -70,8 +74,8 @@ export default function CraftSheet({ model, locked, launchLabel, onLaunch, onClo
           </ul>
           <div className="sa-craft-sheet__actions">
             <button type="button" className="sa-ghost sa-craft-sheet__back" onClick={onClose}>Back</button>
-            <button type="button" className="sa-cta sa-craft-sheet__launch" onClick={onLaunch} disabled={locked}>
-              {locked ? 'Hold 1M $SEAT to unlock' : launchLabel}
+            <button type="button" className="sa-cta sa-craft-sheet__launch" onClick={locked ? onUnlock : onLaunch} disabled={locked && !onUnlock}>
+              {locked ? lockedLabel : launchLabel}
             </button>
           </div>
         </div>

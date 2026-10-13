@@ -1,6 +1,6 @@
 import { BOOST, DASH, GAME } from './landingGame';
 import { JET } from './aerialCombat';
-import type { PlayMode } from './rides';
+import { RIDE_PASS, type PlayMode } from './rides';
 
 /**
  * What the hangar's spec sheet says about each craft.
@@ -48,6 +48,7 @@ export const CRAFT_SPECS: Record<PlayMode, CraftSpec> = {
       ['Lock-on', `${JET.lockSeconds} s, inside ${n(JET.lockRange / 1000)} km`],
       ['Missile life', `${JET.missileLife} s`],
       ['Targets', 'The blimp · the UFO'],
+      ['Unlock', `Hold ${n(RIDE_PASS.jet)} $SEAT`],
     ],
     abilities: ['Mach 1 burn', 'Target lock', 'Guided missiles'],
   },
@@ -61,7 +62,7 @@ export const CRAFT_SPECS: Record<PlayMode, CraftSpec> = {
       ['Dash sideways', `${n(DASH.strafe)} m/s`],
       ['Dash', `${BOOST.charges} charges · ${DASH.seconds} s each`],
       ['Worlds', 'Earth · the moon · Mars'],
-      ['Unlock', 'Hold 1,000,000 $SEAT'],
+      ['Unlock', `Hold ${n(RIDE_PASS.ufo)} $SEAT`],
     ],
     abilities: ['Dash any way', 'Vertical drive', 'Moon & Mars'],
   },

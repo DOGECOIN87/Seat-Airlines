@@ -12,7 +12,7 @@ import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
 import './Hangar.css';
 import SeatOverview from './SeatOverview';
-import { RIDES, type PlayMode } from '../lib/rides';
+import { RIDES, RIDE_PASS, flyableRides, passShort, type PlayMode } from '../lib/rides';
 import JetWeapons from './JetWeapons';
 import { BLIMP, fireMissile, type AerialEvents } from '../lib/aerialCombat';
 import type { Manifest } from '../lib/manifest';
@@ -258,25 +258,27 @@ export default function Landing({
       else document.querySelector<HTMLButtonElement>('.sa-landing__fly')?.focus({ preventScroll: true });
     };
   }, [ridePickerOpen]);
-  // The UFO is an entitlement, not a development/demo flag: only a verified
-  // balance of at least 1,000,000 $SEAT can arm it.
+  // The F35 and the UFO are entitlements, not development/demo flags: only a
+  // verified balance at the ride's pass (RIDE_PASS) can fly them.
   /* X's iframe cannot connect a Solana wallet, so the Player Card is a
      self-contained practice flight rather than a score-submitting run. */
   const localTestMode = import.meta.env.DEV || embed;
-  const ufoUnlocked = (tokenBalance ?? 0) >= 1_000_000;
-  const ufoUnlockedRef = useRef(ufoUnlocked);
+  const flyable = flyableRides(tokenBalance);
+  /* What the wallet flies, as one value an effect can watch. */
+  const flyableKey = RIDES.filter((ride) => flyable[ride]).join();
+  const flyableRef = useRef(flyable);
   useEffect(() => {
-    ufoUnlockedRef.current = ufoUnlocked;
-    // A remembered saucer the wallet no longer holds the pass for goes back to the airliner.
-    if (!ufoUnlocked && !tokenBalanceLoading && game.current.phase === 'idle' && lastPlayMode === 'ufo') setPlayMode('airliner');
-  }, [ufoUnlocked, tokenBalanceLoading, setPlayMode]);
+    flyableRef.current = flyableRides(tokenBalance);
+    // A remembered holders' ride the wallet no longer holds the pass for goes back to the airliner.
+    if (!flyableRef.current[lastPlayMode] && !tokenBalanceLoading && game.current.phase === 'idle') setPlayMode('airliner');
+  }, [flyableKey, tokenBalance, tokenBalanceLoading, setPlayMode]);
   /** Pick a ride, if it is one this pilot can fly. */
   const chooseRide = useCallback((mode: PlayMode) => {
-    if (mode === 'ufo' && !ufoUnlockedRef.current) return;
+    if (!flyableRef.current[mode]) return;
     setPlayMode(mode);
   }, [setPlayMode]);
   const cycleRide = useCallback((direction: number) => {
-    const available = ufoUnlockedRef.current ? RIDES : RIDES.filter(mode => mode !== 'ufo');
+    const available = RIDES.filter((mode) => flyableRef.current[mode]);
     const index = Math.max(0, available.indexOf(lastPlayMode));
     setPlayMode(available[(index + direction + available.length) % available.length]);
   }, [setPlayMode]);
@@ -518,7 +520,7 @@ export default function Landing({
     if (!ready || g.phase !== 'idle' || gone.current) return;
     /* The same game, not a new one: at rest it has been tracking the
        cruise's heading, attitude and height, which is where the dive starts. */
-    const mode = playMode === 'ufo' && !ufoUnlockedRef.current ? 'airliner' : playMode;
+    const mode = flyableRef.current[playMode] ? playMode : 'airliner';
     if (mode !== playMode) setPlayMode(mode);
     g.mode = mode;
     g.flaps = 0;
@@ -602,7 +604,7 @@ export default function Landing({
     setRidePickerOpen(true);
   }, [ready]);
   const confirmRide = useCallback(() => {
-    if (playMode === 'ufo' && !ufoUnlocked) return;
+    if (!flyableRef.current[playMode]) return;
     setRidePickerOpen(false);
     // The local preview is deliberately playable without a wallet so
     // the fleet can be tested. The production path remains wallet-gated.
@@ -615,7 +617,7 @@ export default function Landing({
     // pilot has selected a ride.
     if (wallet.address) start();
     else void connectAndFly();
-  }, [playMode, ufoUnlocked, localTestMode, takeOff, wallet.address, start, connectAndFly]);
+  }, [playMode, localTestMode, takeOff, wallet.address, start, connectAndFly]);
   /* Each wallet's own "open this page in my browser" link, for a phone with
      no wallet in the browser it is in. */
   const [walletLinks] = useState(() => {
@@ -1232,7 +1234,7 @@ export default function Landing({
                 fullscreen
                 mode={playMode}
                 onModeChange={chooseRide}
-                ufoUnlocked={ufoUnlocked}
+                flyable={flyable}
                 tokenBalance={tokenBalance}
                 balanceLoading={tokenBalanceLoading}
                 walletConnected={Boolean(wallet.address)}
@@ -1243,8 +1245,8 @@ export default function Landing({
             </Suspense>
             <div className="sa-ride-modal__launch-console">
               <strong>{playMode === 'ufo' ? 'UFO · Interceptor' : playMode === 'jet' ? 'F35 · Fighter' : 'SA350 · Flagship'}</strong>
-              <button type="button" className="sa-cta sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked} ref={launchRef}>
-                {playMode === 'ufo' && !ufoUnlocked ? 'Hold 1M $SEAT to unlock' : wallet.address ? 'Launch flight →' : 'Connect & launch →'}
+              <button type="button" className="sa-cta sa-ride-modal__launch" onClick={confirmRide} disabled={!flyable[playMode]} ref={launchRef}>
+                {!flyable[playMode] ? `Hold ${passShort(RIDE_PASS[playMode])} $SEAT to unlock` : wallet.address ? 'Launch flight →' : 'Connect & launch →'}
               </button>
             </div>
             {/* Connecting failed, or there is nothing to connect: say so, and where to get one. */}

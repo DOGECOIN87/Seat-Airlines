@@ -179,7 +179,9 @@
 }
 .sa-aircraft-picker__model-canvas[data-ready='true'] .sa-aircraft-picker__fallback { display: none; }
 
-.sa-aircraft-picker__aircraft-meta { position: relative; z-index: 3; padding: 0.35rem 0.2rem 0; }
+.sa-aircraft-picker__aircraft-meta { position: relative; z-index: 3; display: flex; align-items: center; gap: 0.45rem; padding: 0.35rem 0.2rem 0; }
+/* A holders' craft this wallet does not fly yet: a padlock by its name. */
+.sa-aircraft-picker__lock { flex: none; width: 1rem; height: 1rem; fill: none; stroke: var(--ui-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .sa-aircraft-picker__aircraft-meta strong { color: #f3f8ff; font-size: 1.05rem; font-weight: 700; letter-spacing: 0.02em; }
 
 /* The saucer's lock: the walk strip's "Connect a wallet to step inside",
