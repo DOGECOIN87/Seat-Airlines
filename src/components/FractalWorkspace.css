@@ -9,7 +9,6 @@
 .sa-fractal__tools button, .sa-fractal__nav button { white-space: nowrap; color: #afc1d3; background: #141f30; border: 1px solid #283b52; border-radius: 7px; padding: 7px 10px; font-size: 11px; cursor: pointer; }
 .sa-fractal__tools button:hover, .sa-fractal__nav button:hover { color: #7fe3f7; border-color: #7fe3f7; }
 .sa-fractal button:focus-visible { outline: 2px solid #7fe3f7; outline-offset: 3px; }
-.sa-fractal__tools button[aria-pressed="true"] { background: #1e3046; color: #7fe3f7; }
 .sa-fractal__nav { padding: 0 8px 8px; overflow-x: auto; scrollbar-width: thin; }
 .sa-fractal__nav button { display: flex; align-items: center; gap: 6px; }
 .sa-fractal__nav svg { width: 14px; height: 14px; }
@@ -61,12 +60,19 @@
 .sa-fractal .sa-zone-head__visual { color: #b3c4d7; white-space: nowrap; }
 .sa-fractal .sa-zone-toggle__label { background: #20334b; color: #e8f2fa; }
 @media (max-width: 639px) {
-  .sa-fractal__bar { gap: 14px; padding: 12px 8px; overflow: visible; }
-  .sa-fractal__tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; overflow: visible; }
-  .sa-fractal__tools button { min-height: 44px; padding: 10px 4px; font-size: 12px; }
-  .sa-fractal__nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; padding: 0 8px 8px; overflow: visible; }
-  .sa-fractal__nav button { min-height: 44px; padding: 8px 4px; justify-content: center; font-size: 11px; }
-  .sa-fractal__nav svg { width: 15px; height: 15px; }
+  /* The tools and the panel buttons are a compact row each, filling the
+     width when they fit and scrolling sideways when they do not, rather
+     than grids of 44px tiles that put a quarter of the screen between the
+     bar and the panels. 34px is still well over the 24px a touch target
+     needs. The rows' 4px top and bottom leave room for a focus ring. */
+  .sa-fractal__bar { gap: 8px; padding: 8px 8px 0; overflow: visible; }
+  .sa-fractal__tools, .sa-fractal__nav { display: flex; flex-wrap: nowrap; width: 100%; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .sa-fractal__tools::-webkit-scrollbar, .sa-fractal__nav::-webkit-scrollbar { display: none; }
+  .sa-fractal__tools { padding-block: 4px; }
+  .sa-fractal__nav { padding: 4px 8px 8px; }
+  .sa-fractal__tools button, .sa-fractal__nav button { flex: 1 0 auto; justify-content: center; min-height: 34px; padding: 0 12px; font-size: 11px; }
+  .sa-fractal__nav svg { width: 13px; height: 13px; }
+  .sa-fractal .sa-fractal__tools button:focus-visible, .sa-fractal .sa-fractal__nav button:focus-visible { outline-offset: 1px; }
   .sa-fractal__caption { margin-left: 0; font-size: 8px; letter-spacing: .08em; }
   .sa-fractal__workspace { height: clamp(420px, 65dvh, 680px) !important; }
   .sa-fractal__status { display: block; padding: 12px 8px; font-size: 8px; line-height: 1.8; }
@@ -84,7 +90,7 @@
   .sa-app--fractal .sa-topbar__fig dt { font-size: 9px; letter-spacing: .08em; white-space: nowrap; }
   .sa-app--fractal .sa-topbar__fig dd { font-size: 12px; white-space: nowrap; }
 }
-@media (max-width: 359px) { .sa-fractal__nav button { font-size: 10px; gap: 4px; } .sa-fractal__nav svg { width: 12px; height: 12px; } }
+@media (max-width: 359px) { .sa-fractal__tools button, .sa-fractal__nav button { padding: 0 10px; font-size: 10px; gap: 4px; } .sa-fractal__nav svg { width: 12px; height: 12px; } }
 .sa-fractal .sa-zone .sa-zone-head { background: #18283c; border-bottom-color: #30465f; }
 @media (max-width: 359px) { .sa-app--fractal .sa-topbar__fig dt { font-size: 8px; letter-spacing: 0; } }
 /* Tailwind's original palette uses literal values, so match those utilities too. */

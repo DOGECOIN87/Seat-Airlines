@@ -27,7 +27,6 @@ export default function FractalWorkspace({ aircraft, instruments, wall, radio, a
   const [ready, setReady] = useState(false);
   const [compact, setCompact] = useState(isCompact);
   const [help, setHelp] = useState(false);
-  const [focused, setFocused] = useState(false);
   const bind = useCallback((handle: WorkspaceHandle | null) => {
     workspace.current = handle;
     setReady(Boolean(handle));
@@ -65,9 +64,7 @@ export default function FractalWorkspace({ aircraft, instruments, wall, radio, a
       <div className="sa-fractal__bar">
         <RadioChip onOpen={() => open('radio')} />
         <div className="sa-fractal__tools" aria-label="Workspace controls">
-          <button type="button" onClick={() => { workspace.current?.navigation.overview(); setFocused(false); }}>Overview</button>
-          <button type="button" aria-pressed={focused} onClick={() => { workspace.current?.navigation.toggle(); setFocused(Boolean(workspace.current?.navigation.framed)); }}>Focus</button>
-          <button type="button" onClick={() => { workspace.current?.reset(); workspace.current?.navigation.overview(); setFocused(false); }}>Reset layout</button>
+          <button type="button" onClick={() => { workspace.current?.reset(); workspace.current?.navigation.overview(); }}>Reset layout</button>
           <button type="button" aria-expanded={help} aria-controls="sa-fractal-help" onClick={() => setHelp(v => !v)}>How to arrange</button>
         </div>
       </div>
@@ -85,7 +82,6 @@ export default function FractalWorkspace({ aircraft, instruments, wall, radio, a
         label="Seat Airlines flight workspace" theme="dark" navigation="free"
         storageKey={`sa350-trellis-screenshot-v2-${compact ? 'compact' : 'wide'}`} version={2}
         className="sa-fractal__workspace" motion="system"
-        onNavigate={id => setFocused(Boolean(id))}
         tokens={{ '--trellis-bg': '#070d16', '--trellis-panel': '#0f1725', '--trellis-tabbar': '#162234', '--trellis-tab-active': '#20334b', '--trellis-text': '#e8f2fa', '--trellis-text-muted': '#95a9be', '--trellis-accent': '#7fe3f7', '--trellis-border': '#283b52', '--trellis-gap': '8px', '--trellis-radius': '12px', '--trellis-font': 'inherit', '--trellis-tabbar-height': '38px' }}
       >
         <ViewType id="aircraft" title="01 / Aircraft" singleton closable={false} minSize={{ width: 420, height: 320 }}><div className="sa-fractal__aircraft">{aircraft}</div></ViewType>
