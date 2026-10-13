@@ -15,8 +15,10 @@ import { useEffect, useRef } from 'react';
  *
  * A canvas rather than CSS, because a field of stars that never repeats is
  * a few hundred points of arithmetic and nothing else. It stops in a hidden
- * tab and when the splash goes, and anybody who has asked for less motion
- * gets the same sky standing still.
+ * tab and when the splash goes. Anybody who has asked for less motion — a
+ * phone with Reduce Motion on, as many are — still flies, but at a drift:
+ * a sixth of the speed and no streaks, the sense of going forward without
+ * the rush.
  */
 
 /** Stars per square pixel of screen, and the fewest and most there are. */
@@ -29,6 +31,8 @@ const SPEED = 0.42;
 const SPOOL = 0.5;
 /** How far back a star's streak reaches, as distance ahead. */
 const TRAIL = 0.035;
+/** With reduced motion: the share of the speed kept, and no streaks. */
+const DRIFT = 1 / 6;
 /** Where ahead is: the middle of the screen, a little above centre, behind the board. */
 const AHEAD = { x: 0.5, y: 0.45 };
 /** Nearest a star comes before it is behind us. */
@@ -115,11 +119,6 @@ export default function Starfield({ className }: { className?: string }) {
     const observer = 'ResizeObserver' in window ? new ResizeObserver(size) : null;
     observer?.observe(canvas);
 
-    if (still) {
-      draw(0);
-      return () => observer?.disconnect();
-    }
-
     let frame = 0;
     let last = 0;
     let flown = 0;
@@ -130,8 +129,8 @@ export default function Starfield({ className }: { className?: string }) {
       flown += dt;
       const spool = Math.min(1, flown / SPOOL);
       const ease = spool * spool * (3 - 2 * spool);
-      trail = TRAIL * ease;
-      draw(SPEED * dt * ease);
+      trail = still ? 0 : TRAIL * ease;
+      draw(SPEED * (still ? DRIFT : 1) * dt * ease);
       frame = requestAnimationFrame(tick);
     };
     const visibility = () => {
