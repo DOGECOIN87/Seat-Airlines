@@ -280,8 +280,8 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
    name, instead of the fixed 7–10rem strip the older rules above pin it to,
    which left each craft small in the middle of a tall card. */
 .sa-aircraft-picker--fullscreen .sa-aircraft-picker__slot--active { grid-template-rows: auto minmax(0, 1fr) auto; align-content: stretch; }
-.sa-aircraft-picker--fullscreen .sa-aircraft-picker__model { align-self: stretch; height: 100%; min-height: clamp(9rem, 26vh, 16rem); }
-.sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: 100%; min-height: clamp(9rem, 26vh, 16rem); transform: none; }
+.sa-aircraft-picker--fullscreen .sa-aircraft-picker__model { align-self: stretch; height: 100%; min-height: clamp(8rem, 20vh, 12.5rem); }
+.sa-aircraft-picker--fullscreen .sa-aircraft-picker__model-canvas { height: 100%; min-height: clamp(8rem, 20vh, 12.5rem); transform: none; }
 .sa-aircraft-picker__slot--active { transform: none; }
 .sa-aircraft-picker__status-dot { flex: none; }
 .sa-aircraft-picker__mode { flex-wrap: wrap; gap: 0.75rem; }

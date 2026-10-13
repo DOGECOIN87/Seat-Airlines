@@ -22,9 +22,15 @@ export function previewBounds(root: THREE.Object3D): THREE.Box3 {
   return bounds;
 }
 
-/** Use both fields of view; a narrow bay must not crop the wings during rotation. */
+/**
+ * Use both fields of view; a narrow bay must not crop the wings during
+ * rotation. The bounding sphere holds the aircraft at every angle it turns
+ * to, so framing the sphere tangent to the narrower field is already the
+ * guarantee; 3% over it keeps every corner strictly inside. (It was 12% and
+ * a fixed 0.2 on top, which left each craft small in its card.)
+ */
 export function previewDistance(radius: number, verticalFov: number, aspect: number): number {
   const halfVertical = THREE.MathUtils.degToRad(verticalFov) / 2;
   const halfHorizontal = Math.atan(Math.tan(halfVertical) * Math.max(aspect, 0.01));
-  return (radius + 0.2) * 1.12 / Math.sin(Math.min(halfVertical, halfHorizontal));
+  return radius * 1.03 / Math.sin(Math.min(halfVertical, halfHorizontal));
 }
