@@ -10,6 +10,7 @@ import Disclaimer, { DISCLAIMER_EVENT } from './Disclaimer';
 import Flyover from './Flyover';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
+import './Hangar.css';
 import SeatOverview from './SeatOverview';
 import { RIDES, type PlayMode } from '../lib/rides';
 import JetWeapons from './JetWeapons';
@@ -1216,7 +1217,7 @@ export default function Landing({
         <div ref={rideDialogRef} className="sa-ride-modal" role="dialog" aria-modal="true" aria-label="Choose your ride" tabIndex={-1}>
           <div className="sa-ride-modal__content">
             <div className="sa-ride-modal__topline">
-              <button type="button" className="sa-ride-modal__close" onClick={() => setRidePickerOpen(false)} aria-label="Close ride selector">
+              <button type="button" className="ui-round sa-ride-modal__close" onClick={() => setRidePickerOpen(false)} aria-label="Close ride selector">
                 <svg viewBox="0 0 24 24" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
             </div>
@@ -1239,9 +1240,9 @@ export default function Landing({
               />
             </Suspense>
             <div className="sa-ride-modal__launch-console">
-              <strong>{playMode === 'ufo' ? 'UFO INTERCEPTOR' : playMode === 'jet' ? 'F35 · FIGHTER' : 'SA350 · FLAGSHIP'}</strong>
-              <button type="button" className="sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked} ref={launchRef}>
-                <strong>{playMode === 'ufo' && !ufoUnlocked ? 'Hold 1M $SEAT to unlock' : wallet.address ? 'Launch flight →' : 'Connect & launch →'}</strong>
+              <strong>{playMode === 'ufo' ? 'UFO · Interceptor' : playMode === 'jet' ? 'F35 · Fighter' : 'SA350 · Flagship'}</strong>
+              <button type="button" className="sa-cta sa-ride-modal__launch" onClick={confirmRide} disabled={playMode === 'ufo' && !ufoUnlocked} ref={launchRef}>
+                {playMode === 'ufo' && !ufoUnlocked ? 'Hold 1M $SEAT to unlock' : wallet.address ? 'Launch flight →' : 'Connect & launch →'}
               </button>
             </div>
             {/* Connecting failed, or there is nothing to connect: say so, and where to get one. */}
@@ -1253,16 +1254,16 @@ export default function Landing({
                     <div className="sa-ride-modal__wallet-links">
                       {touch ? (
                         <>
-                          <a href={walletLinks.phantom}>Open in Phantom</a>
-                          <a href={walletLinks.solflare}>Open in Solflare</a>
-                          <a href={walletLinks.backpack}>Open in Backpack</a>
+                          <a className="sa-ghost" href={walletLinks.phantom}>Open in Phantom</a>
+                          <a className="sa-ghost" href={walletLinks.solflare}>Open in Solflare</a>
+                          <a className="sa-ghost" href={walletLinks.backpack}>Open in Backpack</a>
                         </>
                       ) : (
                         <>
-                          <a href="https://phantom.com" target="_blank" rel="noopener noreferrer">Get Phantom</a>
-                          <a href="https://solflare.com" target="_blank" rel="noopener noreferrer">Get Solflare</a>
-                          <a href="https://backpack.app" target="_blank" rel="noopener noreferrer">Get Backpack</a>
-                          <a href="https://nightly.app" target="_blank" rel="noopener noreferrer">Get Nightly</a>
+                          <a className="sa-ghost" href="https://phantom.com" target="_blank" rel="noopener noreferrer">Get Phantom</a>
+                          <a className="sa-ghost" href="https://solflare.com" target="_blank" rel="noopener noreferrer">Get Solflare</a>
+                          <a className="sa-ghost" href="https://backpack.app" target="_blank" rel="noopener noreferrer">Get Backpack</a>
+                          <a className="sa-ghost" href="https://nightly.app" target="_blank" rel="noopener noreferrer">Get Nightly</a>
                         </>
                       )}
                     </div>

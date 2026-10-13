@@ -1,0 +1,313 @@
+/* ── The hangar ───────────────────────────────────────────────────
+   The ride selector, made of the site's own parts in the workspace's
+   dark tokens: the page's ground behind it, a raised panel holding the
+   three stands, each stand a flight display's glass, and the site's own
+   controls — the filled CTA to launch, the unfilled twin for the rest,
+   the round button to close. The spec sheet (CraftSheet.css) opens over
+   it in the same material. */
+
+.sa-ride-modal {
+  /* The workspace's dark tokens (FractalWorkspace.css), so the site's
+     own controls inside — ui-round, sa-ghost — take their dark faces. */
+  --ui-bg: #0f1725; --ui-sink: #0a111d; --ui-surface: #162234; --ui-hi: #1e3046; --ui-off: #27384b;
+  --ui-ink: #e8f2fa; --ui-soft: #b3c4d7; --ui-faint: #96aec6;
+  --face: linear-gradient(145deg, #19283d, #101b2c); --face-flat: #142033;
+  --lit: #24375155; --shade: #0003;
+  --e-press: inset 0 1px 4px #0005; --e-well: inset 0 2px 8px #0005;
+  /* On the dark ground a raised thing is lit by a drop shadow and a faint
+     rim, not a white bloom (see "The soft-UI shadows assume a light ground"
+     in index.css). */
+  --e-sm: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 10px rgba(0, 0, 0, 0.35);
+  --e: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 24px rgba(0, 0, 0, 0.42);
+  --e-lg: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 18px 44px rgba(0, 0, 0, 0.5);
+  --hangar-panel: inset 0 0 0 1px rgba(255, 255, 255, 0.05), var(--e-lg);
+  /* A flight display's glass (.sa-readout), recipe for recipe. */
+  --hangar-glass:
+    radial-gradient(120% 100% at 0% 0%, rgba(0, 201, 241, 0.12), transparent 58%),
+    linear-gradient(160deg, #0e1829 0%, #070c16 100%);
+  --hangar-glass-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 3px 14px rgba(0, 0, 0, 0.7);
+  --hangar-focus: #7fe3f7;
+
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  box-sizing: border-box;
+  display: grid;
+  place-items: start center;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  outline: none;
+  /* The page's own ground: its gradients, and the mark pattern over them. */
+  background:
+    radial-gradient(1400px 900px at 18% -10%, rgba(45, 58, 82, 0.95), transparent 62%),
+    radial-gradient(1100px 700px at 88% 8%, rgba(0, 201, 241, 0.15), transparent 66%),
+    linear-gradient(165deg, #182131 0%, #0f1725 48%, #080d17 100%);
+  color: var(--ui-ink);
+}
+.sa-ride-modal::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: url('/seat-airlines-mark-pattern.svg'), url('/seat-airlines-mark-pattern.svg');
+  background-size: 18rem 18rem;
+  background-position: 0 0, 9rem 9rem;
+  opacity: 0.16;
+  mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+/* One column, centred in the screen when it fits and scrolling when not. */
+.sa-ride-modal__content {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  row-gap: clamp(0.85rem, 2.2vh, 1.4rem);
+  width: min(100%, 60rem);
+  min-width: 0;
+  min-height: 100%;
+  padding: clamp(0.75rem, 2.5vh, 1.75rem) max(0.75rem, 2vw) calc(1.25rem + var(--safe-bottom));
+}
+.sa-ride-modal__content > * { box-sizing: border-box; width: 100%; min-width: 0; }
+
+.sa-ride-modal__topline { display: flex; justify-content: flex-end; }
+.sa-ride-modal__close { position: relative; z-index: 2; touch-action: manipulation; }
+.sa-ride-modal__close svg,
+.sa-craft-sheet__close svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+.sa-ride-modal__hero-copy { display: grid; justify-items: center; gap: 0.45rem; text-align: center; }
+.sa-ride-modal__hero-copy h1 {
+  margin: 0;
+  color: #f3f8ff;
+  font-size: clamp(1.6rem, 2.6vw + 1.6vh, 3rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  text-shadow: 0 0 26px rgba(0, 201, 241, 0.25);
+}
+.sa-ride-modal__hero-copy span { color: var(--ui-soft); font-size: clamp(0.9rem, 0.84rem + 0.25vw, 1rem); line-height: 1.5; }
+
+/* ── The roster: one raised panel, three stands ── */
+.sa-aircraft-picker {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.9rem;
+  border-radius: var(--r-xl);
+  background: var(--face-flat);
+  box-shadow: var(--hangar-panel);
+  /* Backwards, not both: a transform kept after the entrance would make
+     this panel the frame the spec sheet (position: fixed) is laid out in. */
+  animation: sa-picker-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+@keyframes sa-picker-in { from { opacity: 0; transform: translateY(10px); } }
+.sa-aircraft-picker__stage { min-width: 0; }
+.sa-aircraft-picker__track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+
+/* A stand: the flight display's glass, the craft turning in it, its name
+   under it. Picked, it is ringed in the accent, as a picked tab is. */
+.sa-aircraft-picker__slot {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: clamp(15rem, 24vh + 7vw, 24rem);
+  padding: 0.7rem 0.8rem 0.8rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--hangar-glass);
+  box-shadow: var(--hangar-glass-edge);
+  color: var(--ui-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+.sa-aircraft-picker__slot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.08) 0%, transparent 36%);
+}
+.sa-aircraft-picker__slot:hover:not(:disabled) { box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.4), inset 0 3px 14px rgba(0, 0, 0, 0.7); }
+.sa-aircraft-picker__slot.is-selected {
+  box-shadow:
+    inset 0 0 0 2px var(--accent-bright),
+    inset 0 3px 14px rgba(0, 0, 0, 0.7),
+    0 0 0 4px rgba(0, 201, 241, 0.12),
+    0 0 26px rgba(0, 201, 241, 0.2);
+}
+.sa-aircraft-picker__slot:focus-visible { outline: 2px solid var(--hangar-focus); outline-offset: 3px; }
+.sa-aircraft-picker__slot:disabled { cursor: not-allowed; }
+.sa-aircraft-picker__slot.is-locked .sa-aircraft-picker__model { opacity: 0.5; filter: saturate(0.4); }
+
+.sa-aircraft-picker__model { position: relative; min-height: 8rem; }
+.sa-aircraft-picker__model-glow {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 12%;
+  height: 22%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 201, 241, 0.32), transparent);
+  filter: blur(6px);
+}
+.sa-aircraft-picker__model-glow--ufo { background: radial-gradient(closest-side, rgba(157, 109, 255, 0.36), transparent); }
+/* The preview fills its stand; AircraftModelPreview frames the craft to it. */
+.sa-aircraft-picker__model-canvas { position: absolute; inset: 0; z-index: 1; display: block; overflow: hidden; }
+.sa-aircraft-picker__model-canvas canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sa-aircraft-picker__fallback {
+  position: absolute;
+  inset: 15%;
+  display: grid;
+  place-items: center;
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+  color: var(--hangar-focus);
+  font-size: 3rem;
+  opacity: 0.78;
+}
+.sa-aircraft-picker__model-canvas[data-ready='true'] .sa-aircraft-picker__fallback { display: none; }
+
+.sa-aircraft-picker__aircraft-meta { position: relative; z-index: 3; padding: 0.35rem 0.2rem 0; }
+.sa-aircraft-picker__aircraft-meta strong { color: #f3f8ff; font-size: 1.05rem; font-weight: 700; letter-spacing: 0.02em; }
+
+/* The saucer's lock: the walk strip's "Connect a wallet to step inside",
+   with the button that does it. */
+.sa-aircraft-picker__mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.25rem;
+  padding: 0.75rem 0.75rem 0.75rem 1.1rem;
+  border-radius: var(--r-lg);
+  background: var(--ui-sink);
+  box-shadow: var(--e-press), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.sa-aircraft-picker__mode-text { flex: 1 1 18rem; min-width: 0; margin: 0; color: var(--ui-soft); font-size: 13px; line-height: 1.45; }
+.sa-aircraft-picker__mode-text strong { color: var(--ui-ink); }
+.sa-aircraft-picker__mode .sa-ghost { flex: none; margin-left: auto; }
+
+/* ── The launch bar: the pick, and the one filled button ── */
+.sa-ride-modal__launch-console {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0.75rem 0.75rem 1.4rem;
+  border-radius: var(--r-xl);
+  background: var(--face-flat);
+  box-shadow: var(--hangar-panel);
+}
+.sa-ride-modal__launch-console > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #f3f8ff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sa-ride-modal__launch { flex: none; }
+
+/* Connecting failed, or there is nothing to connect. */
+.sa-ride-modal__wallet {
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--r-lg);
+  background: var(--ui-sink);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: var(--ui-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.sa-ride-modal__wallet p { margin: 0; }
+.sa-ride-modal__wallet-links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.sa-ride-modal__wallet-links .sa-ghost { min-height: var(--control-size); text-decoration: none; }
+
+/* ── The site's controls, on the dark ground ──
+   The filled CTA and its unfilled twin are drawn for a light ground, with
+   a white highlight up and to the left; here they keep their faces and
+   lose the bloom, and focus takes the workspace's cyan ring. */
+:is(.sa-ride-modal, .sa-craft-sheet) .sa-cta {
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(0, 105, 194, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+:is(.sa-ride-modal, .sa-craft-sheet) .sa-cta:hover:not(:disabled) {
+  box-shadow: 0 12px 26px rgba(0, 105, 194, 0.46), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+:is(.sa-ride-modal, .sa-craft-sheet) .sa-cta:disabled {
+  background: var(--face);
+  color: var(--ui-faint);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  transform: none;
+  filter: none;
+  cursor: not-allowed;
+}
+:is(.sa-ride-modal, .sa-craft-sheet) .sa-ghost { justify-content: center; color: var(--ui-ink); cursor: pointer; }
+:is(.sa-ride-modal, .sa-craft-sheet) .sa-ghost:hover:not(:disabled) { color: var(--hangar-focus); }
+:is(.sa-ride-modal, .sa-craft-sheet) .sa-ghost[aria-pressed='true'] {
+  background: var(--g-accent-text);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(0, 105, 194, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+:is(.sa-ride-modal, .sa-craft-sheet) .sa-ghost:disabled { opacity: 0.55; transform: none; box-shadow: var(--e-press); cursor: not-allowed; }
+:is(.sa-ride-modal, .sa-craft-sheet) .ui-round:hover:not(:disabled) { color: var(--hangar-focus); }
+:is(.sa-ride-modal, .sa-craft-sheet) :is(.sa-cta, .sa-ghost, .ui-round):focus-visible { outline: 2px solid var(--hangar-focus); outline-offset: 3px; }
+
+/* ── A phone: the stands scroll, one and a peek of the next ── */
+@media (max-width: 640px) {
+  .sa-ride-modal__content { padding-inline: 0.75rem; }
+  .sa-aircraft-picker { padding: 0.65rem; border-radius: var(--r-lg); }
+  .sa-aircraft-picker__track {
+    display: flex;
+    gap: 0.6rem;
+    margin: -6px;
+    padding: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .sa-aircraft-picker__track::-webkit-scrollbar { display: none; }
+  .sa-aircraft-picker__slot { flex: 0 0 max(170px, 68%); min-height: clamp(14rem, 36vh, 22rem); scroll-snap-align: center; }
+  .sa-aircraft-picker__mode { padding: 0.75rem; }
+  .sa-aircraft-picker__mode .sa-ghost { flex: 1 1 100%; }
+  .sa-ride-modal__launch-console { flex-direction: column; align-items: stretch; padding: 0.75rem; border-radius: var(--r-lg); }
+  .sa-ride-modal__launch-console > strong { padding: 0.15rem 0.35rem 0; }
+}
+@media (max-width: 420px) {
+  .sa-ride-modal__hero-copy span { display: none; }
+}
+
+/* ── A short screen — a phone on its side, a laptop with the bars out ──
+   The close button joins the heading's row, the sub-line goes, and the
+   stands shorten so the roster and the launch bar fit. */
+@media (max-height: 560px) {
+  .sa-ride-modal__content { align-content: start; row-gap: 0.6rem; padding-top: max(0.5rem, var(--safe-top)); padding-bottom: 0.6rem; }
+  .sa-ride-modal__topline { position: absolute; top: max(0.5rem, var(--safe-top)); right: max(0.75rem, 2vw); width: auto; }
+  .sa-ride-modal__hero-copy { min-height: var(--control-size); align-content: center; padding-inline: 3.5rem; }
+  .sa-ride-modal__hero-copy h1 { font-size: 1.2rem; }
+  .sa-ride-modal__hero-copy span { display: none; }
+  .sa-aircraft-picker { gap: 0.55rem; padding: 0.55rem; }
+  .sa-aircraft-picker__slot { min-height: 0; padding: 0.4rem 0.6rem 0.55rem; }
+  .sa-aircraft-picker__model { min-height: clamp(4.5rem, 26svh, 7rem); }
+  .sa-aircraft-picker__mode { padding: 0.45rem 0.5rem 0.45rem 0.85rem; }
+  .sa-ride-modal__launch-console { flex-direction: row; align-items: center; padding: 0.5rem 0.5rem 0.5rem 1.1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-aircraft-picker { animation: none; }
+  .sa-aircraft-picker__slot, :is(.sa-ride-modal, .sa-craft-sheet) :is(.sa-cta, .sa-ghost) { transition: none; }
+  :is(.sa-ride-modal, .sa-craft-sheet) :is(.sa-cta, .sa-ghost):hover { transform: none; }
+}

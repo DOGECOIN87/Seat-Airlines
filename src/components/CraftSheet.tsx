@@ -46,7 +46,7 @@ export default function CraftSheet({ model, locked, launchLabel, onLaunch, onClo
   return (
     <div className="sa-craft-sheet" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <section ref={card} className={`sa-craft-sheet__card sa-craft-sheet__card--${model}`} role="dialog" aria-modal="true" aria-labelledby={title} tabIndex={-1}>
-        <button type="button" className="sa-craft-sheet__close" onClick={onClose} aria-label="Back to the hangar">
+        <button type="button" className="ui-round sa-craft-sheet__close" onClick={onClose} aria-label="Back to the hangar">
           <svg viewBox="0 0 24 24" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
         <div className="sa-craft-sheet__stage">
@@ -69,8 +69,8 @@ export default function CraftSheet({ model, locked, launchLabel, onLaunch, onClo
             {spec.abilities.map((ability) => <li key={ability}>{ability}</li>)}
           </ul>
           <div className="sa-craft-sheet__actions">
-            <button type="button" className="sa-craft-sheet__back" onClick={onClose}>Back to hangar</button>
-            <button type="button" className="sa-craft-sheet__launch" onClick={onLaunch} disabled={locked}>
+            <button type="button" className="sa-ghost sa-craft-sheet__back" onClick={onClose}>Back</button>
+            <button type="button" className="sa-cta sa-craft-sheet__launch" onClick={onLaunch} disabled={locked}>
               {locked ? 'Hold 1M $SEAT to unlock' : launchLabel}
             </button>
           </div>

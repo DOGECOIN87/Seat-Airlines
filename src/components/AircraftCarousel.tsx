@@ -47,10 +47,6 @@ export default function AircraftCarousel({
 
   return (
     <section className={`sa-aircraft-picker${fullscreen ? ' sa-aircraft-picker--fullscreen' : ''}`} aria-label="Aircraft selector">
-      <header className="sa-aircraft-picker__head">
-        <h2 className="sa-aircraft-picker__title">Choose your ride</h2>
-      </header>
-
       <div className="sa-aircraft-picker__stage">
         <div ref={track} className="sa-aircraft-picker__track" aria-label="Available rides">
           <button
@@ -63,10 +59,7 @@ export default function AircraftCarousel({
               <div className="sa-aircraft-picker__model-glow" />
               <AircraftModelPreview model="airliner" active={mode === 'airliner'} />
             </div>
-            <div className="sa-aircraft-picker__aircraft-meta">
-              <strong>SA350</strong>
-              <span className="sa-aircraft-picker__status-dot" />
-            </div>
+            <div className="sa-aircraft-picker__aircraft-meta"><strong>SA350</strong></div>
           </button>
 
           <button type="button" className={`sa-aircraft-picker__slot sa-aircraft-picker__slot--active sa-aircraft-picker__slot--jet${mode === 'jet' ? ' is-selected' : ''}`}
@@ -75,10 +68,7 @@ export default function AircraftCarousel({
               <div className="sa-aircraft-picker__model-glow" />
               <AircraftModelPreview model="jet" active={mode === 'jet'} />
             </div>
-            <div className="sa-aircraft-picker__aircraft-meta">
-              <strong>F35</strong>
-              <span className="sa-aircraft-picker__status-dot" />
-            </div>
+            <div className="sa-aircraft-picker__aircraft-meta"><strong>F35</strong></div>
           </button>
 
           <button
@@ -92,34 +82,29 @@ export default function AircraftCarousel({
               <div className="sa-aircraft-picker__model-glow sa-aircraft-picker__model-glow--ufo" />
               <AircraftModelPreview model="ufo" active={mode === 'ufo'} />
             </div>
-            <div className="sa-aircraft-picker__aircraft-meta">
-              <strong>UFO</strong>
-              <span className="sa-aircraft-picker__status-dot sa-aircraft-picker__status-dot--ufo" />
-            </div>
+            <div className="sa-aircraft-picker__aircraft-meta"><strong>UFO</strong></div>
           </button>
         </div>
       </div>
 
       <div className={`sa-aircraft-picker__mode${mode === 'ufo' ? ' is-armed' : ''}${!ufoUnlocked ? ' is-locked' : ''}`}>
-        <div>
-          <strong>UFO interceptor</strong>
-          <small>
-            {balanceLoading
-              ? 'Verifying $SEAT balance…'
-              : ufoUnlocked
-                ? 'Saucer controls armed · launch from the pad'
-                : !walletConnected
-                  ? 'Connect a wallet to verify · hold 1,000,000 $SEAT to unlock'
-                  : `Hold 1,000,000 $SEAT to unlock · ${Math.floor(tokenBalance ?? 0).toLocaleString('en-US')} held`}
-          </small>
-        </div>
+        <p className="sa-aircraft-picker__mode-text">
+          <strong>UFO interceptor.</strong>{' '}
+          {balanceLoading
+            ? 'Verifying your $SEAT balance…'
+            : ufoUnlocked
+              ? 'Saucer controls armed: launch from the pad.'
+              : !walletConnected
+                ? 'Connect a wallet to verify. Hold 1,000,000 $SEAT to unlock.'
+                : `Hold 1,000,000 $SEAT to unlock. You hold ${Math.floor(tokenBalance ?? 0).toLocaleString('en-US')}.`}
+        </p>
         <button
           type="button"
+          className="sa-ghost"
           disabled={!ufoUnlocked && walletConnected}
           onClick={selectUfo}
           aria-pressed={mode === 'ufo'}
         >
-          <span aria-hidden>◉</span>
           {mode === 'ufo' ? 'Armed' : !walletConnected && !ufoUnlocked ? 'Connect to verify' : balanceLoading ? 'Checking…' : ufoUnlocked ? 'Try UFO' : 'Locked'}
         </button>
       </div>
