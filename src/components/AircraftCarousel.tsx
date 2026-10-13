@@ -1,5 +1,6 @@
 import AircraftModelPreview from './AircraftModelPreview';
-import { useEffect, useRef } from 'react';
+import CraftSheet from './CraftSheet';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { RIDES, type PlayMode } from '../lib/rides';
 
 interface AircraftCarouselProps {
@@ -11,13 +12,24 @@ interface AircraftCarouselProps {
   balanceLoading: boolean;
   walletConnected: boolean;
   onConnect?: () => void;
+  /** The hangar's launch, and what its button says: the spec sheet offers the same way on. */
+  onLaunch?: () => void;
+  launchLabel?: string;
 }
 
 /** Every playable ride shares the same selector and launch flow. */
 export default function AircraftCarousel({
   mode, onModeChange, fullscreen = false, ufoUnlocked, tokenBalance, balanceLoading, walletConnected, onConnect,
+  onLaunch, launchLabel = 'Launch flight →',
 }: AircraftCarouselProps) {
   const track = useRef<HTMLDivElement>(null);
+  /* Picking a craft opens its spec sheet; the arrows only move the selection. */
+  const [sheet, setSheet] = useState<PlayMode | null>(null);
+  const closeSheet = useCallback(() => setSheet(null), []);
+  const pick = (ride: PlayMode) => {
+    onModeChange(ride);
+    setSheet(ride);
+  };
   useEffect(() => {
     const element = track.current;
     const selected = element?.querySelector<HTMLElement>('[aria-pressed="true"]');
@@ -30,7 +42,7 @@ export default function AircraftCarousel({
       onConnect?.();
       return;
     }
-    onModeChange('ufo');
+    pick('ufo');
   };
   const cycle = (direction: number) => {
     const available = ufoUnlocked ? RIDES : RIDES.filter(ride => ride !== 'ufo');
@@ -56,7 +68,7 @@ export default function AircraftCarousel({
           <button
             type="button"
             className={`sa-aircraft-picker__slot sa-aircraft-picker__slot--active${mode === 'airliner' ? ' is-selected' : ''}`}
-            onClick={() => onModeChange('airliner')}
+            onClick={() => pick('airliner')}
             aria-pressed={mode === 'airliner'}
           >
             <span className="sa-aircraft-picker__slot-badge">Available now</span>
@@ -74,7 +86,7 @@ export default function AircraftCarousel({
           </button>
 
           <button type="button" className={`sa-aircraft-picker__slot sa-aircraft-picker__slot--active sa-aircraft-picker__slot--jet${mode === 'jet' ? ' is-selected' : ''}`}
-            onClick={() => onModeChange('jet')} aria-pressed={mode === 'jet'}>
+            onClick={() => pick('jet')} aria-pressed={mode === 'jet'}>
             <span className="sa-aircraft-picker__slot-badge">Mach 1 boost</span>
             <div className="sa-aircraft-picker__model" aria-hidden>
               <div className="sa-aircraft-picker__model-glow" />
@@ -136,6 +148,15 @@ export default function AircraftCarousel({
           {mode === 'ufo' ? 'Armed' : !walletConnected && !ufoUnlocked ? 'Connect to verify' : balanceLoading ? 'Checking…' : ufoUnlocked ? 'Try UFO' : 'Locked'}
         </button>
       </div>
+      {sheet && (
+        <CraftSheet
+          model={sheet}
+          locked={sheet === 'ufo' && !ufoUnlocked}
+          launchLabel={launchLabel}
+          onLaunch={() => { setSheet(null); onLaunch?.(); }}
+          onClose={closeSheet}
+        />
+      )}
     </section>
   );
 }

@@ -1,0 +1,183 @@
+/* ── A craft, up close ────────────────────────────────────────────
+   The hangar's own material: navy glass on the dark, cyan hairlines,
+   Plex Mono for the labels and figures, and the launch console's mint
+   for the way on. The model stands on a lit pad and turns. */
+
+.sa-craft-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(3, 8, 15, 0.72);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: sa-craft-sheet-in 0.25s ease both;
+}
+@keyframes sa-craft-sheet-in { from { opacity: 0; } }
+
+.sa-craft-sheet__card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  width: min(100%, 60rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  border: 1px solid rgba(112, 211, 241, 0.22);
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(90deg, rgba(72, 190, 232, 0.05) 1px, transparent 1px) 0 0 / 3rem 3rem,
+    linear-gradient(rgba(72, 190, 232, 0.04) 1px, transparent 1px) 0 0 / 3rem 3rem,
+    linear-gradient(160deg, #0b1a2b 0%, #07111e 60%, #050b14 100%);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #effaff;
+  animation: sa-craft-sheet-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes sa-craft-sheet-rise { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
+/* The live edge, in the hangar's mint. */
+.sa-craft-sheet__card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #70f1c3 30%, #46c4ec 70%, transparent);
+}
+
+.sa-craft-sheet__close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid rgba(157, 225, 244, 0.25);
+  border-radius: 999px;
+  background: rgba(7, 17, 30, 0.7);
+  color: #cfeefa;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.sa-craft-sheet__close:hover { border-color: rgba(157, 225, 244, 0.6); color: #fff; }
+
+/* The stand: a lit pad under the model, which turns on it. */
+.sa-craft-sheet__stage {
+  position: relative;
+  display: grid;
+  min-height: 22rem;
+  border-right: 1px solid rgba(112, 211, 241, 0.12);
+  background: radial-gradient(70% 60% at 50% 55%, rgba(70, 196, 236, 0.16), transparent 70%);
+}
+.sa-craft-sheet__card--ufo .sa-craft-sheet__stage { background: radial-gradient(70% 60% at 50% 55%, rgba(157, 109, 255, 0.2), transparent 70%); }
+.sa-craft-sheet .sa-craft-sheet__stage .sa-aircraft-picker__model-canvas {
+  /* The whole stage, whatever the hangar's own rules pin a preview to. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 0;
+  transform: none;
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.45));
+}
+.sa-craft-sheet__pad {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 21%;
+  height: 16%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(112, 241, 195, 0.28), rgba(70, 196, 236, 0.08) 60%, transparent);
+  box-shadow: 0 0 0 1px rgba(112, 241, 195, 0.2) inset;
+}
+.sa-craft-sheet__stand {
+  position: absolute;
+  left: 1rem;
+  bottom: 0.9rem;
+  color: rgba(157, 225, 244, 0.7);
+  font: 700 9px 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* The sheet. */
+.sa-craft-sheet__info { display: grid; align-content: start; gap: 0.75rem; padding: 1.6rem 1.6rem 1.4rem; }
+.sa-craft-sheet__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: rgba(157, 225, 244, 0.75);
+  font: 700 9px 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.sa-craft-sheet__eyebrow i { width: 0.42rem; height: 0.42rem; border-radius: 50%; background: #63f0bb; box-shadow: 0 0 10px #63f0bb; }
+.sa-craft-sheet__name {
+  margin: 0;
+  font: 800 clamp(2rem, 4vw, 2.8rem)/1 Montserrat, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.03em;
+  text-shadow: 0 0 26px rgba(110, 218, 247, 0.3);
+}
+.sa-craft-sheet__role { margin: -0.35rem 0 0; color: #8ee8fa; font: 600 0.8rem 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.06em; }
+.sa-craft-sheet__blurb { margin: 0; color: rgba(214, 232, 244, 0.8); font-size: 0.88rem; line-height: 1.6; }
+
+.sa-craft-sheet__specs { display: grid; margin: 0.25rem 0 0; border-top: 1px solid rgba(112, 211, 241, 0.14); }
+.sa-craft-sheet__specs > div {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid rgba(112, 211, 241, 0.1);
+}
+.sa-craft-sheet__specs dt { color: rgba(157, 225, 244, 0.65); font: 700 9.5px/1.6 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; }
+.sa-craft-sheet__specs dd { margin: 0; color: #f3f8ff; font: 600 0.82rem/1.45 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+.sa-craft-sheet__abilities { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.15rem 0 0; padding: 0; list-style: none; }
+.sa-craft-sheet__abilities li {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid rgba(112, 241, 195, 0.35);
+  border-radius: 999px;
+  background: rgba(52, 184, 152, 0.12);
+  color: #c9fbe9;
+  font: 700 9.5px 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sa-craft-sheet__actions { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.6rem; margin-top: 0.4rem; }
+.sa-craft-sheet__actions button {
+  min-height: 2.9rem;
+  padding: 0.6rem 1rem;
+  border-radius: 0.65rem;
+  font: 700 0.78rem 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+.sa-craft-sheet__back { border: 1px solid rgba(157, 225, 244, 0.25); background: rgba(7, 17, 30, 0.6); color: #cfeefa; }
+.sa-craft-sheet__back:hover { border-color: rgba(157, 225, 244, 0.55); }
+.sa-craft-sheet__launch {
+  border: 1px solid rgba(112, 241, 195, 0.7);
+  background: linear-gradient(135deg, rgba(52, 184, 152, 0.4), rgba(17, 96, 113, 0.45));
+  color: #e4fff4;
+  box-shadow: 0 0 24px rgba(71, 223, 178, 0.18);
+}
+.sa-craft-sheet__launch:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-1px); box-shadow: 0 0 34px rgba(71, 223, 178, 0.3); }
+.sa-craft-sheet__launch:disabled { opacity: 0.55; cursor: not-allowed; }
+.sa-craft-sheet button:focus-visible { outline: 2px solid #7fe3f7; outline-offset: 3px; }
+
+@media (max-width: 760px) {
+  .sa-craft-sheet { padding: 0.5rem; align-items: end; }
+  .sa-craft-sheet__card { grid-template-columns: minmax(0, 1fr); max-height: calc(100dvh - 1rem); }
+  .sa-craft-sheet__stage { min-height: 15rem; border-right: 0; border-bottom: 1px solid rgba(112, 211, 241, 0.12); }
+  .sa-craft-sheet__info { padding: 1.1rem 1rem 1rem; }
+  .sa-craft-sheet__specs > div { grid-template-columns: 7rem minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sa-craft-sheet, .sa-craft-sheet__card { animation: none; }
+}

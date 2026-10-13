@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { addJetDetail, type CraftDetail } from './craftDetail';
 
 export function disposeModel(root: THREE.Object3D): void {
   const geometries = new Set<THREE.BufferGeometry>();
@@ -59,6 +60,7 @@ export function createFighterJet(envMap?: THREE.Texture) {
   let disposed = false;
   let time = 0;
   let tailMeshes: THREE.Object3D[] = [];
+  let detail: CraftDetail | null = null;
   const load = () => loading ??= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/f35.glb`).then(gltf => {
     if (disposed) { disposeModel(gltf.scene); return; }
     gltf.scene.traverse(node => {
@@ -71,6 +73,7 @@ export function createFighterJet(envMap?: THREE.Texture) {
         if (envMap) { m.envMap = envMap; m.envMapIntensity = 0.7; }
       }
     });
+    detail = addJetDetail(gltf.scene);
     group.add(gltf.scene);
     group.userData.loaded = true;
   }).catch(error => {
@@ -81,6 +84,7 @@ export function createFighterJet(envMap?: THREE.Texture) {
     group, load,
     update(dt: number, boost: number, ammo: readonly boolean[], tailDamage: number, failed: boolean) {
       time += dt;
+      detail?.update(time);
       missiles.forEach((m, i) => { m.visible = ammo[i] ?? false; });
       tailMeshes.forEach(m => { m.visible = tailDamage < 0.5; });
       const flicker = 0.88 + Math.sin(time * 42) * 0.12;
@@ -93,6 +97,6 @@ export function createFighterJet(envMap?: THREE.Texture) {
       shock.material.opacity = Math.max(0, (boost - 0.88) * 1.4) * flicker;
       shock.visible = boost > 0.88;
     },
-    dispose() { disposed = true; tailMeshes = []; disposeModel(group); },
+    dispose() { disposed = true; tailMeshes = []; detail = null; disposeModel(group); },
   };
 }

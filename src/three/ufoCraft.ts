@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { disposeModel } from './fighterJet';
+import { addUfoDetail, type CraftDetail } from './craftDetail';
 
 /**
  * The UFO, and the wing it takes, as the landing's scene draws them.
@@ -83,6 +84,7 @@ export function createUfoCraft(url: string): UfoCraft {
 
   let loaded = false;
   let disposed = false;
+  let detail: CraftDetail | null = null;
   let loading: Promise<void> | null = null;
   const load = () => loading ??= import('three/examples/jsm/loaders/GLTFLoader.js')
     .then(({ GLTFLoader }) => new GLTFLoader().loadAsync(url))
@@ -105,6 +107,7 @@ export function createUfoCraft(url: string): UfoCraft {
           if (std.emissive && std.emissive.getHex() !== 0) std.emissiveIntensity = Math.max(std.emissiveIntensity, 6);
         }
       });
+      detail = addUfoDetail(model);
       spin.add(model);
       loaded = true;
     })
@@ -164,6 +167,7 @@ export function createUfoCraft(url: string): UfoCraft {
     (glow.material as THREE.SpriteMaterial).opacity = 0.55 + 0.35 * Math.sin(clock * 9) ** 2;
     // Spinning, and tipped into the way it is going — hard, while it dashes.
     spin.rotation.y += dt * 7;
+    detail?.update(clock);
     if (pose.attitude) {
       group.rotation.y = -h;
       tilt.rotation.set(THREE.MathUtils.degToRad(pose.attitude.pitch), 0, THREE.MathUtils.degToRad(-pose.attitude.bank));

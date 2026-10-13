@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { addUfoDetail, type CraftDetail } from '../three/craftDetail';
 import { createAirframe, type AirframeHandles } from '../three/airframe';
 import { previewBounds, previewDistance } from '../three/previewBounds';
 import { createFighterJet } from '../three/fighterJet';
@@ -111,11 +113,20 @@ export default function AircraftModelPreview({ model, active = true }: AircraftM
     canvas.addEventListener('webglcontextlost', contextLost);
 
     const scene = new THREE.Scene();
+    /* A studio for the metal and glass to reflect: without one the canopy
+       and the saucer's hull are flat colour, whatever the lights do. */
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const room = new RoomEnvironment();
+    const studio = pmrem.fromScene(room, 0.04).texture;
+    scene.environment = studio;
+    /* Enough to give the metal and glass a sky, not so much the grey jet
+       reads white or the saucer's pale hull blows out. */
+    scene.environmentIntensity = model === 'ufo' ? 0.22 : 0.4;
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
     camera.position.set(model === 'ufo' ? 0 : 9.5, model === 'ufo' ? 7.2 : 5.2, model === 'ufo' ? 15 : 13.5);
     camera.lookAt(0, 0, 0);
     const viewDirection = camera.position.clone().normalize();
-    scene.add(new THREE.HemisphereLight(0xbbeeff, 0x071425, 2.1));
+    scene.add(new THREE.HemisphereLight(0xbbeeff, 0x071425, model === 'ufo' ? 1.1 : 1.6));
     const key = new THREE.DirectionalLight(0xffffff, 3.4);
     key.position.set(7, 12, 9);
     scene.add(key);
@@ -130,6 +141,7 @@ export default function AircraftModelPreview({ model, active = true }: AircraftM
     let airframe: AirframeHandles | null = null;
     let fighter: ReturnType<typeof createFighterJet> | null = null;
     let fallback: THREE.Group | null = null;
+    let ufoDetail: CraftDetail | null = null;
     let disposed = false;
     const loader = new GLTFLoader();
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -148,13 +160,17 @@ export default function AircraftModelPreview({ model, active = true }: AircraftM
         return;
       }
       last = now;
-      const moving = activeRef.current && !motion.matches;
+      /* Every craft turns in place on its stand, the chosen one or not, and
+         its lights run; only a visitor who asked for less motion sees them
+         still. */
+      const moving = !motion.matches;
       if (moving) {
         elapsed += dt;
-        pivot.rotation.y += dt * (model === 'ufo' ? 0.72 : 0.28);
-        pivot.position.y = Math.sin(elapsed * 1.6) * 0.16;
+        pivot.rotation.y += dt * (model === 'ufo' ? 0.9 : 0.42);
       }
       airframe?.update(moving ? dt : 0, { contrail: 0, stream: 0, bank: 0, pitch: 2, night: 0.12, cabin: 0.65, mood: 0, calm: true });
+      fighter?.update(moving ? dt : 0, 0, [true, true], 0, false);
+      ufoDetail?.update(elapsed);
       renderer.render(scene, camera);
       host.dataset.ready = 'true';
       if (moving) frame = requestAnimationFrame(animate);
@@ -211,6 +227,7 @@ export default function AircraftModelPreview({ model, active = true }: AircraftM
         }
         const actual = gltf.scene;
         actual.rotation.x = -0.15;
+        ufoDetail = addUfoDetail(actual);
         fitModel(actual, 10.5);
         actual.traverse((node) => {
           const mesh = node as THREE.Mesh;
@@ -269,6 +286,9 @@ export default function AircraftModelPreview({ model, active = true }: AircraftM
       airframe?.dispose();
       fighter?.dispose();
       if (!airframe && !fighter) disposeObject(root);
+      studio.dispose();
+      room.dispose();
+      pmrem.dispose();
       renderer.dispose();
       // Browsers keep only so many contexts; past that the oldest — the flight's — is the one lost.
       renderer.forceContextLoss();

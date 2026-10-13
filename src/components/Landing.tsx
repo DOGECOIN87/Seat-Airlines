@@ -1236,6 +1236,8 @@ export default function Landing({
                 balanceLoading={tokenBalanceLoading}
                 walletConnected={Boolean(wallet.address)}
                 onConnect={verifyWallet}
+                onLaunch={confirmRide}
+                launchLabel={wallet.address ? 'Launch flight →' : 'Connect & launch →'}
               />
             </Suspense>
             <div className="sa-ride-modal__launch-console">
