@@ -63,6 +63,6 @@ export const CRAFT_SPECS: Record<PlayMode, CraftSpec> = {
       ['Worlds', 'Earth · the moon · Mars'],
       ['Unlock', 'Hold 1,000,000 $SEAT'],
     ],
-    abilities: ['Omni-directional dash', 'Vertical drive', 'Moon & Mars'],
+    abilities: ['Dash any way', 'Vertical drive', 'Moon & Mars'],
   },
 };

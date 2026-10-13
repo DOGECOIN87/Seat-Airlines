@@ -107,16 +107,31 @@
 .sa-craft-sheet__specs dt { color: var(--ui-faint); font-size: 0.85rem; font-weight: 600; line-height: 1.45; }
 .sa-craft-sheet__specs dd { margin: 0; color: #f3f8ff; font-size: 0.88rem; font-weight: 700; line-height: 1.45; font-variant-numeric: tabular-nums; }
 
-/* What it can do: the displays' cyan tags. */
-.sa-craft-sheet__abilities { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0; padding: 0; list-style: none; }
+/* What it can do: the displays' cyan tags, on one line. They ease down
+   with the width they have rather than wrap a tag onto a row of its own;
+   on the narrowest phones the line scrolls instead. */
+.sa-craft-sheet__abilities {
+  container-type: inline-size;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+.sa-craft-sheet__abilities::-webkit-scrollbar { display: none; }
 .sa-craft-sheet__abilities li {
-  padding: 0.38rem 0.75rem;
+  flex: none;
+  padding: 0.38rem clamp(0.55rem, 2.6cqi, 0.75rem);
   border-radius: 999px;
   background: rgba(0, 201, 241, 0.1);
   box-shadow: inset 0 0 0 1px rgba(0, 201, 241, 0.24);
   color: #8ee8fa;
-  font-size: 0.8rem;
+  font-size: clamp(0.72rem, 3.6cqi, 0.8rem);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 /* Back, and the launch taking the rest of the row; on a row too narrow
