@@ -94,7 +94,7 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   flex: 1 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
   align-items: end;
   gap: clamp(1rem, 3vw, 3rem);
   width: 100%;
@@ -110,7 +110,7 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
   padding: 0;
   gap: 1rem;
 }
-.sa-landing__lobby .sa-landing__hero > :is(.sa-landing__actions, .sa-landing__lead, .sa-landing__hint, .sa-landing__disclose) {
+.sa-landing__lobby .sa-landing__hero > :is(.sa-landing__actions, .sa-landing__social, .sa-landing__lead, .sa-landing__hint, .sa-landing__disclose) {
   width: 100%;
   max-width: none;
   min-width: 0;
@@ -221,26 +221,26 @@ html { scroll-padding-bottom: calc(5rem + var(--safe-bottom)); }
 }
 .sa-pilots__count { min-width: 0; max-width: 8ch; overflow: hidden; text-overflow: ellipsis; }
 .sa-landing__fly-icon { flex: none; }
+/* The socials: the button block's third row, four equal parts across the
+   same two columns' edges, the rows' own gap above and between them. */
 .sa-landing__lobby .sa-social.sa-landing__social {
-  position: static;
-  grid-column: 1 / -1;
-  grid-row: 2;
-  width: min(100%, 38rem);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  margin-top: calc(var(--action-gap, 0.625rem) - 1rem);
   padding: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.625rem;
 }
 .sa-landing__lobby .sa-landing__social .sa-social__chip { min-height: var(--control-size); }
 
 @media (max-width: 1023.98px) {
   .sa-landing__lobby {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto 1fr;
     padding-top: clamp(1rem, 6svh, 4rem);
     row-gap: 1.5rem;
   }
   .sa-landing__lobby .sa-landing__hero { grid-row: 2; max-width: 42rem; justify-self: center; }
   .sa-landing__lobby .sa-ov { grid-column: 1; grid-row: 1; max-width: 34rem; justify-self: center; }
-  .sa-landing__lobby .sa-social.sa-landing__social { grid-row: 3; }
 }
 @media (max-width: 359.98px) {
   .sa-landing.is-idle .sa-landing__top { column-gap: 0.5rem; }

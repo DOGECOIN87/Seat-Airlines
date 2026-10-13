@@ -1192,6 +1192,9 @@ export default function Landing({
             </button>
             </div>
           </div>
+          {/* The way out — X, Telegram, the chart and the lock — as the block's
+              third row, on the same columns' edges as the buttons above. */}
+          <SocialLinks night className="sa-landing__social" />
           {/* The team's interest, right under Boost and on the first screen
               anybody sees: the token is one tap from here, so the line is too. */}
           <p className="sa-landing__disclose">
@@ -1210,7 +1213,6 @@ export default function Landing({
         {showOverview && (
           <SeatOverview manifest={manifest} banners={banners} onClaim={claim} onBrowse={leave} boosted={boosts > 0} />
         )}
-        <SocialLinks night className="sa-landing__social" />
         </div>
       )}
       {ridePickerOpen && !inGame && (
