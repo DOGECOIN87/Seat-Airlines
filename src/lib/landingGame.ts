@@ -198,13 +198,13 @@ export const GAME = {
   /** Closer to the ground than this and the engines are in the trees. */
   clearance: 12,
   /** Degrees of nose-up or nose-down at full stick. */
-  maxPitch: 14,
+  maxPitch: 18,
   /** Degrees of bank at full stick. */
-  maxBank: 38,
+  maxBank: 48,
   /** Degrees of heading a second, per degree of bank. */
-  turnRate: 0.42,
+  turnRate: 0.55,
   /** Climb and sink faster than the real thing would, so the climb to 10,000 ft is half a minute. */
-  climbGain: 1.7,
+  climbGain: 2.0,
   /** Metres a second, up or down, however fast the ground is going by. */
   maxClimb: 130,
   /** The brief: the climb to here, feet above the ground — as the altimeter reads. */
@@ -254,18 +254,18 @@ export const GAME = {
 /** The afterburners: what one press buys. */
 export const BOOST = {
   /** Seconds a burn lasts. */
-  seconds: 4.5,
+  seconds: 5,
   /** Burns in a full tank, and seconds to put one back on its own. */
-  charges: 3,
-  recharge: 9,
+  charges: 4,
+  recharge: 7,
   /** What a logo puts back. */
   perLogo: 0.5,
   /** Metres a second the climb gains at full burn, with both engines and after. */
-  climb: 85,
-  lift: 95,
+  climb: 105,
+  lift: 115,
   /** Metres a second of ground speed added with both engines; m/s² of airspeed after. */
   dash: 140,
-  accel: 55,
+  accel: 70,
   /** The climb a burn allows past the usual limit. */
   extraClimb: 110,
 } as const;
@@ -667,14 +667,14 @@ function flyJet(g: FlightGame, ix: number, iy: number, dt: number, rough: number
   g.updraft = u;
   const authority = (1 - tail * 0.55) * (1 - damage * 0.45);
   const flutter = tail * (Math.sin(g.clock * 3.1) * 2.6 + Math.sin(g.clock * 6.3));
-  g.pitch += (iy * 26 * authority + flutter - tail * 2 - damage * 4 - g.pitch) * (1 - Math.exp(-5 * authority * dt));
-  g.bank += (ix * 65 * (1 - tail * 0.25) + g.wingLost * 22 + tail * Math.sin(g.clock * 2.2) * 7 + g.gustRoll * rough * 8 - g.bank)
-    * (1 - Math.exp(-5.5 * (1 - tail * 0.35) * dt));
+  g.pitch += (iy * 30 * authority + flutter - tail * 2 - damage * 4 - g.pitch) * (1 - Math.exp(-6.5 * authority * dt));
+  g.bank += (ix * 75 * (1 - tail * 0.25) + g.wingLost * 22 + tail * Math.sin(g.clock * 2.2) * 7 + g.gustRoll * rough * 8 - g.bank)
+    * (1 - Math.exp(-7 * (1 - tail * 0.35) * dt));
   g.heading = (g.heading + g.bank * GAME.turnRate * 1.6 * (1 - tail * 0.15) * dt + 360) % 360;
   const level = Math.max(0, Math.cos(g.bank * DEG));
   const sink = tail * 10 + Math.abs(g.wingLost) * 8 + (g.failed ? 22 + damage * 20 : 0);
   const vs = Math.sin(g.pitch * DEG) * speed * 1.7 + u * GAME.draftLift * 0.6 * level ** 2
-    + power * 35 * level - sink - (1 - level) * 12 + g.gustLift * rough * 10;
+    + power * 48 * level - sink - (1 - level) * 12 + g.gustLift * rough * 10;
   if (g.failed) {
     g.damage = Math.min(1, g.damage + dt / 40);
     g.speed = Math.max(55, Math.min(soundSpeed(g.alt), g.speed + (-9.81 * Math.sin(g.pitch * DEG) - 3 - damage * 3 + power * BOOST.accel) * dt));
@@ -699,19 +699,19 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
     const u0 = stepAir(g.air, dt, groundSpeed(g), g.heading, g.alt);
     g.updraft = u0;
     g.pitch += (iy * GAME.maxPitch * (1 - 0.55 * tail) + g.flaps * 1.5 + tail * (Math.sin(g.clock * 3.1) * 2 - 2) - g.pitch)
-      * (1 - Math.exp(-3.2 * (1 + 1.5 * assist) * (1 - tail * 0.5) * dt));
+      * (1 - Math.exp(-4.6 * (1 + 1.5 * assist) * (1 - tail * 0.5) * dt));
     // At the ceiling the nose will not come up any further.
     if (g.alt >= GAME.ceiling && g.pitch > 0) g.pitch *= 1 - Math.min(1, dt * 6);
     // A wing short: it banks toward the short side unless the stick holds it off.
     g.bank += (ix * GAME.maxBank * (1 - tail * 0.2) + lost * 18 + tail * Math.sin(g.clock * 2.2) * 6 + g.gustRoll * 9 * rough - g.bank)
-      * (1 - Math.exp(-3.5 * (1 + 1.5 * assist) * (1 - tail * 0.35) * dt));
+      * (1 - Math.exp(-5.2 * (1 + 1.5 * assist) * (1 - tail * 0.35) * dt));
     g.heading = (g.heading + g.bank * GAME.turnRate * dt + 360) % 360;
     g.speed = speedAt(g.alt);
     g.rollRate = 0;
     const level0 = Math.max(0, Math.cos(g.bank * DEG)) ** 2;
     const vs = Math.sin(g.pitch * DEG) * g.speed * GAME.climbGain - Math.abs(lost) * 6 - tail * 10
       + u0 * GAME.draftLift * GAME.draftClimb * level0
-      + g.gustLift * 14 * rough + g.flaps * 7;
+      + g.gustLift * 14 * rough + g.flaps * 12;
     const top = GAME.maxClimb + BOOST.extraClimb * power;
     return { vs: Math.max(-GAME.maxClimb, Math.min(top, vs + power * BOOST.climb)), stall: 0 };
   }
@@ -740,24 +740,24 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // A burn relights whatever will light: the glide goes while it lasts.
   const glide = 1 - Math.max(t, power);
 
-  const stall = smoothstep(GAME.stallSpeed + 6 - g.flaps * 10, GAME.stallSpeed - 4 - g.flaps * 8, g.speed);
+  const stall = smoothstep(GAME.stallSpeed + 6 - g.flaps * 14, GAME.stallSpeed - 4 - g.flaps * 12, g.speed);
   // Roll: the stick drives the roll rate, with less to drive it as the fire
   // spreads and the wing goes; the dead engine, the spiral, the buffet and a
   // stall push it. Full stick outruns the push to begin with, only just
   // outruns it once the fire is at its worst, and loses to it as the wing goes.
-  const authority = (0.7 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.9 * u) * (lost ? 0.88 : 1) * (1 + 0.8 * assist) * (1 + 1.2 * power);
+  const authority = (0.88 - 0.3 * k) * (1 - 0.75 * stall) * (1 - 0.45 * w) * (1 + 0.9 * u) * (lost ? 0.88 : 1) * (1 + 0.8 * assist) * (1 + 1.2 * power);
   const commanded = ix * 80 * authority * (1 - tail * 0.25);
   // The good engine's pull goes with its thrust; the burning wing's does not; nor does a missing wingtip's.
   const push = (dead * ((32 + 10 * k) * t + 30 * w) * (1 + 0.5 * g.surge) + lost * 24) * (1 - 0.6 * power) * (1 - 0.4 * u * caught)
     + g.gustRoll * 26 * rough;
-  g.rollRate += ((commanded - g.rollRate) * 2.6 + push + Math.sin(g.bank * DEG) * 55
-    + g.buffetRoll * (40 + 60 * k + 20 * glide) * (1 - 0.35 * u) * (1 - 0.6 * assist) + dead * stall * 80) * dt;
+  g.rollRate += ((commanded - g.rollRate) * 3.4 + push + Math.sin(g.bank * DEG) * 55
+    + g.buffetRoll * (40 + 60 * k + 20 * glide) * (1 - 0.35 * u) * (1 - 0.6 * assist) + dead * stall * 55) * dt;
   g.bank = wrap180(g.bank + g.rollRate * dt);
   const lift = Math.cos(g.bank * DEG);
   // Pitch: softer elevator, heavier nose; it falls in a bank, and drops outright in a stall.
   const aim = iy * GAME.maxPitch * (0.8 - 0.3 * k + 0.4 * power) * (1 - tail * 0.55) - tail * 3 - (1 - lift) * 18 - stall * 20 - 4 * k - 10 * w
     + g.buffetPitch * (2 + 4 * k) + power * 7;
-  g.pitch += (aim - g.pitch) * (1 - Math.exp(-2.4 * (1 - tail * 0.5) * dt));
+  g.pitch += (aim - g.pitch) * (1 - Math.exp(-3.2 * (1 - tail * 0.5) * dt));
   g.pitch = Math.max(-60, Math.min(20, g.pitch));
   // Heading: the bank turns it while the wing still lifts, and the good engine yaws it toward the dead one.
   g.heading = (g.heading + (g.bank * GAME.turnRate * Math.max(0, lift) + dead * (5 + 5 * k) * t) * dt + 360) % 360;
@@ -765,7 +765,7 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // Height: what the pitch buys at this speed, less what half the thrust (or
   // none) and a burning wing cannot hold — a stalled one holds nothing —
   // less what a bank spills, plus whatever rising air a level wing catches.
-  const sink = 10 + 18 * k + 24 * w + 22 * glide + stall * 40 + Math.abs(lost) * 5;
+  const sink = 10 + 18 * k + 24 * w + 22 * glide + stall * 32 + Math.abs(lost) * 5;
   const vs = v * Math.sin(g.pitch * DEG) - sink * (1 - 0.5 * power) - (1 - lift) * v * 0.4
     + u * GAME.draftLift * Math.max(0, lift) ** 3 * (1 - 0.3 * w) * (1 - 0.75 * glide)
     + power * BOOST.lift * Math.max(0, lift) ** 2
@@ -773,9 +773,9 @@ export function fly(g: FlightGame, ix: number, iy: number, dt: number): { vs: nu
   // Speed: gravity along the flight path — the nose down is the only way to
   // buy it — against drag that grows with speed and with bank, and that no
   // thrust is left to cancel.
-  const drag = (0.5 + 0.4 * k + 0.6 * w + 1.6 * glide + g.flaps * 0.9) * (0.6 + 0.4 * (v / 130) ** 2) + Math.abs(Math.sin(g.bank * DEG)) * 3.5;
+  const drag = (0.5 + 0.4 * k + 0.6 * w + 1.25 * glide + g.flaps * 0.7) * (0.6 + 0.4 * (v / 130) ** 2) + Math.abs(Math.sin(g.bank * DEG)) * 3.5;
   // A burn drives it on, and rising air carries a little speed in with it.
-  const shove = power * BOOST.accel + u * caught * 6;
+  const shove = power * BOOST.accel + u * caught * 9;
   g.speed = Math.max(45, Math.min(280, v + (-9.81 * Math.sin(g.pitch * DEG) - drag * (1 - 0.7 * power) + shove) * dt));
   return { vs, stall };
 }
