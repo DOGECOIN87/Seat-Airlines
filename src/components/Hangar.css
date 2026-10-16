@@ -1,10 +1,12 @@
 /* ── The hangar ───────────────────────────────────────────────────
-   The ride selector, made of the site's own parts in the workspace's
-   dark tokens: the page's ground behind it, a raised panel holding the
-   three stands, each stand a flight display's glass, and the site's own
-   controls — the filled CTA to launch, the unfilled twin for the rest,
-   the round button to close. The spec sheet (CraftSheet.css) opens over
-   it in the same material. */
+   The ride selector: a night hangar — strip lights in the roof, a lit
+   floor running away to the back wall — and in it one console. The
+   console is a steel rim round a dark panel; in the panel three bays,
+   each a steel frame round a flight display's glass with a craft turning
+   on its pad, a name plate under it; along the foot a status strip with
+   the one way on. The site's palette throughout: the navy ground, the
+   two blues, the UFO's violet, and amber for what is still locked. The
+   spec sheet (CraftSheet.css) opens over it on the same dark tokens. */
 
 .sa-ride-modal {
   /* The workspace's dark tokens (FractalWorkspace.css), so the site's
@@ -21,12 +23,11 @@
   --e: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 24px rgba(0, 0, 0, 0.42);
   --e-lg: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 18px 44px rgba(0, 0, 0, 0.5);
   --hangar-panel: inset 0 0 0 1px rgba(255, 255, 255, 0.05), var(--e-lg);
-  /* A flight display's glass (.sa-readout), recipe for recipe. */
-  --hangar-glass:
-    radial-gradient(120% 100% at 0% 0%, rgba(0, 201, 241, 0.12), transparent 58%),
-    linear-gradient(160deg, #0e1829 0%, #070c16 100%);
-  --hangar-glass-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 3px 14px rgba(0, 0, 0, 0.7);
   --hangar-focus: #7fe3f7;
+  /* Steel: the console's rim, the bays' frames, the buttons' faces. */
+  --hangar-steel: linear-gradient(160deg, #e3e9f0 0%, #9aa6b5 22%, #556273 48%, #2c3746 70%, #8592a3 100%);
+  --hangar-steel-dark: linear-gradient(180deg, #4a5667 0%, #2b3544 55%, #1f2833 100%);
+  --hangar-amber: #f2b544;
 
   position: fixed;
   inset: 0;
@@ -39,23 +40,61 @@
   touch-action: pan-y;
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   outline: none;
-  /* The page's own ground: its gradients, and the mark pattern over them. */
+  /* The hangar's air: lit from the roof and from the bay doors behind the
+     console. Down each side wall a run of door frames, a blue light strip on
+     each and a work lamp at the foot of the nearest. */
   background:
-    radial-gradient(1400px 900px at 18% -10%, rgba(45, 58, 82, 0.95), transparent 62%),
-    radial-gradient(1100px 700px at 88% 8%, rgba(0, 201, 241, 0.15), transparent 66%),
-    linear-gradient(165deg, #182131 0%, #0f1725 48%, #080d17 100%);
+    radial-gradient(closest-side, rgba(255, 196, 92, 0.9), rgba(255, 170, 60, 0.25) 45%, transparent) 2.2% 50% / 1.1rem 1.1rem no-repeat,
+    radial-gradient(closest-side, rgba(255, 196, 92, 0.9), rgba(255, 170, 60, 0.25) 45%, transparent) 97.8% 50% / 1.1rem 1.1rem no-repeat,
+    linear-gradient(180deg, transparent, rgba(0, 201, 241, 0.55) 30%, rgba(0, 201, 241, 0.55) 70%, transparent) 4.5% 36% / 3px 16% no-repeat,
+    linear-gradient(180deg, transparent, rgba(0, 201, 241, 0.55) 30%, rgba(0, 201, 241, 0.55) 70%, transparent) 95.5% 36% / 3px 16% no-repeat,
+    linear-gradient(180deg, transparent, rgba(0, 201, 241, 0.3) 30%, rgba(0, 201, 241, 0.3) 70%, transparent) 9% 40% / 2px 10% no-repeat,
+    linear-gradient(180deg, transparent, rgba(0, 201, 241, 0.3) 30%, rgba(0, 201, 241, 0.3) 70%, transparent) 91% 40% / 2px 10% no-repeat,
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 4.5rem) 0 0 / 11% 64% no-repeat,
+    repeating-linear-gradient(270deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 4.5rem) 100% 0 / 11% 64% no-repeat,
+    radial-gradient(60% 34% at 50% 0%, rgba(126, 206, 255, 0.2), transparent 70%),
+    radial-gradient(70% 52% at 50% 52%, rgba(0, 135, 234, 0.2), transparent 72%),
+    linear-gradient(90deg, rgba(2, 6, 12, 0.75) 0%, rgba(4, 10, 20, 0.35) 11%, transparent 18%, transparent 82%, rgba(4, 10, 20, 0.35) 89%, rgba(2, 6, 12, 0.75) 100%),
+    linear-gradient(180deg, #0b1a2e 0%, #0d2038 46%, #091626 62%, #050c16 100%);
+  background-attachment: fixed;
   color: var(--ui-ink);
 }
+/* The roof: five strip lights, and the light they throw. */
 .sa-ride-modal::before {
   content: '';
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
+  height: 9rem;
   pointer-events: none;
-  background-image: url('/seat-airlines-mark-pattern.svg'), url('/seat-airlines-mark-pattern.svg');
-  background-size: 18rem 18rem;
-  background-position: 0 0, 9rem 9rem;
-  opacity: 0.16;
-  mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+  background:
+    linear-gradient(#e6f8ff, #e6f8ff) 9% 0.9rem / 7% 0.3rem no-repeat,
+    linear-gradient(#e6f8ff, #e6f8ff) 29.5% 0.9rem / 7% 0.3rem no-repeat,
+    linear-gradient(#e6f8ff, #e6f8ff) 50% 0.9rem / 7% 0.3rem no-repeat,
+    linear-gradient(#e6f8ff, #e6f8ff) 70.5% 0.9rem / 7% 0.3rem no-repeat,
+    linear-gradient(#e6f8ff, #e6f8ff) 91% 0.9rem / 7% 0.3rem no-repeat,
+    radial-gradient(closest-side, rgba(150, 222, 255, 0.5), transparent) 9% 0 / 16% 2.4rem no-repeat,
+    radial-gradient(closest-side, rgba(150, 222, 255, 0.5), transparent) 29.5% 0 / 16% 2.4rem no-repeat,
+    radial-gradient(closest-side, rgba(150, 222, 255, 0.5), transparent) 50% 0 / 16% 2.4rem no-repeat,
+    radial-gradient(closest-side, rgba(150, 222, 255, 0.5), transparent) 70.5% 0 / 16% 2.4rem no-repeat,
+    radial-gradient(closest-side, rgba(150, 222, 255, 0.5), transparent) 91% 0 / 16% 2.4rem no-repeat;
+}
+/* The floor: panel seams running to the back wall, the lights caught in them,
+   and a lamp on each side wall. */
+.sa-ride-modal::after {
+  content: '';
+  position: fixed;
+  inset: auto -30% 0;
+  height: 42vh;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 60% at 50% 20%, rgba(0, 201, 241, 0.16), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(120, 200, 255, 0.11) 0 1px, transparent 1px 5.5rem),
+    repeating-linear-gradient(0deg, rgba(120, 200, 255, 0.08) 0 1px, transparent 1px 4.5rem),
+    linear-gradient(180deg, #0a1828, #040a12);
+  transform: perspective(28rem) rotateX(58deg);
+  transform-origin: 50% 100%;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 40%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 40%);
 }
 
 /* One column, centred in the screen when it fits and scrolling when not. */
@@ -66,103 +105,253 @@
   display: grid;
   justify-items: center;
   align-content: center;
-  row-gap: clamp(0.85rem, 2.2vh, 1.4rem);
-  width: min(100%, 60rem);
+  row-gap: clamp(0.85rem, 2.4vh, 1.6rem);
+  width: min(100%, 86rem);
   min-width: 0;
   min-height: 100%;
-  padding: clamp(0.75rem, 2.5vh, 1.75rem) max(0.75rem, 2vw) calc(1.25rem + var(--safe-bottom));
+  padding: clamp(0.75rem, 2.5vh, 1.6rem) max(0.75rem, 2.5vw) calc(1.25rem + var(--safe-bottom));
 }
 .sa-ride-modal__content > * { box-sizing: border-box; width: 100%; min-width: 0; }
 
-.sa-ride-modal__topline { display: flex; justify-content: flex-end; }
-.sa-ride-modal__close { position: relative; z-index: 2; touch-action: manipulation; }
-.sa-ride-modal__close svg,
+/* ── Along the top: the mark, the bay's call sign, the way out ── */
+.sa-ride-modal__topline { display: flex; align-items: center; gap: 1rem; }
+.sa-ride-modal__brand { display: inline-flex; align-items: center; gap: 0.7rem; color: #fff; font-size: 0.95rem; font-weight: 500; letter-spacing: 0.26em; text-transform: uppercase; white-space: nowrap; }
+.sa-ride-modal__brand svg { width: 2rem; height: 2rem; fill: #dff6ff; filter: drop-shadow(0 0 6px rgba(0, 201, 241, 0.45)); }
+.sa-ride-modal__brand b { font-weight: 800; }
+.sa-ride-modal__callsign {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding-left: 1rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  color: #b9c9da;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.sa-ride-modal__callsign::before { content: ''; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: #2be3a0; box-shadow: 0 0 8px #2be3a0; }
+.sa-ride-modal__close {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0.8rem;
+  background: var(--hangar-steel);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5), 0 0 0 1px #04080e;
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.sa-ride-modal__close::before { content: ''; position: absolute; inset: 0.22rem; border-radius: 0.6rem; background: linear-gradient(180deg, #1e2836, #0d141e); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+.sa-ride-modal__close svg { position: relative; width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.sa-ride-modal__close:hover svg { stroke: var(--hangar-focus); }
+.sa-ride-modal__close:focus-visible { outline: 2px solid var(--hangar-focus); outline-offset: 3px; }
 .sa-craft-sheet__close svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
-.sa-ride-modal__hero-copy { display: grid; justify-items: center; gap: 0.45rem; text-align: center; }
+.sa-ride-modal__hero-copy { display: grid; justify-items: center; gap: 0.55rem; text-align: center; }
 .sa-ride-modal__hero-copy h1 {
   margin: 0;
-  color: #f3f8ff;
-  font-size: clamp(1.6rem, 2.6vw + 1.6vh, 3rem);
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.035em;
+  color: #fff;
+  font-size: clamp(1.9rem, 3vw + 1.6vh, 4.2rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.01em;
   text-transform: uppercase;
   text-wrap: balance;
-  text-shadow: 0 0 26px rgba(0, 201, 241, 0.25);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 0 30px rgba(0, 201, 241, 0.28);
 }
-.sa-ride-modal__hero-copy span { color: var(--ui-soft); font-size: clamp(0.9rem, 0.84rem + 0.25vw, 1rem); line-height: 1.5; }
+.sa-ride-modal__hero-copy span { color: #a8dcf3; font-size: clamp(0.95rem, 0.8rem + 0.45vw, 1.35rem); font-weight: 500; letter-spacing: 0.01em; line-height: 1.4; }
 
-/* ── The roster: one raised panel, three stands ── */
+/* ── The console ──────────────────────────────────────────────────
+   Corners cut at 45°, the way a panel is milled: the rim and the panel
+   take the same cut, the panel's a little smaller, so the rim shows as an
+   even band of steel all round. */
 .sa-aircraft-picker {
-  display: grid;
-  gap: 0.9rem;
-  padding: 0.9rem;
-  border-radius: var(--r-xl);
-  background: var(--face-flat);
-  box-shadow: var(--hangar-panel);
+  --cut: 2.2rem;
   /* Backwards, not both: a transform kept after the entrance would make
-     this panel the frame the spec sheet (position: fixed) is laid out in. */
+     this the frame the spec sheet (position: fixed) is laid out in. */
   animation: sa-picker-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 @keyframes sa-picker-in { from { opacity: 0; transform: translateY(10px); } }
-.sa-aircraft-picker__stage { min-width: 0; }
-.sa-aircraft-picker__track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
-
-/* A stand: the flight display's glass, the craft turning in it, its name
-   under it. Picked, it is ringed in the accent, as a picked tab is. */
-.sa-aircraft-picker__slot {
+.sa-aircraft-picker__frame { filter: drop-shadow(0 34px 50px rgba(0, 0, 0, 0.6)); }
+.sa-aircraft-picker__rim {
+  padding: 0.55rem;
+  background: var(--hangar-steel);
+  clip-path: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 calc(100% - var(--cut)), 0 var(--cut));
+}
+.sa-aircraft-picker__panel {
+  --inner: calc(var(--cut) - 0.25rem);
   position: relative;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  min-width: 0;
-  min-height: clamp(15rem, 24vh + 7vw, 24rem);
-  padding: 0.7rem 0.8rem 0.8rem;
-  overflow: hidden;
+  gap: clamp(0.8rem, 2vh, 1.2rem);
+  padding: clamp(1rem, 2.4vh, 1.5rem) clamp(1rem, 2.2vw, 2rem) clamp(1rem, 2.4vh, 1.4rem);
+  background:
+    radial-gradient(60% 46% at 50% 46%, rgba(0, 201, 241, 0.07), transparent 72%),
+    linear-gradient(180deg, #172334 0%, #101a28 55%, #0c141f 100%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.06);
+  clip-path: polygon(var(--inner) 0, calc(100% - var(--inner)) 0, 100% var(--inner), 100% calc(100% - var(--inner)), calc(100% - var(--inner)) 100%, var(--inner) 100%, 0 calc(100% - var(--inner)), 0 var(--inner));
+}
+/* Four screws in the corners, and a blue strip lamp down each side. */
+.sa-aircraft-picker__panel::before,
+.sa-aircraft-picker__panel::after { content: ''; position: absolute; inset: 0; pointer-events: none; }
+.sa-aircraft-picker__panel::before {
+  --screw: radial-gradient(circle, #c9d2dd 0 2px, #4b5768 2.6px 4.6px, rgba(0, 0, 0, 0.6) 5.2px, transparent 6px);
+  background:
+    var(--screw) left 1.15rem top 1.15rem / 12px 12px no-repeat,
+    var(--screw) right 1.15rem top 1.15rem / 12px 12px no-repeat,
+    var(--screw) left 1.15rem bottom 1.15rem / 12px 12px no-repeat,
+    var(--screw) right 1.15rem bottom 1.15rem / 12px 12px no-repeat;
+}
+.sa-aircraft-picker__panel::after {
+  background:
+    linear-gradient(180deg, transparent, #00c9f1 18%, #00c9f1 82%, transparent) left 0.3rem center / 3px 26% no-repeat,
+    linear-gradient(180deg, transparent, #00c9f1 18%, #00c9f1 82%, transparent) right 0.3rem center / 3px 26% no-repeat,
+    radial-gradient(closest-side, rgba(0, 201, 241, 0.35), transparent) left -0.6rem center / 1.6rem 34% no-repeat,
+    radial-gradient(closest-side, rgba(0, 201, 241, 0.35), transparent) right -0.6rem center / 1.6rem 34% no-repeat;
+}
+
+.sa-aircraft-picker__head { position: relative; z-index: 1; display: flex; align-items: center; gap: 1.25rem; padding: 0 clamp(0.5rem, 2.5vw, 2.6rem); }
+.sa-aircraft-picker__title { margin: 0; color: #fff; font-size: clamp(1.05rem, 0.8rem + 0.6vw, 1.5rem); font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; }
+/* A speaker grille: rows of drilled holes. */
+.sa-aircraft-picker__grille {
+  flex: 0 1 11rem;
+  height: 1.6rem;
+  margin-inline: auto;
+  background: radial-gradient(circle, #04080d 0 1.6px, transparent 2.1px) center / 9px 8px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.sa-aircraft-picker__count {
+  flex: none;
+  padding: 0.5rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.5rem;
+  background: #070d16;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: clamp(0.95rem, 0.85rem + 0.3vw, 1.2rem);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.sa-aircraft-picker__row { position: relative; z-index: 1; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: clamp(0.5rem, 1.4vw, 1.25rem); }
+.sa-aircraft-picker__arrow {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  padding: 0;
   border: 0;
-  border-radius: var(--r-lg);
-  background: var(--hangar-glass);
-  box-shadow: var(--hangar-glass-edge);
-  color: var(--ui-ink);
+  border-radius: 50%;
+  background: var(--hangar-steel);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.55), 0 0 0 1px #04080e;
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.sa-aircraft-picker__arrow::before { content: ''; position: absolute; inset: 0.3rem; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #263244, #0b121c 70%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -2px 6px rgba(0, 0, 0, 0.6); }
+.sa-aircraft-picker__arrow svg { position: relative; width: 1.35rem; height: 1.35rem; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.sa-aircraft-picker__arrow:hover svg { stroke: var(--hangar-focus); }
+.sa-aircraft-picker__arrow:focus-visible { outline: 2px solid var(--hangar-focus); outline-offset: 3px; }
+
+.sa-aircraft-picker__track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(0.6rem, 1.6vw, 1.5rem); padding: 0.6rem 0.2rem 0.4rem; }
+
+/* ── A bay ──
+   A steel frame, its corners cut like the console's; in it the glass with
+   the craft on its pad, and under it the name plate. Each craft keeps its
+   own light: the airliner the site's bright blue, the fighter a deeper
+   one, the saucer violet. In focus, the frame takes that light. */
+.sa-aircraft-picker__bay {
+  --bay-accent: #00c9f1;
+  --bay-glow: rgba(0, 201, 241, 0.42);
+  --bay-ink: #bff4ff;
+  --c: 1.2rem;
+  position: relative;
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: box-shadow 0.15s ease;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.5));
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
-.sa-aircraft-picker__slot::after {
-  content: '';
+.sa-aircraft-picker__bay--jet { --bay-accent: #3d9bff; --bay-glow: rgba(61, 155, 255, 0.42); --bay-ink: #cfe5ff; }
+.sa-aircraft-picker__bay--ufo { --bay-accent: #9d6dff; --bay-glow: rgba(157, 109, 255, 0.46); --bay-ink: #e2d6ff; }
+.sa-aircraft-picker__bay:hover { transform: translateY(-2px); }
+.sa-aircraft-picker__bay.is-selected {
+  transform: translateY(-4px);
+  filter: drop-shadow(0 0 10px var(--bay-glow)) drop-shadow(0 0 22px var(--bay-glow)) drop-shadow(0 14px 20px rgba(0, 0, 0, 0.5));
+}
+.sa-aircraft-picker__bay:focus-visible { outline: none; }
+.sa-aircraft-picker__bay:focus-visible .sa-aircraft-picker__bay-frame { outline: 2px solid var(--hangar-focus); outline-offset: 4px; }
+
+.sa-aircraft-picker__bay-frame {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.45rem;
+  background: var(--hangar-steel);
+  clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c));
+}
+.sa-aircraft-picker__bay.is-selected .sa-aircraft-picker__bay-frame {
+  background: linear-gradient(160deg, #eafcff 0%, var(--bay-accent) 26%, #0b3a5c 52%, var(--bay-accent) 78%, #eafcff 100%);
+}
+
+/* The glass: deep navy, lit from the pad up. */
+.sa-aircraft-picker__screen {
+  --g: calc(var(--c) - 0.3rem);
+  position: relative;
+  display: block;
+  aspect-ratio: 1 / 0.86;
+  min-height: 11rem;
+  overflow: hidden;
+  background:
+    radial-gradient(70% 38% at 50% 82%, var(--bay-glow), transparent 72%),
+    radial-gradient(120% 90% at 50% 100%, #12375f 0%, #0a1b31 52%, #050c17 100%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.7), inset 0 4px 18px rgba(0, 0, 0, 0.7);
+  clip-path: polygon(var(--g) 0, calc(100% - var(--g)) 0, 100% var(--g), 100% 100%, 0 100%, 0 var(--g));
+}
+/* A sheen across the glass. */
+.sa-aircraft-picker__screen::after { content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; background: linear-gradient(150deg, rgba(255, 255, 255, 0.07) 0%, transparent 34%); }
+/* Shafts of light down onto the pad. */
+.sa-aircraft-picker__beams {
   position: absolute;
   inset: 0;
-  z-index: 2;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(150deg, rgba(255, 255, 255, 0.08) 0%, transparent 36%);
+  background:
+    linear-gradient(180deg, transparent 0%, var(--bay-glow) 40%, transparent 82%) 16% 18% / 2px 60% no-repeat,
+    linear-gradient(180deg, transparent 0%, var(--bay-glow) 40%, transparent 82%) 84% 18% / 2px 60% no-repeat,
+    linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 90%) 30% 30% / 1px 40% no-repeat,
+    linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 90%) 70% 30% / 1px 40% no-repeat;
+  opacity: 0.8;
 }
-.sa-aircraft-picker__slot:hover:not(:disabled) { box-shadow: inset 0 0 0 1px rgba(127, 227, 247, 0.4), inset 0 3px 14px rgba(0, 0, 0, 0.7); }
-.sa-aircraft-picker__slot.is-selected {
-  box-shadow:
-    inset 0 0 0 2px var(--accent-bright),
-    inset 0 3px 14px rgba(0, 0, 0, 0.7),
-    0 0 0 4px rgba(0, 201, 241, 0.12),
-    0 0 26px rgba(0, 201, 241, 0.2);
-}
-.sa-aircraft-picker__slot:focus-visible { outline: 2px solid var(--hangar-focus); outline-offset: 3px; }
-.sa-aircraft-picker__slot:disabled { cursor: not-allowed; }
-.sa-aircraft-picker__slot.is-locked .sa-aircraft-picker__model { opacity: 0.5; filter: saturate(0.4); }
-
-.sa-aircraft-picker__model { position: relative; min-height: 8rem; }
-.sa-aircraft-picker__model-glow {
+/* The pad: two rings of light on the floor, the inner one dashed. */
+.sa-aircraft-picker__pad {
   position: absolute;
-  left: 14%;
-  right: 14%;
-  bottom: 12%;
-  height: 22%;
+  left: 10%;
+  right: 10%;
+  bottom: 7%;
+  height: 20%;
+  border: 2px solid var(--bay-accent);
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(0, 201, 241, 0.32), transparent);
-  filter: blur(6px);
+  background: radial-gradient(closest-side, var(--bay-glow), transparent);
+  box-shadow: 0 0 14px var(--bay-glow), inset 0 0 16px var(--bay-glow);
 }
-.sa-aircraft-picker__model-glow--ufo { background: radial-gradient(closest-side, rgba(157, 109, 255, 0.36), transparent); }
-/* The preview fills its stand; AircraftModelPreview frames the craft to it. */
+.sa-aircraft-picker__pad::after { content: ''; position: absolute; inset: 22% 18%; border: 1.5px dashed var(--bay-accent); border-radius: 50%; opacity: 0.55; }
+/* The preview fills the glass above the pad; AircraftModelPreview frames the craft to it. */
+.sa-aircraft-picker__model { position: absolute; inset: 11% -3% 6%; z-index: 2; }
 .sa-aircraft-picker__model-canvas { position: absolute; inset: 0; z-index: 1; display: block; overflow: hidden; }
 .sa-aircraft-picker__model-canvas canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sa-aircraft-picker__fallback {
@@ -178,50 +367,158 @@
   opacity: 0.78;
 }
 .sa-aircraft-picker__model-canvas[data-ready='true'] .sa-aircraft-picker__fallback { display: none; }
+.sa-aircraft-picker__bay.is-locked .sa-aircraft-picker__model { filter: saturate(0.85); }
 
-.sa-aircraft-picker__aircraft-meta { position: relative; z-index: 3; display: flex; align-items: center; gap: 0.45rem; padding: 0.35rem 0.2rem 0; }
-/* A holders' craft this wallet does not fly yet: a padlock by its name. */
-.sa-aircraft-picker__lock { flex: none; width: 1rem; height: 1rem; fill: none; stroke: var(--ui-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.sa-aircraft-picker__aircraft-meta strong { color: #f3f8ff; font-size: 1.05rem; font-weight: 700; letter-spacing: 0.02em; }
+/* What the bay says at a glance: open and what it does, or the pass it takes. */
+.sa-aircraft-picker__badge {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.9rem;
+  border: 1.5px solid var(--bay-accent);
+  border-radius: 999px;
+  background: rgba(4, 10, 20, 0.72);
+  box-shadow: 0 0 12px var(--bay-glow), inset 0 0 10px var(--bay-glow);
+  color: var(--bay-ink);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: clamp(0.62rem, 0.5rem + 0.3vw, 0.8rem);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.sa-aircraft-picker__lock { flex: none; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+/* The bay's lamp, top right: lit while the bay is in focus. */
+.sa-aircraft-picker__lamp {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  z-index: 4;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid var(--bay-accent);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--bay-accent) 0 35%, transparent 45%);
+  opacity: 0.55;
+}
+.sa-aircraft-picker__bay.is-selected .sa-aircraft-picker__lamp { opacity: 1; box-shadow: 0 0 10px var(--bay-accent); }
 
-/* The saucer's lock: the walk strip's "Connect a wallet to step inside",
-   with the button that does it. */
-.sa-aircraft-picker__mode {
+/* The name plate: dark steel, the name in white, a lamp at the end. */
+.sa-aircraft-picker__plate {
+  --g: calc(var(--c) - 0.3rem);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.75rem;
+  row-gap: 0.15rem;
+  padding: 0.85rem 1.15rem 0.95rem;
+  background: var(--hangar-steel-dark);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--g)), calc(100% - var(--g)) 100%, var(--g) 100%, 0 calc(100% - var(--g)));
+}
+.sa-aircraft-picker__plate strong { grid-column: 1; color: #fff; font-size: clamp(1.15rem, 0.9rem + 0.7vw, 1.65rem); font-weight: 800; letter-spacing: 0.03em; line-height: 1.1; }
+.sa-aircraft-picker__plate > span { grid-column: 1; overflow: hidden; color: #cdd7e3; font-size: clamp(0.78rem, 0.7rem + 0.25vw, 0.98rem); text-overflow: ellipsis; white-space: nowrap; }
+.sa-aircraft-picker__plate-lamp {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 2px solid var(--bay-accent);
+  border-radius: 50%;
+  background: var(--bay-accent);
+  box-shadow: 0 0 10px var(--bay-accent);
+}
+.sa-aircraft-picker__bay.is-locked .sa-aircraft-picker__plate-lamp { background: transparent; box-shadow: none; }
+/* Drilled holes in the plate's corner. */
+.sa-aircraft-picker__plate::after {
+  content: '';
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  width: 1.6rem;
+  height: 1.1rem;
+  background: radial-gradient(circle, #0b1119 0 1.4px, transparent 1.9px) 0 0 / 6px 5.5px;
+}
+
+/* ── The status strip: the bay in focus, and the one way on ── */
+.sa-aircraft-picker__status {
+  --status: #00c9f1;
+  --g: 1rem;
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.6rem 1.25rem;
-  padding: 0.75rem 0.75rem 0.75rem 1.1rem;
-  border-radius: var(--r-lg);
-  background: var(--ui-sink);
-  box-shadow: var(--e-press), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  gap: 0.75rem 1.4rem;
+  padding: 0.95rem 1rem 0.95rem 1.4rem;
+  background: linear-gradient(180deg, #0a121c, #070d15);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09), inset 0 3px 12px rgba(0, 0, 0, 0.7);
+  clip-path: polygon(var(--g) 0, calc(100% - var(--g)) 0, 100% var(--g), 100% calc(100% - var(--g)), calc(100% - var(--g)) 100%, var(--g) 100%, 0 calc(100% - var(--g)), 0 var(--g));
 }
-.sa-aircraft-picker__mode-text { flex: 1 1 18rem; min-width: 0; margin: 0; color: var(--ui-soft); font-size: 13px; line-height: 1.45; }
-.sa-aircraft-picker__mode-text strong { color: var(--ui-ink); }
-.sa-aircraft-picker__mode .sa-ghost { flex: none; margin-left: auto; }
+.sa-aircraft-picker__status--jet { --status: #3d9bff; }
+.sa-aircraft-picker__status--ufo { --status: #9d6dff; }
+.sa-aircraft-picker__status.is-locked { --status: var(--hangar-amber); }
+.sa-aircraft-picker__status-lamp { flex: none; width: 0.35rem; height: 2.8rem; border-radius: 0.2rem; background: var(--status); box-shadow: 0 0 12px var(--status); }
+.sa-aircraft-picker__status-text { display: grid; gap: 0.25rem; flex: 1 1 16rem; min-width: 0; margin: 0; }
+.sa-aircraft-picker__status-text strong { color: #fff; font-size: clamp(1rem, 0.85rem + 0.45vw, 1.4rem); font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
+.sa-aircraft-picker__status-text span { color: #c9d6e4; font-size: clamp(0.85rem, 0.78rem + 0.25vw, 1.05rem); line-height: 1.4; }
+.sa-aircraft-picker__grille--wide { flex: 0 1 10rem; height: 1.8rem; }
+.sa-aircraft-picker__actions { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
 
-/* ── The launch bar: the pick, and the one filled button ── */
-.sa-ride-modal__launch-console {
-  display: flex;
+/* The status strip's buttons: steel plates, a lamp before the words. */
+.sa-aircraft-picker__specs,
+.sa-aircraft-picker__action {
+  --g: 0.55rem;
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 0.75rem 0.75rem 1.4rem;
-  border-radius: var(--r-xl);
-  background: var(--face-flat);
-  box-shadow: var(--hangar-panel);
-}
-.sa-ride-modal__launch-console > strong {
-  min-width: 0;
-  overflow: hidden;
-  color: #f3f8ff;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-overflow: ellipsis;
+  justify-content: center;
+  gap: 0.7rem;
+  min-height: 3.1rem;
+  padding: 0 1.5rem;
+  border: 0;
+  background: var(--hangar-steel);
+  color: #fff;
+  font: inherit;
+  font-size: clamp(0.78rem, 0.7rem + 0.25vw, 0.95rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  clip-path: polygon(var(--g) 0, calc(100% - var(--g)) 0, 100% var(--g), 100% calc(100% - var(--g)), calc(100% - var(--g)) 100%, var(--g) 100%, 0 calc(100% - var(--g)), 0 var(--g));
+  isolation: isolate;
 }
-.sa-ride-modal__launch { flex: none; }
+.sa-aircraft-picker__specs::before,
+.sa-aircraft-picker__action::before {
+  content: '';
+  position: absolute;
+  inset: 0.2rem;
+  z-index: -1;
+  background: linear-gradient(180deg, #303c4d 0%, #18212d 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  clip-path: polygon(calc(var(--g) - 0.1rem) 0, calc(100% - var(--g) + 0.1rem) 0, 100% calc(var(--g) - 0.1rem), 100% calc(100% - var(--g) + 0.1rem), calc(100% - var(--g) + 0.1rem) 100%, calc(var(--g) - 0.1rem) 100%, 0 calc(100% - var(--g) + 0.1rem), 0 calc(var(--g) - 0.1rem));
+}
+.sa-aircraft-picker__specs { padding: 0 1.1rem; color: #c9d6e4; }
+.sa-aircraft-picker__action::after { content: ''; order: -1; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: #00c9f1; box-shadow: 0 0 8px #00c9f1; }
+/* Launching: the site's own blue, the one filled control on the screen. */
+.sa-aircraft-picker__action.is-go::before { background: var(--g-accent-text); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+.sa-aircraft-picker__action.is-go::after { background: #bff4ff; box-shadow: 0 0 8px #bff4ff; }
+.sa-aircraft-picker__action:disabled { color: #8fa3ba; cursor: not-allowed; }
+.sa-aircraft-picker__action:disabled::after { background: var(--hangar-amber); box-shadow: 0 0 8px var(--hangar-amber); }
+.sa-aircraft-picker__specs:hover:not(:disabled),
+.sa-aircraft-picker__action:hover:not(:disabled) { color: var(--hangar-focus); }
+.sa-aircraft-picker__action.is-go:hover:not(:disabled) { color: #fff; filter: brightness(1.1); }
+.sa-aircraft-picker__specs:focus-visible,
+.sa-aircraft-picker__action:focus-visible { outline: 2px solid var(--hangar-focus); outline-offset: 2px; }
 
 /* Connecting failed, or there is nothing to connect. */
 .sa-ride-modal__wallet {
@@ -267,26 +564,53 @@
 :is(.sa-ride-modal, .sa-craft-sheet) .ui-round:hover:not(:disabled) { color: var(--hangar-focus); }
 :is(.sa-ride-modal, .sa-craft-sheet) :is(.sa-cta, .sa-ghost, .ui-round):focus-visible { outline: 2px solid var(--hangar-focus); outline-offset: 3px; }
 
-/* ── A phone: the stands scroll, one and a peek of the next ── */
+/* ── A tablet: the arrows tuck in, the grilles go ── */
+@media (max-width: 900px) {
+  .sa-aircraft-picker { --cut: 1.4rem; }
+  .sa-aircraft-picker__arrow { width: 2.9rem; height: 2.9rem; }
+  .sa-aircraft-picker__grille--wide { display: none; }
+  .sa-aircraft-picker__plate::after { display: none; }
+}
+
+/* ── A phone: the bays scroll, one and a peek of the next; the arrows go,
+   the swipe and the counter are the way along ── */
 @media (max-width: 640px) {
   .sa-ride-modal__content { padding-inline: 0.75rem; }
-  .sa-aircraft-picker { padding: 0.65rem; border-radius: var(--r-lg); }
+  .sa-ride-modal__callsign { display: none; }
+  .sa-ride-modal__brand { font-size: 0.8rem; letter-spacing: 0.2em; }
+  .sa-ride-modal__brand svg { width: 1.6rem; height: 1.6rem; }
+  .sa-ride-modal__close { width: 2.75rem; height: 2.75rem; }
+  .sa-aircraft-picker { --cut: 1rem; }
+  .sa-aircraft-picker__rim { padding: 0.35rem; }
+  .sa-aircraft-picker__panel { padding: 0.9rem 0.6rem 0.75rem; }
+  .sa-aircraft-picker__panel::before { display: none; }
+  .sa-aircraft-picker__head { padding: 0 0.4rem; }
+  .sa-aircraft-picker__head .sa-aircraft-picker__grille { display: none; }
+  .sa-aircraft-picker__count { margin-left: auto; padding: 0.35rem 0.7rem; }
+  .sa-aircraft-picker__row { grid-template-columns: minmax(0, 1fr); }
+  .sa-aircraft-picker__arrow { display: none; }
   .sa-aircraft-picker__track {
     display: flex;
-    gap: 0.6rem;
-    margin: -6px;
-    padding: 6px;
+    gap: 0.7rem;
+    /* Room above and below for the picked bay's glow, which the scroller would otherwise cut square. */
+    margin: -0.5rem -0.6rem;
+    padding: 1.1rem 0.6rem 1.1rem;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.6rem;
     scrollbar-width: none;
   }
   .sa-aircraft-picker__track::-webkit-scrollbar { display: none; }
-  .sa-aircraft-picker__slot { flex: 0 0 max(170px, 68%); min-height: clamp(14rem, 36vh, 22rem); scroll-snap-align: center; }
-  .sa-aircraft-picker__mode { padding: 0.75rem; }
-  .sa-aircraft-picker__mode .sa-ghost { flex: 1 1 100%; }
-  .sa-ride-modal__launch-console { flex-direction: column; align-items: stretch; padding: 0.75rem; border-radius: var(--r-lg); }
-  .sa-ride-modal__launch-console > strong { padding: 0.15rem 0.35rem 0; }
+  .sa-aircraft-picker__bay { flex: 0 0 74%; scroll-snap-align: center; }
+  .sa-aircraft-picker__bay { --c: 0.9rem; }
+  .sa-aircraft-picker__bay.is-selected { filter: drop-shadow(0 0 8px var(--bay-glow)) drop-shadow(0 10px 14px rgba(0, 0, 0, 0.5)); }
+  .sa-aircraft-picker__screen { min-height: 0; }
+  .sa-aircraft-picker__status { padding: 0.85rem 0.85rem 0.85rem 1rem; gap: 0.7rem 0.9rem; }
+  .sa-aircraft-picker__status-lamp { height: 2.4rem; }
+  .sa-aircraft-picker__status-text { flex-basis: calc(100% - 2rem); }
+  .sa-aircraft-picker__actions { width: 100%; }
+  .sa-aircraft-picker__action { flex: 1; padding: 0 1rem; }
 }
 @media (max-width: 420px) {
   .sa-ride-modal__hero-copy span { display: none; }
@@ -294,22 +618,32 @@
 
 /* ── A short screen — a phone on its side, a laptop with the bars out ──
    The close button joins the heading's row, the sub-line goes, and the
-   stands shorten so the roster and the launch bar fit. */
+   bays shorten so the console fits. */
 @media (max-height: 560px) {
   .sa-ride-modal__content { align-content: start; row-gap: 0.6rem; padding-top: max(0.5rem, var(--safe-top)); padding-bottom: 0.6rem; }
-  .sa-ride-modal__topline { position: absolute; top: max(0.5rem, var(--safe-top)); right: max(0.75rem, 2vw); width: auto; }
-  .sa-ride-modal__hero-copy { min-height: var(--control-size); align-content: center; padding-inline: 3.5rem; }
-  .sa-ride-modal__hero-copy h1 { font-size: 1.2rem; }
+  .sa-ride-modal__hero-copy h1 { font-size: 1.3rem; }
   .sa-ride-modal__hero-copy span { display: none; }
-  .sa-aircraft-picker { gap: 0.55rem; padding: 0.55rem; }
-  .sa-aircraft-picker__slot { min-height: 0; padding: 0.4rem 0.6rem 0.55rem; }
-  .sa-aircraft-picker__model { min-height: clamp(4.5rem, 26svh, 7rem); }
-  .sa-aircraft-picker__mode { padding: 0.45rem 0.5rem 0.45rem 0.85rem; }
-  .sa-ride-modal__launch-console { flex-direction: row; align-items: center; padding: 0.5rem 0.5rem 0.5rem 1.1rem; }
+  .sa-aircraft-picker__panel { gap: 0.5rem; padding-block: 0.6rem 0.55rem; }
+  /* The status strip, with the launch on it, matters more here than the console's heading. */
+  .sa-aircraft-picker__head { display: none; }
+  .sa-aircraft-picker__track { padding-block: 0.5rem 0.3rem; }
+  .sa-aircraft-picker__screen { aspect-ratio: auto; height: clamp(5.5rem, 27svh, 9rem); min-height: 0; }
+  .sa-aircraft-picker__badge { top: 0.5rem; padding: 0.25rem 0.7rem; }
+  .sa-aircraft-picker__lamp { top: 0.55rem; right: 0.55rem; }
+  .sa-aircraft-picker__plate { padding-block: 0.45rem 0.55rem; }
+  .sa-aircraft-picker__plate > span { display: none; }
+  .sa-aircraft-picker__status { flex-wrap: nowrap; gap: 0.8rem; padding-block: 0.5rem; }
+  .sa-aircraft-picker__status-lamp { height: 2rem; }
+  .sa-aircraft-picker__status-text { flex: 1 1 auto; }
+  .sa-aircraft-picker__status-text strong { font-size: 0.95rem; }
+  .sa-aircraft-picker__status-text span { font-size: 0.8rem; }
+  .sa-aircraft-picker__actions { width: auto; flex: none; }
+  .sa-aircraft-picker__specs, .sa-aircraft-picker__action { min-height: 2.6rem; padding: 0 1rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .sa-aircraft-picker { animation: none; }
-  .sa-aircraft-picker__slot, :is(.sa-ride-modal, .sa-craft-sheet) :is(.sa-cta, .sa-ghost) { transition: none; }
+  .sa-aircraft-picker__bay, :is(.sa-ride-modal, .sa-craft-sheet) :is(.sa-cta, .sa-ghost) { transition: none; }
+  .sa-aircraft-picker__bay:hover, .sa-aircraft-picker__bay.is-selected { transform: none; }
   :is(.sa-ride-modal, .sa-craft-sheet) :is(.sa-cta, .sa-ghost):hover { transform: none; }
 }

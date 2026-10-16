@@ -120,8 +120,8 @@ export default function AircraftModelPreview({ model, active = true }: AircraftM
     const studio = pmrem.fromScene(room, 0.04).texture;
     scene.environment = studio;
     /* Enough to give the metal and glass a sky, not so much the grey jet
-       reads white or the saucer's pale hull blows out. */
-    scene.environmentIntensity = model === 'ufo' ? 0.22 : 0.4;
+       reads white or the saucer's polished hull turns to a mirror of the room. */
+    scene.environmentIntensity = model === 'ufo' ? 0.3 : 0.4;
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
     camera.position.set(model === 'ufo' ? 0 : 9.5, model === 'ufo' ? 7.2 : 5.2, model === 'ufo' ? 15 : 13.5);
     camera.lookAt(0, 0, 0);
@@ -241,6 +241,14 @@ export default function AircraftModelPreview({ model, active = true }: AircraftM
           materials.forEach((material) => {
             const lit = material as THREE.MeshStandardMaterial;
             if (lit.emissive) lit.emissiveIntensity = Math.max(lit.emissiveIntensity || 0, 2.5);
+            /* The hull is a pale matt grey, which the stand's key light
+               burns to white: on the stand it is polished metal instead,
+               dark where it faces away and bright where the studio shows. */
+            if (lit.name === 'PrimaryColor') {
+              lit.color.setHex(0x9aa3b4);
+              lit.metalness = 0.82;
+              lit.roughness = 0.26;
+            }
           });
         });
         configurePreviewMaterials(actual);
