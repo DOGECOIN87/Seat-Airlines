@@ -11,8 +11,9 @@ import Flyover from './Flyover';
 import SplitFlapBoard from './SplitFlapBoard';
 import Wasted from './Wasted';
 import './Hangar.css';
+import RideHangar from './RideHangar';
 import SeatDrawer from './SeatDrawer';
-import { RIDES, RIDE_PASS, flyableRides, passShort, type PlayMode } from '../lib/rides';
+import { RIDES, flyableRides, type PlayMode } from '../lib/rides';
 import JetWeapons from './JetWeapons';
 import { BLIMP, fireMissile, type AerialEvents } from '../lib/aerialCombat';
 import type { Manifest } from '../lib/manifest';
@@ -53,7 +54,6 @@ interface ShareNote { text: string; href?: string; label?: string; error?: boole
 /* The scene is the chunk with three.js in it. Everything here — the way in
    above all — is up and working before it arrives. */
 const LandingScene = lazy(() => import('./LandingScene'));
-const AircraftCarousel = lazy(() => import('./AircraftCarousel'));
 /* The same high scores window the site opens from its tab bar, fetched as a
    finger or a pointer reaches the button so it is there by the click. */
 const loadScores = () => import('./ScoresDialog');
@@ -224,11 +224,16 @@ export default function Landing({
   const [ridePickerOpen, setRidePickerOpen] = useState(false);
   /* Read by the key handler, which is not rebuilt when the picker opens. */
   const ridePickerUp = useRef(false);
-  const launchRef = useRef<HTMLButtonElement>(null);
+  /** The bay the hangar's console is pointed at: any ride, flyable or not (see focusRide). */
+  const [rideFocus, setRideFocus] = useState<PlayMode>(() => lastPlayMode);
+  const rideFocusRef = useRef(rideFocus);
   const rideDialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ridePickerUp.current = ridePickerOpen;
     if (!ridePickerOpen) return;
+    // The hangar opens on the ride that will fly.
+    rideFocusRef.current = lastPlayMode;
+    setRideFocus(lastPlayMode);
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = rideDialogRef.current;
     /* The dialog itself takes focus, not its first button: a ring on the
@@ -269,17 +274,19 @@ export default function Landing({
     flyableRef.current = flyableRides(tokenBalance);
     // A remembered holders' ride the wallet no longer holds the pass for goes back to the airliner.
     if (!flyableRef.current[lastPlayMode] && !tokenBalanceLoading && game.current.phase === 'idle') setPlayMode('airliner');
+    // A bay the hangar is pointed at that the wallet has just been verified for becomes the ride, so its launch works.
+    else if (ridePickerUp.current && flyableRef.current[rideFocusRef.current] && game.current.phase === 'idle') setPlayMode(rideFocusRef.current);
   }, [flyableKey, tokenBalance, tokenBalanceLoading, setPlayMode]);
-  /** Pick a ride, if it is one this pilot can fly. */
-  const chooseRide = useCallback((mode: PlayMode) => {
-    if (!flyableRef.current[mode]) return;
-    setPlayMode(mode);
+  /** Point the hangar's console at a bay. One this pilot can fly becomes the ride as well. */
+  const focusRide = useCallback((ride: PlayMode) => {
+    rideFocusRef.current = ride;
+    setRideFocus(ride);
+    if (flyableRef.current[ride]) setPlayMode(ride);
   }, [setPlayMode]);
+  /** The arrow keys in the hangar: the next bay along, locked or not, as the console's own arrows. */
   const cycleRide = useCallback((direction: number) => {
-    const available = RIDES.filter((mode) => flyableRef.current[mode]);
-    const index = Math.max(0, available.indexOf(lastPlayMode));
-    setPlayMode(available[(index + direction + available.length) % available.length]);
-  }, [setPlayMode]);
+    focusRide(RIDES[(RIDES.indexOf(rideFocusRef.current) + direction + RIDES.length) % RIDES.length]);
+  }, [focusRide]);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -1199,36 +1206,19 @@ export default function Landing({
       )}
       {ridePickerOpen && !inGame && (
         <div ref={rideDialogRef} className="sa-ride-modal" role="dialog" aria-modal="true" aria-label="Choose your ride" tabIndex={-1}>
-          <div className="sa-ride-modal__content">
-            <div className="sa-ride-modal__topline">
-              <button type="button" className="ui-round sa-ride-modal__close" onClick={() => setRidePickerOpen(false)} aria-label="Close ride selector">
-                <svg viewBox="0 0 24 24" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
-              </button>
-            </div>
-            <div className="sa-ride-modal__hero-copy">
-              <h1>Select your aircraft</h1>
-              <span>Configure your ride before entering the climb.</span>
-            </div>
-            <Suspense fallback={null}>
-              <AircraftCarousel
-                fullscreen
-                mode={playMode}
-                onModeChange={chooseRide}
-                flyable={flyable}
-                tokenBalance={tokenBalance}
-                balanceLoading={tokenBalanceLoading}
-                walletConnected={Boolean(wallet.address)}
-                onConnect={verifyWallet}
-                onLaunch={confirmRide}
-                launchLabel={wallet.address ? 'Launch flight →' : 'Connect & launch →'}
-              />
-            </Suspense>
-            <div className="sa-ride-modal__launch-console">
-              <strong>{playMode === 'ufo' ? 'UFO · Interceptor' : playMode === 'jet' ? 'F35 · Fighter' : 'SA350 · Flagship'}</strong>
-              <button type="button" className="sa-cta sa-ride-modal__launch" onClick={confirmRide} disabled={!flyable[playMode]} ref={launchRef}>
-                {!flyable[playMode] ? `Hold ${passShort(RIDE_PASS[playMode])} $SEAT to unlock` : wallet.address ? 'Launch flight →' : 'Connect & launch →'}
-              </button>
-            </div>
+          <RideHangar
+            onClose={() => setRidePickerOpen(false)}
+            mode={playMode}
+            focus={rideFocus}
+            onFocusChange={focusRide}
+            flyable={flyable}
+            tokenBalance={tokenBalance}
+            balanceLoading={tokenBalanceLoading}
+            walletConnected={Boolean(wallet.address)}
+            onConnect={verifyWallet}
+            onLaunch={confirmRide}
+            launchLabel={wallet.address ? 'Launch flight →' : 'Connect & launch →'}
+          >
             {/* Connecting failed, or there is nothing to connect: say so, and where to get one. */}
             {!wallet.address && !localTestMode && (wallet.unavailable || wallet.error) && (
               <div className="sa-ride-modal__wallet" role="alert">
@@ -1257,7 +1247,7 @@ export default function Landing({
                 )}
               </div>
             )}
-          </div>
+          </RideHangar>
         </div>
       )}
       {/* Its own Suspense, as in the site: nothing shows while the chunk loads. */}
