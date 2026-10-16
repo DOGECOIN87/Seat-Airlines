@@ -293,9 +293,18 @@ With no configuration at all, a build flies the committed token against the prod
 ├── worker/                  the Cloudflare Worker: adverts, directory, holders
 ├── docs/                    the GitBook documentation (synced both ways)
 ├── test/                    unit suites for the page
-├── public/                  icons, logo, audio, CNAME
+├── public/                  icons, logo, audio, CNAME, the wallet-free mini-game
 └── gitbook-docs.yaml        the GitBook site contract
 ```
+
+### Mini-game
+
+The wallet-free, standalone flight game is available at
+**[seat-airlines.space/minigame/](https://seat-airlines.space/minigame/)**. It is
+also safe to embed as a Radbro playable build: it uses relative assets, has no
+wallet or network dependencies, and answers Radbro's ready/result messages
+without pinning the parent origin. The same build therefore works under both
+**radbro.fun** and **radbro.gg**.
 
 ### Configuration
 

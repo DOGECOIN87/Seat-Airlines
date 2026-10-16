@@ -1,5 +1,6 @@
 {
   "routes": [
-    { "path": "/", "route": "index.html" }
+    { "path": "/", "title": "Seat Airlines" },
+    { "path": "/minigame/", "title": "Seat Airlines Mini-game" }
   ]
 }

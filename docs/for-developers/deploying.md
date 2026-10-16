@@ -29,6 +29,20 @@ description: The page on GitHub Pages, the Worker on Cloudflare, the token, and 
 
 Then **Settings → Pages → Custom domain → `seat-airlines.space`**, wait for the DNS check, and tick **Enforce HTTPS** once it is offered.
 
+### The wallet-free mini-game
+
+The static build at `public/minigame/index.html` is copied into the Pages
+artifact at `/minigame/`, independently of the full wallet-connected site.
+Its hosted playable URL is:
+
+`https://seat-airlines.space/minigame/`
+
+It sends `radbro:game-ready`, `radbro:game-ready-request`, and
+`radbro:game-result` messages with a wildcard target origin. That is deliberate:
+the build can be embedded by either `radbro.fun` or `radbro.gg` without a
+domain-specific rebuild. No wallet, cookie, external asset, or network request
+is required by the mini-game.
+
 ### Security headers
 
 GitHub Pages sends its own headers and ignores `public/_headers`, so none of the headers in that file are served: not the `frame-ancestors` policy that lets X frame the Player Card and keeps everyone else from framing the page, not HSTS, and not the rest. The referrer policy alone also goes out as a `<meta>` in `index.html`, because it is the only one a meta tag can carry; the others work only as real response headers. To serve them, put Cloudflare in front of the domain and copy them in with a Transform Rule. (The other way is to host the page on Cloudflare Pages, which reads `_headers` itself — a different deploy from the one above.)

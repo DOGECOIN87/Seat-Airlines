@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07152b">
+  <meta name="description" content="Seat Airlines: climb through the weather and land safely.">
+  <title>Seat Airlines — Flight Deck Mini-game</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #061225; }
+    body { display: grid; place-items: center; overflow: hidden; }
+    #game { position: relative; width: min(100vw, 1280px); height: min(100vh, 720px); min-height: 420px; overflow: hidden; background: #102f56; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    .hud { position: absolute; inset: 0; pointer-events: none; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; }
+    .top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .brand { letter-spacing: .16em; font-weight: 800; font-size: clamp(12px, 2vw, 17px); color: #e9fbff; text-shadow: 0 2px 10px #00111f; }
+    .brand span { color: #62d8ee; }
+    .readouts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .readout { min-width: 78px; padding: 7px 10px; border: 1px solid #8fe9f355; border-radius: 8px; background: #031120aa; backdrop-filter: blur(5px); text-align: right; }
+    .readout small { display: block; color: #9bc3ce; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+    .readout b { color: #fff; font-size: 15px; }
+    .center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; }
+    .card { max-width: 520px; padding: 28px; border: 1px solid #a7f1ff55; border-radius: 18px; background: linear-gradient(150deg,#07182ddd,#0b2940dd); box-shadow: 0 20px 80px #0008; backdrop-filter: blur(8px); pointer-events: auto; }
+    h1 { margin: 0 0 10px; font-size: clamp(25px, 5vw, 48px); letter-spacing: -.04em; color: #f2fdff; }
+    p { margin: 8px 0; color: #bad7df; line-height: 1.5; }
+    .accent { color: #63e0f5; }
+    button { border: 0; border-radius: 999px; padding: 12px 22px; margin-top: 15px; color: #032033; background: #68e0f1; font: inherit; font-weight: 800; cursor: pointer; box-shadow: 0 5px 20px #4de0f155; }
+    button:hover { background: #b5f6ff; transform: translateY(-1px); }
+    .tip { font-size: 12px; color: #8eb5bf; }
+    .bottom { display: flex; justify-content: space-between; align-items: end; gap: 12px; }
+    .status { color: #d8faff; font-size: 13px; text-shadow: 0 2px 5px #00111f; }
+    .controls { color: #9bc3ce; font-size: 11px; text-align: right; }
+    .hidden { display: none; }
+    @media (max-width: 560px) { #game { min-height: 100svh; } .hud { padding: 12px; } .readout { min-width: 66px; padding: 5px 7px; } .readout b { font-size: 12px; } .controls { max-width: 150px; } }
+  </style>
+</head>
+<body>
+  <main id="game" aria-label="Seat Airlines flight deck mini-game">
+    <canvas id="sky" aria-label="Fly the aircraft"></canvas>
+    <div class="hud">
+      <div class="top"><div class="brand">SEAT <span>AIRLINES</span></div><div class="readouts"><div class="readout"><small>Altitude</small><b id="alt">430 ft</b></div><div class="readout"><small>Score</small><b id="score">0</b></div><div class="readout"><small>Flight</small><b id="time">0:00</b></div></div></div>
+      <div id="center" class="center"><section class="card"><h1>Climb to cruise.</h1><p>Guide the SA350 through the weather, collect <span class="accent">seat markers</span>, and reach 10,000 feet before the storm catches you.</p><p class="tip">Arrow keys / WASD steer · Space boosts · Touch and drag on mobile</p><button id="start">Take the controls</button></section></div>
+      <div class="bottom"><div id="status" class="status">Flight deck standing by.</div><div class="controls">STEER: WASD / ARROWS &nbsp; BOOST: SPACE</div></div>
+    </div>
+  </main>
+<script>
+(() => {
+  'use strict';
+  const canvas = document.getElementById('sky');
+  const ctx = canvas.getContext('2d');
+  const startButton = document.getElementById('start');
+  const center = document.getElementById('center');
+  const altEl = document.getElementById('alt');
+  const scoreEl = document.getElementById('score');
+  const timeEl = document.getElementById('time');
+  const statusEl = document.getElementById('status');
+  const W = 1280, H = 720, goal = 10000;
+  const keys = new Set();
+  let dpr = 1, raf = 0, last = 0, running = false, crashed = false, touch = null;
+  let p, clouds, markers, elapsed, score, distance, flash;
+  const send = (message) => { if (window.parent !== window) window.parent.postMessage(message, '*'); };
+  const metadata = { type:'radbro:game-ready', game:'seat-airlines-mini', title:'Seat Airlines: Climb to Cruise', objective:'Climb through the weather, collect seat markers, and reach 10,000 feet.', hint:'Keep the nose up, use Space for boost, and steer around dark storm cells.', controls:['arrow keys / WASD steer','space boosts','touch drag steers'], viewport:{width:1280,height:720,minHeight:420,maxHeight:720} };
+  const announce = () => send(metadata);
+  window.addEventListener('message', e => { if (e.data && e.data.type === 'radbro:game-ready-request') announce(); });
+  announce();
+  const resize = () => { dpr = Math.min(2, window.devicePixelRatio || 1); const r = canvas.getBoundingClientRect(); canvas.width = Math.max(1, r.width*dpr); canvas.height = Math.max(1, r.height*dpr); };
+  const view = () => { const r = canvas.getBoundingClientRect(); return { w:r.width, h:r.height, sx:r.width/W, sy:r.height/H }; };
+  const reset = () => { p={x:W*.5,y:H*.68,vx:0,vy:0,boost:1}; clouds=[]; markers=[]; elapsed=0; score=0; distance=0; flash=0; crashed=false; for(let i=0;i<14;i++) clouds.push(cloud()); for(let i=0;i<9;i++) markers.push(marker(i)); };
+  const cloud = () => ({x:80+Math.random()*(W-160),y:70+Math.random()*520,r:35+Math.random()*60,vx:-18-Math.random()*22,storm:Math.random()<.28});
+  const marker = i => ({x:120+Math.random()*(W-240),y:80+((i*83+Math.random()*70)%540),taken:false,pulse:Math.random()*6.28});
+  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+  function drawBackground(t) {
+    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#06162d'); g.addColorStop(.48,'#165079'); g.addColorStop(1,'#d0a45c'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha=.24; ctx.fillStyle='#fff'; for(let i=0;i<7;i++){ctx.beginPath();ctx.arc((i*231+t*.01)%1450-80,150+(i%3)*74,90,0,Math.PI*2);ctx.fill();} ctx.globalAlpha=1;
+    ctx.fillStyle='#637e55'; ctx.beginPath(); ctx.moveTo(0,H*.78); for(let x=0;x<=W;x+=45) ctx.lineTo(x,H*.78+Math.sin(x*.012+t*.0003)*32+Math.sin(x*.035)*13); ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.fill();
+    ctx.fillStyle='#8dc9dc'; ctx.globalAlpha=.5; for(let x=-40;x<W+40;x+=120){ctx.fillRect(x,H*.82+Math.sin(x)*9,68,3);} ctx.globalAlpha=1;
+  }
+  function drawCloud(c) { ctx.save(); ctx.translate(c.x,c.y); ctx.fillStyle=c.storm?'#26364d99':'#e8f6fa99'; ctx.shadowBlur=c.storm?20:8;ctx.shadowColor=c.storm?'#192536':'#dff7ff'; ctx.beginPath();ctx.arc(-c.r*.5,8,c.r*.55,0,Math.PI*2);ctx.arc(0,-c.r*.2,c.r*.72,0,Math.PI*2);ctx.arc(c.r*.55,8,c.r*.5,0,Math.PI*2);ctx.fill(); if(c.storm){ctx.strokeStyle='#79d6e7aa';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(0,22);ctx.lineTo(-8,48);ctx.lineTo(5,43);ctx.lineTo(-2,72);ctx.stroke();}ctx.restore(); }
+  function drawMarker(m,t) { if(m.taken)return; const pulse=1+Math.sin(t*.004+m.pulse)*.13;ctx.save();ctx.translate(m.x,m.y);ctx.scale(pulse,pulse);ctx.strokeStyle='#75e9f5';ctx.lineWidth=4;ctx.shadowBlur=18;ctx.shadowColor='#5ce9ff';ctx.beginPath();ctx.arc(0,0,19,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#d5fbff';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText('S',0,5);ctx.restore(); }
+  function drawPlane() { ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.vx*.0015);ctx.shadowBlur=18;ctx.shadowColor='#64e4f5';ctx.fillStyle='#f2fbff';ctx.beginPath();ctx.moveTo(34,0);ctx.lineTo(-18,-9);ctx.lineTo(-8,-2);ctx.lineTo(-42,-18);ctx.lineTo(-48,-15);ctx.lineTo(-27,0);ctx.lineTo(-48,15);ctx.lineTo(-42,18);ctx.lineTo(-8,2);ctx.lineTo(-18,9);ctx.closePath();ctx.fill();ctx.fillStyle='#f15b43';ctx.fillRect(-5,-3,29,6);ctx.fillStyle='#153c61';ctx.beginPath();ctx.arc(10,0,4,0,Math.PI*2);ctx.fill();if(p.boost>0){ctx.fillStyle='#ffcc5c';ctx.beginPath();ctx.moveTo(-42,-5);ctx.lineTo(-62,0);ctx.lineTo(-42,5);ctx.fill();}ctx.restore(); }
+  function render(t) { const r=view();ctx.setTransform(r.sx*dpr,0,0,r.sy*dpr,0,0);drawBackground(t);clouds.forEach(drawCloud);markers.forEach(m=>drawMarker(m,t));drawPlane();ctx.strokeStyle='#d5fbff55';ctx.setLineDash([8,12]);ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#d7faffaa';ctx.font='12px system-ui';ctx.fillText('10,000 FT',W-95,32); }
+  function end(won) { running=false; crashed=!won; const final=Math.max(0,Math.round(score)); send({type:'radbro:game-result',game:'seat-airlines-mini',status:won?'clear':'gameover',score:final}); center.classList.remove('hidden'); center.querySelector('h1').textContent=won?'Cruise altitude reached.':'Flight deck needs a reset.'; center.querySelector('p').innerHTML=won?'You threaded the weather and brought the SA350 above the clouds.':'The aircraft lost the climb. Reset, keep the wings level, and try again.'; center.querySelectorAll('p')[1].textContent=`Score ${final.toLocaleString()} · ${Math.floor(distance)} km flown`; startButton.textContent='Fly again'; statusEl.textContent=won?'Flight complete — excellent work.':'Flight ended — ready for another departure.'; }
+  function tick(t) { if(!running){render(t);return;} const dt=Math.min(.04,(t-last)/1000||0);last=t;elapsed+=dt;distance+=dt*(1+(p.boost>0?.7:0));const ix=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0);const iy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);const boost=keys.has(' ')&&p.boost>0;if(boost)p.boost=Math.max(0,p.boost-dt*.22);else p.boost=Math.min(1,p.boost+dt*.035);p.vx+=(ix*380-p.vx)*dt*4;p.vy+=(iy*300-p.vy)*dt*4;p.x=clamp(p.x+p.vx*dt,55,W-55);p.y=clamp(p.y+p.vy*dt,55,H-70);clouds.forEach(c=>{c.x+=c.vx*dt*(boost?1.65:1);if(c.x<-150)c.x=W+150;});for(const c of clouds){if(Math.hypot(c.x-p.x,c.y-p.y)<(c.r+28)){if(c.storm){end(false);return;}score=Math.max(0,score-25);flash=.2;}}for(const m of markers){if(!m.taken&&Math.hypot(m.x-p.x,m.y-p.y)<36){m.taken=true;score+=150;statusEl.textContent='Seat marker collected +150';}}score+=dt*(boost?12:5);const altitude=430+Math.min(goal-430,elapsed*116+score*.035);if(altitude>=goal){score+=1000;end(true);return;}flash=Math.max(0,flash-dt);altEl.textContent=Math.round(altitude).toLocaleString()+' ft';scoreEl.textContent=Math.round(score).toLocaleString();timeEl.textContent=Math.floor(elapsed/60)+':'+String(Math.floor(elapsed%60)).padStart(2,'0');if(elapsed>0&&Math.floor(elapsed)%12===0)statusEl.textContent=boost?'Afterburner engaged.':'Climbing through the weather.';render(t);raf=requestAnimationFrame(tick); }
+  startButton.addEventListener('click',()=>{reset();running=true;center.classList.add('hidden');statusEl.textContent='Controls handed over — climb!';send({type:'radbro:game-result',game:'seat-airlines-mini',status:'run'});last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);});
+  const setKey=e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','w','a','s','d'].includes(e.key)){e.preventDefault();keys.add(e.key.toLowerCase());}};const clearKey=e=>keys.delete(e.key.toLowerCase());window.addEventListener('keydown',setKey);window.addEventListener('keyup',clearKey);window.addEventListener('blur',()=>keys.clear());
+  canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);touch={x:e.clientX,y:e.clientY};});canvas.addEventListener('pointermove',e=>{if(!touch)return;const dx=e.clientX-touch.x,dy=e.clientY-touch.y;keys.delete('ArrowLeft');keys.delete('ArrowRight');keys.delete('ArrowUp');keys.delete('ArrowDown');if(Math.abs(dx)>8)keys.add(dx>0?'ArrowRight':'ArrowLeft');if(Math.abs(dy)>8)keys.add(dy>0?'ArrowDown':'ArrowUp');});canvas.addEventListener('pointerup',()=>{touch=null;keys.clear();});
+  window.addEventListener('resize',resize); resize(); reset(); render(0); raf=requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
